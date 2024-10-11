@@ -51,4 +51,9 @@ module.exports = {
      * Optional list of triggers to exclude
      */
     wudTriggerExclude: 'wud.trigger.exclude',
+
+    /**
+     * Optional Lookup registry url (can be useful when pulling containers from a registry cache)
+     */
+    wudRegistryLookupUrl: 'wud.registry.lookup.url',
 };

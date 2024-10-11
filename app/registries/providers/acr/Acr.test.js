@@ -39,6 +39,7 @@ test('match should return true when registry url is from acr', () => {
             },
         }),
     ).toBeTruthy();
+    expect(acr.match('test.azurecr.io')).toBeTruthy();
 });
 
 test('match should return false when registry url is not from acr', () => {

@@ -78,6 +78,14 @@ test('match should return false when registry url is not from gcr', () => {
             },
         }),
     ).toBeFalsy();
+    expect(gcr.match('gcr.io')).toBeTruthy();
+    expect(gcr.match('us.gcr.io')).toBeTruthy();
+    expect(gcr.match('eu.gcr.io')).toBeTruthy();
+    expect(gcr.match('asia.gcr.io')).toBeTruthy();
+});
+
+test('match should return false when registry url is not from gcr', () => {
+    expect(gcr.match('grr.io')).toBeFalsy();
 });
 
 test('normalizeImage should return the proper registry v2 endpoint', () => {

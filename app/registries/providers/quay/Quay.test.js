@@ -72,6 +72,11 @@ test('match should return false when registry url is not from quay.io', () => {
             },
         }),
     ).toBeFalsy();
+    expect(quay.match('quay.io')).toBeTruthy();
+});
+
+test('match should return false when registry url is not from quay.io', () => {
+    expect(quay.match('error.io')).toBeFalsy();
 });
 
 test('normalizeImage should return the proper registry v2 endpoint', () => {

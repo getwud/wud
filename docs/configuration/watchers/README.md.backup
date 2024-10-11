@@ -179,19 +179,32 @@ docker run \
 
 To fine-tune the behaviour of WUD _per container_, you can add labels on them.
 
+<<<<<<< HEAD
 | Label                 |    Required    | Description                                        | Supported values                                                                                                                                                            | Default value when missing                                                            |
 |-----------------------|:--------------:|----------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
 | `wud.display.icon`    | :white_circle: | Custom display icon for the container              | Valid [Material Design Icon](https://materialdesignicons.com/), [Fontawesome Icon](https://fontawesome.com/) or [Simple icon](https://simpleicons.org/) (see details below) | `mdi:docker`                                                                          |
 | `wud.display.name`    | :white_circle: | Custom display name for the container              | Valid String                                                                                                                                                                | Container name                                                                        |
-| `wud.link.template`       | :white_circle: | Browsable link associated to the container version | JS string template with vars `${container}`, `${original}`, `${transformed}`, `${major}`, `${minor}`, `${patch}`, `${prerelease}`                                           |                                                                                       |
-| `wud.registry.lookup.url` | :white_circle: | Custom registry url to use for update lookups      | Any valid Docker registry url                                                                                                                                               |                                                                                       |
-| `wud.tag.exclude`         | :white_circle: | Regex to exclude specific tags                     | Valid JavaScript Regex                                                                                                                                                      |                                                                                       |
+| `wud.link.template`   | :white_circle: | Browsable link associated to the container version | JS string template with vars `${container}`, `${original}`, `${transformed}`, `${major}`, `${minor}`, `${patch}`, `${prerelease}`                                           |                                                                                       |
+| `wud.tag.exclude`     | :white_circle: | Regex to exclude specific tags                     | Valid JavaScript Regex                                                                                                                                                      |                                                                                       |
 | `wud.tag.include`     | :white_circle: | Regex to include specific tags only                | Valid JavaScript Regex                                                                                                                                                      |                                                                                       |
 | `wud.tag.transform`   | :white_circle: | Transform function to apply to the tag             | `$valid_regex => $valid_string_with_placeholders` (see below)                                                                                                               |                                                                                       |
 | `wud.trigger.exclude` | :white_circle: | Optional list of triggers to exclude               | `$trigger_1_id,$trigger_2_id:$threshold`                                                                                                                                    |                                                                                       |
 | `wud.trigger.include` | :white_circle: | Optional list of triggers to include               | `$trigger_1_id,$trigger_2_id:$threshold`                                                                                                                                    |                                                                                       |
 | `wud.watch.digest`    | :white_circle: | Watch this container digest                        | Valid Boolean                                                                                                                                                               | `false`                                                                               |
 | `wud.watch`           | :white_circle: | Watch this container                               | Valid Boolean                                                                                                                                                               | `true` when `WUD_WATCHER_{watcher_name}_WATCHBYDEFAULT` is `true` (`false` otherwise) |
+=======
+| Label                     |    Required    | Description                                        | Supported values                                                                                                                                                            | Default value when missing                                                            |
+|---------------------------|:--------------:|----------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
+| `wud.display.icon`        | :white_circle: | Custom display icon for the container              | Valid [Material Design Icon](https://materialdesignicons.com/), [Fontawesome Icon](https://fontawesome.com/) or [Simple icon](https://simpleicons.org/) (see details below) | `mdi:docker`                                                                          |
+| `wud.display.name`        | :white_circle: | Custom display name for the container              | Valid String                                                                                                                                                                | Container name                                                                        |
+| `wud.link.template`       | :white_circle: | Browsable link associated to the container version | String template with placeholders `${raw}` `${major}` `${minor}` `${patch}` `${prerelease}`                                                                                 |                                                                                       |
+| `wud.registry.lookup.url` | :white_circle: | Custom registy url to use for update lookups       | Any valid Docker registry url                                                                                                                                               |                                                                                       |
+| `wud.tag.exclude`         | :white_circle: | Regex to exclude specific tags                     | Valid JavaScript Regex                                                                                                                                                      |                                                                                       |
+| `wud.tag.include`         | :white_circle: | Regex to include specific tags only                | Valid JavaScript Regex                                                                                                                                                      |                                                                                       |
+| `wud.tag.transform`       | :white_circle: | Transform function to apply to the tag             | `$valid_regex => $valid_string_with_placeholders` (see below)                                                                                                               |                                                                                       |
+| `wud.watch.digest`        | :white_circle: | Watch this container digest                        | Valid Boolean                                                                                                                                                               | `false`                                                                               |
+| `wud.watch`               | :white_circle: | Watch this container                               | Valid Boolean                                                                                                                                                               | `true` when `WUD_WATCHER_{watcher_name}_WATCHBYDEFAULT` is `true` (`false` otherwise) |
+>>>>>>> ab7cf7c (:star: [WATCHER] - Add support for alternative lookup registry url (useful when pulling from registry cache))
 
 ## Label examples
 
@@ -407,24 +420,41 @@ docker run -d --name mariadb --label 'wud.display.name=Maria DB' --label 'wud.di
 ```
 <!-- tabs:end -->
 
+<<<<<<< HEAD
 ### Assign different triggers to containers
 You can assign different triggers and thresholds on a per container basis.
 
 #### Example send a mail notification for all updates but auto-update only if minor or patch
+=======
+### Use an alternative Registry url for update lookups
+In some situations (e.g. when using a Docker Registry cache), it can be needed to give the url of the upstream registry (e.g. the Docker hub registry url)
+>>>>>>> ab7cf7c (:star: [WATCHER] - Add support for alternative lookup registry url (useful when pulling from registry cache))
 
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
+<<<<<<< HEAD
 services:
 
   my_important_service:
     image: my_important_service:1.0.0
     labels:
       - wud.trigger.include=smtp.gmail,dockercompose.local:minor
+=======
+version: '3'
+
+services:
+
+  mariadb:
+    image: localhost:5000/mariadb:10.6.4
+    labels:
+      - wud.registry.lookup.url=https://registry-1.docker.io
+>>>>>>> ab7cf7c (:star: [WATCHER] - Add support for alternative lookup registry url (useful when pulling from registry cache))
 ```
 
 #### **Docker**
 ```bash
+<<<<<<< HEAD
 docker run -d --name my_important_service --label 'wud.trigger.include=smtp.gmail,dockercompose.local:minor' my_important_service:1.0.0
 ```
 <!-- tabs:end -->
@@ -438,25 +468,8 @@ docker run -d --name my_important_service --label 'wud.trigger.include=smtp.gmai
 ?> Threshold `minor` means that the trigger will run only if this is a `minor` or `patch` semver change
 
 ?> Threshold `patch` means that the trigger will run only if this is a `patch` semver change
-
-### Use an alternative Registry url for update lookups
-In some situations (e.g. when using a Docker Registry cache), it can be needed to give the url of the upstream registry (e.g. the Docker hub registry url)
-
-<!-- tabs:start -->
-#### **Docker Compose**
-```yaml
-version: '3'
-
-services:
-
-  mariadb:
-    image: localhost:5000/mariadb:10.6.4
-    labels:
-      - wud.registry.lookup.url=https://registry-1.docker.io
-```
-
-#### **Docker**
-```bash
+=======
 docker run -d --name mariadb --label 'wud.registry.lookup.url=https://registry-1.docker.io' localhost:5000/mariadb:10.6.4
 ```
 <!-- tabs:end -->
+>>>>>>> ab7cf7c (:star: [WATCHER] - Add support for alternative lookup registry url (useful when pulling from registry cache))

@@ -1,7 +1,13 @@
 # Changelog
 
+<<<<<<< HEAD
 ## 8.1.1
 - :fire: [TELEGRAM] - Fix markdown character escape
+=======
+# 6.7.0 (wip)
+- :star: [UI] - Add support for [Selfh.st](https://selfh.st/icons/) icons
+- :star: [WATCHER] - Add support for alternative lookup registry url (useful when pulling from registry cache)
+>>>>>>> ab7cf7c (:star: [WATCHER] - Add support for alternative lookup registry url (useful when pulling from registry cache))
 
 ## 8.1.0
 - :star: Add 60s default jitter in docker watcher to avoid load spike on Docker Hub

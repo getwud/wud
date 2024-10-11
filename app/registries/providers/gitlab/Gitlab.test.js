@@ -55,6 +55,7 @@ test('match should return true when registry url is from gitlab.com', () => {
             },
         }),
     ).toBeTruthy();
+    expect(gitlab.match('registry.gitlab.com')).toBeTruthy();
 });
 
 test('match should return true when registry url is from custom gitlab', () => {
@@ -71,6 +72,7 @@ test('match should return true when registry url is from custom gitlab', () => {
             },
         }),
     ).toBeTruthy();
+    expect(gitlabCustom.match('custom.com')).toBeTruthy();
 });
 
 test('authenticate should perform authenticate request', () => {

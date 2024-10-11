@@ -43,6 +43,11 @@ test('match should return false when registry url is not from ghcr', () => {
             },
         }),
     ).toBeFalsy();
+    expect(ghcr.match('ghcr.io')).toBeTruthy();
+});
+
+test('match should return false when registry url is not from ghcr', () => {
+    expect(ghcr.match('grr.io')).toBeFalsy();
 });
 
 test('normalizeImage should return the proper registry v2 endpoint', () => {
