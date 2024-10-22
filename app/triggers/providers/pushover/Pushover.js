@@ -14,6 +14,7 @@ class Pushover extends Trigger {
             user: this.joi.string().required(),
             token: this.joi.string().required(),
             device: this.joi.string(),
+            html: this.joi.number().valid(0, 1).default(0),
             sound: this.joi.string().allow(
                 'alien',
                 'bike',
@@ -95,6 +96,7 @@ class Pushover extends Trigger {
             sound: this.configuration.sound,
             device: this.configuration.device,
             priority: this.configuration.priority,
+            html: this.configuration.html,
         };
 
         // Emergency priority needs retry/expire props
