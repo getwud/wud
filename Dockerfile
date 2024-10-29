@@ -19,16 +19,34 @@ RUN apk update \
     && apk add --no-cache tzdata openssl \
     && rm -rf /var/cache/apk/*
 
-# Dependencies stage
+# Dependencies Stage (Backend)
 FROM base as dependencies
 
-# Copy app package.json
-COPY app/package* ./
+# Copy backend package files
+COPY app/package*.json ./
 
-# Install dependencies
+# Install backend dependencies
 RUN npm ci --omit=dev --omit=optional --no-audit --no-fund --no-update-notifier
 
-# Release stage
+# Frontend Build Stage
+FROM base as ui-builder
+
+# Set working directory to UI folder
+WORKDIR /home/node/ui
+
+# Copy UI package files
+COPY ui/package*.json ./
+
+# Install UI dependencies
+RUN npm install
+
+# Copy all UI source files
+COPY ui/ ./
+
+# Build the UI
+RUN npm run build
+
+# Release Stage
 FROM base as release
 
 # Default entrypoint
@@ -37,11 +55,11 @@ RUN chmod +x /usr/bin/entrypoint.sh
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
 CMD ["node", "index"]
 
-## Copy node_modules
+# Copy backend dependencies
 COPY --from=dependencies /home/node/app/node_modules ./node_modules
 
-# Copy app
+# Copy backend app files
 COPY app/ ./
 
-# Copy ui
-COPY ui/dist/ ./ui
+# Copy built UI from the ui-builder stage
+COPY --from=ui-builder /home/node/ui/dist ./ui
