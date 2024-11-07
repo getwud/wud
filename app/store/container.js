@@ -74,7 +74,6 @@ function getContainers(query = {}) {
     return containerList.sort(
         byValues([
             [(container) => container.watcher, byString()],
-            [(container) => container.image.registry.name, byString()],
             [(container) => container.name, byString()],
             [(container) => container.image.tag.value, byString()],
         ]),

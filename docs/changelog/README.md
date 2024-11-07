@@ -2,6 +2,7 @@
 
 # 7.1.0 (wip)
 - :star: [PUSHOVER] - Add support for HTML templating
+- :fire: [UI] - Fix container list sort
 
 # 7.0.0
 - :star: [UI] - Add support for [Selfh.st](https://selfh.st/icons/) icons
