@@ -44,6 +44,16 @@
         </span>
       </v-toolbar-title>
       <v-spacer />
+      <v-chip
+        v-if="(container.install === true || container.install === 'multiple') && container.updateAvailable"
+        label
+        color="success"
+        outlined
+        @click.stop="installContainer"
+        class="mr-1"
+      >
+        Install
+      </v-chip>
       <v-tooltip bottom v-if="$vuetify.breakpoint.mdAndUp">
         <template v-slot:activator="{ on, attrs }">
           <v-chip
@@ -181,6 +191,7 @@
 </template>
 
 <script>
+import axios from 'axios';
 import ContainerDetail from "@/components/ContainerDetail";
 import ContainerImage from "@/components/ContainerImage";
 import ContainerUpdate from "@/components/ContainerUpdate";
@@ -325,7 +336,47 @@ export default {
     normalizeFontawesome(iconString, prefix) {
       return `${prefix} fa-${iconString.replace(`${prefix}:`, "")}`;
     },
+
+  async installContainer() {
+    if (this.container.install === 'multiple') {
+      // Display specific message to the user
+      this.$root.$emit(
+        'notify',
+        'Multiple install triggers are configured. Please ensure only one trigger has install enabled.',
+        'error'
+      );
+      return; // Do not proceed with the HTTP request
+    }
+
+    try {
+      const response = await axios.post(`/api/containers/${this.container.id}/install`);
+      console.log(`Installation triggered for ${this.container.displayName}`, response.data);
+      this.$root.$emit(
+        'notify',
+        `Installation triggered for ${this.container.displayName}`,
+        'success'
+      );
+    } catch (error) {
+      console.error(`Failed to install ${this.container.displayName}:`, error);
+
+      // Extract the error message from the server response
+      let errorMessage = 'Unknown error';
+      if (error.response) {
+        errorMessage = error.response.data?.error || error.response.statusText;
+      } else if (error.request) {
+        errorMessage = 'No response received from server';
+      } else {
+        errorMessage = error.message;
+      }
+
+      this.$root.$emit(
+        'notify',
+        `Failed to install ${this.container.displayName}: ${errorMessage}`,
+        'error'
+      );
+    }
   },
+},
 
   mounted() {
     this.deleteEnabled = this.$serverConfig.feature.delete;

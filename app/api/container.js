@@ -2,11 +2,13 @@ const express = require('express');
 const nocache = require('nocache');
 const storeContainer = require('../store/container');
 const registry = require('../registry');
-const { getServerConfiguration } = require('../configuration');
+const { getServerConfiguration, getTriggerConfigurations } = require('../configuration');
+const HttpTrigger = require('../triggers/providers/http/Http');
 
 const router = express.Router();
 
 const serverConfiguration = getServerConfiguration();
+const triggerConfigurations = getTriggerConfigurations();
 
 /**
  * Return registered watchers.
@@ -32,7 +34,41 @@ function getContainersFromStore(query) {
  */
 function getContainers(req, res) {
     const { query } = req;
-    res.status(200).json(getContainersFromStore(query));
+    const containers = getContainersFromStore(query);
+
+    // Access the 'install' flag from the Http trigger configuration
+    const httpTriggers = triggerConfigurations && triggerConfigurations.http;
+
+    console.log('Trigger Configurations:', JSON.stringify(triggerConfigurations, null, 2));
+    console.log('HTTP Triggers:', JSON.stringify(httpTriggers, null, 2));
+
+    let installEnabled = false;
+
+    if (httpTriggers) {
+        // Collect all trigger names that have install enabled
+        const triggersWithInstall = Object.keys(httpTriggers).filter((triggerName) => {
+            const triggerConfig = httpTriggers[triggerName];
+            const installValue = String(triggerConfig.install).toLowerCase();
+            return installValue === 'true';
+        });
+
+        if (triggersWithInstall.length === 1) {
+            // Only one trigger has install enabled
+            installEnabled = true;
+        } else if (triggersWithInstall.length > 1) {
+            // More than one trigger has install enabled
+            installEnabled = 'multiple';
+            console.warn('Multiple triggers have install enabled; install action will be disabled.');
+        }
+        // If no triggers have install enabled, installEnabled remains false
+    }
+
+    const containersWithInstallFlag = containers.map((container) => ({
+        ...container,
+        install: installEnabled,
+    }));
+
+    res.status(200).json(containersWithInstallFlag);
 }
 
 /**
@@ -130,6 +166,60 @@ async function watchContainer(req, res) {
 }
 
 /**
+ * Install a container by id.
+ * @param req
+ * @param res
+ */
+// MODIFICATION START: Add installContainer function
+async function installContainer(req, res) {
+    const { id } = req.params;
+
+    // Access all HTTP triggers from the trigger configurations
+    const httpTriggers = triggerConfigurations && triggerConfigurations.http;
+
+    let httpTriggerConfig = null;
+    let triggersWithInstall = [];
+
+    if (httpTriggers) {
+        // Collect all trigger configurations that have install enabled
+        triggersWithInstall = Object.keys(httpTriggers).filter((triggerName) => {
+            const triggerConfig = httpTriggers[triggerName];
+            const installValue = String(triggerConfig.install).toLowerCase();
+            return installValue === 'true';
+        });
+    }
+
+    if (triggersWithInstall.length === 0) {
+        // No triggers have install enabled
+        return res.status(403).json({ error: 'Install not enabled' });
+    } else if (triggersWithInstall.length > 1) {
+        // Multiple triggers have install enabled
+        return res.status(400).json({ error: 'Multiple install triggers are configured. Please ensure only one trigger has install enabled.' });
+    } else {
+        // Exactly one trigger has install enabled
+        const triggerName = triggersWithInstall[0];
+        httpTriggerConfig = httpTriggers[triggerName];
+    }
+
+    const container = storeContainer.getContainer(id);
+    if (container) {
+        try {
+            const triggerName = triggersWithInstall[0];
+            const httpTrigger = new HttpTrigger(triggerName, httpTriggerConfig);
+            await httpTrigger.install(container);
+            res.status(200).json({ success: true });
+        } catch (e) {
+            res.status(500).json({
+                error: `Error when installing container ${id} (${e.message})`,
+            });
+        }
+    } else {
+        res.sendStatus(404);
+    }
+}
+// MODIFICATION END
+
+/**
  * Init Router.
  * @returns {*}
  */
@@ -140,6 +230,7 @@ function init() {
     router.get('/:id', getContainer);
     router.delete('/:id', deleteContainer);
     router.post('/:id/watch', watchContainer);
+    router.post('/:id/install', installContainer); // MODIFICATION: Add route for installContainer
     return router;
 }
 

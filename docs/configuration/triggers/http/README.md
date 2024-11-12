@@ -13,6 +13,9 @@ The `http` trigger lets you send container update notifications via HTTP.
 | `WUD_TRIGGER_HTTP_{trigger_name}_AUTH_PASSWORD` | :white_circle: | The Auth user password if `BASIC` Auth is enabled |                              |                            |
 | `WUD_TRIGGER_HTTP_{trigger_name}_AUTH_BEARER`   | :white_circle: | The Auth bearer token if `BEARER` Auth is enabled |                              |                            |
 | `WUD_TRIGGER_HTTP_{trigger_name}_PROXY`         | :white_circle: | The HTTP Proxy                                    |                              |                            |
+| `WUD_TRIGGER_HTTP_{trigger_name}_INSTALL`       | :white_circle: | Sets this HTTP trigger as an install type\*       | `true`, or `false`           | `false`                    |
+
+\* By setting the INSTALL variable to `true`, this trigger is only executed manually in the containers UI page by clicking the "Install" button next to the upgrade version. Typical scheduled watch triggers for this http trigger will not occur when INSTALL is `true`. Only one INSTALL variable can be set across all trigger types - if more than one is set the UI will throw an error and the trigger will not be executed. 
 
 ?> This trigger also supports the [common configuration variables](configuration/triggers/?id=common-trigger-configuration).
 

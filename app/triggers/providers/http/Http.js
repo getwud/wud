@@ -10,6 +10,13 @@ class Http extends Trigger {
      * Get the Trigger configuration schema.
      * @returns {*}
      */
+
+    constructor(name, configuration) {
+    super(name, configuration);
+    this.name = name;
+    this.configuration = this.validateConfiguration(configuration);
+    }
+
     getConfigurationSchema() {
         return this.joi.object().keys({
             url: this.joi.string().uri({
@@ -26,6 +33,7 @@ class Http extends Trigger {
                 bearer: this.joi.string(),
             }),
             proxy: this.joi.string(),
+            install: this.joi.boolean().truthy('true').falsy('false').default(false),
         });
     }
 
@@ -36,7 +44,12 @@ class Http extends Trigger {
      * @returns {Promise<void>}
      */
     async trigger(container) {
-        return this.sendHttpRequest(container);
+        if (String(this.configuration.install).toLowerCase() === 'true') {
+        // Skip the trigger action if install is enabled
+        this.log.debug(`Skipping trigger action for ${this.name} because install is enabled`);
+        return;
+        }
+        return this.sendHttpRequest(container, 'trigger');
     }
 
     /**
@@ -45,19 +58,40 @@ class Http extends Trigger {
      * @returns {Promise<*>}
      */
     async triggerBatch(containers) {
-        return this.sendHttpRequest(containers);
+        if (String(this.configuration.install).toLowerCase() === 'true') {
+            // Skip the batch trigger action if install is enabled
+            this.log.debug(`Skipping batch trigger action for ${this.name} because install is enabled`);
+            return;
+        }
+        return this.sendHttpRequest(containers, 'triggerBatch');
     }
 
-    async sendHttpRequest(body) {
+    /**
+     * Send an HTTP Request for install action.
+     * @param container
+     * @returns {Promise<void>}
+     */
+    async install(container) { // MODIFICATION START: Added 'install' method
+        return this.sendHttpRequest(container, 'install');
+    } // MODIFICATION END
+
+    /**
+     * Send an HTTP Request.
+     * @param body
+     * @param actionType
+     * @returns {Promise<*>}
+     */
+
+    async sendHttpRequest(body, actionType = 'trigger') {
         const options = {
             method: this.configuration.method,
             uri: this.configuration.url,
         };
         if (this.configuration.method === 'POST') {
-            options.body = body;
+            options.body = { ...body, actionType }; 
             options.json = true;
         } else if (this.configuration.method === 'GET') {
-            options.qs = body;
+            options.qs = { ...body, actionType };
         }
         if (this.configuration.auth) {
             if (this.configuration.auth.type === 'BASIC') {
@@ -74,7 +108,19 @@ class Http extends Trigger {
         if (this.configuration.proxy) {
             options.proxy = this.configuration.proxy;
         }
-        return rp(options);
+
+        // MODIFICATION START: Add logging and error handling
+        console.log(`Sending ${actionType} HTTP request to ${options.uri}`);
+        try {
+            const response = await rp(options);
+            console.log(`HTTP ${actionType} request successful:`, response);
+            return response;
+        } catch (error) {
+            console.error(`HTTP ${actionType} request failed:`, error.message);
+            throw error; // Re-throw the error to be handled upstream
+        }
+        // MODIFICATION END
+        // return rp(options);
     }
 }
 

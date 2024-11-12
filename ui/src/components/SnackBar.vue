@@ -1,8 +1,8 @@
 <template>
   <v-snackbar
     :value="show"
-    :timeout="timeout"
-    color="primary"
+    :timeout="computedTimeout"
+    :color="computedColor"
     @input="closeSnackbar"
     outlined
   >
@@ -33,7 +33,23 @@ export default {
       default: "info",
     },
   },
-
+  computed: {
+    computedColor() {
+      switch (this.level) {
+        case "success":
+          return "green";
+        case "warning":
+          return "orange";
+        case "error":
+          return "red";
+        default:
+          return "primary";
+      }
+    },
+    computedTimeout() {
+      return this.level === "error" ? 0 : this.timeout;
+    },
+  },
   methods: {
     closeSnackbar() {
       this.$root.$emit("notify:close");
