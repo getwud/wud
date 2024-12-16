@@ -3,6 +3,7 @@
 # 7.1.2 (wip)
 - :star: [UI] - Some ux improvements
 - :star: [UI/API] - Add support for manually running triggers to help with configuration
+- :star: [TRIGGER] - Add support for associating specific triggers to specific containers
 
 # 7.1.1
 - :fire: [NTFY] - Fix basic/bearer authentication

@@ -94,7 +94,7 @@ script:
 
   # Pull vaultwarden
   - docker pull vaultwarden/server
-  - docker pull vaultwarden/server:1.32.5-alpine
+  - docker pull vaultwarden/server:1.32.6-alpine
 
   # Pull youtubedl
   - docker pull jeeaaasustest/youtube-dl
@@ -117,7 +117,7 @@ script:
   #  - docker run -d --name gcr_sub_sub_test  --label "wud.watch=true" gcr.io/wud-test/sub/sub/test:1.0.0
 
   # GHCR
-  - docker run -d --name ghcr_radarr              --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+\.\d+\.\d+-ls\d+$'               ghcr.io/linuxserver/radarr:3.2.1.5070-ls105
+  - docker run -d --name ghcr_radarr              --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+\.\d+\.\d+-ls\d+$'               ghcr.io/linuxserver/radarr:5.14.0.9383-ls245
 
   # GITLAB
   - docker run -d --name gitlab_test              --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+\.\d+$'                         registry.gitlab.com/manfred-martin/docker-registry-test:1.0.0
@@ -141,13 +141,13 @@ script:
   - docker run -d --name hub_traefik_245          --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+.\d+$'                           traefik:2.4.5
   - docker run -d --name hub_traefik_latest       --label 'wud.watch=true' --label 'wud.watch.digest=true' --label 'wud.tag.include=^latest$' traefik
 
-  - docker run -d --name hub_vaultwarden_1222     --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+.\d+-alpine$'                    -e I_REALLY_WANT_VOLATILE_STORAGE=true vaultwarden/server:1.32.5-alpine
+  - docker run -d --name hub_vaultwarden_1222     --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+.\d+-alpine$'                    -e I_REALLY_WANT_VOLATILE_STORAGE=true vaultwarden/server:1.32.6-alpine
   - docker run -d --name hub_vaultwarden_latest   --label 'wud.watch=true' --label 'wud.watch.digest=true' --label 'wud.tag.include=^latest$' -e I_REALLY_WANT_VOLATILE_STORAGE=true vaultwarden/server
 
   - docker run -d --name hub_youtubedb_latest     --label 'wud.watch=true' --label 'wud.watch.digest=true' --label 'wud.tag.include=^latest$' jeeaaasustest/youtube-dl
 
   # LSCR
-  - docker run -d --name lscr_radarr              --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+\.\d+\.\d+-ls\d+$'               lscr.io/linuxserver/radarr:3.2.1.5070-ls105
+  - docker run -d --name lscr_radarr              --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+\.\d+\.\d+-ls\d+$'               lscr.io/linuxserver/radarr:5.14.0.9383-ls245
 
   # QUAY
   - docker run -d --name quay_prometheus          --label 'wud.watch=true' --label 'wud.tag.include=^v\d+\.\d+\.\d+$'                         quay.io/prometheus/prometheus:v2.52.0

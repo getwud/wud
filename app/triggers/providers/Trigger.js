@@ -26,6 +26,36 @@ function renderSimple(template, container) {
  * Trigger base component.
  */
 class Trigger extends Component {
+/**
+ * Return true if update reaches trigger threshold.
+ * @param containerResult
+ * @param threshold
+ * @returns {boolean}
+ */
+    static isThresholdReached(containerResult, threshold) {
+        let thresholdPassing = true;
+        if (
+            threshold.toLowerCase() !== 'all'
+            && containerResult.updateKind
+            && containerResult.updateKind.kind === 'tag'
+            && containerResult.updateKind.semverDiff
+            && containerResult.updateKind.semverDiff !== 'unknown'
+        ) {
+            switch (threshold) {
+            case 'minor':
+                thresholdPassing = containerResult.updateKind.semverDiff !== 'major';
+                break;
+            case 'patch':
+                thresholdPassing = containerResult.updateKind.semverDiff !== 'major'
+                        && containerResult.updateKind.semverDiff !== 'minor';
+                break;
+            default:
+                thresholdPassing = true;
+            }
+        }
+        return thresholdPassing;
+    }
+
     /**
      * Handle container report (simple mode).
      * @param containerReport
@@ -41,10 +71,15 @@ class Trigger extends Component {
                 .log.child({ container: fullName(containerReport.container) }) || this.log;
             let status = 'error';
             try {
-                if (!this.isThresholdReached(containerReport.container)) {
-                    logContainer.debug('Threshold not reached => do not trigger');
+                if (!Trigger.isThresholdReached(
+                    containerReport.container,
+                    this.configuration.threshold.toLowerCase(),
+                )) {
+                    logContainer.debug('Threshold not reached => ignore');
+                } else if (!this.mustTrigger(containerReport.container)) {
+                    logContainer.debug('Trigger conditions not met => ignore');
                 } else {
-                    logContainer.debug('Run trigger');
+                    logContainer.debug('Run');
                     await this.trigger(containerReport.container);
                 }
                 status = 'success';
@@ -68,11 +103,15 @@ class Trigger extends Component {
             const containerReportsFiltered = containerReports
                 .filter((containerReport) => containerReport.changed || !this.configuration.once)
                 .filter((containerReport) => containerReport.container.updateAvailable)
-                .filter((containerReport) => this.isThresholdReached(containerReport.container));
+                .filter((containerReport) => this.mustTrigger(containerReport.container))
+                .filter((containerReport) => Trigger.isThresholdReached(
+                    containerReport.container,
+                    this.configuration.threshold.toLowerCase(),
+                ));
             const containersFiltered = containerReportsFiltered
                 .map((containerReport) => containerReport.container);
             if (containersFiltered.length > 0) {
-                this.log.debug('Run trigger batch');
+                this.log.debug('Run batch');
                 await this.triggerBatch(containersFiltered);
             }
         } catch (e) {
@@ -81,34 +120,55 @@ class Trigger extends Component {
         }
     }
 
+    isTriggerIncludedOrExcluded(containerResult, trigger) {
+        const triggers = trigger.split(/\s*,\s*/).map((triggerToMatch) => {
+            const triggerToMatchConfigurationSplit = triggerToMatch.split(/\s*:\s*/);
+            const triggerToMatchConfiguration = {
+                id: `trigger.${triggerToMatchConfigurationSplit[0]}`,
+                threshold: 'all',
+            };
+            if (triggerToMatchConfigurationSplit.length === 2) {
+                switch (triggerToMatchConfigurationSplit[1]) {
+                case 'major': triggerToMatchConfiguration.threshold = 'major'; break;
+                case 'minor': triggerToMatchConfiguration.threshold = 'minor'; break;
+                case 'patch': triggerToMatchConfiguration.threshold = 'patch'; break;
+                default: triggerToMatchConfiguration.threshold = 'all';
+                }
+            }
+            return triggerToMatchConfiguration;
+        });
+        const triggerMatched = triggers.find(
+            (triggerToMatch) => triggerToMatch.id.toLowerCase() === this.getId(),
+        );
+        if (!triggerMatched) {
+            return false;
+        }
+        return Trigger.isThresholdReached(containerResult, triggerMatched.threshold.toLowerCase());
+    }
+
+    isTriggerIncluded(containerResult, triggerInclude) {
+        if (!triggerInclude) {
+            return true;
+        }
+        return this.isTriggerIncludedOrExcluded(containerResult, triggerInclude);
+    }
+
+    isTriggerExcluded(containerResult, triggerExclude) {
+        if (!triggerExclude) {
+            return false;
+        }
+        return this.isTriggerIncludedOrExcluded(containerResult, triggerExclude);
+    }
+
     /**
-     * Return true if update reaches trigger threshold.
+     * Return true if must trigger on this container.
      * @param containerResult
      * @returns {boolean}
      */
-    isThresholdReached(containerResult) {
-        let thresholdPassing = true;
-        if (
-            this.configuration.threshold.toLowerCase() !== 'all'
-            && containerResult.updateKind
-            && containerResult.updateKind.kind === 'tag'
-            && containerResult.updateKind.semverDiff
-            && containerResult.updateKind.semverDiff !== 'unknown'
-        ) {
-            const threshold = this.configuration.threshold.toLowerCase();
-            switch (threshold) {
-            case 'minor':
-                thresholdPassing = containerResult.updateKind.semverDiff !== 'major';
-                break;
-            case 'patch':
-                thresholdPassing = containerResult.updateKind.semverDiff !== 'major'
-                        && containerResult.updateKind.semverDiff !== 'minor';
-                break;
-            default:
-                thresholdPassing = true;
-            }
-        }
-        return thresholdPassing;
+    mustTrigger(containerResult) {
+        const { triggerInclude, triggerExclude } = containerResult;
+        return this.isTriggerIncluded(containerResult, triggerInclude)
+        && !this.isTriggerExcluded(containerResult, triggerExclude);
     }
 
     /**

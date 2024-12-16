@@ -44,6 +44,8 @@ function init() {
             'transform_tags',
             'link_template',
             'link',
+            'trigger_include',
+            'trigger_exclude',
             'image_id',
             'image_registry_name',
             'image_registry_url',

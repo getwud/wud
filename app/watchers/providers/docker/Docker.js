@@ -15,6 +15,8 @@ const {
     wudLinkTemplate,
     wudDisplayName,
     wudDisplayIcon,
+    wudTriggerInclude,
+    wudTriggerExclude,
 } = require('./label');
 const storeContainer = require('../../../store/container');
 const log = require('../../../log');
@@ -473,6 +475,8 @@ class Docker extends Component {
                 container.Labels[wudLinkTemplate],
                 container.Labels[wudDisplayName],
                 container.Labels[wudDisplayIcon],
+                container.Labels[wudTriggerInclude],
+                container.Labels[wudTriggerExclude],
             ));
         const containersWithImage = await Promise.all(containerPromises);
 
@@ -573,6 +577,8 @@ class Docker extends Component {
         linkTemplate,
         displayName,
         displayIcon,
+        triggerInclude,
+        triggerExclude,
     ) {
         const containerId = container.Id;
 
@@ -628,6 +634,8 @@ class Docker extends Component {
             linkTemplate,
             displayName,
             displayIcon,
+            triggerInclude,
+            triggerExclude,
             image: {
                 id: imageId,
                 registry: {
