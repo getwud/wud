@@ -43,4 +43,14 @@ module.exports = {
      */
     wudDisplayIcon: 'wud.display.icon',
 
+    /**
+     * Optional list of triggers to include
+     */
+    wudTriggerInclude: 'wud.trigger.include',
+
+    /**
+     * Optional list of triggers to exclude
+     */
+    wudTriggerExclude: 'wud.trigger.exclude',
+
 };

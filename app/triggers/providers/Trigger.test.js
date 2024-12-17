@@ -305,12 +305,12 @@ test.each(isThresholdReachedTestCases)(
         trigger.configuration = {
             threshold: item.threshold,
         };
-        expect(trigger.isThresholdReached({
+        expect(Trigger.isThresholdReached({
             updateKind: {
                 kind: item.kind,
                 semverDiff: item.change,
             },
-        })).toEqual(item.result);
+        }, trigger.configuration.threshold)).toEqual(item.result);
     },
 );
 
@@ -318,9 +318,9 @@ test('isThresholdReached should return true when there is no semverDiff regardle
     trigger.configuration = {
         threshold: 'all',
     };
-    expect(trigger.isThresholdReached({
+    expect(Trigger.isThresholdReached({
         updateKind: { kind: 'digest' },
-    })).toBeTruthy();
+    }, trigger.configuration.threshold)).toBeTruthy();
 });
 
 test('renderSimpleTitle should replace placeholders when called', async () => {

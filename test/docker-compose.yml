@@ -1,44 +1,9 @@
 services:
 
-  # Self-hosted registry
-  registry:
-    image: registry:2.8.1
-    container_name: registry
-    ports:
-      - "8000:8000"
-    labels:
-      - wud.watch=true
-    environment:
-      - REGISTRY_AUTH=htpasswd
-      - REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm
-      - REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd
-    volumes:
-      - ./registry/auth:/auth
-
-  # Nginx
-  nginx_latest:
-    image: nginx
-    container_name: nginx_latest
-    labels:
-      - wud.watch=true
-      - wud.tag.include=^latest$$
-      - wud.watch.digest=true
-  # Mosquitto with mTLS enabled
-  mosquitto:
-    image: eclipse-mosquitto:2.0.14
-    container_name: mosquitto
-    user: '1000:1000'
-    ports:
-      - '1883:1883'
-      - '8883:8883'
-    volumes:
-      - ./mosquitto/config:/mosquitto/config
-
   # Traefik
-  traefik_245:
-    image: traefik:2.4.5
-    container_name: traefik_245
+  traefik:
+    image: traefik:3.0.0
     labels:
       - wud.watch=true                    # check that comments are preserved
       - wud.tag.include=^\d+\.\d+.\d+$$   # check that comments are preserved
-
+      - wud.trigger.exclude=ntfy.three
