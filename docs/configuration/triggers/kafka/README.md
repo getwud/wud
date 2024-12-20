@@ -25,8 +25,6 @@ The `kafka` trigger lets you publish container update notifications to a Kafka t
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud

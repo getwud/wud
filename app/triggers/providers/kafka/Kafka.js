@@ -16,7 +16,8 @@ class Kafka extends Trigger {
             clientId: this.joi.string().default('wud'),
             ssl: this.joi.boolean().default(false),
             authentication: this.joi.object({
-                type: this.joi.string()
+                type: this.joi
+                    .string()
                     .allow('PLAIN')
                     .allow('SCRAM-SHA-256')
                     .allow('SCRAM-SHA-512')
@@ -38,11 +39,15 @@ class Kafka extends Trigger {
             topic: this.configuration.topic,
             clientId: this.configuration.clientId,
             ssl: this.configuration.ssl,
-            authentication: this.configuration.authentication ? {
-                type: this.configuration.authentication.type,
-                user: this.configuration.authentication.user,
-                password: Kafka.mask(this.configuration.authentication.password),
-            } : undefined,
+            authentication: this.configuration.authentication
+                ? {
+                      type: this.configuration.authentication.type,
+                      user: this.configuration.authentication.user,
+                      password: Kafka.mask(
+                          this.configuration.authentication.password,
+                      ),
+                  }
+                : undefined,
         };
     }
 
@@ -50,7 +55,9 @@ class Kafka extends Trigger {
      * Init trigger.
      */
     initTrigger() {
-        const brokers = this.configuration.brokers.split(/\s*,\s*/).map((broker) => broker.trim());
+        const brokers = this.configuration.brokers
+            .split(/\s*,\s*/)
+            .map((broker) => broker.trim());
         const clientConfiguration = {
             clientId: this.configuration.clientId,
             brokers,
@@ -91,7 +98,9 @@ class Kafka extends Trigger {
         await producer.connect();
         return producer.send({
             topic: this.configuration.topic,
-            messages: containers.map((container) => ({ value: JSON.stringify(container) })),
+            messages: containers.map((container) => ({
+                value: JSON.stringify(container),
+            })),
         });
     }
 }

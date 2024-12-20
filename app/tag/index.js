@@ -11,8 +11,9 @@ const log = require('../log');
  */
 function parse(rawVersion) {
     const rawVersionCleaned = semver.clean(rawVersion, { loose: true });
-    const rawVersionSemver = semver
-        .parse(rawVersionCleaned !== null ? rawVersionCleaned : rawVersion);
+    const rawVersionSemver = semver.parse(
+        rawVersionCleaned !== null ? rawVersionCleaned : rawVersion,
+    );
     // Hurrah!
     if (rawVersionSemver !== null) {
         return rawVersionSemver;
@@ -74,13 +75,21 @@ function transform(transformFormula, originalTag) {
 
         let transformedTag = transformFormulaSplit[1];
         placeholders.forEach((placeholder) => {
-            const placeholderIndex = Number.parseInt(placeholder.substring(1), 10);
-            transformedTag = transformedTag.replace(new RegExp(placeholder.replace('$', '\\$'), 'g'), originalTagMatches[placeholderIndex]);
+            const placeholderIndex = Number.parseInt(
+                placeholder.substring(1),
+                10,
+            );
+            transformedTag = transformedTag.replace(
+                new RegExp(placeholder.replace('$', '\\$'), 'g'),
+                originalTagMatches[placeholderIndex],
+            );
         });
         return transformedTag;
     } catch (e) {
         // Upon error; log & fallback to original tag value
-        log.warn(`Error when applying transform function [${transformFormula}]to tag [${originalTag}]`);
+        log.warn(
+            `Error when applying transform function [${transformFormula}]to tag [${originalTag}]`,
+        );
         log.debug(e);
         return originalTag;
     }

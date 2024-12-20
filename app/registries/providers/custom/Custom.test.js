@@ -8,11 +8,13 @@ custom.configuration = {
 };
 
 test('validatedConfiguration should initialize when configuration is valid', () => {
-    expect(custom.validateConfiguration({
-        url: 'http://localhost:5000',
-        login: 'login',
-        password: 'password',
-    })).toStrictEqual({
+    expect(
+        custom.validateConfiguration({
+            url: 'http://localhost:5000',
+            login: 'login',
+            password: 'password',
+        }),
+    ).toStrictEqual({
         url: 'http://localhost:5000',
         login: 'login',
         password: 'password',
@@ -38,31 +40,36 @@ test('maskConfiguration should mask configuration secrets', () => {
 });
 
 test('match should return true when registry url is from custom', () => {
-    expect(custom.match({
-        registry: {
-            url: 'localhost:5000',
-        },
-    })).toBeTruthy();
+    expect(
+        custom.match({
+            registry: {
+                url: 'localhost:5000',
+            },
+        }),
+    ).toBeTruthy();
 });
 
 test('match should return false when registry url is not from custom', () => {
-    expect(custom.match({
-        registry: {
-            url: 'est.notme.io',
-        },
-    })).toBeFalsy();
+    expect(
+        custom.match({
+            registry: {
+                url: 'est.notme.io',
+            },
+        }),
+    ).toBeFalsy();
 });
 
 test('normalizeImage should return the proper registry v2 endpoint', () => {
-    expect(custom.normalizeImage({
+    expect(
+        custom.normalizeImage({
+            name: 'test/image',
+            registry: {
+                url: 'localhost:5000/test/image',
+            },
+        }),
+    ).toStrictEqual({
         name: 'test/image',
         registry: {
-            url: 'localhost:5000/test/image',
-        },
-    })).toStrictEqual({
-        name: 'test/image',
-        registry: {
-            name: 'custom',
             url: 'http://localhost:5000/v2',
         },
     });

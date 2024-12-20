@@ -5,7 +5,7 @@ test('model should be validated when compliant', () => {
         id: 'container-123456789',
         name: 'test',
         watcher: 'test',
-        // eslint-disable-next-line no-template-curly-in-string
+
         linkTemplate: 'https://release-${major}.${minor}.${patch}.acme.com',
         image: {
             id: 'image-123456789',
@@ -31,7 +31,9 @@ test('model should be validated when compliant', () => {
         },
     });
 
-    expect(containerValidated.resultChanged.name).toEqual('resultChangedFunction');
+    expect(containerValidated.resultChanged.name).toEqual(
+        'resultChangedFunction',
+    );
     delete containerValidated.resultChanged;
 
     expect(containerValidated).toStrictEqual({
@@ -59,7 +61,7 @@ test('model should be validated when compliant', () => {
         name: 'test',
         displayName: 'test',
         displayIcon: 'mdi:docker',
-        // eslint-disable-next-line no-template-curly-in-string
+
         linkTemplate: 'https://release-${major}.${minor}.${patch}.acme.com',
         link: 'https://release-1.0.0.acme.com',
         updateAvailable: true,
@@ -78,9 +80,9 @@ test('model should be validated when compliant', () => {
 });
 
 test('model should not be validated when invalid', () => {
-    expect((() => {
+    expect(() => {
         container.validate({});
-    })).toThrow();
+    }).toThrow();
 });
 
 test('model should flag updateAvailable when tag is different', () => {
@@ -224,7 +226,7 @@ test('model should support transforms for links', () => {
         name: 'test',
         watcher: 'test',
         transformTags: '^(\\d+\\.\\d+)-.*-(\\d+) => $1.$2',
-        // eslint-disable-next-line no-template-curly-in-string
+
         linkTemplate: 'https://release-${major}.${minor}.${patch}.acme.com',
         image: {
             id: 'image-123456789',
@@ -237,8 +239,7 @@ test('model should support transforms for links', () => {
                 value: '1.2-foo-3',
                 semver: true,
             },
-            digest: {
-            },
+            digest: {},
             architecture: 'arch',
             os: 'os',
         },
@@ -260,7 +261,7 @@ test('flatten should be flatten the nested properties with underscores when call
         id: 'container-123456789',
         name: 'test',
         watcher: 'test',
-        // eslint-disable-next-line no-template-curly-in-string
+
         linkTemplate: 'https://release-${major}.${minor}.${patch}.acme.com',
         image: {
             id: 'image-123456789',
@@ -300,7 +301,7 @@ test('flatten should be flatten the nested properties with underscores when call
         image_tag_semver: true,
         image_tag_value: '1.0.0',
         link: 'https://release-1.0.0.acme.com',
-        // eslint-disable-next-line no-template-curly-in-string
+
         link_template: 'https://release-${major}.${minor}.${patch}.acme.com',
         name: 'test',
         display_name: 'test',
@@ -317,20 +318,23 @@ test('flatten should be flatten the nested properties with underscores when call
 });
 
 test('fullName should build an id with watcher name & container name when called', () => {
-    expect(container.fullName({
-        watcher: 'watcher',
-        name: 'container_name',
-    })).toEqual('watcher_container_name');
+    expect(
+        container.fullName({
+            watcher: 'watcher',
+            name: 'container_name',
+        }),
+    ).toEqual('watcher_container_name');
 });
 
 test('getLink should render link templates when called', () => {
     const getLink = container.__get__('getLink');
-    expect(getLink(
-        // eslint-disable-next-line no-template-curly-in-string
-        'https://test-${major}.${minor}.${patch}.acme.com',
-        '10.5.2',
-        true,
-    )).toEqual('https://test-10.5.2.acme.com');
+    expect(
+        getLink(
+            'https://test-${major}.${minor}.${patch}.acme.com',
+            '10.5.2',
+            true,
+        ),
+    ).toEqual('https://test-10.5.2.acme.com');
 });
 
 test('getLink should render undefined when template is missing', () => {

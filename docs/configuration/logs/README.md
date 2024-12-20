@@ -16,8 +16,6 @@ You can adjust the log level with env var WUD_LOG_LEVEL.
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
@@ -41,8 +39,6 @@ docker run -e WUD_LOG_FORMAT=json ... getwud/wud
 
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud

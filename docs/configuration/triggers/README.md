@@ -18,12 +18,12 @@ All implemented triggers, in addition to their specific configuration, also supp
 
 | Env var                                                    |    Required    | Description                                                                            | Supported values                                                                                                     | Default value when missing                                                                       |
 |------------------------------------------------------------|:--------------:|----------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------|
-| `WUD_TRIGGER_{{trigger_type}}}_{trigger_name}_MODE`        | :white_circle: | Trigger for each container update or trigger once with all available updates as a list | `simple`, `batch`                                                                                                    | `simple`                                                                                         |
-| `WUD_TRIGGER_{{trigger_type}}}_{trigger_name}_ONCE`        | :white_circle: | Run trigger once (do not repeat previous results)                                      | `true`, `false`                                                                                                      | `true`                                                                                           |
-| `WUD_TRIGGER_{{trigger_type}}}_{trigger_name}_THRESHOLD`   | :white_circle: | The threshold to reach to run the trigger                                              | `all`, `major`, `minor`, `patch`                                                                                     | `all`                                                                                            |
-| `WUD_TRIGGER_{{trigger_type}}}_{trigger_name}_SIMPLETITLE` | :white_circle: | The template to use to render the title of the notification (simple mode)              | String template with placeholders `${id}` `${name}` `${watcher}` `${kind}` `${semver}` `${local}` `${remote}` `${link}` | `New ${kind} found for container ${name}`                                                        |
-| `WUD_TRIGGER_{{trigger_type}}}_{trigger_name}_BATCHTITLE`  | :white_circle: | The template to use to render the title of the notification (batch mode)               | String template with placeholders `${count}`                                                                         | `${count} updates available`                                                                     |
-| `WUD_TRIGGER_{{trigger_type}}}_{trigger_name}_SIMPLEBODY`  | :white_circle: | The template to use to render the body of the notification                             | String template with placeholders `${id}` `${name}` `${watcher}` `${kind}` `${semver}` `${local}` `${remote}` `${link}` | `Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote} \n ${link}` |
+| `WUD_TRIGGER_{trigger_type}_{trigger_name}_MODE`        | :white_circle: | Trigger for each container update or trigger once with all available updates as a list | `simple`, `batch`                                                                                                    | `simple`                                                                                         |
+| `WUD_TRIGGER_{trigger_type}_{trigger_name}_ONCE`        | :white_circle: | Run trigger once (do not repeat previous results)                                      | `true`, `false`                                                                                                      | `true`                                                                                           |
+| `WUD_TRIGGER_{trigger_type}_{trigger_name}_THRESHOLD`   | :white_circle: | The threshold to reach to run the trigger                                              | `all`, `major`, `minor`, `patch`                                                                                     | `all`                                                                                            |
+| `WUD_TRIGGER_{trigger_type}_{trigger_name}_SIMPLETITLE` | :white_circle: | The template to use to render the title of the notification (simple mode)              | String template with placeholders `${id}` `${name}` `${watcher}` `${kind}` `${semver}` `${local}` `${remote}` `${link}` | `New ${kind} found for container ${name}`                                                        |
+| `WUD_TRIGGER_{trigger_type}_{trigger_name}_BATCHTITLE`  | :white_circle: | The template to use to render the title of the notification (batch mode)               | String template with placeholders `${count}`                                                                         | `${count} updates available`                                                                     |
+| `WUD_TRIGGER_{trigger_type}_{trigger_name}_SIMPLEBODY`  | :white_circle: | The template to use to render the body of the notification                             | String template with placeholders `${id}` `${name}` `${watcher}` `${kind}` `${semver}` `${local}` `${remote}` `${link}` | `Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote} \n ${link}` |
 
 ?> Threshold `all` means that the trigger will run regardless of the nature of the change
 
@@ -33,7 +33,7 @@ All implemented triggers, in addition to their specific configuration, also supp
 
 ?> Threshold `patch` means that the trigger will run only if this is a `patch` semver change
 
-?> `WUD_TRIGGER_{{trigger_type}}}_{trigger_name}_ONCE=false` can be useful when `WUD_TRIGGER_{{trigger_type}}}_{trigger_name}_MODE=batch` to get a report with all pending updates.
+?> `WUD_TRIGGER_{trigger_type}_{trigger_name}_ONCE=false` can be useful when `WUD_TRIGGER_{trigger_type}_{trigger_name}_MODE=batch` to get a report with all pending updates.
 
 
 ### Examples
@@ -41,8 +41,6 @@ All implemented triggers, in addition to their specific configuration, also supp
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud

@@ -32,7 +32,7 @@ class Gcr extends Registry {
      * @param image the image
      * @returns {boolean}
      */
-    // eslint-disable-next-line class-methods-use-this
+
     match(image) {
         return /^.*\.?gcr.io$/.test(image.registry.url);
     }
@@ -42,10 +42,9 @@ class Gcr extends Registry {
      * @param image
      * @returns {*}
      */
-    // eslint-disable-next-line class-methods-use-this
+
     normalizeImage(image) {
         const imageNormalized = image;
-        imageNormalized.registry.name = 'gcr';
         if (!imageNormalized.registry.url.startsWith('https://')) {
             imageNormalized.registry.url = `https://${imageNormalized.registry.url}/v2`;
         }
@@ -61,10 +60,13 @@ class Gcr extends Registry {
             uri: `https://gcr.io/v2/token?scope=repository:${image.name}:pull`,
             headers: {
                 Accept: 'application/json',
-                Authorization: `Basic ${Gcr.base64Encode('_json_key', JSON.stringify({
-                    client_email: this.configuration.clientemail,
-                    private_key: this.configuration.privatekey,
-                }))}`,
+                Authorization: `Basic ${Gcr.base64Encode(
+                    '_json_key',
+                    JSON.stringify({
+                        client_email: this.configuration.clientemail,
+                        private_key: this.configuration.privatekey,
+                    }),
+                )}`,
             },
             json: true,
         };

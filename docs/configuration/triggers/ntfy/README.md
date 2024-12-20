@@ -23,8 +23,6 @@ The `ntfy` trigger lets you send container update notifications via [Ntfy](https
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
@@ -46,8 +44,6 @@ docker run \
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud

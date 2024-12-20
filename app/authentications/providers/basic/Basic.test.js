@@ -14,13 +14,13 @@ beforeEach(() => {
 });
 
 test('validateConfiguration should return validated configuration when valid', () => {
-    const validatedConfiguration = basic.validateConfiguration(configurationValid);
+    const validatedConfiguration =
+        basic.validateConfiguration(configurationValid);
     expect(validatedConfiguration).toStrictEqual(configurationValid);
 });
 
 test('validateConfiguration should throw error when invalid', () => {
-    const configuration = {
-    };
+    const configuration = {};
     expect(() => {
         basic.validateConfiguration(configuration);
     }).toThrowError(ValidationError);

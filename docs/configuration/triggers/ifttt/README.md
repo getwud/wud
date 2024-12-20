@@ -27,8 +27,6 @@ On Webhook call, Ifttt captures the following ingredients:
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud

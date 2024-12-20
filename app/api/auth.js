@@ -54,20 +54,24 @@ function useStrategy(authentication, app) {
         passport.use(authentication.getId(), strategy);
         STRATEGY_IDS.push(authentication.getId());
     } catch (e) {
-        log.warn(`Unable to apply authentication ${authentication.getId()} (${e.message})`);
+        log.warn(
+            `Unable to apply authentication ${authentication.getId()} (${e.message})`,
+        );
     }
 }
 
 function getUniqueStrategies() {
-    const strategies = Object.values(registry.getState().authentication)
-        .map((authentication) => authentication.getStrategyDescription());
+    const strategies = Object.values(registry.getState().authentication).map(
+        (authentication) => authentication.getStrategyDescription(),
+    );
     const uniqueStrategies = [];
     strategies.forEach((strategy) => {
-        if (!(uniqueStrategies
-            .find(
-                (item) => item.type === strategy.type
-                    && item.name === strategy.name,
-            ))) {
+        if (
+            !uniqueStrategies.find(
+                (item) =>
+                    item.type === strategy.type && item.name === strategy.name,
+            )
+        ) {
             uniqueStrategies.push(strategy);
         }
     });
@@ -84,7 +88,9 @@ function getStrategies(req, res) {
 }
 
 function getLogoutRedirectUrl() {
-    const strategyWithRedirectUrl = getUniqueStrategies().find((strategy) => strategy.logoutUrl);
+    const strategyWithRedirectUrl = getUniqueStrategies().find(
+        (strategy) => strategy.logoutUrl,
+    );
     if (strategyWithRedirectUrl) {
         return strategyWithRedirectUrl.logoutUrl;
     }
@@ -128,27 +134,30 @@ function logout(req, res) {
  */
 function init(app) {
     // Init express session
-    app.use(session({
-        store: new LokiStore({
-            path: `${store.getConfiguration().path}/${store.getConfiguration().file}`,
-            ttl: 604800, // 7 days
+    app.use(
+        session({
+            store: new LokiStore({
+                path: `${store.getConfiguration().path}/${store.getConfiguration().file}`,
+                ttl: 604800, // 7 days
+            }),
+            secret: getSessionSecretKey(),
+            resave: false,
+            saveUninitialized: false,
+            cookie: {
+                httpOnly: true,
+                maxAge: getCookieMaxAge(7),
+            },
         }),
-        secret: getSessionSecretKey(),
-        resave: false,
-        saveUninitialized: false,
-        cookie: {
-            httpOnly: true,
-            maxAge: getCookieMaxAge(7),
-        },
-    }));
+    );
 
     // Init passport middleware
     app.use(passport.initialize());
     app.use(passport.session());
 
     // Register all authentications
-    Object.values(registry.getState().authentication)
-        .forEach((authentication) => useStrategy(authentication, app));
+    Object.values(registry.getState().authentication).forEach(
+        (authentication) => useStrategy(authentication, app),
+    );
 
     passport.serializeUser((user, done) => {
         done(null, JSON.stringify(user));

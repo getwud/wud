@@ -4,7 +4,7 @@ os: linux
 
 env:
   global:
-    - NODE_VERSION=18
+    - NODE_VERSION=23
     - CC_TEST_REPORTER_ID=46ef31dae5b656e0f4be410a86bd83bdcf73e7d27ab33a704c197e6fe4bf02a0
 
 before_install:
@@ -94,7 +94,7 @@ script:
 
   # Pull vaultwarden
   - docker pull vaultwarden/server
-  - docker pull vaultwarden/server:1.32.6-alpine
+  - docker pull vaultwarden/server:1.32.7-alpine
 
   # Pull youtubedl
   - docker pull jeeaaasustest/youtube-dl
@@ -141,7 +141,7 @@ script:
   - docker run -d --name hub_traefik_245          --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+.\d+$'                           traefik:2.4.5
   - docker run -d --name hub_traefik_latest       --label 'wud.watch=true' --label 'wud.watch.digest=true' --label 'wud.tag.include=^latest$' traefik
 
-  - docker run -d --name hub_vaultwarden_1222     --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+.\d+-alpine$'                    -e I_REALLY_WANT_VOLATILE_STORAGE=true vaultwarden/server:1.32.6-alpine
+  - docker run -d --name hub_vaultwarden_1222     --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+.\d+-alpine$'                    -e I_REALLY_WANT_VOLATILE_STORAGE=true vaultwarden/server:1.32.7-alpine
   - docker run -d --name hub_vaultwarden_latest   --label 'wud.watch=true' --label 'wud.watch.digest=true' --label 'wud.tag.include=^latest$' -e I_REALLY_WANT_VOLATILE_STORAGE=true vaultwarden/server
 
   - docker run -d --name hub_youtubedb_latest     --label 'wud.watch=true' --label 'wud.watch.digest=true' --label 'wud.tag.include=^latest$' jeeaaasustest/youtube-dl
@@ -160,24 +160,21 @@ script:
     --volume /var/run/docker.sock:/var/run/docker.sock
     --env WUD_TRIGGER_MOCK_EXAMPLE_MOCK=mock
     --env WUD_WATCHER_LOCAL_WATCHBYDEFAULT=false
-    --env WUD_REGISTRY_ACR_CLIENTID="$ACR_CLIENT_ID"
-    --env WUD_REGISTRY_ACR_CLIENTSECRET="$ACR_CLIENT_SECRET"
-    --env WUD_REGISTRY_ECR_ACCESSKEYID="$AWS_ACCESSKEY_ID"
-    --env WUD_REGISTRY_ECR_SECRETACCESSKEY="$AWS_SECRET_ACCESSKEY"
-    --env WUD_REGISTRY_ECR_REGION=eu-west-1
-    --env WUD_REGISTRY_GCR_CLIENTEMAIL="$GCR_CLIENT_EMAIL"
-    --env WUD_REGISTRY_GCR_PRIVATEKEY="$GCR_PRIVATE_KEY"
-    --env WUD_REGISTRY_GHCR_USERNAME="$GITHUB_USERNAME"
-    --env WUD_REGISTRY_GHCR_TOKEN="$GITHUB_TOKEN"
-    --env WUD_REGISTRY_GITLAB_TOKEN="$GITLAB_TOKEN"
-    --env WUD_REGISTRY_LSCR_USERNAME="$GITHUB_USERNAME"
-    --env WUD_REGISTRY_LSCR_TOKEN="$GITHUB_TOKEN"
+    --env WUD_REGISTRY_ACR_PRIVATE_CLIENTID="$ACR_CLIENT_ID"
+    --env WUD_REGISTRY_ACR_PRIVATE_CLIENTSECRET="$ACR_CLIENT_SECRET"
+    --env WUD_REGISTRY_ECR_PRIVATE_ACCESSKEYID="$AWS_ACCESSKEY_ID"
+    --env WUD_REGISTRY_ECR_PRIVATE_SECRETACCESSKEY="$AWS_SECRET_ACCESSKEY"
+    --env WUD_REGISTRY_ECR_PRIVATE_REGION=eu-west-1
+    --env WUD_REGISTRY_GCR_PRIVATE_CLIENTEMAIL="$GCR_CLIENT_EMAIL"
+    --env WUD_REGISTRY_GCR_PRIVATE_PRIVATEKEY="$GCR_PRIVATE_KEY"
+    --env WUD_REGISTRY_GHCR_PRIVATE_USERNAME="$GITHUB_USERNAME"
+    --env WUD_REGISTRY_GHCR_PRIVATE_TOKEN="$GITHUB_TOKEN"
+    --env WUD_REGISTRY_GITLAB_PRIVATE_TOKEN="$GITLAB_TOKEN"
+    --env WUD_REGISTRY_LSCR_PRIVATE_USERNAME="$GITHUB_USERNAME"
+    --env WUD_REGISTRY_LSCR_PRIVATE_TOKEN="$GITHUB_TOKEN"
     --env WUD_AUTH_BASIC_JOHN_USER="john"
     --env WUD_AUTH_BASIC_JOHN_HASH='$apr1$8zDVtSAY$62WBh9DspNbUKMZXYRsjS/'
     wud
-
-  #    --env WUD_REGISTRY_HUB_LOGIN="$DOCKER_USERNAME"
-  #    --env WUD_REGISTRY_HUB_TOKEN="$DOCKER_PASSWORD"
 
   # Give wud a little time to fetch all available updates
   - sleep 20

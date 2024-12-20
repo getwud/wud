@@ -38,10 +38,12 @@ class Ecr extends Registry {
      * @param image the image
      * @returns {boolean}
      */
-    // eslint-disable-next-line class-methods-use-this
+
     match(image) {
-        return /^.*\.dkr\.ecr\..*\.amazonaws\.com$/.test(image.registry.url)
-            || image.registry.url === ECR_PUBLIC_GALLERY_HOSTNAME;
+        return (
+            /^.*\.dkr\.ecr\..*\.amazonaws\.com$/.test(image.registry.url) ||
+            image.registry.url === ECR_PUBLIC_GALLERY_HOSTNAME
+        );
     }
 
     /**
@@ -49,10 +51,9 @@ class Ecr extends Registry {
      * @param image
      * @returns {*}
      */
-    // eslint-disable-next-line class-methods-use-this
+
     normalizeImage(image) {
         const imageNormalized = image;
-        imageNormalized.registry.name = 'ecr';
         if (!imageNormalized.registry.url.startsWith('https://')) {
             imageNormalized.registry.url = `https://${imageNormalized.registry.url}/v2`;
         }
@@ -70,12 +71,15 @@ class Ecr extends Registry {
                 },
                 region: this.configuration.region,
             });
-            const authorizationToken = await ecr.getAuthorizationToken().promise();
-            const tokenValue = authorizationToken.authorizationData[0].authorizationToken;
+            const authorizationToken = await ecr
+                .getAuthorizationToken()
+                .promise();
+            const tokenValue =
+                authorizationToken.authorizationData[0].authorizationToken;
 
             requestOptionsWithAuth.headers.Authorization = `Basic ${tokenValue}`;
 
-        // Public ECR gallery
+            // Public ECR gallery
         } else if (image.registry.url.includes(ECR_PUBLIC_GALLERY_HOSTNAME)) {
             const response = await rp({
                 method: 'GET',
@@ -91,10 +95,12 @@ class Ecr extends Registry {
     }
 
     getAuthPull() {
-        return this.configuration.accesskeyid ? {
-            username: this.configuration.accesskeyid,
-            password: this.configuration.secretaccesskey,
-        } : undefined;
+        return this.configuration.accesskeyid
+            ? {
+                  username: this.configuration.accesskeyid,
+                  password: this.configuration.secretaccesskey,
+              }
+            : undefined;
     }
 }
 

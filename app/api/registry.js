@@ -6,7 +6,6 @@ const component = require('./component');
  */
 function init() {
     const router = component.init('registry');
-    router.get('/:name', (req, res) => component.getById(req, res, 'registry'));
     return router;
 }
 

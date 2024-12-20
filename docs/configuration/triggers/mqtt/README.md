@@ -32,8 +32,6 @@ The `mqtt` trigger lets you send container update notifications to an MQTT broke
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
@@ -56,8 +54,6 @@ docker run \
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
@@ -90,8 +86,6 @@ docker run \
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
@@ -145,8 +139,6 @@ WUD can be easily integrated into [Home-Assistant](https://www.home-assistant.io
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud

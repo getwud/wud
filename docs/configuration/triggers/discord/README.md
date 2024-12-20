@@ -20,8 +20,6 @@ The `discord` trigger lets you send realtime notifications using [Discord](https
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud

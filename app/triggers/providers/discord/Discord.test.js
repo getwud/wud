@@ -14,11 +14,12 @@ const configurationValid = {
     threshold: 'all',
     mode: 'simple',
     once: true,
-    // eslint-disable-next-line no-template-curly-in-string
+
     simpletitle: 'New ${kind} found for container ${name}',
-    // eslint-disable-next-line no-template-curly-in-string
-    simplebody: 'Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote}\n${link}',
-    // eslint-disable-next-line no-template-curly-in-string
+
+    simplebody:
+        'Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote}\n${link}',
+
     batchtitle: '${count} updates available',
 };
 
@@ -27,7 +28,8 @@ beforeEach(() => {
 });
 
 test('validateConfiguration should return validated configuration when valid', () => {
-    const validatedConfiguration = discord.validateConfiguration(configurationValid);
+    const validatedConfiguration =
+        discord.validateConfiguration(configurationValid);
     expect(validatedConfiguration).toStrictEqual(configurationValid);
 });
 
@@ -41,7 +43,6 @@ test('validateConfiguration should throw error when invalid', () => {
 test('maskConfiguration should mask sensitive data', () => {
     discord.configuration = configurationValid;
     expect(discord.maskConfiguration()).toEqual({
-        // eslint-disable-next-line no-template-curly-in-string
         batchtitle: '${count} updates available',
         botusername: 'Bot Name',
         url: 'h********************************1',
@@ -49,9 +50,10 @@ test('maskConfiguration should mask sensitive data', () => {
         cardcolor: 65280,
         cardlabel: 'Container',
         once: true,
-        // eslint-disable-next-line no-template-curly-in-string
-        simplebody: 'Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote}\n${link}',
-        // eslint-disable-next-line no-template-curly-in-string
+
+        simplebody:
+            'Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote}\n${link}',
+
         simpletitle: 'New ${kind} found for container ${name}',
         threshold: 'all',
     });
@@ -81,16 +83,18 @@ test('trigger should send POST http request to webhook endpoint', async () => {
     expect(rp).toHaveBeenCalledWith({
         body: {
             username: 'Bot Name',
-            embeds: [{
-                title: 'New tag found for container container1',
-                color: 65280,
-                fields: [
-                    {
-                        name: 'Container',
-                        value: 'Container container1 running with tag 1.0.0 can be updated to tag 2.0.0\n',
-                    },
-                ],
-            }],
+            embeds: [
+                {
+                    title: 'New tag found for container container1',
+                    color: 65280,
+                    fields: [
+                        {
+                            name: 'Container',
+                            value: 'Container container1 running with tag 1.0.0 can be updated to tag 2.0.0\n',
+                        },
+                    ],
+                },
+            ],
         },
         json: true,
         method: 'POST',

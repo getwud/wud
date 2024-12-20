@@ -1,5 +1,14 @@
 # Changelog
 
+# 8.0.0 (wip)
+- :star: [REGISTRY] - Add support for multiple registries of the same type
+- :lock: Upgrade to node.js 23
+- :lock: Add prettier
+
+!> **Breaking changes!** \
+Registry configuration has changed; please adapt [your environment variables](/configuration/registries/) \
+Internal ids has changed; your [existing state](/configuration/storage/) will be reset
+
 # 7.2.0
 - :star: [TRIGGER] - Add support for associating specific triggers to specific containers
 - :star: [UI] - Some ux improvements
@@ -20,8 +29,8 @@
 
 !> **Breaking changes!** \
 **WUD** is moving to its own organization! \
-- Github project is now located at [https://github.com/getwud/wud](https://github.com/getwud/wud)
-- Docker image is now located at [https://hub.docker.com/r/getwud/wud](https://hub.docker.com/r/getwud/wud)
+Github project is now located at [https://github.com/getwud/wud](https://github.com/getwud/wud) \
+Docker image is now located at [https://hub.docker.com/r/getwud/wud](https://hub.docker.com/r/getwud/wud)
 
 # 6.6.1
 - :fire: [UI] - Fix container view (mobile layout)

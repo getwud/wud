@@ -26,7 +26,9 @@ class Component {
         this.name = name;
 
         this.configuration = this.validateConfiguration(configuration);
-        this.log.info(`Register with configuration ${JSON.stringify(this.maskConfiguration(configuration))}`);
+        this.log.info(
+            `Register with configuration ${JSON.stringify(this.maskConfiguration(configuration))}`,
+        );
         await this.init();
         return this;
     }
@@ -45,7 +47,7 @@ class Component {
      * Deregistger the component (do nothing by default).
      * @returns {Promise<void>}
      */
-    /* eslint-disable-next-line */
+
     async deregisterComponent() {
         // Do nothing by default
     }
@@ -78,7 +80,7 @@ class Component {
      * Init the component.
      * Can be overridden by the component implementation class
      */
-    /* eslint-disable-next-line */
+
     init() {}
 
     /**
@@ -94,7 +96,7 @@ class Component {
      * @returns {string}
      */
     getId() {
-        return `${this.kind}.${this.type}.${this.name}`;
+        return `${this.type}.${this.name}`;
     }
 
     /**
@@ -108,11 +110,12 @@ class Component {
         if (!value) {
             return undefined;
         }
-        if (value.length < (2 * nb)) {
+        if (value.length < 2 * nb) {
             return char.repeat(value.length);
         }
-        return `${value.substring(0, nb)}${char.repeat(Math
-            .max(0, value.length - (nb * 2)))}${value.substring(value.length - nb, value.length)}`;
+        return `${value.substring(0, nb)}${char.repeat(
+            Math.max(0, value.length - nb * 2),
+        )}${value.substring(value.length - nb, value.length)}`;
     }
 }
 

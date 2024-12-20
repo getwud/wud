@@ -18,8 +18,6 @@ The `gitlab` registry lets you configure [GITLAB](https://docs.gitlab.com/ee/use
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
@@ -41,8 +39,6 @@ docker run \
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud

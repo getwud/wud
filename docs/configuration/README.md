@@ -19,8 +19,6 @@ Please find below the documentation for each of them:
 ## Complete example
 
 ```yaml
-version: '3'
-
 services:
 
   # Valid semver following by os name

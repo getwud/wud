@@ -11,9 +11,12 @@ class Ntfy extends Trigger {
      */
     getConfigurationSchema() {
         return this.joi.object().keys({
-            url: this.joi.string().uri({
-                scheme: ['http', 'https'],
-            }).default('https://ntfy.sh'),
+            url: this.joi
+                .string()
+                .uri({
+                    scheme: ['http', 'https'],
+                })
+                .default('https://ntfy.sh'),
             topic: this.joi.string(),
             priority: this.joi.number().integer().min(0).max(5),
             auth: this.joi.object({
@@ -31,11 +34,13 @@ class Ntfy extends Trigger {
     maskConfiguration() {
         return {
             ...this.configuration,
-            auth: this.configuration.auth ? {
-                user: Ntfy.mask(this.configuration.user),
-                password: Ntfy.mask(this.configuration.password),
-                token: Ntfy.mask(this.configuration.token),
-            } : undefined,
+            auth: this.configuration.auth
+                ? {
+                      user: Ntfy.mask(this.configuration.user),
+                      password: Ntfy.mask(this.configuration.password),
+                      token: Ntfy.mask(this.configuration.token),
+                  }
+                : undefined,
         };
     }
 
@@ -83,9 +88,9 @@ class Ntfy extends Trigger {
             json: true,
         };
         if (
-            this.configuration.auth
-            && this.configuration.auth.user
-            && this.configuration.auth.password
+            this.configuration.auth &&
+            this.configuration.auth.user &&
+            this.configuration.auth.password
         ) {
             options.auth = {
                 user: this.configuration.auth.user,

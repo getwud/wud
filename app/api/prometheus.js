@@ -16,7 +16,9 @@ const router = express.Router();
  * @param res
  */
 async function outputMetrics(req, res) {
-    res.status(200).type('text').send(await output());
+    res.status(200)
+        .type('text')
+        .send(await output());
 }
 
 /**

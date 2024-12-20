@@ -7,10 +7,12 @@ acr.configuration = {
 };
 
 test('validatedConfiguration should initialize when configuration is valid', () => {
-    expect(acr.validateConfiguration({
-        clientid: 'clientid',
-        clientsecret: 'clientsecret',
-    })).toStrictEqual({
+    expect(
+        acr.validateConfiguration({
+            clientid: 'clientid',
+            clientsecret: 'clientsecret',
+        }),
+    ).toStrictEqual({
         clientid: 'clientid',
         clientsecret: 'clientsecret',
     });
@@ -30,31 +32,36 @@ test('maskConfiguration should mask configuration secrets', () => {
 });
 
 test('match should return true when registry url is from acr', () => {
-    expect(acr.match({
-        registry: {
-            url: 'test.azurecr.io',
-        },
-    })).toBeTruthy();
+    expect(
+        acr.match({
+            registry: {
+                url: 'test.azurecr.io',
+            },
+        }),
+    ).toBeTruthy();
 });
 
 test('match should return false when registry url is not from acr', () => {
-    expect(acr.match({
-        registry: {
-            url: 'est.notme.io',
-        },
-    })).toBeFalsy();
+    expect(
+        acr.match({
+            registry: {
+                url: 'est.notme.io',
+            },
+        }),
+    ).toBeFalsy();
 });
 
 test('normalizeImage should return the proper registry v2 endpoint', () => {
-    expect(acr.normalizeImage({
+    expect(
+        acr.normalizeImage({
+            name: 'test/image',
+            registry: {
+                url: 'test.azurecr.io/test/image',
+            },
+        }),
+    ).toStrictEqual({
         name: 'test/image',
         registry: {
-            url: 'test.azurecr.io/test/image',
-        },
-    })).toStrictEqual({
-        name: 'test/image',
-        registry: {
-            name: 'acr',
             url: 'https://test.azurecr.io/test/image/v2',
         },
     });

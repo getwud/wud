@@ -38,7 +38,6 @@ async function registerComponent(kind, provider, name, configuration, path) {
     const nameLowercase = name.toLowerCase();
     const componentFile = `${path}/${providerLowercase.toLowerCase()}/${capitalize(provider)}`;
     try {
-        // eslint-disable-next-line
         const Component = require(componentFile);
         const component = new Component();
         const componentRegistered = await component.register(
@@ -50,7 +49,9 @@ async function registerComponent(kind, provider, name, configuration, path) {
         state[kind][component.getId()] = component;
         return componentRegistered;
     } catch (e) {
-        throw new Error(`Error when registering component ${providerLowercase} (${e.message})`);
+        throw new Error(
+            `Error when registering component ${providerLowercase} (${e.message})`,
+        );
     }
 }
 
@@ -64,18 +65,24 @@ async function registerComponent(kind, provider, name, configuration, path) {
 async function registerComponents(kind, configurations, path) {
     if (configurations) {
         const providers = Object.keys(configurations);
-        const providerPromises = providers.map((provider) => {
-            log.info(`Register all components of kind ${kind} for provider ${provider}`);
-            const providerConfigurations = configurations[provider];
-            return Object.keys(providerConfigurations)
-                .map((configurationName) => registerComponent(
-                    kind,
-                    provider,
-                    configurationName,
-                    providerConfigurations[configurationName],
-                    path,
-                ));
-        }).flat();
+        const providerPromises = providers
+            .map((provider) => {
+                log.info(
+                    `Register all components of kind ${kind} for provider ${provider}`,
+                );
+                const providerConfigurations = configurations[provider];
+                return Object.keys(providerConfigurations).map(
+                    (configurationName) =>
+                        registerComponent(
+                            kind,
+                            provider,
+                            configurationName,
+                            providerConfigurations[configurationName],
+                            path,
+                        ),
+                );
+            })
+            .flat();
         return Promise.all(providerPromises);
     }
     return [];
@@ -90,14 +97,31 @@ async function registerWatchers() {
     let watchersToRegister = [];
     try {
         if (Object.keys(configurations).length === 0) {
-            log.info('No Watcher configured => Init a default one (Docker with default options)');
-            watchersToRegister.push(registerComponent('watcher', 'docker', 'local', {}, '../watchers/providers'));
+            log.info(
+                'No Watcher configured => Init a default one (Docker with default options)',
+            );
+            watchersToRegister.push(
+                registerComponent(
+                    'watcher',
+                    'docker',
+                    'local',
+                    {},
+                    '../watchers/providers',
+                ),
+            );
         } else {
-            watchersToRegister = watchersToRegister
-                .concat(Object.keys(configurations).map((watcherKey) => {
+            watchersToRegister = watchersToRegister.concat(
+                Object.keys(configurations).map((watcherKey) => {
                     const watcherKeyNormalize = watcherKey.toLowerCase();
-                    return registerComponent('watcher', 'docker', watcherKeyNormalize, configurations[watcherKeyNormalize], '../watchers/providers');
-                }));
+                    return registerComponent(
+                        'watcher',
+                        'docker',
+                        watcherKeyNormalize,
+                        configurations[watcherKeyNormalize],
+                        '../watchers/providers',
+                    );
+                }),
+            );
         }
         await Promise.all(watchersToRegister);
     } catch (e) {
@@ -112,7 +136,11 @@ async function registerWatchers() {
 async function registerTriggers() {
     const configurations = getTriggerConfigurations();
     try {
-        await registerComponents('trigger', configurations, '../triggers/providers');
+        await registerComponents(
+            'trigger',
+            configurations,
+            '../triggers/providers',
+        );
     } catch (e) {
         log.warn(`Some triggers failed to register (${e.message})`);
         log.debug(e);
@@ -124,30 +152,24 @@ async function registerTriggers() {
  * @returns {Promise}
  */
 async function registerRegistries() {
-    const configurations = getRegistryConfigurations();
-    const registriesToRegister = {};
-
-    // Default registries
-    registriesToRegister.ecr = () => registerComponent('registry', 'ecr', 'ecr', '', '../registries/providers');
-    registriesToRegister.gcr = () => registerComponent('registry', 'gcr', 'gcr', '', '../registries/providers');
-    registriesToRegister.ghcr = () => registerComponent('registry', 'ghcr', 'ghcr', '', '../registries/providers');
-    registriesToRegister.hub = () => registerComponent('registry', 'hub', 'hub', '', '../registries/providers');
-    registriesToRegister.quay = () => registerComponent('registry', 'quay', 'quay', '', '../registries/providers');
+    const defaultRegistries = {
+        ecr: { public: '' },
+        gcr: { public: '' },
+        ghcr: { public: '' },
+        hub: { public: '' },
+        quay: { public: '' },
+    };
+    const registriesToRegister = {
+        ...defaultRegistries,
+        ...getRegistryConfigurations(),
+    };
 
     try {
-        Object.keys(configurations).forEach((registryKey) => {
-            const registryKeyNormalize = registryKey.toLowerCase();
-            registriesToRegister[registryKeyNormalize] = () => registerComponent(
-                'registry',
-                registryKeyNormalize,
-                registryKeyNormalize,
-                configurations[registryKeyNormalize],
-                '../registries/providers',
-            );
-        });
-        await Promise.all(Object.values(registriesToRegister)
-            .sort()
-            .map(((registerFn) => registerFn())));
+        await registerComponents(
+            'registry',
+            registriesToRegister,
+            '../registries/providers',
+        );
     } catch (e) {
         log.warn(`Some registries failed to register (${e.message})`);
         log.debug(e);
@@ -162,9 +184,19 @@ async function registerAuthentications() {
     try {
         if (Object.keys(configurations).length === 0) {
             log.info('No authentication configured => Allow anonymous access');
-            await registerComponent('authentication', 'anonymous', 'anonymous', {}, '../authentications/providers');
+            await registerComponent(
+                'authentication',
+                'anonymous',
+                'anonymous',
+                {},
+                '../authentications/providers',
+            );
         }
-        await registerComponents('authentication', configurations, '../authentications/providers');
+        await registerComponents(
+            'authentication',
+            configurations,
+            '../authentications/providers',
+        );
     } catch (e) {
         log.warn(`Some authentications failed to register (${e.message})`);
         log.debug(e);
@@ -181,7 +213,9 @@ async function deregisterComponent(component, kind) {
     try {
         await component.deregister();
     } catch (e) {
-        throw new Error(`Error when deregistering component ${component.getId()}`);
+        throw new Error(
+            `Error when deregistering component ${component.getId()} (${e.message})`,
+        );
     } finally {
         const components = getState()[kind];
         if (components) {
@@ -197,8 +231,9 @@ async function deregisterComponent(component, kind) {
  * @returns {Promise}
  */
 async function deregisterComponents(components, kind) {
-    const deregisterPromises = components
-        .map(async (component) => deregisterComponent(component, kind));
+    const deregisterPromises = components.map(async (component) =>
+        deregisterComponent(component, kind),
+    );
     return Promise.all(deregisterPromises);
 }
 
@@ -231,7 +266,10 @@ async function deregisterRegistries() {
  * @returns {Promise<unknown>}
  */
 async function deregisterAuthentications() {
-    return deregisterComponents(Object.values(getState().authentication), 'authentication');
+    return deregisterComponents(
+        Object.values(getState().authentication),
+        'authentication',
+    );
 }
 
 /**

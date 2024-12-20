@@ -9,5 +9,7 @@ test('init should call initAuthentication', async () => {
 
 test('getStrategy throw an error by default', async () => {
     const authentication = new Authentication();
-    expect(() => authentication.getStrategy()).toThrow('getStrategy must be implemented');
+    expect(() => authentication.getStrategy()).toThrow(
+        'getStrategy must be implemented',
+    );
 });

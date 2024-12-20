@@ -9,13 +9,13 @@ class Anonymous extends Authentication {
     /**
      * Return passport strategy.
      */
-    // eslint-disable-next-line class-methods-use-this
     getStrategy() {
-        log.warn('Anonymous authentication is enabled; please make sure that the app is not exposed to unsecure networks');
+        log.warn(
+            'Anonymous authentication is enabled; please make sure that the app is not exposed to unsecure networks',
+        );
         return new AnonymousStrategy();
     }
 
-    // eslint-disable-next-line class-methods-use-this
     getStrategyDescription() {
         return {
             type: 'anonymous',

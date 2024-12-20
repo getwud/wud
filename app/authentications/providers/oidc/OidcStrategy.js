@@ -39,7 +39,7 @@ module.exports = class OidcStrategy extends Strategy {
                         this.success(user);
                     }
                 });
-            // Fail if no bearer token
+                // Fail if no bearer token
             } else {
                 this.log.debug('No bearer token found in the request');
                 this.fail(401);

@@ -5,56 +5,31 @@ The `ghcr` registry lets you configure [GHCR](https://docs.github.com/en/package
 
 ### Variables
 
-| Env var                      | Required       | Description     | Supported values                         | Default value when missing |
-| ---------------------------- |:--------------:| --------------- | ---------------------------------------- | -------------------------- | 
-| `WUD_REGISTRY_GHCR_USERNAME` | :white_circle: | Github username |                                          |                            |
-| `WUD_REGISTRY_GHCR_TOKEN`    | :white_circle: | Github token    | Github password or Github Personal Token |                            |
+| Env var                                      | Required       | Description     | Supported values                         | Default value when missing |
+| -------------------------------------------- |:--------------:| --------------- | ---------------------------------------- | -------------------------- | 
+| `WUD_REGISTRY_GHCR_{REGISTRY_NAME}_USERNAME` | :white_circle: | Github username |                                          |                            |
+| `WUD_REGISTRY_GHCR_{REGISTRY_NAME}_TOKEN`    | :white_circle: | Github token    | Github password or Github Personal Token |                            |
 
 ### Examples
 
-#### Configure to access public images (no credentials needed)
+#### Configure to access private images
 
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
     ...
     environment:
-      - WUD_REGISTRY_GHCR=
+      - WUD_REGISTRY_GHCR_PRIVATE_USERNAME=john@doe
+      - WUD_REGISTRY_GHCR_PRIVATE_TOKEN=xxxxx 
 ```
 #### **Docker**
 ```bash
 docker run \
-  -e WUD_REGISTRY_GHCR= \
-  ...
-  getwud/wud
-```
-<!-- tabs:end -->
-
-#### Configure to access private images (credentials needed)
-
-<!-- tabs:start -->
-#### **Docker Compose**
-```yaml
-version: '3'
-
-services:
-  whatsupdocker:
-    image: getwud/wud
-    ...
-    environment:
-      - WUD_REGISTRY_GHCR_USERNAME=john@doe
-      - WUD_REGISTRY_GHCR_TOKEN=xxxxx 
-```
-#### **Docker**
-```bash
-docker run \
-  -e WUD_REGISTRY_GHCR_USERNAME="john@doe" \
-  -e WUD_REGISTRY_GHCR_TOKEN="xxxxx" \
+  -e WUD_REGISTRY_GHCR_PRIVATE_USERNAME="john@doe" \
+  -e WUD_REGISTRY_GHCR_PRIVATE_TOKEN="xxxxx" \
   ...
   getwud/wud
 ```
@@ -68,5 +43,5 @@ docker run \
 Choose an expiration time & appropriate scopes (`read:packages` is only needed for wud) and generate.
 ![image](ghcr_01.png)
 
-#### Copy the token & use it as the WUD_REGISTRY_GHCR_TOKEN value
+#### Copy the token & use it as the WUD_REGISTRY_GHCR_{REGISTRY_NAME}_TOKEN value
 ![image](ghcr_02.png)

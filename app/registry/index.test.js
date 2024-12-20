@@ -11,10 +11,10 @@ let triggers = {};
 let watchers = {};
 let authentications = {};
 
-configuration.getRegistryConfigurations = () => (registries);
-configuration.getTriggerConfigurations = () => (triggers);
-configuration.getWatcherConfigurations = () => (watchers);
-configuration.getAuthenticationConfigurations = () => (authentications);
+configuration.getRegistryConfigurations = () => registries;
+configuration.getTriggerConfigurations = () => triggers;
+configuration.getWatcherConfigurations = () => watchers;
+configuration.getAuthenticationConfigurations = () => authentications;
 
 const registry = require('./index');
 
@@ -40,7 +40,11 @@ afterEach(async () => {
 
 test('registerComponent should warn when component does not exist', () => {
     const registerComponent = registry.__get__('registerComponent');
-    expect(registerComponent('kind', 'provider', 'name', {}, 'path')).rejects.toThrow('Error when registering component provider (Cannot find module \'path/provider/Provider\' from \'registry/index.js\'');
+    expect(
+        registerComponent('kind', 'provider', 'name', {}, 'path'),
+    ).rejects.toThrow(
+        "Error when registering component provider (Cannot find module 'path/provider/Provider' from 'registry/index.js'",
+    );
 });
 
 test('registerComponents should return empty array if not components', () => {
@@ -51,40 +55,64 @@ test('registerComponents should return empty array if not components', () => {
 test('deregisterComponent should throw when component fails to deregister', () => {
     const deregisterComponent = registry.__get__('deregisterComponent');
     const component = new Component();
-    component.deregister = () => { throw new Error('Error x'); };
-    expect(deregisterComponent(component)).rejects.toThrowError('Error when deregistering component undefined.undefined');
+    component.deregister = () => {
+        throw new Error('Error x');
+    };
+    expect(deregisterComponent(component)).rejects.toThrowError(
+        'Error when deregistering component undefined.undefined',
+    );
 });
 
 test('registerRegistries should register all registries', async () => {
     registries = {
         hub: {
-            login: 'login',
-            token: 'token',
+            private: {
+                login: 'login',
+                token: 'token',
+            },
         },
         ecr: {
-            accesskeyid: 'key',
-            secretaccesskey: 'secret',
-            region: 'region',
+            private: {
+                accesskeyid: 'key',
+                secretaccesskey: 'secret',
+                region: 'region',
+            },
         },
     };
     await registry.__get__('registerRegistries')();
-    expect(Object.keys(registry.getState().registry).sort()).toEqual(['ecr', 'gcr', 'ghcr', 'hub', 'quay']);
+    expect(Object.keys(registry.getState().registry).sort()).toEqual([
+        'ecr.private',
+        'gcr.public',
+        'ghcr.public',
+        'hub.private',
+        'quay.public',
+    ]);
 });
 
 test('registerRegistries should register all anonymous registries by default', async () => {
     await registry.__get__('registerRegistries')();
-    expect(Object.keys(registry.getState().registry).sort()).toEqual(['ecr', 'gcr', 'ghcr', 'hub', 'quay']);
+    expect(Object.keys(registry.getState().registry).sort()).toEqual([
+        'ecr.public',
+        'gcr.public',
+        'ghcr.public',
+        'hub.public',
+        'quay.public',
+    ]);
 });
 
 test('registerRegistries should warn when registration errors occur', async () => {
     const spyLog = jest.spyOn(registry.__get__('log'), 'warn');
     registries = {
         hub: {
-            login: false,
+            private: {
+                login: false,
+            },
         },
     };
     await registry.__get__('registerRegistries')();
-    expect(spyLog).toHaveBeenCalledWith('Some registries failed to register (Error when registering component hub ("login" must be a string))');
+    expect(spyLog).toHaveBeenCalledWith(
+        'Some registries failed to register (Error when registering component hub ("login" must be a string))',
+    );
 });
 
 test('registerTriggers should register all triggers', async () => {
@@ -95,7 +123,10 @@ test('registerTriggers should register all triggers', async () => {
         },
     };
     await registry.__get__('registerTriggers')();
-    expect(Object.keys(registry.getState().trigger)).toEqual(['trigger.mock.mock1', 'trigger.mock.mock2']);
+    expect(Object.keys(registry.getState().trigger)).toEqual([
+        'mock.mock1',
+        'mock.mock2',
+    ]);
 });
 
 test('registerTriggers should warn when registration errors occur', async () => {
@@ -106,7 +137,9 @@ test('registerTriggers should warn when registration errors occur', async () => 
         },
     };
     await registry.__get__('registerTriggers')();
-    expect(spyLog).toHaveBeenCalledWith('Some triggers failed to register (Error when registering component trigger1 (Cannot find module \'../triggers/providers/trigger1/Trigger1\' from \'registry/index.js\'))');
+    expect(spyLog).toHaveBeenCalledWith(
+        "Some triggers failed to register (Error when registering component trigger1 (Cannot find module '../triggers/providers/trigger1/Trigger1' from 'registry/index.js'))",
+    );
 });
 
 test('registerWatchers should register all watchers', async () => {
@@ -119,12 +152,15 @@ test('registerWatchers should register all watchers', async () => {
         },
     };
     await registry.__get__('registerWatchers')();
-    expect(Object.keys(registry.getState().watcher)).toEqual(['watcher.docker.watcher1', 'watcher.docker.watcher2']);
+    expect(Object.keys(registry.getState().watcher)).toEqual([
+        'docker.watcher1',
+        'docker.watcher2',
+    ]);
 });
 
 test('registerWatchers should register local docker watcher by default', async () => {
     await registry.__get__('registerWatchers')();
-    expect(Object.keys(registry.getState().watcher)).toEqual(['watcher.docker.local']);
+    expect(Object.keys(registry.getState().watcher)).toEqual(['docker.local']);
 });
 
 test('registerWatchers should warn when registration errors occur', async () => {
@@ -135,7 +171,9 @@ test('registerWatchers should warn when registration errors occur', async () => 
         },
     };
     await registry.__get__('registerWatchers')();
-    expect(spyLog).toHaveBeenCalledWith('Some watchers failed to register (Error when registering component docker ("fail" is not allowed))');
+    expect(spyLog).toHaveBeenCalledWith(
+        'Some watchers failed to register (Error when registering component docker ("fail" is not allowed))',
+    );
 });
 
 test('registerAuthentications should register all auth strategies', async () => {
@@ -152,7 +190,10 @@ test('registerAuthentications should register all auth strategies', async () => 
         },
     };
     await registry.__get__('registerAuthentications')();
-    expect(Object.keys(registry.getState().authentication)).toEqual(['authentication.basic.john', 'authentication.basic.jane']);
+    expect(Object.keys(registry.getState().authentication)).toEqual([
+        'basic.john',
+        'basic.jane',
+    ]);
 });
 
 test('registerAuthentications should warn when registration errors occur', async () => {
@@ -165,24 +206,32 @@ test('registerAuthentications should warn when registration errors occur', async
         },
     };
     await registry.__get__('registerAuthentications')();
-    expect(spyLog).toHaveBeenCalledWith('Some authentications failed to register (Error when registering component basic ("user" is required))');
+    expect(spyLog).toHaveBeenCalledWith(
+        'Some authentications failed to register (Error when registering component basic ("user" is required))',
+    );
 });
 
 test('registerAuthentications should register anonymous auth by default', async () => {
     await registry.__get__('registerAuthentications')();
-    expect(Object.keys(registry.getState().authentication)).toEqual(['authentication.anonymous.anonymous']);
+    expect(Object.keys(registry.getState().authentication)).toEqual([
+        'anonymous.anonymous',
+    ]);
 });
 
 test('init should register all components', async () => {
     registries = {
         hub: {
-            login: 'login',
-            token: 'token',
+            private: {
+                login: 'login',
+                token: 'token',
+            },
         },
         ecr: {
-            accesskeyid: 'key',
-            secretaccesskey: 'secret',
-            region: 'region',
+            private: {
+                accesskeyid: 'key',
+                secretaccesskey: 'secret',
+                region: 'region',
+            },
         },
     };
     triggers = {
@@ -212,10 +261,25 @@ test('init should register all components', async () => {
         },
     };
     await registry.init();
-    expect(Object.keys(registry.getState().registry).sort()).toEqual(['ecr', 'gcr', 'ghcr', 'hub', 'quay']);
-    expect(Object.keys(registry.getState().trigger)).toEqual(['trigger.mock.mock1', 'trigger.mock.mock2']);
-    expect(Object.keys(registry.getState().watcher)).toEqual(['watcher.docker.watcher1', 'watcher.docker.watcher2']);
-    expect(Object.keys(registry.getState().authentication)).toEqual(['authentication.basic.john', 'authentication.basic.jane']);
+    expect(Object.keys(registry.getState().registry).sort()).toEqual([
+        'ecr.private',
+        'gcr.public',
+        'ghcr.public',
+        'hub.private',
+        'quay.public',
+    ]);
+    expect(Object.keys(registry.getState().trigger)).toEqual([
+        'mock.mock1',
+        'mock.mock2',
+    ]);
+    expect(Object.keys(registry.getState().watcher)).toEqual([
+        'docker.watcher1',
+        'docker.watcher2',
+    ]);
+    expect(Object.keys(registry.getState().authentication)).toEqual([
+        'basic.john',
+        'basic.jane',
+    ]);
 });
 
 test('deregisterAll should deregister all components', async () => {
@@ -266,44 +330,52 @@ test('deregisterAll should deregister all components', async () => {
 
 test('deregisterAll should throw an error when any component fails to deregister', () => {
     const component = new Component();
-    component.deregister = () => { throw new Error('Fail!!!'); };
+    component.deregister = () => {
+        throw new Error('Fail!!!');
+    };
     registry.getState().trigger = {
         trigger1: component,
     };
-    expect(registry.__get__('deregisterAll')())
-        .rejects
-        .toThrowError('Error when deregistering component undefined.undefined');
+    expect(registry.__get__('deregisterAll')()).rejects.toThrowError(
+        'Error when deregistering component undefined.undefined',
+    );
 });
 
 test('deregisterRegistries should throw when errors occurred', async () => {
     const component = new Component();
-    component.deregister = () => { throw new Error('Fail!!!'); };
+    component.deregister = () => {
+        throw new Error('Fail!!!');
+    };
     registry.getState().registry = {
         registry1: component,
     };
-    expect(registry.__get__('deregisterRegistries')())
-        .rejects
-        .toThrowError('Error when deregistering component undefined.undefined');
+    expect(registry.__get__('deregisterRegistries')()).rejects.toThrowError(
+        'Error when deregistering component undefined.undefined',
+    );
 });
 
 test('deregisterTriggers should throw when errors occurred', async () => {
     const component = new Component();
-    component.deregister = () => { throw new Error('Fail!!!'); };
+    component.deregister = () => {
+        throw new Error('Fail!!!');
+    };
     registry.getState().trigger = {
         trigger1: component,
     };
-    expect(registry.__get__('deregisterTriggers')())
-        .rejects
-        .toThrowError('Error when deregistering component undefined.undefined');
+    expect(registry.__get__('deregisterTriggers')()).rejects.toThrowError(
+        'Error when deregistering component undefined.undefined',
+    );
 });
 
 test('deregisterWatchers should throw when errors occurred', async () => {
     const component = new Component();
-    component.deregister = () => { throw new Error('Fail!!!'); };
+    component.deregister = () => {
+        throw new Error('Fail!!!');
+    };
     registry.getState().watcher = {
         watcher1: component,
     };
-    expect(registry.__get__('deregisterWatchers')())
-        .rejects
-        .toThrowError('Error when deregistering component undefined.undefined');
+    expect(registry.__get__('deregisterWatchers')()).rejects.toThrowError(
+        'Error when deregistering component undefined.undefined',
+    );
 });

@@ -27,10 +27,12 @@ function mapComponentToItem(key, component) {
 function mapComponentsToList(components) {
     return Object.keys(components)
         .map((key) => mapComponentToItem(key, components[key]))
-        .sort(byValues([
-            [(x) => x.type, byString()],
-            [(x) => x.name, byString()],
-        ]));
+        .sort(
+            byValues([
+                [(x) => x.type, byString()],
+                [(x) => x.name, byString()],
+            ]),
+        );
 }
 
 /**
@@ -50,12 +52,7 @@ function getAll(req, res, kind) {
  */
 function getById(req, res, kind) {
     const { type, name } = req.params;
-    let id = `${kind}.${type}.${name}`;
-
-    // Hack for registries because id and name are equivalent
-    if (kind === 'registry') {
-        id = `${name}`;
-    }
+    const id = `${type}.${name}`;
     const component = registry.getState()[kind][id];
     if (component) {
         res.status(200).json(mapComponentToItem(id, component));

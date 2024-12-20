@@ -18,7 +18,6 @@ module.exports = class BasicStrategy extends HttpBasicStrategy {
      * @returns {string}
      * @private
      */
-    // eslint-disable-next-line class-methods-use-this
     _challenge() {
         return 401;
     }

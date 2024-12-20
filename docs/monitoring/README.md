@@ -19,8 +19,6 @@ If the application is healthy, the Http Response Status Code is `200` (`500` oth
 You can use it to configure health checks performed by your container orchestrator, for example:
 
 ```yaml
-version: '3'
-
 services:
 
   whatsupdocker:

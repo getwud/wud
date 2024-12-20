@@ -23,9 +23,9 @@ class Docker extends Trigger {
      * @param container
      * @returns {*}
      */
-    // eslint-disable-next-line class-methods-use-this
+
     getWatcher(container) {
-        return getState().watcher[`watcher.docker.${container.watcher}`];
+        return getState().watcher[`docker.${container.watcher}`];
     }
 
     /**
@@ -54,12 +54,13 @@ class Docker extends Trigger {
         try {
             return await container.inspect();
         } catch (e) {
-            logContainer.warn(`Error when inspecting container ${container.id}`);
+            logContainer.warn(
+                `Error when inspecting container ${container.id}`,
+            );
             throw e;
         }
     }
 
-    /* eslint-disable class-methods-use-this */
     /**
      * Prune previous image versions.
      * @param dockerApi
@@ -93,7 +94,10 @@ class Docker extends Trigger {
                     });
 
                     // Exclude different registries
-                    if (imageNormalized.registry.name !== container.image.registry.name) {
+                    if (
+                        imageNormalized.registry.name !==
+                        container.image.registry.name
+                    ) {
                         return false;
                     }
 
@@ -103,23 +107,33 @@ class Docker extends Trigger {
                     }
 
                     // Exclude current container image
-                    if (imageNormalized.tag.value === container.updateKind.localValue) {
+                    if (
+                        imageNormalized.tag.value ===
+                        container.updateKind.localValue
+                    ) {
                         return false;
                     }
 
                     // Exclude candidate image
-                    if (imageNormalized.tag.value === container.updateKind.remoteValue) {
+                    if (
+                        imageNormalized.tag.value ===
+                        container.updateKind.remoteValue
+                    ) {
                         return false;
                     }
                     return true;
                 })
                 .map((imageToRemove) => dockerApi.getImage(imageToRemove.Id));
-            await Promise.all(imagesToRemove.map((imageToRemove) => {
-                logContainer.info(`Prune image ${imageToRemove.name}`);
-                return imageToRemove.remove();
-            }));
+            await Promise.all(
+                imagesToRemove.map((imageToRemove) => {
+                    logContainer.info(`Prune image ${imageToRemove.name}`);
+                    return imageToRemove.remove();
+                }),
+            );
         } catch (e) {
-            logContainer.warn(`Some errors occurred when trying to prune previous tags (${e.message})`);
+            logContainer.warn(
+                `Some errors occurred when trying to prune previous tags (${e.message})`,
+            );
         }
     }
 
@@ -131,16 +145,22 @@ class Docker extends Trigger {
      * @param logContainer
      * @returns {Promise<void>}
      */
-    /* eslint-disable class-methods-use-this */
+
     async pullImage(dockerApi, auth, newImage, logContainer) {
         logContainer.info(`Pull image ${newImage}`);
         try {
-            const pullStream = await dockerApi.pull(newImage, { authconfig: auth });
-            /* eslint-disable-next-line no-promise-executor-return */
-            await new Promise((res) => dockerApi.modem.followProgress(pullStream, res));
+            const pullStream = await dockerApi.pull(newImage, {
+                authconfig: auth,
+            });
+
+            await new Promise((res) =>
+                dockerApi.modem.followProgress(pullStream, res),
+            );
             logContainer.info(`Image ${newImage} pulled with success`);
         } catch (e) {
-            logContainer.warn(`Error when pulling image ${newImage} (${e.message})`);
+            logContainer.warn(
+                `Error when pulling image ${newImage} (${e.message})`,
+            );
             throw e;
         }
     }
@@ -153,14 +173,20 @@ class Docker extends Trigger {
      * @param logContainer
      * @returns {Promise<void>}
      */
-    /* eslint-disable class-methods-use-this */
+
     async stopContainer(container, containerName, containerId, logContainer) {
-        logContainer.info(`Stop container ${containerName} with id ${containerId}`);
+        logContainer.info(
+            `Stop container ${containerName} with id ${containerId}`,
+        );
         try {
             await container.stop();
-            logContainer.info(`Container ${containerName} with id ${containerId} stopped with success`);
+            logContainer.info(
+                `Container ${containerName} with id ${containerId} stopped with success`,
+            );
         } catch (e) {
-            logContainer.warn(`Error when stopping container ${containerName} with id ${containerId}`);
+            logContainer.warn(
+                `Error when stopping container ${containerName} with id ${containerId}`,
+            );
             throw e;
         }
     }
@@ -174,12 +200,18 @@ class Docker extends Trigger {
      * @returns {Promise<void>}
      */
     async removeContainer(container, containerName, containerId, logContainer) {
-        logContainer.info(`Remove container ${containerName} with id ${containerId}`);
+        logContainer.info(
+            `Remove container ${containerName} with id ${containerId}`,
+        );
         try {
             await container.remove();
-            logContainer.info(`Container ${containerName} with id ${containerId} removed with success`);
+            logContainer.info(
+                `Container ${containerName} with id ${containerId} removed with success`,
+            );
         } catch (e) {
-            logContainer.warn(`Error when removing container ${containerName} with id ${containerId}`);
+            logContainer.warn(
+                `Error when removing container ${containerName} with id ${containerId}`,
+            );
             throw e;
         }
     }
@@ -192,14 +224,24 @@ class Docker extends Trigger {
      * @param logContainer
      * @returns {Promise<*>}
      */
-    async createContainer(dockerApi, containerToCreate, containerName, logContainer) {
+    async createContainer(
+        dockerApi,
+        containerToCreate,
+        containerName,
+        logContainer,
+    ) {
         logContainer.info(`Create container ${containerName}`);
         try {
-            const newContainer = await dockerApi.createContainer(containerToCreate);
-            logContainer.info(`Container ${containerName} recreated on new image with success`);
+            const newContainer =
+                await dockerApi.createContainer(containerToCreate);
+            logContainer.info(
+                `Container ${containerName} recreated on new image with success`,
+            );
             return newContainer;
         } catch (e) {
-            logContainer.warn(`Error when creating container ${containerName} (${e.message})`);
+            logContainer.warn(
+                `Error when creating container ${containerName} (${e.message})`,
+            );
             throw e;
         }
     }
@@ -215,7 +257,9 @@ class Docker extends Trigger {
         logContainer.info(`Start container ${containerName}`);
         try {
             await container.start();
-            logContainer.info(`Container ${containerName} started with success`);
+            logContainer.info(
+                `Container ${containerName} started with success`,
+            );
         } catch (e) {
             logContainer.warn(`Error when starting container ${containerName}`);
             throw e;
@@ -247,7 +291,6 @@ class Docker extends Trigger {
      * @param newImage
      * @returns {*}
      */
-    // eslint-disable-next-line class-methods-use-this
     cloneContainer(currentContainer, newImage) {
         const containerName = currentContainer.Name.replace('/', '');
         const containerClone = {
@@ -261,21 +304,24 @@ class Docker extends Trigger {
         };
 
         if (containerClone.NetworkingConfig.EndpointsConfig) {
-            Object
-                .values(containerClone.NetworkingConfig.EndpointsConfig)
-                .forEach((endpointConfig) => {
-                    if (endpointConfig.Aliases && endpointConfig.Aliases.length > 0) {
-                        // eslint-disable-next-line
-                        endpointConfig.Aliases = endpointConfig.Aliases
-                            .filter((alias) => !currentContainer.Id.startsWith(alias));
-                    }
-                });
+            Object.values(
+                containerClone.NetworkingConfig.EndpointsConfig,
+            ).forEach((endpointConfig) => {
+                if (
+                    endpointConfig.Aliases &&
+                    endpointConfig.Aliases.length > 0
+                ) {
+                    endpointConfig.Aliases = endpointConfig.Aliases.filter(
+                        (alias) => !currentContainer.Id.startsWith(alias),
+                    );
+                }
+            });
         }
         // Handle situation when container is using network_mode: service:other_service
         if (
-            containerClone.HostConfig
-            && containerClone.HostConfig.NetworkMode
-            && containerClone.HostConfig.NetworkMode.startsWith('container:')
+            containerClone.HostConfig &&
+            containerClone.HostConfig.NetworkMode &&
+            containerClone.HostConfig.NetworkMode.startsWith('container:')
         ) {
             delete containerClone.Hostname;
             delete containerClone.ExposedPorts;
@@ -293,13 +339,13 @@ class Docker extends Trigger {
         // Tag to pull/run is
         // either the same (when updateKind is digest)
         // or the new one (when updateKind is tag)
-        const tagOrDigest = container.updateKind.kind === 'digest' ? container.image.tag.value : container.updateKind.remoteValue;
+        const tagOrDigest =
+            container.updateKind.kind === 'digest'
+                ? container.image.tag.value
+                : container.updateKind.remoteValue;
 
         // Rebuild image definition string
-        return registry.getImageFullName(
-            container.image,
-            tagOrDigest,
-        );
+        return registry.getImageFullName(container.image, tagOrDigest);
     }
 
     /**
@@ -318,17 +364,24 @@ class Docker extends Trigger {
         const { dockerApi } = watcher;
 
         // Get registry configuration
-        logContainer.debug(`Get ${container.image.registry.name} registry manager`);
+        logContainer.debug(
+            `Get ${container.image.registry.name} registry manager`,
+        );
         const registry = getState().registry[container.image.registry.name];
 
-        logContainer.debug(`Get ${container.image.registry.name} registry credentials`);
+        logContainer.debug(
+            `Get ${container.image.registry.name} registry credentials`,
+        );
         const auth = registry.getAuthPull();
 
         // Rebuild image definition string
         const newImage = this.getNewImageFullName(registry, container);
 
         // Get current container
-        const currentContainer = await this.getCurrentContainer(dockerApi, container);
+        const currentContainer = await this.getCurrentContainer(
+            dockerApi,
+            container,
+        );
 
         if (currentContainer) {
             const currentContainerSpec = await this.inspectContainer(
@@ -352,7 +405,9 @@ class Docker extends Trigger {
 
             // Dry-run?
             if (this.configuration.dryrun) {
-                logContainer.info('Do not replace the existing container because dry-run mode is enabled');
+                logContainer.info(
+                    'Do not replace the existing container because dry-run mode is enabled',
+                );
             } else {
                 // Clone current container spec
                 const containerToCreateInspect = this.cloneContainer(
@@ -389,12 +444,19 @@ class Docker extends Trigger {
 
                 // Start container if it was running
                 if (currentContainerState.Running) {
-                    await this.startContainer(newContainer, container.name, logContainer);
+                    await this.startContainer(
+                        newContainer,
+                        container.name,
+                        logContainer,
+                    );
                 }
 
                 // Remove previous image (only when updateKind is tag)
                 if (this.configuration.prune) {
-                    const tagOrDigestToRemove = container.updateKind.kind === 'tag' ? container.image.tag.value : container.image.digest.repo;
+                    const tagOrDigestToRemove =
+                        container.updateKind.kind === 'tag'
+                            ? container.image.tag.value
+                            : container.image.digest.repo;
 
                     // Rebuild image definition string
                     const oldImage = registry.getImageFullName(
@@ -405,7 +467,9 @@ class Docker extends Trigger {
                 }
             }
         } else {
-            logContainer.warn('Unable to update the container because it does not exist');
+            logContainer.warn(
+                'Unable to update the container because it does not exist',
+            );
         }
     }
 
@@ -415,7 +479,9 @@ class Docker extends Trigger {
      * @returns {Promise<unknown[]>}
      */
     async triggerBatch(containers) {
-        return Promise.all(containers.map((container) => this.trigger(container)));
+        return Promise.all(
+            containers.map((container) => this.trigger(container)),
+        );
     }
 }
 

@@ -15,9 +15,14 @@ class Http extends Trigger {
             url: this.joi.string().uri({
                 scheme: ['http', 'https'],
             }),
-            method: this.joi.string().allow('GET').allow('POST').default('POST'),
+            method: this.joi
+                .string()
+                .allow('GET')
+                .allow('POST')
+                .default('POST'),
             auth: this.joi.object({
-                type: this.joi.string()
+                type: this.joi
+                    .string()
                     .allow('BASIC')
                     .allow('BEARER')
                     .default('BASIC'),

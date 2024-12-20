@@ -7,29 +7,27 @@ The `acr`registry lets you configure [ACR](https://azure.microsoft.com/services/
 
 | Env var                         | Required     | Description                 | Supported values                                                                                                                  | Default value when missing |
 | ------------------------------- |:------------:| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | 
-| `WUD_REGISTRY_ACR_CLIENTID`     | :red_circle: | Service Principal Client ID | See [Service Principal Auth](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-auth-service-principal) |                            |
-| `WUD_REGISTRY_ACR_CLIENTSECRET` | :red_circle: | Service Principal Secret    | See [Service Principal Auth](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-auth-service-principal) |                            |
+| `WUD_REGISTRY_ACR_{REGISTRY_NAME}_CLIENTID`     | :red_circle: | Service Principal Client ID | See [Service Principal Auth](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-auth-service-principal) |                            |
+| `WUD_REGISTRY_ACR_{REGISTRY_NAME}_CLIENTSECRET` | :red_circle: | Service Principal Secret    | See [Service Principal Auth](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-auth-service-principal) |                            |
 
 ### Examples
 
-<!-- tabs:start -->
+<!-- tabs:start -->                                                                
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
     ...
     environment:
-      - WUD_REGISTRY_ACR_CLIENTID=7c0195aa-112d-4ac3-be24-6664a13f3d2b
-      - WUD_REGISTRY_ACR_CLIENTSECRET=SBgHNi3zA5K.f9.f9ft~_hpqbS~.pk.t_i
+      - WUD_REGISTRY_ACR_PRIVATE_CLIENTID=7c0195aa-112d-4ac3-be24-6664a13f3d2b
+      - WUD_REGISTRY_ACR_PRIVATE_CLIENTSECRET=SBgHNi3zA5K.f9.f9ft~_hpqbS~.pk.t_i
 ```
 #### **Docker**
 ```bash
 docker run \
-  -e WUD_REGISTRY_ACR_CLIENTID=7c0195aa-112d-4ac3-be24-6664a13f3d2b \
-  -e WUD_REGISTRY_ACR_CLIENTSECRET=SBgHNi3zA5K.f9.f9ft~_hpqbS~.pk.t_i \
+  -e WUD_REGISTRY_ACR_PRIVATE_CLIENTID=7c0195aa-112d-4ac3-be24-6664a13f3d2b \
+  -e WUD_REGISTRY_ACR_PRIVATE_CLIENTSECRET=SBgHNi3zA5K.f9.f9ft~_hpqbS~.pk.t_i \
   ...
   getwud/wud
 ```

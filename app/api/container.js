@@ -88,7 +88,9 @@ function deleteContainer(req, res) {
  */
 async function watchContainers(req, res) {
     try {
-        await Promise.all(Object.values(getWatchers()).map((watcher) => watcher.watch()));
+        await Promise.all(
+            Object.values(getWatchers()).map((watcher) => watcher.watch()),
+        );
         getContainers(req, res);
     } catch (e) {
         res.status(500).json({
@@ -103,22 +105,45 @@ async function getContainerTriggers(req, res) {
     const container = storeContainer.getContainer(id);
     if (container) {
         const allTriggers = mapComponentsToList(getTriggers());
-        const includedTriggers = container.triggerInclude ? container.triggerInclude.split(/\s*,\s*/).map((includedTrigger) => Trigger.parseIncludeOrIncludeTriggerString(includedTrigger)) : undefined;
-        const excludedTriggers = container.triggerExclude ? container.triggerExclude.split(/\s*,\s*/).map((excludedTrigger) => Trigger.parseIncludeOrIncludeTriggerString(excludedTrigger)) : undefined;
+        const includedTriggers = container.triggerInclude
+            ? container.triggerInclude
+                  .split(/\s*,\s*/)
+                  .map((includedTrigger) =>
+                      Trigger.parseIncludeOrIncludeTriggerString(
+                          includedTrigger,
+                      ),
+                  )
+            : undefined;
+        const excludedTriggers = container.triggerExclude
+            ? container.triggerExclude
+                  .split(/\s*,\s*/)
+                  .map((excludedTrigger) =>
+                      Trigger.parseIncludeOrIncludeTriggerString(
+                          excludedTrigger,
+                      ),
+                  )
+            : undefined;
         const associatedTriggers = [];
         allTriggers.forEach((trigger) => {
             const triggerToAssociate = { ...trigger };
             let associated = true;
             if (includedTriggers) {
-                const includedTrigger = includedTriggers.find((tr) => tr.id === trigger.id);
+                const includedTrigger = includedTriggers.find(
+                    (tr) => tr.id === trigger.id,
+                );
                 if (includedTrigger) {
-                    triggerToAssociate.configuration.threshold = includedTrigger.threshold;
+                    triggerToAssociate.configuration.threshold =
+                        includedTrigger.threshold;
                 } else {
                     associated = false;
                 }
             }
-            if (excludedTriggers && excludedTriggers
-                .map((excludedTrigger) => excludedTrigger.id).includes(trigger.id)) {
+            if (
+                excludedTriggers &&
+                excludedTriggers
+                    .map((excludedTrigger) => excludedTrigger.id)
+                    .includes(trigger.id)
+            ) {
                 associated = false;
             }
             if (associated) {
@@ -142,7 +167,7 @@ async function watchContainer(req, res) {
 
     const container = storeContainer.getContainer(id);
     if (container) {
-        const watcher = getWatchers()[`watcher.docker.${container.watcher}`];
+        const watcher = getWatchers()[`docker.${container.watcher}`];
         if (!watcher) {
             res.status(500).json({
                 error: `No provider found for container ${id} and provider ${container.watcher}`,
@@ -152,14 +177,16 @@ async function watchContainer(req, res) {
                 // Ensure container is still in store
                 // (for cases where it has been removed before running an new watchAll)
                 const containers = await watcher.getContainers();
-                const containerFound = containers
-                    .find((containerInList) => containerInList.id === container.id);
+                const containerFound = containers.find(
+                    (containerInList) => containerInList.id === container.id,
+                );
 
                 if (!containerFound) {
                     res.status(404).send();
                 } else {
                     // Run watchContainer from the Provider
-                    const containerReport = await watcher.watchContainer(container);
+                    const containerReport =
+                        await watcher.watchContainer(container);
                     res.status(200).json(containerReport.container);
                 }
             } catch (e) {

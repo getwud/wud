@@ -154,24 +154,28 @@ test('getContainers should return all containers sorted by name', () => {
             tag: 'version',
         },
     };
-    const containers = [{
-        data: {
-            ...containerExample,
-            name: 'container3',
+    const containers = [
+        {
+            data: {
+                ...containerExample,
+                name: 'container3',
+            },
         },
-    }, {
-        data: {
-            ...containerExample,
-            name: 'container2',
+        {
+            data: {
+                ...containerExample,
+                name: 'container2',
+            },
         },
-    }, {
-        data: {
-            ...containerExample,
-            name: 'container1',
+        {
+            data: {
+                ...containerExample,
+                name: 'container1',
+            },
         },
-    }];
+    ];
     const collection = {
-        find: () => (containers),
+        find: () => containers,
     };
     const db = {
         getCollection: () => collection,
@@ -218,7 +222,7 @@ test('getContainer should return 1 container by id', () => {
         },
     };
     const collection = {
-        findOne: () => (containerExample),
+        findOne: () => containerExample,
     };
     const db = {
         getCollection: () => collection,
@@ -230,7 +234,7 @@ test('getContainer should return 1 container by id', () => {
 
 test('getContainer should return undefined when not found', () => {
     const collection = {
-        findOne: () => (null),
+        findOne: () => null,
     };
     const db = {
         getCollection: () => collection,

@@ -25,13 +25,13 @@ beforeEach(() => {
 });
 
 test('validateConfiguration should return validated configuration when valid', () => {
-    const validatedConfiguration = oidc.validateConfiguration(configurationValid);
+    const validatedConfiguration =
+        oidc.validateConfiguration(configurationValid);
     expect(validatedConfiguration).toStrictEqual(configurationValid);
 });
 
 test('validateConfiguration should throw error when invalid', () => {
-    const configuration = {
-    };
+    const configuration = {};
     expect(() => {
         oidc.validateConfiguration(configuration);
     }).toThrowError(ValidationError);

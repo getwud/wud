@@ -1,11 +1,14 @@
 const { ValidationError } = require('joi');
 
-jest.mock('pushover-notifications', () => (class Push {
-    // eslint-disable-next-line class-methods-use-this
-    send(message, cb) {
-        cb(undefined, message);
-    }
-}));
+jest.mock(
+    'pushover-notifications',
+    () =>
+        class Push {
+            send(message, cb) {
+                cb(undefined, message);
+            }
+        },
+);
 
 const Pushover = require('./Pushover');
 
@@ -20,16 +23,18 @@ const configurationValid = {
     threshold: 'all',
     mode: 'simple',
     once: true,
-    // eslint-disable-next-line no-template-curly-in-string
+
     simpletitle: 'New ${kind} found for container ${name}',
-    // eslint-disable-next-line no-template-curly-in-string
-    simplebody: 'Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote}\n${link}',
-    // eslint-disable-next-line no-template-curly-in-string
+
+    simplebody:
+        'Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote}\n${link}',
+
     batchtitle: '${count} updates available',
 };
 
 test('validateConfiguration should return validated configuration when valid', () => {
-    const validatedConfiguration = pushover.validateConfiguration(configurationValid);
+    const validatedConfiguration =
+        pushover.validateConfiguration(configurationValid);
     expect(validatedConfiguration).toStrictEqual(configurationValid);
 });
 
@@ -97,11 +102,12 @@ test('maskConfiguration should mask sensitive data', () => {
         mode: 'simple',
         priority: 0,
         device: undefined,
-        // eslint-disable-next-line no-template-curly-in-string
-        simplebody: 'Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote}\n${link}',
-        // eslint-disable-next-line no-template-curly-in-string
+
+        simplebody:
+            'Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote}\n${link}',
+
         simpletitle: 'New ${kind} found for container ${name}',
-        // eslint-disable-next-line no-template-curly-in-string
+
         batchtitle: '${count} updates available',
         sound: 'pushover',
         html: 0,
@@ -140,7 +146,8 @@ test('trigger should send message to pushover', async () => {
     const result = await pushover.trigger(container);
     expect(result).toStrictEqual({
         device: undefined,
-        message: 'Container container1 running with tag 1.0.0 can be updated to tag 2.0.0\n',
+        message:
+            'Container container1 running with tag 1.0.0 can be updated to tag 2.0.0\n',
         priority: 0,
         sound: 'pushover',
         html: 0,
