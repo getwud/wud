@@ -12,7 +12,8 @@ const HASS_DEVICE_ID = 'wud';
 const HASS_DEVICE_NAME = 'wud';
 const HASS_MANUFACTURER = 'wud';
 const HASS_ENTITY_VALUE_TEMPLATE = '{{ value_json.image_tag_value }}';
-const HASS_LATEST_VERSION_TEMPLATE = '{% if value_json.update_kind_kind == "digest" %}{{ value_json.result_digest[:15] }}{% else %}{{ value_json.result_tag }}{% endif %}';
+const HASS_LATEST_VERSION_TEMPLATE =
+    '{% if value_json.update_kind_kind == "digest" %}{{ value_json.result_digest[:15] }}{% else %}{{ value_json.result_tag }}{% endif %}';
 
 /**
  * Get hass entity unique id.
@@ -59,13 +60,23 @@ class Hass {
         this.log = log;
 
         // Subscribe to container events to sync HA
-        registerContainerAdded((container) => this.addContainerSensor(container));
-        registerContainerUpdated((container) => this.addContainerSensor(container));
-        registerContainerRemoved((container) => this.removeContainerSensor(container));
+        registerContainerAdded((container) =>
+            this.addContainerSensor(container),
+        );
+        registerContainerUpdated((container) =>
+            this.addContainerSensor(container),
+        );
+        registerContainerRemoved((container) =>
+            this.removeContainerSensor(container),
+        );
 
         // Subscribe to watcher events to sync HA
-        registerWatcherStart((watcher) => this.updateWatcherSensors({ watcher, isRunning: true }));
-        registerWatcherStop((watcher) => this.updateWatcherSensors({ watcher, isRunning: false }));
+        registerWatcherStart((watcher) =>
+            this.updateWatcherSensors({ watcher, isRunning: true }),
+        );
+        registerWatcherStop((watcher) =>
+            this.updateWatcherSensors({ watcher, isRunning: false }),
+        );
     }
 
     /**
@@ -75,10 +86,15 @@ class Hass {
      */
     async addContainerSensor(container) {
         const containerStateTopic = this.getContainerStateTopic({ container });
-        this.log.info(`Add hass container update sensor [${containerStateTopic}]`);
+        this.log.info(
+            `Add hass container update sensor [${containerStateTopic}]`,
+        );
         if (this.configuration.hass.discovery) {
             await this.publishDiscoveryMessage({
-                discoveryTopic: this.getDiscoveryTopic({ kind: 'update', topic: containerStateTopic }),
+                discoveryTopic: this.getDiscoveryTopic({
+                    kind: 'update',
+                    topic: containerStateTopic,
+                }),
                 stateTopic: containerStateTopic,
                 name: container.displayName,
                 icon: sanitizeIcon(container.displayIcon),
@@ -87,7 +103,9 @@ class Hass {
                     value_template: HASS_ENTITY_VALUE_TEMPLATE,
                     latest_version_topic: containerStateTopic,
                     latest_version_template: HASS_LATEST_VERSION_TEMPLATE,
-                    release_url: container.result ? container.result.link : undefined,
+                    release_url: container.result
+                        ? container.result.link
+                        : undefined,
                     json_attributes_topic: containerStateTopic,
                 },
             });
@@ -102,9 +120,16 @@ class Hass {
      */
     async removeContainerSensor(container) {
         const containerStateTopic = this.getContainerStateTopic({ container });
-        this.log.info(`Remove hass container update sensor [${containerStateTopic}]`);
+        this.log.info(
+            `Remove hass container update sensor [${containerStateTopic}]`,
+        );
         if (this.configuration.hass.discovery) {
-            await this.removeSensor({ discoveryTopic: this.getDiscoveryTopic({ kind: 'update', topic: containerStateTopic }) });
+            await this.removeSensor({
+                discoveryTopic: this.getDiscoveryTopic({
+                    kind: 'update',
+                    topic: containerStateTopic,
+                }),
+            });
         }
         await this.updateContainerSensors(container);
     }
@@ -119,12 +144,30 @@ class Hass {
         const watcherUpdateStatusTopic = `${this.configuration.topic}/${container.watcher}/update_status`;
 
         // Discovery topics
-        const totalCountDiscoveryTopic = this.getDiscoveryTopic({ kind: 'sensor', topic: totalCountTopic });
-        const totalUpdateCountDiscoveryTopic = this.getDiscoveryTopic({ kind: 'sensor', topic: totalUpdateCountTopic });
-        const totalUpdateStatusDiscoveryTopic = this.getDiscoveryTopic({ kind: 'binary_sensor', topic: totalUpdateStatusTopic });
-        const watcherTotalCountDiscoveryTopic = this.getDiscoveryTopic({ kind: 'sensor', topic: watcherTotalCountTopic });
-        const watcherUpdateCountDiscoveryTopic = this.getDiscoveryTopic({ kind: 'sensor', topic: watcherUpdateCountTopic });
-        const watcherUpdateStatusDiscoveryTopic = this.getDiscoveryTopic({ kind: 'binary_sensor', topic: watcherUpdateStatusTopic });
+        const totalCountDiscoveryTopic = this.getDiscoveryTopic({
+            kind: 'sensor',
+            topic: totalCountTopic,
+        });
+        const totalUpdateCountDiscoveryTopic = this.getDiscoveryTopic({
+            kind: 'sensor',
+            topic: totalUpdateCountTopic,
+        });
+        const totalUpdateStatusDiscoveryTopic = this.getDiscoveryTopic({
+            kind: 'binary_sensor',
+            topic: totalUpdateStatusTopic,
+        });
+        const watcherTotalCountDiscoveryTopic = this.getDiscoveryTopic({
+            kind: 'sensor',
+            topic: watcherTotalCountTopic,
+        });
+        const watcherUpdateCountDiscoveryTopic = this.getDiscoveryTopic({
+            kind: 'sensor',
+            topic: watcherUpdateCountTopic,
+        });
+        const watcherUpdateStatusDiscoveryTopic = this.getDiscoveryTopic({
+            kind: 'binary_sensor',
+            topic: watcherUpdateStatusTopic,
+        });
 
         // Publish discovery messages
         if (this.configuration.hass.discovery) {
@@ -170,47 +213,65 @@ class Hass {
 
         // Count all containers
         const totalCount = containerStore.getContainers().length;
-        const updateCount = containerStore.getContainers({ updateAvailable: true }).length;
+        const updateCount = containerStore.getContainers({
+            updateAvailable: true,
+        }).length;
 
         // Count all containers belonging to the current watcher
         const watcherTotalCount = containerStore.getContainers({
             watcher: container.watcher,
         }).length;
         const watcherUpdateCount = containerStore.getContainers({
-            watcher: container.watcher, updateAvailable: true,
+            watcher: container.watcher,
+            updateAvailable: true,
         }).length;
 
         // Publish sensors
         await this.updateSensor({
-            topic: totalCountTopic, value: totalCount,
+            topic: totalCountTopic,
+            value: totalCount,
         });
         await this.updateSensor({
-            topic: totalUpdateCountTopic, value: updateCount,
+            topic: totalUpdateCountTopic,
+            value: updateCount,
         });
         await this.updateSensor({
-            topic: totalUpdateStatusTopic, value: updateCount > 0,
+            topic: totalUpdateStatusTopic,
+            value: updateCount > 0,
         });
         await this.updateSensor({
-            topic: watcherTotalCountTopic, value: watcherTotalCount,
+            topic: watcherTotalCountTopic,
+            value: watcherTotalCount,
         });
         await this.updateSensor({
-            topic: watcherUpdateCountTopic, value: watcherUpdateCount,
+            topic: watcherUpdateCountTopic,
+            value: watcherUpdateCount,
         });
         await this.updateSensor({
-            topic: watcherUpdateStatusTopic, value: watcherUpdateCount > 0,
+            topic: watcherUpdateStatusTopic,
+            value: watcherUpdateCount > 0,
         });
 
         // Delete watcher sensors when watcher does not exist anymore
         if (watcherTotalCount === 0 && this.configuration.hass.discovery) {
-            await this.removeSensor({ discoveryTopic: watcherTotalCountDiscoveryTopic });
-            await this.removeSensor({ discoveryTopic: watcherUpdateCountDiscoveryTopic });
-            await this.removeSensor({ discoveryTopic: watcherUpdateStatusDiscoveryTopic });
+            await this.removeSensor({
+                discoveryTopic: watcherTotalCountDiscoveryTopic,
+            });
+            await this.removeSensor({
+                discoveryTopic: watcherUpdateCountDiscoveryTopic,
+            });
+            await this.removeSensor({
+                discoveryTopic: watcherUpdateStatusDiscoveryTopic,
+            });
         }
     }
 
     async updateWatcherSensors({ watcher, isRunning }) {
         const watcherStatusTopic = `${this.configuration.topic}/${watcher.name}/running`;
-        const watcherStatusDiscoveryTopic = this.getDiscoveryTopic({ kind: 'binary_sensor', topic: watcherStatusTopic });
+        const watcherStatusDiscoveryTopic = this.getDiscoveryTopic({
+            kind: 'binary_sensor',
+            topic: watcherStatusTopic,
+        });
 
         // Publish discovery messages
         if (this.configuration.hass.discovery) {
@@ -227,7 +288,8 @@ class Hass {
 
         // Publish sensors
         await this.updateSensor({
-            topic: watcherStatusTopic, value: isRunning,
+            topic: watcherStatusTopic,
+            value: isRunning,
         });
     }
 
@@ -248,18 +310,23 @@ class Hass {
         options = {},
     }) {
         const entityId = getHassEntityId(stateTopic);
-        return this.client.publish(discoveryTopic, JSON.stringify({
-            unique_id: entityId,
-            object_id: entityId,
-            name: name || entityId,
-            device: getHaDevice(),
-            icon: icon || sanitizeIcon('mdi:docker'),
-            entity_picture: 'https://github.com/getwud/wud/raw/main/docs/wud_logo.png',
-            state_topic: stateTopic,
-            ...options,
-        }), {
-            retain: true,
-        });
+        return this.client.publish(
+            discoveryTopic,
+            JSON.stringify({
+                unique_id: entityId,
+                object_id: entityId,
+                name: name || entityId,
+                device: getHaDevice(),
+                icon: icon || sanitizeIcon('mdi:docker'),
+                entity_picture:
+                    'https://github.com/getwud/wud/raw/main/docs/wud_logo.png',
+                state_topic: stateTopic,
+                ...options,
+            }),
+            {
+                retain: true,
+            },
+        );
     }
 
     /**
@@ -267,10 +334,10 @@ class Hass {
      * @param discoveryTopic
      * @returns {Promise<*>}
      */
-    async removeSensor({
-        discoveryTopic,
-    }) {
-        return this.client.publish(discoveryTopic, JSON.stringify({}), { retain: true });
+    async removeSensor({ discoveryTopic }) {
+        return this.client.publish(discoveryTopic, JSON.stringify({}), {
+            retain: true,
+        });
     }
 
     /**
@@ -279,10 +346,7 @@ class Hass {
      * @param value
      * @returns {Promise<*>}
      */
-    async updateSensor({
-        topic,
-        value,
-    }) {
+    async updateSensor({ topic, value }) {
         return this.client.publish(topic, value.toString(), { retain: true });
     }
 

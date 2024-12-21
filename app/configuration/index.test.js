@@ -75,7 +75,10 @@ test('getRegistryConfigurations should return configured registries when overrid
 test('getStoreConfiguration should return configured store', () => {
     configuration.wudEnvVars.WUD_STORE_X = 'x';
     configuration.wudEnvVars.WUD_STORE_Y = 'y';
-    expect(configuration.getStoreConfiguration()).toStrictEqual({ x: 'x', y: 'y' });
+    expect(configuration.getStoreConfiguration()).toStrictEqual({
+        x: 'x',
+        y: 'y',
+    });
 });
 
 test('getServerConfiguration should return configured api (new vars)', () => {

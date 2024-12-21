@@ -28,7 +28,7 @@ class Acr extends Registry {
      * @param image the image
      * @returns {boolean}
      */
-    // eslint-disable-next-line class-methods-use-this
+
     match(image) {
         return /^.*\.?azurecr.io$/.test(image.registry.url);
     }
@@ -38,10 +38,9 @@ class Acr extends Registry {
      * @param image
      * @returns {*}
      */
-    // eslint-disable-next-line class-methods-use-this
+
     normalizeImage(image) {
         const imageNormalized = image;
-        imageNormalized.registry.name = 'acr';
         if (!imageNormalized.registry.url.startsWith('https://')) {
             imageNormalized.registry.url = `https://${imageNormalized.registry.url}/v2`;
         }

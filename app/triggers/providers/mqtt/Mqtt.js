@@ -31,33 +31,45 @@ class Mqtt extends Trigger {
      */
     getConfigurationSchema() {
         return this.joi.object().keys({
-            url: this.joi.string().uri({
-                scheme: ['mqtt', 'mqtts', 'tcp', 'tls', 'ws', 'wss'],
-            }).required(),
+            url: this.joi
+                .string()
+                .uri({
+                    scheme: ['mqtt', 'mqtts', 'tcp', 'tls', 'ws', 'wss'],
+                })
+                .required(),
             topic: this.joi.string().default(containerDefaultTopic),
-            clientid: this.joi.string().default(`wud_${Math.random().toString(16).substring(2, 10)}`),
+            clientid: this.joi
+                .string()
+                .default(`wud_${Math.random().toString(16).substring(2, 10)}`),
             user: this.joi.string(),
             password: this.joi.string(),
-            hass: this.joi.object({
-                enabled: this.joi.boolean().default(false),
-                prefix: this.joi.string().default(hassDefaultPrefix),
-                discovery: this.joi.boolean().when('enabled', { is: true, then: this.joi.boolean().default(true) }),
-            }).default({
-                enabled: false,
-                prefix: hassDefaultPrefix,
-                discovery: false,
-            }),
-            tls: this.joi.object({
-                clientkey: this.joi.string(),
-                clientcert: this.joi.string(),
-                cachain: this.joi.string(),
-                rejectunauthorized: this.joi.boolean().default(true),
-            }).default({
-                clientkey: undefined,
-                clientcert: undefined,
-                cachain: undefined,
-                rejectunauthorized: true,
-            }),
+            hass: this.joi
+                .object({
+                    enabled: this.joi.boolean().default(false),
+                    prefix: this.joi.string().default(hassDefaultPrefix),
+                    discovery: this.joi.boolean().when('enabled', {
+                        is: true,
+                        then: this.joi.boolean().default(true),
+                    }),
+                })
+                .default({
+                    enabled: false,
+                    prefix: hassDefaultPrefix,
+                    discovery: false,
+                }),
+            tls: this.joi
+                .object({
+                    clientkey: this.joi.string(),
+                    clientcert: this.joi.string(),
+                    cachain: this.joi.string(),
+                    rejectunauthorized: this.joi.boolean().default(true),
+                })
+                .default({
+                    clientkey: undefined,
+                    clientcert: undefined,
+                    cachain: undefined,
+                    rejectunauthorized: true,
+                }),
         });
     }
 
@@ -126,16 +138,20 @@ class Mqtt extends Trigger {
         });
 
         this.log.debug(`Publish container result to ${containerTopic}`);
-        return this.client.publish(containerTopic, JSON.stringify(flatten(container)), {
-            retain: true,
-        });
+        return this.client.publish(
+            containerTopic,
+            JSON.stringify(flatten(container)),
+            {
+                retain: true,
+            },
+        );
     }
 
     /**
      * Mqtt trigger does not support batch mode.
      * @returns {Promise<void>}
      */
-    // eslint-disable-next-line class-methods-use-this
+
     async triggerBatch() {
         throw new Error('This trigger does not support "batch" mode');
     }

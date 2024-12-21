@@ -13,11 +13,12 @@ const configurationValid = {
     mode: 'simple',
     threshold: 'all',
     once: true,
-    // eslint-disable-next-line no-template-curly-in-string
+
     simpletitle: 'New ${kind} found for container ${name}',
-    // eslint-disable-next-line no-template-curly-in-string
-    simplebody: 'Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote}\n${link}',
-    // eslint-disable-next-line no-template-curly-in-string
+
+    simplebody:
+        'Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote}\n${link}',
+
     batchtitle: '${count} updates available',
 };
 
@@ -26,7 +27,8 @@ beforeEach(() => {
 });
 
 test('validateConfiguration should return validated configuration when valid', () => {
-    const validatedConfiguration = ntfy.validateConfiguration(configurationValid);
+    const validatedConfiguration =
+        ntfy.validateConfiguration(configurationValid);
     expect(validatedConfiguration).toStrictEqual(configurationValid);
 });
 
@@ -47,7 +49,8 @@ test('trigger should call http client', async () => {
     await ntfy.trigger(container);
     expect(rp).toHaveBeenCalledWith({
         body: {
-            message: 'Container container1 running with   can be updated to  \n',
+            message:
+                'Container container1 running with   can be updated to  \n',
             priority: 2,
             title: 'New  found for container container1',
             topic: 'xxx',
@@ -72,7 +75,8 @@ test('trigger should use basic auth when configured like that', async () => {
     await ntfy.trigger(container);
     expect(rp).toHaveBeenCalledWith({
         body: {
-            message: 'Container container1 running with   can be updated to  \n',
+            message:
+                'Container container1 running with   can be updated to  \n',
             priority: 2,
             title: 'New  found for container container1',
             topic: 'xxx',
@@ -98,7 +102,8 @@ test('trigger should use bearer auth when configured like that', async () => {
     await ntfy.trigger(container);
     expect(rp).toHaveBeenCalledWith({
         body: {
-            message: 'Container container1 running with   can be updated to  \n',
+            message:
+                'Container container1 running with   can be updated to  \n',
             priority: 2,
             title: 'New  found for container container1',
             topic: 'xxx',

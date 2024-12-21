@@ -38,7 +38,9 @@ class Oidc extends Authentication {
     }
 
     async initAuthentication() {
-        this.log.debug(`Discovering configuration from ${this.configuration.discovery}`);
+        this.log.debug(
+            `Discovering configuration from ${this.configuration.discovery}`,
+        );
         custom.setHttpOptionsDefaults({
             timeout: this.configuration.timeout,
         });
@@ -51,7 +53,7 @@ class Oidc extends Authentication {
         try {
             this.logoutUrl = this.client.endSessionUrl();
         } catch (e) {
-            this.log.warn('End session url is not supported');
+            this.log.warn(` End session url is not supported (${e.message})`);
         }
     }
 
@@ -60,8 +62,12 @@ class Oidc extends Authentication {
      * @param app
      */
     getStrategy(app) {
-        app.get(`/auth/oidc/${this.name}/redirect`, async (req, res) => this.redirect(req, res));
-        app.get(`/auth/oidc/${this.name}/cb`, async (req, res) => this.callback(req, res));
+        app.get(`/auth/oidc/${this.name}/redirect`, async (req, res) =>
+            this.redirect(req, res),
+        );
+        app.get(`/auth/oidc/${this.name}/cb`, async (req, res) =>
+            this.callback(req, res),
+        );
         const strategy = new OidcStrategy(
             {
                 client: this.client,
@@ -123,12 +129,16 @@ class Oidc extends Authentication {
                 },
             );
             this.log.debug('Get user info');
-            const user = await this.getUserFromAccessToken(tokenSet.access_token);
+            const user = await this.getUserFromAccessToken(
+                tokenSet.access_token,
+            );
 
             this.log.debug('Perform passport login');
             req.login(user, (err) => {
                 if (err) {
-                    this.log.warn(`Error when logging the user [${err.message}]`);
+                    this.log.warn(
+                        `Error when logging the user [${err.message}]`,
+                    );
                     res.status(401).send(err.message);
                 } else {
                     this.log.debug('User authenticated => redirect to app');
@@ -146,6 +156,9 @@ class Oidc extends Authentication {
             const user = await this.getUserFromAccessToken(accessToken);
             done(null, user);
         } catch (e) {
+            this.log.warn(
+                `Error when validating the user access token (${e.message})`,
+            );
             done(null, false);
         }
     }

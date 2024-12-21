@@ -8,8 +8,6 @@ If you prefer using a local timezone, you have 2 solutions:
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
@@ -28,8 +26,6 @@ docker run -v /etc/localtime:/etc/localtime:ro ... getwud/wud
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud

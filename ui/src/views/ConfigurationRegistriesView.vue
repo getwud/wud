@@ -35,7 +35,7 @@ export default {
           ...registry,
           icon: getRegistryProviderIcon(registry.type),
         }))
-        .sort((r1, r2) => r1.name.localeCompare(r2.name));
+        .sort((r1, r2) => r1.id.localeCompare(r2.id));
       next((vm) => (vm.registries = registriesWithIcons));
     } catch (e) {
       this.$root.$emit(

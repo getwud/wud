@@ -12,9 +12,12 @@ class Discord extends Trigger {
      */
     getConfigurationSchema() {
         return this.joi.object().keys({
-            url: this.joi.string().uri({
-                scheme: ['https'],
-            }).required(),
+            url: this.joi
+                .string()
+                .uri({
+                    scheme: ['https'],
+                })
+                .required(),
             botusername: this.joi.string().default('WUD'),
             cardcolor: this.joi.number().default(65280),
             cardlabel: this.joi.string().default(''),
@@ -66,16 +69,18 @@ class Discord extends Trigger {
         const uri = this.configuration.url;
         const body = {
             username: this.configuration.botusername,
-            embeds: [{
-                title,
-                color: this.configuration.cardcolor,
-                fields: [
-                    {
-                        name: this.configuration.cardlabel,
-                        value: bodyText,
-                    },
-                ],
-            }],
+            embeds: [
+                {
+                    title,
+                    color: this.configuration.cardcolor,
+                    fields: [
+                        {
+                            name: this.configuration.cardlabel,
+                            value: bodyText,
+                        },
+                    ],
+                },
+            ],
         };
 
         const options = {

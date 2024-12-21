@@ -38,21 +38,24 @@ export default {
   computed: {
     serverConfiguration() {
       return {
-        name: "server",
+        type: "server",
+        name: "configuration",
         icon: "mdi-connection",
         configuration: this.server.configuration,
       };
     },
     logConfiguration() {
       return {
-        name: "logs",
+        type: "logs",
+        name: "configuration",
         icon: "mdi-bug",
         configuration: this.log,
       };
     },
     storeConfiguration() {
       return {
-        name: "store",
+        type: "store",
+        name: "configuration",
         icon: "mdi-file-multiple",
         configuration: this.store.configuration,
       };

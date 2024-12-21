@@ -48,9 +48,11 @@ class Hub extends Custom {
      * @param image the image
      * @returns {boolean}
      */
-    // eslint-disable-next-line class-methods-use-this
+
     match(image) {
-        return !image.registry.url || /^.*\.?docker.io$/.test(image.registry.url);
+        return (
+            !image.registry.url || /^.*\.?docker.io$/.test(image.registry.url)
+        );
     }
 
     /**
@@ -58,12 +60,12 @@ class Hub extends Custom {
      * @param image
      * @returns {*}
      */
-    // eslint-disable-next-line class-methods-use-this
     normalizeImage(image) {
         const imageNormalized = super.normalizeImage(image);
-        imageNormalized.registry.name = 'hub';
         if (imageNormalized.name) {
-            imageNormalized.name = imageNormalized.name.includes('/') ? imageNormalized.name : `library/${imageNormalized.name}`;
+            imageNormalized.name = imageNormalized.name.includes('/')
+                ? imageNormalized.name
+                : `library/${imageNormalized.name}`;
         }
         return imageNormalized;
     }
@@ -74,7 +76,6 @@ class Hub extends Custom {
      * @param requestOptions
      * @returns {Promise<*>}
      */
-    // eslint-disable-next-line class-methods-use-this
     async authenticate(image, requestOptions) {
         const request = {
             method: 'GET',
@@ -97,7 +98,6 @@ class Hub extends Custom {
         return requestOptionsWithAuth;
     }
 
-    // eslint-disable-next-line class-methods-use-this
     getImageFullName(image, tagOrDigest) {
         let fullName = super.getImageFullName(image, tagOrDigest);
         fullName = fullName.replace(/registry-1.docker.io\//, '');

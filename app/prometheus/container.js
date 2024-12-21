@@ -14,7 +14,9 @@ function populateGauge() {
         try {
             gaugeContainer.set(flatten(container), 1);
         } catch (e) {
-            log.warn(`${container.id} - Error when adding container to the metrics (${e.message})`);
+            log.warn(
+                `${container.id} - Error when adding container to the metrics (${e.message})`,
+            );
             log.debug(e);
         }
     });

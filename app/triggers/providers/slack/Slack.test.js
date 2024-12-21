@@ -12,16 +12,18 @@ const configurationValid = {
     threshold: 'all',
     mode: 'simple',
     once: true,
-    // eslint-disable-next-line no-template-curly-in-string
+
     simpletitle: 'New ${kind} found for container ${name}',
-    // eslint-disable-next-line no-template-curly-in-string
-    simplebody: 'Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote}\n${link}',
-    // eslint-disable-next-line no-template-curly-in-string
+
+    simplebody:
+        'Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote}\n${link}',
+
     batchtitle: '${count} updates available',
 };
 
 test('validateConfiguration should return validated configuration when valid', () => {
-    const validatedConfiguration = slack.validateConfiguration(configurationValid);
+    const validatedConfiguration =
+        slack.validateConfiguration(configurationValid);
     expect(validatedConfiguration).toStrictEqual(configurationValid);
 });
 
@@ -52,7 +54,7 @@ test('trigger should format text as expected', async () => {
     slack.configuration = configurationValid;
     slack.client = {
         chat: {
-            postMessage: (conf) => (conf),
+            postMessage: (conf) => conf,
         },
     };
     const response = await slack.trigger({
@@ -87,6 +89,7 @@ test('trigger should format text as expected', async () => {
             remoteValue: '2.0.0',
         },
     });
-    expect(response.text)
-        .toEqual('Container homeassistant running with tag 1.0.0 can be updated to tag 2.0.0\nhttps://test-2.0.0/changelog');
+    expect(response.text).toEqual(
+        'Container homeassistant running with tag 1.0.0 can be updated to tag 2.0.0\nhttps://test-2.0.0/changelog',
+    );
 });

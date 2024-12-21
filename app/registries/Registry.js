@@ -18,24 +18,18 @@ class Registry extends Component {
     }
 
     /**
-     * Override getId to return the name only (hub, ecr...).
-     * @returns {string}
-     */
-    getId() {
-        return this.type;
-    }
-
-    /**
      * Override to apply custom format to the logger.
      */
     async register(kind, type, name, configuration) {
-        this.log = log.child({ component: `${kind}.${type}` });
+        this.log = log.child({ component: `${kind}.${type}.${name}` });
         this.kind = kind;
         this.type = type;
         this.name = name;
 
         this.configuration = this.validateConfiguration(configuration);
-        this.log.info(`Register with configuration ${JSON.stringify(this.maskConfiguration(configuration))}`);
+        this.log.info(
+            `Register with configuration ${JSON.stringify(this.maskConfiguration(configuration))}`,
+        );
         await this.init();
         return this;
     }
@@ -45,7 +39,7 @@ class Registry extends Component {
      * @param image the image
      * @returns {boolean}
      */
-    // eslint-disable-next-line no-unused-vars,class-methods-use-this
+
     match(image) {
         return false;
     }
@@ -55,7 +49,7 @@ class Registry extends Component {
      * @param image
      * @returns {*}
      */
-    // eslint-disable-next-line class-methods-use-this
+
     normalizeImage(image) {
         return image;
     }
@@ -66,7 +60,7 @@ class Registry extends Component {
      * @param requestOptions
      * @returns {*}
      */
-    // eslint-disable-next-line class-methods-use-this
+
     async authenticate(image, requestOptions) {
         return requestOptions;
     }
@@ -77,14 +71,16 @@ class Registry extends Component {
      * @returns {*}
      */
     async getTags(image) {
-        this.log.debug(`${this.getId()} - Get ${image.name} tags`);
+        this.log.debug(`Get ${image.name} tags`);
         const tags = [];
         let page;
         let hasNext = true;
         let link;
         while (hasNext) {
-            const lastItem = page ? page.body.tags[page.body.tags.length - 1] : undefined;
-            // eslint-disable-next-line no-await-in-loop
+            const lastItem = page
+                ? page.body.tags[page.body.tags.length - 1]
+                : undefined;
+
             page = await this.getTagsPage(image, lastItem, link);
             const pageTags = page.body.tags ? page.body.tags : [];
             link = page.headers.link;
@@ -125,7 +121,9 @@ class Registry extends Component {
         const tagOrDigest = digest || image.tag.value;
         let manifestDigestFound;
         let manifestMediaType;
-        this.log.debug(`${this.getId()} - Get ${image.name}:${tagOrDigest} manifest`);
+        this.log.debug(
+            `${this.getId()} - Get ${image.name}:${tagOrDigest} manifest`,
+        );
         const responseManifests = await this.callRegistry({
             image,
             url: `${image.registry.url}/${image.name}/manifests/${tagOrDigest}`,
@@ -137,13 +135,25 @@ class Registry extends Component {
             log.debug(`Found manifests [${JSON.stringify(responseManifests)}]`);
             if (responseManifests.schemaVersion === 2) {
                 log.debug('Manifests found with schemaVersion = 2');
-                log.debug(`Manifests media type detected [${responseManifests.mediaType}]`);
-                if (responseManifests.mediaType === 'application/vnd.docker.distribution.manifest.list.v2+json' || responseManifests.mediaType === 'application/vnd.oci.image.index.v1+json') {
-                    log.debug(`Filter manifest for [arch=${image.architecture}, os=${image.os}, variant=${image.variant}]`);
+                log.debug(
+                    `Manifests media type detected [${responseManifests.mediaType}]`,
+                );
+                if (
+                    responseManifests.mediaType ===
+                        'application/vnd.docker.distribution.manifest.list.v2+json' ||
+                    responseManifests.mediaType ===
+                        'application/vnd.oci.image.index.v1+json'
+                ) {
+                    log.debug(
+                        `Filter manifest for [arch=${image.architecture}, os=${image.os}, variant=${image.variant}]`,
+                    );
                     let manifestFound;
-                    const manifestFounds = responseManifests.manifests
-                        .filter((manifest) => manifest.platform.architecture === image.architecture
-                            && manifest.platform.os === image.os);
+                    const manifestFounds = responseManifests.manifests.filter(
+                        (manifest) =>
+                            manifest.platform.architecture ===
+                                image.architecture &&
+                            manifest.platform.os === image.os,
+                    );
 
                     // 1 manifest matching al least? Get the first one (better than nothing)
                     if (manifestFounds.length > 0) {
@@ -152,8 +162,11 @@ class Registry extends Component {
 
                     // Multiple matching manifests? Try to refine using variant filtering
                     if (manifestFounds.length > 1) {
-                        const manifestFoundFilteredOnVariant = manifestFounds
-                            .find((manifest) => manifest.platform.variant === image.variant);
+                        const manifestFoundFilteredOnVariant =
+                            manifestFounds.find(
+                                (manifest) =>
+                                    manifest.platform.variant === image.variant,
+                            );
 
                         // Manifest exactly matching with variant? Select it
                         if (manifestFoundFilteredOnVariant) {
@@ -162,28 +175,50 @@ class Registry extends Component {
                     }
 
                     if (manifestFound) {
-                        log.debug(`Manifest found with [digest=${manifestFound.digest}, mediaType=${manifestFound.mediaType}]`);
+                        log.debug(
+                            `Manifest found with [digest=${manifestFound.digest}, mediaType=${manifestFound.mediaType}]`,
+                        );
                         manifestDigestFound = manifestFound.digest;
                         manifestMediaType = manifestFound.mediaType;
                     }
-                } else if (responseManifests.mediaType === 'application/vnd.docker.distribution.manifest.v2+json' || responseManifests.mediaType === 'application/vnd.oci.image.manifest.v1+json') {
-                    log.debug(`Manifest found with [digest=${responseManifests.config.digest}, mediaType=${responseManifests.config.mediaType}]`);
+                } else if (
+                    responseManifests.mediaType ===
+                        'application/vnd.docker.distribution.manifest.v2+json' ||
+                    responseManifests.mediaType ===
+                        'application/vnd.oci.image.manifest.v1+json'
+                ) {
+                    log.debug(
+                        `Manifest found with [digest=${responseManifests.config.digest}, mediaType=${responseManifests.config.mediaType}]`,
+                    );
                     manifestDigestFound = responseManifests.config.digest;
                     manifestMediaType = responseManifests.config.mediaType;
                 }
             } else if (responseManifests.schemaVersion === 1) {
                 log.debug('Manifests found with schemaVersion = 1');
-                const v1Compat = JSON.parse(responseManifests.history[0].v1Compatibility);
+                const v1Compat = JSON.parse(
+                    responseManifests.history[0].v1Compatibility,
+                );
                 const manifestFound = {
                     digest: v1Compat.config ? v1Compat.config.Image : undefined,
                     created: v1Compat.created,
                     version: 1,
                 };
-                log.debug(`Manifest found with [digest=${manifestFound.digest}, created=${manifestFound.created}, version=${manifestFound.version}]`);
+                log.debug(
+                    `Manifest found with [digest=${manifestFound.digest}, created=${manifestFound.created}, version=${manifestFound.version}]`,
+                );
                 return manifestFound;
             }
-            if ((manifestDigestFound && manifestMediaType === 'application/vnd.docker.distribution.manifest.v2+json') || (manifestDigestFound && manifestMediaType === 'application/vnd.oci.image.manifest.v1+json')) {
-                log.debug('Calling registry to get docker-content-digest header');
+            if (
+                (manifestDigestFound &&
+                    manifestMediaType ===
+                        'application/vnd.docker.distribution.manifest.v2+json') ||
+                (manifestDigestFound &&
+                    manifestMediaType ===
+                        'application/vnd.oci.image.manifest.v1+json')
+            ) {
+                log.debug(
+                    'Calling registry to get docker-content-digest header',
+                );
                 const responseManifest = await this.callRegistry({
                     image,
                     method: 'head',
@@ -197,15 +232,26 @@ class Registry extends Component {
                     digest: responseManifest.headers['docker-content-digest'],
                     version: 2,
                 };
-                log.debug(`Manifest found with [digest=${manifestFound.digest}, version=${manifestFound.version}]`);
+                log.debug(
+                    `Manifest found with [digest=${manifestFound.digest}, version=${manifestFound.version}]`,
+                );
                 return manifestFound;
             }
-            if ((manifestDigestFound && manifestMediaType === 'application/vnd.docker.container.image.v1+json') || (manifestDigestFound && manifestMediaType === 'application/vnd.oci.image.config.v1+json')) {
+            if (
+                (manifestDigestFound &&
+                    manifestMediaType ===
+                        'application/vnd.docker.container.image.v1+json') ||
+                (manifestDigestFound &&
+                    manifestMediaType ===
+                        'application/vnd.oci.image.config.v1+json')
+            ) {
                 const manifestFound = {
                     digest: manifestDigestFound,
                     version: 1,
                 };
-                log.debug(`Manifest found with [digest=${manifestFound.digest}, version=${manifestFound.version}]`);
+                log.debug(
+                    `Manifest found with [digest=${manifestFound.digest}, version=${manifestFound.version}]`,
+                );
                 return manifestFound;
             }
         }
@@ -233,17 +279,25 @@ class Registry extends Component {
             resolveWithFullResponse,
         };
 
-        const getRequestOptionsWithAuth = await this.authenticate(image, getRequestOptions);
+        const getRequestOptionsWithAuth = await this.authenticate(
+            image,
+            getRequestOptions,
+        );
         const response = await rp(getRequestOptionsWithAuth);
         const end = new Date().getTime();
-        getSummaryTags().observe({ type: this.type, name: this.name }, (end - start) / 1000);
+        getSummaryTags().observe(
+            { type: this.type, name: this.name },
+            (end - start) / 1000,
+        );
         return response;
     }
 
-    // eslint-disable-next-line class-methods-use-this
     getImageFullName(image, tagOrDigest) {
         // digests are separated with @ whereas tags are separated with :
-        const tagOrDigestWithSeparator = tagOrDigest.indexOf(':') !== -1 ? `@${tagOrDigest}` : `:${tagOrDigest}`;
+        const tagOrDigestWithSeparator =
+            tagOrDigest.indexOf(':') !== -1
+                ? `@${tagOrDigest}`
+                : `:${tagOrDigest}`;
         let fullName = `${image.registry.url}/${image.name}${tagOrDigestWithSeparator}`;
 
         fullName = fullName.replace(/https?:\/\//, '');
@@ -255,7 +309,7 @@ class Registry extends Component {
      * Return {username, pass } or undefined.
      * @returns {}
      */
-    // eslint-disable-next-line class-methods-use-this
+
     getAuthPull() {
         return undefined;
     }

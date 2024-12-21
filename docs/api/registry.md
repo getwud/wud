@@ -12,9 +12,9 @@ curl http://wud:3000/api/registries
 
 [
     {
-        "id":"ecr",
+        "id":"ecr.private",
         "type":"ecr",
-        "name":"ecr",
+        "name":"private",
         "configuration":{
             "region":"eu-west-1",
             "accesskeyid":"A******************D",
@@ -22,9 +22,9 @@ curl http://wud:3000/api/registries
         }
     },
     {
-        "id":"hub",
+        "id":"hub.private",
         "type":"hub",
-        "name":"hub",
+        "name":"private",
         "configuration":{
             "auth": "dXNlcm5hbWU6cGFzc3dvcmQ="
         }
@@ -36,12 +36,12 @@ curl http://wud:3000/api/registries
 This operation lets you get a specific Registry.
 
 ```bash
-curl http://wud:3000/api/registries/hub
+curl http://wud:3000/api/registries/hub/private
 
 {
-    "id": "hub",
+    "id": "hub.private",
     "type": "hub",
-    "name": "hub",
+    "name": "private",
     "configuration": {
         "auth": "dXNlcm5hbWU6cGFzc3dvcmQ="
     }

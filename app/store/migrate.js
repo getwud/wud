@@ -1,29 +1,12 @@
 const log = require('../log').child({ component: 'store' });
-const { getContainers, deleteContainer, updateContainer } = require('./container');
+const { getContainers, deleteContainer } = require('./container');
 
 /**
- * Migrate from legacy unknown version.
+ * Delete all containers from state.
  */
-function migrateFromUndefined() {
+function deleteAllContainersFromState() {
+    log.info('Incompatible state found; reset');
     getContainers({}).forEach((container) => deleteContainer(container.id));
-}
-
-/**
- * Add displayName & displayIcon if missing.
- */
-function addDisplayNameAndIcon() {
-    getContainers({}).forEach((container) => {
-        const containerMigrated = {
-            ...container,
-        };
-        if (container.displayName === undefined) {
-            containerMigrated.displayName = container.name;
-        }
-        if (container.displayIcon === undefined) {
-            containerMigrated.displayIcon = 'mdi:docker';
-        }
-        updateContainer(containerMigrated);
-    });
 }
 
 /**
@@ -33,11 +16,9 @@ function addDisplayNameAndIcon() {
  */
 function migrate(from, to) {
     log.info(`Migrate data from version ${from} to version ${to}`);
-    if (from === undefined) {
-        migrateFromUndefined();
+    if (from && !from.startsWith('8') && to && to.startsWith('8')) {
+        deleteAllContainersFromState();
     }
-
-    addDisplayNameAndIcon();
 }
 
 module.exports = {

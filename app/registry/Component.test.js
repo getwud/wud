@@ -27,12 +27,15 @@ test('mask should not fail when mask is longer than original string', () => {
 test('getId should return the concatenation $type.$name', () => {
     const component = new Component();
     component.register('kind', 'type', 'name', { x: 'x' });
-    expect(component.getId()).toEqual('kind.type.name');
+    expect(component.getId()).toEqual('type.name');
 });
 
 test('register should call validateConfiguration and init methods of the component', () => {
     const component = new Component();
-    const spyValidateConsiguration = jest.spyOn(component, 'validateConfiguration');
+    const spyValidateConsiguration = jest.spyOn(
+        component,
+        'validateConfiguration',
+    );
     const spyInit = jest.spyOn(component, 'init');
     component.register('kind', 'type', 'name', { x: 'x' });
     expect(spyValidateConsiguration).toHaveBeenCalledWith({ x: 'x' });
@@ -41,15 +44,22 @@ test('register should call validateConfiguration and init methods of the compone
 
 test('register should not call init when validateConfiguration fails', () => {
     const component = new Component();
-    component.validateConfiguration = () => { throw new Error('validation failed'); };
+    component.validateConfiguration = () => {
+        throw new Error('validation failed');
+    };
     const spyInit = jest.spyOn(component, 'init');
-    expect(component.register('type', 'name', { x: 'x' })).rejects.toThrowError('validation failed');
+    expect(component.register('type', 'name', { x: 'x' })).rejects.toThrowError(
+        'validation failed',
+    );
     expect(spyInit).toHaveBeenCalledTimes(0);
 });
 
 test('register should throw when init fails', () => {
     const component = new Component();
-    component.init = () => { throw new Error('init failed'); };
-    expect(component.register('type', 'name', { x: 'x' }))
-        .rejects.toThrowError('init failed');
+    component.init = () => {
+        throw new Error('init failed');
+    };
+    expect(component.register('type', 'name', { x: 'x' })).rejects.toThrowError(
+        'init failed',
+    );
 });

@@ -11,19 +11,24 @@ class Smtp extends Trigger {
      */
     getConfigurationSchema() {
         return this.joi.object().keys({
-            host: [this.joi.string().hostname().required(), this.joi.string().ip().required()],
+            host: [
+                this.joi.string().hostname().required(),
+                this.joi.string().ip().required(),
+            ],
             port: this.joi.number().port().required(),
             user: this.joi.string(),
             pass: this.joi.string(),
             from: this.joi.string().email().required(),
             to: this.joi.string().email().required(),
-            tls: this.joi.object({
-                enabled: this.joi.boolean().default(false),
-                verify: this.joi.boolean().default(true),
-            }).default({
-                enabled: false,
-                verify: true,
-            }),
+            tls: this.joi
+                .object({
+                    enabled: this.joi.boolean().default(false),
+                    verify: this.joi.boolean().default(true),
+                })
+                .default({
+                    enabled: false,
+                    verify: true,
+                }),
         });
     }
 
@@ -62,7 +67,8 @@ class Smtp extends Trigger {
             secure: this.configuration.tls && this.configuration.tls.enabled,
             tls: {
                 rejectUnauthorized: !this.configuration.tls
-                    ? false : !this.configuration.tls.verify,
+                    ? false
+                    : !this.configuration.tls.verify,
             },
         });
     }

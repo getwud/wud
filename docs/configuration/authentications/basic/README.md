@@ -25,8 +25,6 @@ or escape them in Bash commands \
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud

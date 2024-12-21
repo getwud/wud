@@ -21,11 +21,13 @@ test('validatedConfiguration should initialize when anonymous configuration is v
 });
 
 test('validatedConfiguration should initialize when auth configuration is valid', () => {
-    expect(quay.validateConfiguration({
-        namespace: 'namespace',
-        account: 'account',
-        token: 'token',
-    })).toStrictEqual({
+    expect(
+        quay.validateConfiguration({
+            namespace: 'namespace',
+            account: 'account',
+            token: 'token',
+        }),
+    ).toStrictEqual({
         namespace: 'namespace',
         account: 'account',
         token: 'token',
@@ -53,31 +55,36 @@ test('maskConfiguration should mask authentication configuration secrets', () =>
 });
 
 test('match should return true when registry url is from quay.io', () => {
-    expect(quay.match({
-        registry: {
-            url: 'quay.io',
-        },
-    })).toBeTruthy();
+    expect(
+        quay.match({
+            registry: {
+                url: 'quay.io',
+            },
+        }),
+    ).toBeTruthy();
 });
 
 test('match should return false when registry url is not from quay.io', () => {
-    expect(quay.match({
-        registry: {
-            url: 'error.io',
-        },
-    })).toBeFalsy();
+    expect(
+        quay.match({
+            registry: {
+                url: 'error.io',
+            },
+        }),
+    ).toBeFalsy();
 });
 
 test('normalizeImage should return the proper registry v2 endpoint', () => {
-    expect(quay.normalizeImage({
+    expect(
+        quay.normalizeImage({
+            name: 'test/image',
+            registry: {
+                url: 'quay.io/test/image',
+            },
+        }),
+    ).toStrictEqual({
         name: 'test/image',
         registry: {
-            url: 'quay.io/test/image',
-        },
-    })).toStrictEqual({
-        name: 'test/image',
-        registry: {
-            name: 'quay',
             url: 'https://quay.io/test/image/v2',
         },
     });
@@ -96,7 +103,9 @@ test('getAuthCredentials should return base64 encode credentials when auth confi
         account: 'account',
         token: 'token',
     };
-    expect(quayInstance.getAuthCredentials()).toEqual('bmFtZXNwYWNlK2FjY291bnQ6dG9rZW4=');
+    expect(quayInstance.getAuthCredentials()).toEqual(
+        'bmFtZXNwYWNlK2FjY291bnQ6dG9rZW4=',
+    );
 });
 
 test('getAuthPull should return undefined when anonymous configuration', () => {
@@ -112,7 +121,10 @@ test('getAuthPull should return credentials when auth configuration', () => {
         account: 'account',
         token: 'token',
     };
-    expect(quayInstance.getAuthPull()).toEqual({ password: 'token', username: 'namespace+account' });
+    expect(quayInstance.getAuthPull()).toEqual({
+        password: 'token',
+        username: 'namespace+account',
+    });
 });
 
 test('authenticate should populate header with base64 bearer', () => {

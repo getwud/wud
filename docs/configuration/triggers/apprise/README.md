@@ -21,8 +21,6 @@ The `apprise` trigger lets you send container update notifications via the [Appr
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
@@ -53,8 +51,6 @@ urls:
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
@@ -83,8 +79,6 @@ For more information, check out the [official Apprise API documentation](https:/
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   apprise:
     image: caronc/apprise

@@ -4,22 +4,28 @@ const eventTestCases = [
     {
         emitter: event.emitContainerReports,
         register: event.registerContainerReports,
-    }, {
+    },
+    {
         emitter: event.emitContainerReport,
         register: event.registerContainerReport,
-    }, {
+    },
+    {
         emitter: event.emitContainerAdded,
         register: event.registerContainerAdded,
-    }, {
+    },
+    {
         emitter: event.emitContainerUpdated,
         register: event.registerContainerUpdated,
-    }, {
+    },
+    {
         emitter: event.emitContainerRemoved,
         register: event.registerContainerRemoved,
-    }, {
+    },
+    {
         emitter: event.emitWatcherStart,
         register: event.registerWatcherStart,
-    }, {
+    },
+    {
         emitter: event.emitWatcherStop,
         register: event.registerWatcherStop,
     },

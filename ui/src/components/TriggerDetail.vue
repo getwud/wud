@@ -1,9 +1,11 @@
 <template>
   <v-card>
     <v-app-bar flat dense tile @click="collapse()" style="cursor: pointer">
-      <v-toolbar-title class="text-capitalize text-body-1">{{
-        displayName
-      }}</v-toolbar-title>
+      <v-toolbar-title class="text-body-3">
+        <v-chip label color="info" outlined>{{ trigger.type }}</v-chip>
+        /
+        <v-chip label color="info" outlined>{{ trigger.name }}</v-chip>
+      </v-toolbar-title>
       <v-spacer />
       <v-icon>{{ trigger.icon }}</v-icon>
       <v-icon>{{ showDetail ? "mdi-chevron-up" : "mdi-chevron-down" }}</v-icon>
@@ -140,7 +142,7 @@ export default {
   },
   data() {
     return {
-      showDetail: true,
+      showDetail: false,
       showTestForm: false,
       isTriggering: false,
       container: {
@@ -167,20 +169,6 @@ export default {
           value: this.trigger.configuration[key],
         }))
         .sort((trigger1, trigger2) => trigger1.key.localeCompare(trigger2.key));
-    },
-
-    displayName() {
-      if (
-        this.trigger.name &&
-        this.trigger.type &&
-        this.trigger.name !== this.trigger.type
-      ) {
-        return `${this.trigger.name} (${this.trigger.type})`;
-      }
-      if (this.trigger.name) {
-        return this.trigger.name;
-      }
-      return "Unknown";
     },
   },
 

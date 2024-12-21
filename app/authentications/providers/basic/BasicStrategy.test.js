@@ -8,7 +8,6 @@ beforeEach(() => {
 });
 
 test('_challenge should return appropriate Auth header', () => {
-    // eslint-disable-next-line no-underscore-dangle
     expect(basicStrategy._challenge()).toEqual(401);
 });
 

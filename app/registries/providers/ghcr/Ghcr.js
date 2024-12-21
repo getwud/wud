@@ -31,7 +31,7 @@ class Ghcr extends Registry {
      * @param image the image
      * @returns {boolean}
      */
-    // eslint-disable-next-line class-methods-use-this
+
     match(image) {
         return /^.*\.?ghcr.io$/.test(image.registry.url);
     }
@@ -41,10 +41,9 @@ class Ghcr extends Registry {
      * @param image
      * @returns {*}
      */
-    // eslint-disable-next-line class-methods-use-this
+
     normalizeImage(image) {
         const imageNormalized = image;
-        imageNormalized.registry.name = 'ghcr';
         if (!imageNormalized.registry.url.startsWith('https://')) {
             imageNormalized.registry.url = `https://${imageNormalized.registry.url}/v2`;
         }

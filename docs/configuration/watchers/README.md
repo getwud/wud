@@ -49,8 +49,6 @@ If you face [quota related errors](https://docs.docker.com/docker-hub/download-r
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
@@ -73,8 +71,6 @@ docker run \
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
@@ -97,8 +93,6 @@ docker run \
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
@@ -121,8 +115,6 @@ docker run \
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
@@ -162,8 +154,6 @@ docker run \
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
@@ -209,8 +199,6 @@ Configure WUD to disable WATCHBYDEFAULT feature.
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
@@ -232,8 +220,6 @@ Then add the `wud.watch=true` label on the containers you want to watch.
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   mariadb:
     image: mariadb:10.4.5
@@ -255,8 +241,6 @@ Then add the `wud.watch=false` label on the containers you want to exclude from 
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   mariadb:
     image: mariadb:10.4.5
@@ -278,8 +262,6 @@ For example, you can indicate that you want to watch x.y.z versions only
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
 
   mariadb:
@@ -322,8 +304,6 @@ For example, you can indicate that you want to watch x.y.z versions only
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
 
   searx:
@@ -349,8 +329,6 @@ It can be convenient to monitor image tags known to be overridden (`latest`, `10
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
 
   mariadb:
@@ -381,8 +359,6 @@ The available placeholders are:
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
 
   mariadb:
@@ -413,8 +389,6 @@ Icons must be prefixed with:
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
 
   mariadb:
@@ -438,8 +412,6 @@ You can assign different triggers and thresholds on a per container basis.
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
 
   my_important_service:

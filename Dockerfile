@@ -1,5 +1,5 @@
 # Common Stage
-FROM node:18-alpine as base
+FROM node:23-alpine as base
 
 LABEL maintainer="fmartinou"
 EXPOSE 3000

@@ -12,11 +12,12 @@ const configurationValid = {
     threshold: 'all',
     once: true,
     mode: 'simple',
-    // eslint-disable-next-line no-template-curly-in-string
+
     simpletitle: 'New ${kind} found for container ${name}',
-    // eslint-disable-next-line no-template-curly-in-string
-    simplebody: 'Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote}\n${link}',
-    // eslint-disable-next-line no-template-curly-in-string
+
+    simplebody:
+        'Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote}\n${link}',
+
     batchtitle: '${count} updates available',
 };
 
@@ -25,7 +26,8 @@ beforeEach(() => {
 });
 
 test('validateConfiguration should return validated configuration when valid', () => {
-    const validatedConfiguration = apprise.validateConfiguration(configurationValid);
+    const validatedConfiguration =
+        apprise.validateConfiguration(configurationValid);
     expect(validatedConfiguration).toStrictEqual(configurationValid);
 });
 

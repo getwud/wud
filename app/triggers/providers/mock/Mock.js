@@ -20,8 +20,12 @@ class Mock extends Trigger {
      * @returns {Promise<void>}
      */
     async trigger(container) {
-        this.log.info(`MOCK triggered title = \n${this.renderSimpleTitle(container)}`);
-        this.log.info(`MOCK triggered body  = \n${this.renderSimpleBody(container)}`);
+        this.log.info(
+            `MOCK triggered title = \n${this.renderSimpleTitle(container)}`,
+        );
+        this.log.info(
+            `MOCK triggered body  = \n${this.renderSimpleBody(container)}`,
+        );
     }
 
     /**
@@ -30,8 +34,12 @@ class Mock extends Trigger {
      * @returns {Promise<void>}
      */
     async triggerBatch(containers) {
-        this.log.info(`MOCK triggered title = \n${this.renderBatchTitle(containers)}`);
-        this.log.info(`MOCK triggered body  = \n${this.renderBatchBody(containers)}`);
+        this.log.info(
+            `MOCK triggered title = \n${this.renderBatchTitle(containers)}`,
+        );
+        this.log.info(
+            `MOCK triggered body  = \n${this.renderBatchBody(containers)}`,
+        );
     }
 }
 

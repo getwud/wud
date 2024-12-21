@@ -7,8 +7,6 @@ If you want the state to persist after the container removal, you need to mount 
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud

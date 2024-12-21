@@ -14,14 +14,18 @@ const configurationSchema = joi.object().keys({
 });
 
 // Validate Configuration
-const configurationToValidate = configurationSchema.validate(getStoreConfiguration() || {});
+const configurationToValidate = configurationSchema.validate(
+    getStoreConfiguration() || {},
+);
 if (configurationToValidate.error) {
     throw configurationToValidate.error;
 }
 const configuration = configurationToValidate.value;
 
 // Loki DB
-const db = new Loki(`${configuration.path}/${configuration.file}`, { autosave: true });
+const db = new Loki(`${configuration.path}/${configuration.file}`, {
+    autosave: true,
+});
 
 function createCollections() {
     app.createCollections(db);

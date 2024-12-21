@@ -19,8 +19,6 @@ The `slack` trigger lets you post image update notifications to a Slack channel.
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud

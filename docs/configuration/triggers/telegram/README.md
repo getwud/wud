@@ -18,8 +18,6 @@ The `telegram` trigger lets you send realtime notifications using [Telegram](htt
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud

@@ -26,8 +26,6 @@ The `gotify` trigger lets you send container update notifications via [Gotify](h
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud

@@ -19,27 +19,35 @@ const schema = joi.object({
     link: joi.string(),
     triggerInclude: joi.string(),
     triggerExclude: joi.string(),
-    image: joi.object({
-        id: joi.string().min(1).required(),
-        registry: joi.object({
+    image: joi
+        .object({
+            id: joi.string().min(1).required(),
+            registry: joi
+                .object({
+                    name: joi.string().min(1).required(),
+                    url: joi.string().min(1).required(),
+                })
+                .required(),
             name: joi.string().min(1).required(),
-            url: joi.string().min(1).required(),
-        }).required(),
-        name: joi.string().min(1).required(),
-        tag: joi.object({
-            value: joi.string().min(1).required(),
-            semver: joi.boolean().default(false),
-        }).required(),
-        digest: joi.object({
-            watch: joi.boolean().default(false),
-            value: joi.string(),
-            repo: joi.string(),
-        }).required(),
-        architecture: joi.string().min(1).required(),
-        os: joi.string().min(1).required(),
-        variant: joi.string(),
-        created: joi.string().isoDate(),
-    }).required(),
+            tag: joi
+                .object({
+                    value: joi.string().min(1).required(),
+                    semver: joi.boolean().default(false),
+                })
+                .required(),
+            digest: joi
+                .object({
+                    watch: joi.boolean().default(false),
+                    value: joi.string(),
+                    repo: joi.string(),
+                })
+                .required(),
+            architecture: joi.string().min(1).required(),
+            os: joi.string().min(1).required(),
+            variant: joi.string(),
+            created: joi.string().isoDate(),
+        })
+        .required(),
     result: joi.object({
         tag: joi.string().min(1),
         digest: joi.string(),
@@ -50,12 +58,16 @@ const schema = joi.object({
         message: joi.string().min(1).required(),
     }),
     updateAvailable: joi.boolean().default(false),
-    updateKind: joi.object({
-        kind: joi.string().allow('tag', 'digest', 'unknown').required(),
-        localValue: joi.string(),
-        remoteValue: joi.string(),
-        semverDiff: joi.string().allow('major', 'minor', 'patch', 'prerelease', 'unknown'),
-    }).default({ kind: 'unknown' }),
+    updateKind: joi
+        .object({
+            kind: joi.string().allow('tag', 'digest', 'unknown').required(),
+            localValue: joi.string(),
+            remoteValue: joi.string(),
+            semverDiff: joi
+                .string()
+                .allow('major', 'minor', 'patch', 'prerelease', 'unknown'),
+        })
+        .default({ kind: 'unknown' }),
     resultChanged: joi.function(),
 });
 
@@ -75,13 +87,14 @@ function getLink(linkTemplate, tagValue, isSemver) {
     link = link.replace(/\${\s*raw\s*}/g, raw);
     if (isSemver) {
         const versionSemver = parseSemver(tagValue);
-        const {
-            major, minor, patch, prerelease,
-        } = versionSemver;
+        const { major, minor, patch, prerelease } = versionSemver;
         link = link.replace(/\${\s*major\s*}/g, major);
         link = link.replace(/\${\s*minor\s*}/g, minor);
         link = link.replace(/\${\s*patch\s*}/g, patch);
-        link = link.replace(/\${\s*prerelease\s*}/g, prerelease && prerelease.length > 0 ? prerelease[0] : '');
+        link = link.replace(
+            /\${\s*prerelease\s*}/g,
+            prerelease && prerelease.length > 0 ? prerelease[0] : '',
+        );
     }
     return link;
 }
@@ -92,42 +105,50 @@ function getLink(linkTemplate, tagValue, isSemver) {
  * @returns {boolean}
  */
 function addUpdateAvailableProperty(container) {
-    Object.defineProperty(
-        container,
-        'updateAvailable',
-        {
-            enumerable: true,
-            get() {
-                if (this.image === undefined || this.result === undefined) {
-                    return false;
-                }
+    Object.defineProperty(container, 'updateAvailable', {
+        enumerable: true,
+        get() {
+            if (this.image === undefined || this.result === undefined) {
+                return false;
+            }
 
-                // Compare digests if we have them
-                if (this.image.digest.watch
-                    && this.image.digest.value !== undefined
-                    && this.result.digest !== undefined
-                ) {
-                    return this.image.digest.value !== this.result.digest;
-                }
+            // Compare digests if we have them
+            if (
+                this.image.digest.watch &&
+                this.image.digest.value !== undefined &&
+                this.result.digest !== undefined
+            ) {
+                return this.image.digest.value !== this.result.digest;
+            }
 
-                // Compare tags otherwise
-                let updateAvailable = false;
-                const localTag = transformTag(container.transformTags, this.image.tag.value);
-                const remoteTag = transformTag(container.transformTags, this.result.tag);
-                updateAvailable = localTag !== remoteTag;
+            // Compare tags otherwise
+            let updateAvailable = false;
+            const localTag = transformTag(
+                container.transformTags,
+                this.image.tag.value,
+            );
+            const remoteTag = transformTag(
+                container.transformTags,
+                this.result.tag,
+            );
+            updateAvailable = localTag !== remoteTag;
 
-                // Fallback to image created date (especially for legacy v1 manifests)
-                if (this.image.created !== undefined && this.result.created !== undefined) {
-                    const createdDate = new Date(this.image.created).getTime();
-                    const createdDateResult = new Date(this.result.created).getTime();
+            // Fallback to image created date (especially for legacy v1 manifests)
+            if (
+                this.image.created !== undefined &&
+                this.result.created !== undefined
+            ) {
+                const createdDate = new Date(this.image.created).getTime();
+                const createdDateResult = new Date(
+                    this.result.created,
+                ).getTime();
 
-                    updateAvailable = updateAvailable
-                        || createdDate !== createdDateResult;
-                }
-                return updateAvailable;
-            },
+                updateAvailable =
+                    updateAvailable || createdDate !== createdDateResult;
+            }
+            return updateAvailable;
         },
-    );
+    });
 }
 
 /**
@@ -142,7 +163,10 @@ function addLinkProperty(container) {
             get() {
                 return getLink(
                     container.linkTemplate,
-                    transformTag(container.transformTags, container.image.tag.value),
+                    transformTag(
+                        container.transformTags,
+                        container.image.tag.value,
+                    ),
                     container.image.tag.semver,
                 );
             },
@@ -154,7 +178,10 @@ function addLinkProperty(container) {
                 get() {
                     return getLink(
                         container.linkTemplate,
-                        transformTag(container.transformTags, container.result.tag),
+                        transformTag(
+                            container.transformTags,
+                            container.result.tag,
+                        ),
                         container.image.tag.semver,
                     );
                 },
@@ -169,39 +196,46 @@ function addLinkProperty(container) {
  * @returns {{semverDiff: undefined, kind: string, remoteValue: undefined, localValue: undefined}}
  */
 function addUpdateKindProperty(container) {
-    Object.defineProperty(
-        container,
-        'updateKind',
-        {
-            enumerable: true,
-            get() {
-                const updateKind = {
-                    kind: 'unknown',
-                    localValue: undefined,
-                    remoteValue: undefined,
-                    semverDiff: undefined,
-                };
-                if (container.image === undefined || container.result === undefined) {
-                    return updateKind;
-                }
-                if (!container.updateAvailable) {
-                    return updateKind;
-                }
+    Object.defineProperty(container, 'updateKind', {
+        enumerable: true,
+        get() {
+            const updateKind = {
+                kind: 'unknown',
+                localValue: undefined,
+                remoteValue: undefined,
+                semverDiff: undefined,
+            };
+            if (
+                container.image === undefined ||
+                container.result === undefined
+            ) {
+                return updateKind;
+            }
+            if (!container.updateAvailable) {
+                return updateKind;
+            }
 
-                if (container.image !== undefined
-                    && container.result !== undefined
-                    && container.updateAvailable
-                ) {
-                    if (container.image.tag.value !== container.result.tag) {
-                        updateKind.kind = 'tag';
-                        let semverDiffWud = 'unknown';
-                        const isSemver = container.image.tag.semver;
-                        if (isSemver) {
-                            const semverDiff = diffSemver(
-                                transformTag(container.transformTags, container.image.tag.value),
-                                transformTag(container.transformTags, container.result.tag),
-                            );
-                            switch (semverDiff) {
+            if (
+                container.image !== undefined &&
+                container.result !== undefined &&
+                container.updateAvailable
+            ) {
+                if (container.image.tag.value !== container.result.tag) {
+                    updateKind.kind = 'tag';
+                    let semverDiffWud = 'unknown';
+                    const isSemver = container.image.tag.semver;
+                    if (isSemver) {
+                        const semverDiff = diffSemver(
+                            transformTag(
+                                container.transformTags,
+                                container.image.tag.value,
+                            ),
+                            transformTag(
+                                container.transformTags,
+                                container.result.tag,
+                            ),
+                        );
+                        switch (semverDiff) {
                             case 'major':
                             case 'premajor':
                                 semverDiffWud = 'major';
@@ -219,23 +253,23 @@ function addUpdateKindProperty(container) {
                                 break;
                             default:
                                 semverDiffWud = 'unknown';
-                            }
                         }
-                        updateKind.localValue = container.image.tag.value;
-                        updateKind.remoteValue = container.result.tag;
-                        updateKind.semverDiff = semverDiffWud;
-                    } else if (container.image.digest
-                        && container.image.digest.value !== container.result.digest
-                    ) {
-                        updateKind.kind = 'digest';
-                        updateKind.localValue = container.image.digest.value;
-                        updateKind.remoteValue = container.result.digest;
                     }
+                    updateKind.localValue = container.image.tag.value;
+                    updateKind.remoteValue = container.result.tag;
+                    updateKind.semverDiff = semverDiffWud;
+                } else if (
+                    container.image.digest &&
+                    container.image.digest.value !== container.result.digest
+                ) {
+                    updateKind.kind = 'digest';
+                    updateKind.localValue = container.image.digest.value;
+                    updateKind.remoteValue = container.result.digest;
                 }
-                return updateKind;
-            },
+            }
+            return updateKind;
         },
-    );
+    });
 }
 
 /**
@@ -244,10 +278,12 @@ function addUpdateKindProperty(container) {
  * @returns {boolean}
  */
 function resultChangedFunction(otherContainer) {
-    return otherContainer === undefined
-        || this.result.tag !== otherContainer.result.tag
-        || this.result.digest !== otherContainer.result.digest
-        || this.result.created !== otherContainer.result.created;
+    return (
+        otherContainer === undefined ||
+        this.result.tag !== otherContainer.result.tag ||
+        this.result.digest !== otherContainer.result.digest ||
+        this.result.created !== otherContainer.result.created
+    );
 }
 
 /**
@@ -269,7 +305,9 @@ function addResultChangedFunction(container) {
 function validate(container) {
     const validation = schema.validate(container);
     if (validation.error) {
-        throw new Error(`Error when validating container properties ${validation.error}`);
+        throw new Error(
+            `Error when validating container properties ${validation.error}`,
+        );
     }
     const containerValidated = validation.value;
 

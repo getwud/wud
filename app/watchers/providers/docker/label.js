@@ -2,7 +2,6 @@
  * WUD supported Docker labels.
  */
 module.exports = {
-
     /**
      * Should the container be tracked? (true | false).
      */
@@ -52,5 +51,4 @@ module.exports = {
      * Optional list of triggers to exclude
      */
     wudTriggerExclude: 'wud.trigger.exclude',
-
 };

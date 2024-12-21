@@ -12,13 +12,42 @@ const { fullName } = require('../../model/container');
 function renderSimple(template, container) {
     let value = template;
     value = value.replace(/\${\s*id\s*}/g, container.id ? container.id : '');
-    value = value.replace(/\${\s*name\s*}/g, container.name ? container.name : '');
-    value = value.replace(/\${\s*watcher\s*}/g, container.watcher ? container.watcher : '');
-    value = value.replace(/\${\s*kind\s*}/g, container.updateKind && container.updateKind.kind ? container.updateKind.kind : '');
-    value = value.replace(/\${\s*semver\s*}/g, container.updateKind && container.updateKind.semverDiff ? container.updateKind.semverDiff : '');
-    value = value.replace(/\${\s*local\s*}/g, container.updateKind && container.updateKind.localValue ? container.updateKind.localValue : '');
-    value = value.replace(/\${\s*remote\s*}/g, container.updateKind && container.updateKind.remoteValue ? container.updateKind.remoteValue : '');
-    value = value.replace(/\${\s*link\s*}/g, container.result && container.result.link ? container.result.link : '');
+    value = value.replace(
+        /\${\s*name\s*}/g,
+        container.name ? container.name : '',
+    );
+    value = value.replace(
+        /\${\s*watcher\s*}/g,
+        container.watcher ? container.watcher : '',
+    );
+    value = value.replace(
+        /\${\s*kind\s*}/g,
+        container.updateKind && container.updateKind.kind
+            ? container.updateKind.kind
+            : '',
+    );
+    value = value.replace(
+        /\${\s*semver\s*}/g,
+        container.updateKind && container.updateKind.semverDiff
+            ? container.updateKind.semverDiff
+            : '',
+    );
+    value = value.replace(
+        /\${\s*local\s*}/g,
+        container.updateKind && container.updateKind.localValue
+            ? container.updateKind.localValue
+            : '',
+    );
+    value = value.replace(
+        /\${\s*remote\s*}/g,
+        container.updateKind && container.updateKind.remoteValue
+            ? container.updateKind.remoteValue
+            : '',
+    );
+    value = value.replace(
+        /\${\s*link\s*}/g,
+        container.result && container.result.link ? container.result.link : '',
+    );
     return value;
 }
 
@@ -26,31 +55,33 @@ function renderSimple(template, container) {
  * Trigger base component.
  */
 class Trigger extends Component {
-/**
- * Return true if update reaches trigger threshold.
- * @param containerResult
- * @param threshold
- * @returns {boolean}
- */
+    /**
+     * Return true if update reaches trigger threshold.
+     * @param containerResult
+     * @param threshold
+     * @returns {boolean}
+     */
     static isThresholdReached(containerResult, threshold) {
         let thresholdPassing = true;
         if (
-            threshold.toLowerCase() !== 'all'
-            && containerResult.updateKind
-            && containerResult.updateKind.kind === 'tag'
-            && containerResult.updateKind.semverDiff
-            && containerResult.updateKind.semverDiff !== 'unknown'
+            threshold.toLowerCase() !== 'all' &&
+            containerResult.updateKind &&
+            containerResult.updateKind.kind === 'tag' &&
+            containerResult.updateKind.semverDiff &&
+            containerResult.updateKind.semverDiff !== 'unknown'
         ) {
             switch (threshold) {
-            case 'minor':
-                thresholdPassing = containerResult.updateKind.semverDiff !== 'major';
-                break;
-            case 'patch':
-                thresholdPassing = containerResult.updateKind.semverDiff !== 'major'
-                        && containerResult.updateKind.semverDiff !== 'minor';
-                break;
-            default:
-                thresholdPassing = true;
+                case 'minor':
+                    thresholdPassing =
+                        containerResult.updateKind.semverDiff !== 'major';
+                    break;
+                case 'patch':
+                    thresholdPassing =
+                        containerResult.updateKind.semverDiff !== 'major' &&
+                        containerResult.updateKind.semverDiff !== 'minor';
+                    break;
+                default:
+                    thresholdPassing = true;
             }
         }
         return thresholdPassing;
@@ -62,17 +93,25 @@ class Trigger extends Component {
      * @returns
      */
     static parseIncludeOrIncludeTriggerString(includeOrExcludeTriggerString) {
-        const includeOrExcludeTriggerSplit = includeOrExcludeTriggerString.split(/\s*:\s*/);
+        const includeOrExcludeTriggerSplit =
+            includeOrExcludeTriggerString.split(/\s*:\s*/);
         const includeOrExcludeTrigger = {
             id: `trigger.${includeOrExcludeTriggerSplit[0]}`,
             threshold: 'all',
         };
         if (includeOrExcludeTriggerSplit.length === 2) {
             switch (includeOrExcludeTriggerSplit[1]) {
-            case 'major': includeOrExcludeTrigger.threshold = 'major'; break;
-            case 'minor': includeOrExcludeTrigger.threshold = 'minor'; break;
-            case 'patch': includeOrExcludeTrigger.threshold = 'patch'; break;
-            default: includeOrExcludeTrigger.threshold = 'all';
+                case 'major':
+                    includeOrExcludeTrigger.threshold = 'major';
+                    break;
+                case 'minor':
+                    includeOrExcludeTrigger.threshold = 'minor';
+                    break;
+                case 'patch':
+                    includeOrExcludeTrigger.threshold = 'patch';
+                    break;
+                default:
+                    includeOrExcludeTrigger.threshold = 'all';
             }
         }
         return includeOrExcludeTrigger;
@@ -86,17 +125,21 @@ class Trigger extends Component {
     async handleContainerReport(containerReport) {
         // Filter on changed containers with update available and passing trigger threshold
         if (
-            (containerReport.changed || !this.configuration.once)
-            && containerReport.container.updateAvailable
+            (containerReport.changed || !this.configuration.once) &&
+            containerReport.container.updateAvailable
         ) {
-            const logContainer = this
-                .log.child({ container: fullName(containerReport.container) }) || this.log;
+            const logContainer =
+                this.log.child({
+                    container: fullName(containerReport.container),
+                }) || this.log;
             let status = 'error';
             try {
-                if (!Trigger.isThresholdReached(
-                    containerReport.container,
-                    this.configuration.threshold.toLowerCase(),
-                )) {
+                if (
+                    !Trigger.isThresholdReached(
+                        containerReport.container,
+                        this.configuration.threshold.toLowerCase(),
+                    )
+                ) {
                     logContainer.debug('Threshold not reached => ignore');
                 } else if (!this.mustTrigger(containerReport.container)) {
                     logContainer.debug('Trigger conditions not met => ignore');
@@ -109,7 +152,11 @@ class Trigger extends Component {
                 logContainer.warn(`Error (${e.message})`);
                 logContainer.debug(e);
             } finally {
-                getTriggerCounter().inc({ type: this.type, name: this.name, status });
+                getTriggerCounter().inc({
+                    type: this.type,
+                    name: this.name,
+                    status,
+                });
             }
         }
     }
@@ -123,15 +170,26 @@ class Trigger extends Component {
         // Filter on containers with update available and passing trigger threshold
         try {
             const containerReportsFiltered = containerReports
-                .filter((containerReport) => containerReport.changed || !this.configuration.once)
-                .filter((containerReport) => containerReport.container.updateAvailable)
-                .filter((containerReport) => this.mustTrigger(containerReport.container))
-                .filter((containerReport) => Trigger.isThresholdReached(
-                    containerReport.container,
-                    this.configuration.threshold.toLowerCase(),
-                ));
-            const containersFiltered = containerReportsFiltered
-                .map((containerReport) => containerReport.container);
+                .filter(
+                    (containerReport) =>
+                        containerReport.changed || !this.configuration.once,
+                )
+                .filter(
+                    (containerReport) =>
+                        containerReport.container.updateAvailable,
+                )
+                .filter((containerReport) =>
+                    this.mustTrigger(containerReport.container),
+                )
+                .filter((containerReport) =>
+                    Trigger.isThresholdReached(
+                        containerReport.container,
+                        this.configuration.threshold.toLowerCase(),
+                    ),
+                );
+            const containersFiltered = containerReportsFiltered.map(
+                (containerReport) => containerReport.container,
+            );
             if (containersFiltered.length > 0) {
                 this.log.debug('Run batch');
                 await this.triggerBatch(containersFiltered);
@@ -143,28 +201,42 @@ class Trigger extends Component {
     }
 
     isTriggerIncludedOrExcluded(containerResult, trigger) {
-        const triggers = trigger.split(/\s*,\s*/).map((triggerToMatch) => Trigger.parseIncludeOrIncludeTriggerString(triggerToMatch));
+        const triggers = trigger
+            .split(/\s*,\s*/)
+            .map((triggerToMatch) =>
+                Trigger.parseIncludeOrIncludeTriggerString(triggerToMatch),
+            );
         const triggerMatched = triggers.find(
-            (triggerToMatch) => triggerToMatch.id.toLowerCase() === this.getId(),
+            (triggerToMatch) =>
+                triggerToMatch.id.toLowerCase() === this.getId(),
         );
         if (!triggerMatched) {
             return false;
         }
-        return Trigger.isThresholdReached(containerResult, triggerMatched.threshold.toLowerCase());
+        return Trigger.isThresholdReached(
+            containerResult,
+            triggerMatched.threshold.toLowerCase(),
+        );
     }
 
     isTriggerIncluded(containerResult, triggerInclude) {
         if (!triggerInclude) {
             return true;
         }
-        return this.isTriggerIncludedOrExcluded(containerResult, triggerInclude);
+        return this.isTriggerIncludedOrExcluded(
+            containerResult,
+            triggerInclude,
+        );
     }
 
     isTriggerExcluded(containerResult, triggerExclude) {
         if (!triggerExclude) {
             return false;
         }
-        return this.isTriggerIncludedOrExcluded(containerResult, triggerExclude);
+        return this.isTriggerIncludedOrExcluded(
+            containerResult,
+            triggerExclude,
+        );
     }
 
     /**
@@ -174,8 +246,10 @@ class Trigger extends Component {
      */
     mustTrigger(containerResult) {
         const { triggerInclude, triggerExclude } = containerResult;
-        return this.isTriggerIncluded(containerResult, triggerInclude)
-        && !this.isTriggerExcluded(containerResult, triggerExclude);
+        return (
+            this.isTriggerIncluded(containerResult, triggerInclude) &&
+            !this.isTriggerExcluded(containerResult, triggerExclude)
+        );
     }
 
     /**
@@ -185,14 +259,14 @@ class Trigger extends Component {
         await this.initTrigger();
         if (this.configuration.mode.toLowerCase() === 'simple') {
             this.log.debug('Configure "simple" mode');
-            event.registerContainerReport(
-                async (containerReport) => this.handleContainerReport(containerReport),
+            event.registerContainerReport(async (containerReport) =>
+                this.handleContainerReport(containerReport),
             );
         }
         if (this.configuration.mode.toLowerCase() === 'batch') {
             this.log.debug('Configure "batch" mode');
-            event.registerContainerReports(
-                async (containersReports) => this.handleContainerReports(containersReports),
+            event.registerContainerReports(async (containersReports) =>
+                this.handleContainerReports(containersReports),
             );
         }
     }
@@ -215,23 +289,24 @@ class Trigger extends Component {
                 .insensitive()
                 .valid('simple', 'batch')
                 .default('simple'),
-            once: this.joi
-                .boolean()
-                .default(true),
+            once: this.joi.boolean().default(true),
             simpletitle: this.joi
                 .string()
-                // eslint-disable-next-line no-template-curly-in-string
+
                 .default('New ${kind} found for container ${name}'),
             simplebody: this.joi
                 .string()
-                // eslint-disable-next-line no-template-curly-in-string
-                .default('Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote}\n${link}'),
+
+                .default(
+                    'Container ${name} running with ${kind} ${local} can be updated to ${kind} ${remote}\n${link}',
+                ),
             batchtitle: this.joi
                 .string()
-                // eslint-disable-next-line no-template-curly-in-string
+
                 .default('${count} updates available'),
         });
-        const schemaValidated = schemaWithDefaultOptions.validate(configuration);
+        const schemaValidated =
+            schemaWithDefaultOptions.validate(configuration);
         if (schemaValidated.error) {
             throw schemaValidated.error;
         }
@@ -241,7 +316,7 @@ class Trigger extends Component {
     /**
      * Init Trigger. Can be overridden in trigger implementation class.
      */
-    /* eslint-disable-next-line */
+
     initTrigger() {
         // do nothing by default
     }
@@ -249,10 +324,11 @@ class Trigger extends Component {
     /**
      * Trigger method. Must be overridden in trigger implementation class.
      */
-    /* eslint-disable-next-line */
     trigger(containerWithResult) {
         // do nothing by default
-        this.log.warn('Cannot trigger container result; this trigger doe not implement "simple" mode');
+        this.log.warn(
+            'Cannot trigger container result; this trigger doe not implement "simple" mode',
+        );
         return containerWithResult;
     }
 
@@ -261,10 +337,11 @@ class Trigger extends Component {
      * @param containersWithResult
      * @returns {*}
      */
-    /* eslint-disable-next-line */
     triggerBatch(containersWithResult) {
         // do nothing by default
-        this.log.warn('Cannot trigger container results; this trigger doe not implement "batch" mode');
+        this.log.warn(
+            'Cannot trigger container results; this trigger doe not implement "batch" mode',
+        );
         return containersWithResult;
     }
 
@@ -303,7 +380,9 @@ class Trigger extends Component {
      * @returns {*}
      */
     renderBatchBody(containers) {
-        return containers.map((container) => `- ${this.renderSimpleBody(container)}\n`).join('\n');
+        return containers
+            .map((container) => `- ${this.renderSimpleBody(container)}\n`)
+            .join('\n');
     }
 }
 

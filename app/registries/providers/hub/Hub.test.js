@@ -11,14 +11,18 @@ hub.configuration = {
 jest.mock('request-promise-native');
 
 test('validatedConfiguration should initialize when configuration is valid', () => {
-    expect(hub.validateConfiguration({
-        login: 'login',
-        password: 'password',
-    })).toStrictEqual({
+    expect(
+        hub.validateConfiguration({
+            login: 'login',
+            password: 'password',
+        }),
+    ).toStrictEqual({
         login: 'login',
         password: 'password',
     });
-    expect(hub.validateConfiguration({ auth: 'auth' })).toStrictEqual({ auth: 'auth' });
+    expect(hub.validateConfiguration({ auth: 'auth' })).toStrictEqual({
+        auth: 'auth',
+    });
     expect(hub.validateConfiguration({})).toStrictEqual({});
     expect(hub.validateConfiguration(undefined)).toStrictEqual({});
 });
@@ -41,48 +45,56 @@ test('maskConfiguration should mask configuration secrets', () => {
 });
 
 test('match should return true when no registry on the image', () => {
-    expect(hub.match({
-        registry: {},
-    })).toBeTruthy();
+    expect(
+        hub.match({
+            registry: {},
+        }),
+    ).toBeTruthy();
 });
 
 test('match should return true when registry id docker.io on the image', () => {
-    expect(hub.match({
-        registry: {
-            url: 'docker.io',
-        },
-    })).toBeTruthy();
+    expect(
+        hub.match({
+            registry: {
+                url: 'docker.io',
+            },
+        }),
+    ).toBeTruthy();
 });
 
 test('match should return false when registry on the image', () => {
-    expect(hub.match({
-        registry: {
-            url: 'registry',
-        },
-    })).toBeFalsy();
+    expect(
+        hub.match({
+            registry: {
+                url: 'registry',
+            },
+        }),
+    ).toBeFalsy();
 });
 
 test('normalizeImage should prefix with library when no organization', () => {
-    expect(hub.normalizeImage({
-        name: 'test',
-        registry: {},
-    })).toStrictEqual({
+    expect(
+        hub.normalizeImage({
+            name: 'test',
+            registry: {},
+        }),
+    ).toStrictEqual({
         name: 'library/test',
         registry: {
-            name: 'hub',
             url: 'https://registry-1.docker.io/v2',
         },
     });
 });
 
 test('normalizeImage should not prefix with library when existing organization', () => {
-    expect(hub.normalizeImage({
-        name: 'myorga/test',
-        registry: {},
-    })).toStrictEqual({
+    expect(
+        hub.normalizeImage({
+            name: 'myorga/test',
+            registry: {},
+        }),
+    ).toStrictEqual({
         name: 'myorga/test',
         registry: {
-            name: 'hub',
             url: 'https://registry-1.docker.io/v2',
         },
     });
@@ -92,9 +104,14 @@ test('authenticate should perform authenticate request', () => {
     rp.mockImplementation(() => ({
         token: 'token',
     }));
-    expect(hub.authenticate({}, {
-        headers: {},
-    })).resolves.toEqual({ headers: { Authorization: 'Bearer token' } });
+    expect(
+        hub.authenticate(
+            {},
+            {
+                headers: {},
+            },
+        ),
+    ).resolves.toEqual({ headers: { Authorization: 'Bearer token' } });
 });
 
 test('getAuthCredentials should return base64 creds when set in configuration', () => {

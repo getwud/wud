@@ -48,7 +48,9 @@ class Dockercompose extends Trigger {
         try {
             await fs.access(this.configuration.file);
         } catch (e) {
-            this.log.error(`The file ${this.configuration.file} does not exist`);
+            this.log.error(
+                `The file ${this.configuration.file} does not exist`,
+            );
             throw e;
         }
     }
@@ -68,20 +70,28 @@ class Dockercompose extends Trigger {
                 if (watcher.dockerApi.modem.socketPath !== '') {
                     return true;
                 }
-                this.log.warn(`Cannot update container ${container.name} because not running on local host`);
+                this.log.warn(
+                    `Cannot update container ${container.name} because not running on local host`,
+                );
                 return false;
             })
             // Filter on containers defined in the compose file
-            .filter((container) => doesContainerBelongToCompose(compose, container));
+            .filter((container) =>
+                doesContainerBelongToCompose(compose, container),
+            );
 
         // [{ current: '1.0.0', update: '2.0.0' }, {...}]
         const currentVersionToUpdateVersionArray = containersFiltered
-            .map((container) => this.mapCurrentVersionToUpdateVersion(compose, container))
+            .map((container) =>
+                this.mapCurrentVersionToUpdateVersion(compose, container),
+            )
             .filter((map) => map !== undefined);
 
         // Dry-run?
         if (this.configuration.dryrun) {
-            this.log.info('Do not replace existing docker-compose file (dry-run mode enabled)');
+            this.log.info(
+                'Do not replace existing docker-compose file (dry-run mode enabled)',
+            );
         } else {
             // Backup docker-compose file
             if (this.configuration.backup) {
@@ -93,20 +103,24 @@ class Dockercompose extends Trigger {
             let composeFileStr = (await this.getComposeFile()).toString();
 
             // Replace all versions
-            currentVersionToUpdateVersionArray
-                .forEach(
-                    ({ current, update }) => {
-                        composeFileStr = composeFileStr.replaceAll(current, update);
-                    },
-                );
+            currentVersionToUpdateVersionArray.forEach(
+                ({ current, update }) => {
+                    composeFileStr = composeFileStr.replaceAll(current, update);
+                },
+            );
 
             // Write docker-compose.yml file back
-            await this.writeComposeFile(this.configuration.file, composeFileStr);
+            await this.writeComposeFile(
+                this.configuration.file,
+                composeFileStr,
+            );
         }
 
         // Update all containers
         // (super.notify will take care of the dry-run mode for each container as well)
-        await Promise.all(containersFiltered.map((container) => this.trigger(container)));
+        await Promise.all(
+            containersFiltered.map((container) => this.trigger(container)),
+        );
     }
 
     /**
@@ -120,7 +134,9 @@ class Dockercompose extends Trigger {
             this.log.debug(`Backup ${file} as ${backupFile}`);
             await fs.copyFile(file, backupFile);
         } catch (e) {
-            this.log.warn(`Error when trying to backup file ${file} to ${backupFile}`);
+            this.log.warn(
+                `Error when trying to backup file ${file} to ${backupFile} (${e.message})`,
+            );
         }
     }
 
@@ -143,10 +159,12 @@ class Dockercompose extends Trigger {
             container.image.tag.value,
         );
 
-        const serviceKeyToUpdate = Object.keys(compose.services).find((serviceKey) => {
-            const service = compose.services[serviceKey];
-            return service.image.includes(currentImage);
-        });
+        const serviceKeyToUpdate = Object.keys(compose.services).find(
+            (serviceKey) => {
+                const service = compose.services[serviceKey];
+                return service.image.includes(currentImage);
+            },
+        );
 
         // Rebuild image definition string
         return {
@@ -178,7 +196,9 @@ class Dockercompose extends Trigger {
         try {
             return fs.readFile(this.configuration.file);
         } catch (e) {
-            this.log.error(`Error when reading the docker-compose yaml file (${e.message})`);
+            this.log.error(
+                `Error when reading the docker-compose yaml file (${e.message})`,
+            );
             throw e;
         }
     }
@@ -191,7 +211,9 @@ class Dockercompose extends Trigger {
         try {
             return yaml.parse((await this.getComposeFile()).toString());
         } catch (e) {
-            this.log.error(`Error when parsing the docker-compose yaml file (${e.message})`);
+            this.log.error(
+                `Error when parsing the docker-compose yaml file (${e.message})`,
+            );
             throw e;
         }
     }

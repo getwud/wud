@@ -37,7 +37,7 @@ class Quay extends Registry {
      * @param image the image
      * @returns {boolean}
      */
-    // eslint-disable-next-line class-methods-use-this
+
     match(image) {
         return /^.*\.?quay.io$/.test(image.registry.url);
     }
@@ -47,10 +47,9 @@ class Quay extends Registry {
      * @param image
      * @returns {*}
      */
-    // eslint-disable-next-line class-methods-use-this
+
     normalizeImage(image) {
         const imageNormalized = image;
-        imageNormalized.registry.name = 'quay';
         if (!imageNormalized.registry.url.startsWith('https://')) {
             imageNormalized.registry.url = `https://${imageNormalized.registry.url}/v2`;
         }
@@ -77,7 +76,9 @@ class Quay extends Registry {
                 const response = await rp(request);
                 token = response.token;
             } catch (e) {
-                this.log.warn(`Error when trying to get an access token (${e.message})`);
+                this.log.warn(
+                    `Error when trying to get an access token (${e.message})`,
+                );
             }
         }
 

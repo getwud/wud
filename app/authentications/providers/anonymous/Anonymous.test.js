@@ -9,7 +9,8 @@ beforeEach(() => {
 });
 
 test('validateConfiguration should return validated configuration when valid', () => {
-    const validatedConfiguration = anonymous.validateConfiguration(configurationValid);
+    const validatedConfiguration =
+        anonymous.validateConfiguration(configurationValid);
     expect(validatedConfiguration).toStrictEqual(configurationValid);
 });
 

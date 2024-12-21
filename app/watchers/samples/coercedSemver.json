@@ -1,6 +1,6 @@
 {
     "image": {
-        "name":"organization/image",
+        "name": "organization/image",
         "registry": {
             "name": "hub"
         },
@@ -12,7 +12,7 @@
             "watch": true,
             "value": "xxx"
         },
-        "architecture":"arch",
-        "os":"os"
+        "architecture": "arch",
+        "os": "os"
     }
 }

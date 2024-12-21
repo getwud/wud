@@ -4,7 +4,7 @@
     "watcher": "local",
     "image": {
         "id": "image-id",
-        "name":"organization/image",
+        "name": "organization/image",
         "registry": {
             "name": "hub",
             "url": "http://registry"
@@ -18,7 +18,7 @@
             "value": "xxx",
             "repo": "yyy"
         },
-        "architecture":"arch",
-        "os":"os"
+        "architecture": "arch",
+        "os": "os"
     }
-  }
+}

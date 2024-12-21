@@ -8,15 +8,16 @@ forgejo.configuration = {
 };
 
 test('normalizeImage should return the proper registry v2 endpoint', () => {
-    expect(forgejo.normalizeImage({
+    expect(
+        forgejo.normalizeImage({
+            name: 'test/image',
+            registry: {
+                url: 'forgejo.acme.com/test/image',
+            },
+        }),
+    ).toStrictEqual({
         name: 'test/image',
         registry: {
-            url: 'forgejo.acme.com/test/image',
-        },
-    })).toStrictEqual({
-        name: 'test/image',
-        registry: {
-            name: 'forgejo',
             url: 'https://forgejo.acme.com/v2',
         },
     });

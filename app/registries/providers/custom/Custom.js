@@ -9,9 +9,26 @@ class Custom extends Registry {
             this.joi.string().allow(''),
             this.joi.object().keys({
                 url: this.joi.string().uri().required(),
-                login: this.joi.alternatives().conditional('password', { not: undefined, then: this.joi.string().required(), otherwise: this.joi.any().forbidden() }),
-                password: this.joi.alternatives().conditional('login', { not: undefined, then: this.joi.string().required(), otherwise: this.joi.any().forbidden() }),
-                auth: this.joi.alternatives().conditional('login', { not: undefined, then: this.joi.any().forbidden(), otherwise: this.joi.alternatives().try(this.joi.string().base64(), this.joi.string().valid('')) }),
+                login: this.joi.alternatives().conditional('password', {
+                    not: undefined,
+                    then: this.joi.string().required(),
+                    otherwise: this.joi.any().forbidden(),
+                }),
+                password: this.joi.alternatives().conditional('login', {
+                    not: undefined,
+                    then: this.joi.string().required(),
+                    otherwise: this.joi.any().forbidden(),
+                }),
+                auth: this.joi.alternatives().conditional('login', {
+                    not: undefined,
+                    then: this.joi.any().forbidden(),
+                    otherwise: this.joi
+                        .alternatives()
+                        .try(
+                            this.joi.string().base64(),
+                            this.joi.string().valid(''),
+                        ),
+                }),
             }),
         ]);
     }
@@ -33,7 +50,6 @@ class Custom extends Registry {
      * @param image the image
      * @returns {boolean}
      */
-    // eslint-disable-next-line class-methods-use-this
     match(image) {
         return this.configuration.url.indexOf(image.registry.url) !== -1;
     }
@@ -43,10 +59,8 @@ class Custom extends Registry {
      * @param image
      * @returns {*}
      */
-    // eslint-disable-next-line class-methods-use-this
     normalizeImage(image) {
         const imageNormalized = image;
-        imageNormalized.registry.name = 'custom';
         imageNormalized.registry.url = `${this.configuration.url}/v2`;
         return imageNormalized;
     }
@@ -57,7 +71,6 @@ class Custom extends Registry {
      * @param requestOptions
      * @returns {Promise<*>}
      */
-    // eslint-disable-next-line class-methods-use-this
     async authenticate(image, requestOptions) {
         const requestOptionsWithAuth = requestOptions;
         const credentials = this.getAuthCredentials();
@@ -76,7 +89,10 @@ class Custom extends Registry {
             return this.configuration.auth;
         }
         if (this.configuration.login && this.configuration.password) {
-            return Custom.base64Encode(this.configuration.login, this.configuration.password);
+            return Custom.base64Encode(
+                this.configuration.login,
+                this.configuration.password,
+            );
         }
         return undefined;
     }

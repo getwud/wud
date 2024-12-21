@@ -13,36 +13,14 @@ Don't forget to configure authentication if you're using [Docker Hub Private Rep
 
 ### Variables
 
-| Env var                     | Required       | Description                                                                   | Supported values                                  | Default value when missing |
-| --------------------------- |:--------------:| ----------------------------------------------------------------------------- | ------------------------------------------------- | -------------------------- | 
-| `WUD_REGISTRY_HUB_LOGIN`    | :white_circle: | A valid Docker Hub Login                                                      | WUD_REGISTRY_HUB_TOKEN must be defined            |                            |
-| `WUD_REGISTRY_HUB_PASSWORD` | :white_circle: | A valid Docker Hub Token                                                      | WUD_REGISTRY_HUB_LOGIN must be defined            |                            |
-| `WUD_REGISTRY_HUB_TOKEN`    | :white_circle: | A valid Docker Hub Token (deprecated; replaced by `WUD_REGISTRY_HUB_PASSWORD` | WUD_REGISTRY_HUB_LOGIN must be defined            |                            |
-| `WUD_REGISTRY_HUB_AUTH`     | :white_circle: | A valid Docker Hub Base64 Auth String                                         | WUD_REGISTRY_HUB_LOGIN/TOKEN  must not be defined |                            |
+| Env var                            | Required       | Description                                                                          | Supported values                                         | Default value when missing |
+| ---------------------------------- |:--------------:| ------------------------------------------------------------------------------------ | -------------------------------------------------------- | -------------------------- | 
+| `WUD_REGISTRY_HUB_PUBLIC_LOGIN`    | :white_circle: | A valid Docker Hub Login                                                             | WUD_REGISTRY_HUB_PUBLIC_TOKEN must be defined            |                            |
+| `WUD_REGISTRY_HUB_PUBLIC_PASSWORD` | :white_circle: | A valid Docker Hub Token                                                             | WUD_REGISTRY_HUB_PUBLIC_LOGIN must be defined            |                            |
+| `WUD_REGISTRY_HUB_PUBLIC_TOKEN`    | :white_circle: | A valid Docker Hub Token (deprecated; replaced by `WUD_REGISTRY_HUB_PUBLIC_PASSWORD` | WUD_REGISTRY_HUB_PUBLIC_LOGIN must be defined            |                            |
+| `WUD_REGISTRY_HUB_PUBLIC_AUTH`     | :white_circle: | A valid Docker Hub Base64 Auth String                                                | WUD_REGISTRY_HUB_PUBLIC_LOGIN/TOKEN  must not be defined |                            |
 
 ### Examples
-
-#### Configure for anonymous access
-<!-- tabs:start -->
-#### **Docker Compose**
-```yaml
-version: '3'
-
-services:
-  whatsupdocker:
-    image: getwud/wud
-    ...
-    environment:
-      - WUD_REGISTRY_HUB=
-```
-#### **Docker**
-```bash
-docker run \
-  -e WUD_REGISTRY_HUB= \
-  ...
-  getwud/wud
-```
-<!-- tabs:end -->
 
 #### Configure Authentication using Login/Token
 
@@ -51,28 +29,26 @@ docker run \
 
 ##### 2. Go to your&nbsp;[Security Settings](https://hub.docker.com/settings/security)
 - Create a new Access Token
-- Copy it and use it as the `WUD_REGISTRY_HUB_TOKEN` value
+- Copy it and use it as the `WUD_REGISTRY_HUB_PUBLIC_TOKEN` value
 
 ![image](hub_token.png)
 
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
     ...
     environment:
-      - WUD_REGISTRY_HUB_LOGIN=mylogin
-      - WUD_REGISTRY_HUB_PASSWORD=fb4d5db9-e64d-3648-8846-74d0846e55de
+      - WUD_REGISTRY_HUB_PUBLIC_LOGIN=mylogin
+      - WUD_REGISTRY_HUB_PUBLIC_PASSWORD=fb4d5db9-e64d-3648-8846-74d0846e55de
 ```
 #### **Docker**
 ```bash
 docker run \
-  -e WUD_REGISTRY_HUB_LOGIN="mylogin"
-  -e WUD_REGISTRY_HUB_PASSWORD="fb4d5db9-e64d-3648-8846-74d0846e55de"
+  -e WUD_REGISTRY_HUB_PUBLIC_LOGIN="mylogin"
+  -e WUD_REGISTRY_HUB_PUBLIC_PASSWORD="fb4d5db9-e64d-3648-8846-74d0846e55de"
   ...
   getwud/wud
 ```
@@ -94,19 +70,17 @@ For example,
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud
     ...
     environment:
-      - WUD_REGISTRY_HUB_AUTH=am9obmRvZToyYzFiZDg3Mi1lZmI2LTRmM2EtODFhYS03MjQ1MThhMGE1OTI=
+      - WUD_REGISTRY_HUB_PUBLIC_AUTH=am9obmRvZToyYzFiZDg3Mi1lZmI2LTRmM2EtODFhYS03MjQ1MThhMGE1OTI=
 ```
 #### **Docker**
 ```bash
 docker run \
-  -e WUD_REGISTRY_HUB_AUTH="am9obmRvZToyYzFiZDg3Mi1lZmI2LTRmM2EtODFhYS03MjQ1MThhMGE1OTI="
+  -e WUD_REGISTRY_HUB_PUBLIC_AUTH="am9obmRvZToyYzFiZDg3Mi1lZmI2LTRmM2EtODFhYS03MjQ1MThhMGE1OTI="
   ...
   getwud/wud
 ```

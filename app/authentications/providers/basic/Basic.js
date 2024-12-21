@@ -32,12 +32,11 @@ class Basic extends Authentication {
      * Return passport strategy.
      */
     getStrategy() {
-        return new BasicStrategy(
-            (user, pass, done) => this.authenticate(user, pass, done),
+        return new BasicStrategy((user, pass, done) =>
+            this.authenticate(user, pass, done),
         );
     }
 
-    // eslint-disable-next-line class-methods-use-this
     getStrategyDescription() {
         return {
             type: 'basic',

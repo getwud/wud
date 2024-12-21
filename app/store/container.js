@@ -45,9 +45,12 @@ function updateContainer(container) {
     const containerToReturn = validateContainer(container);
 
     // Remove existing container
-    containers.chain().find({
-        'data.id': container.id,
-    }).remove();
+    containers
+        .chain()
+        .find({
+            'data.id': container.id,
+        })
+        .remove();
 
     // Insert new one
     containers.insert({
@@ -70,7 +73,9 @@ function getContainers(query = {}) {
     if (!containers) {
         return [];
     }
-    const containerList = containers.find(filter).map((item) => validateContainer(item.data));
+    const containerList = containers
+        .find(filter)
+        .map((item) => validateContainer(item.data));
     return containerList.sort(
         byValues([
             [(container) => container.watcher, byString()],
@@ -103,9 +108,12 @@ function getContainer(id) {
 function deleteContainer(id) {
     const container = getContainer(id);
     if (container) {
-        containers.chain().find({
-            'data.id': id,
-        }).remove();
+        containers
+            .chain()
+            .find({
+                'data.id': id,
+            })
+            .remove();
         emitContainerRemoved(container);
     }
 }

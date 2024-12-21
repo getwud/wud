@@ -6,8 +6,6 @@ The easiest way to start is to deploy the official _**WUD**_ image.
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
-version: '3'
-
 services:
   whatsupdocker:
     image: getwud/wud

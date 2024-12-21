@@ -1,9 +1,11 @@
 <template>
   <v-card>
     <v-app-bar flat dense tile @click="collapse()" style="cursor: pointer">
-      <v-toolbar-title class="text-capitalize text-body-1">{{
-        displayName
-      }}</v-toolbar-title>
+      <v-toolbar-title class="text-body-3">
+        <v-chip label color="info" outlined>{{ item.type }}</v-chip>
+        /
+        <v-chip label color="info" outlined>{{ item.name }}</v-chip>
+      </v-toolbar-title>
       <v-spacer />
       <v-icon>{{ item.icon }}</v-icon>
       <v-icon>{{ showDetail ? "mdi-chevron-up" : "mdi-chevron-down" }}</v-icon>
@@ -41,7 +43,7 @@ export default {
   },
   data() {
     return {
-      showDetail: true,
+      showDetail: false,
     };
   },
   computed: {
