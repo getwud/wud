@@ -200,4 +200,5 @@ script:
   - docker login         -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
   - docker login ghcr.io -u "$GITHUB_USERNAME" -p "$GITHUB_TOKEN"
   - docker buildx create --use
+  - echo "Building & pushing ${DOCKER_TAGS}"
   - docker buildx build --push --platform ${DOCKER_PLATFORMS} --build-arg WUD_VERSION=${IMAGE_VERSION} ${DOCKER_TAGS} .
