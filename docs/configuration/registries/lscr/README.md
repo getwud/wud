@@ -7,8 +7,8 @@ The `lscr` registry lets you configure [LSCR](https://fleet.linuxserver.io/) int
 
 | Env var                                      |   Required    | Description     | Supported values                         | Default value when missing |
 |----------------------------------------------|:-------------:|-----------------|------------------------------------------|----------------------------|
-| `WUD_REGISTRY_LSCR_{REGISTRY_NAME}_USERNAME` | :red_circle:  | Github username |                                          |                            |
-| `WUD_REGISTRY_LSCR_{REGISTRY_NAME}_TOKEN`    | :red_circle:  | Github token    | Github password or Github Personal Token |                            |
+| `WUD_REGISTRY_LSCR_USERNAME` | :red_circle:  | Github username |                                          |                            |
+| `WUD_REGISTRY_LSCR_TOKEN`    | :red_circle:  | Github token    | Github password or Github Personal Token |                            |
 
 ### Examples
 
@@ -20,14 +20,14 @@ services:
     image: getwud/wud
     ...
     environment:
-      - WUD_REGISTRY_LSCR_PRIVATE_USERNAME=john@doe
-      - WUD_REGISTRY_LSCR_PRIVATE_TOKEN=xxxxx 
+      - WUD_REGISTRY_LSCR_USERNAME=johndoe
+      - WUD_REGISTRY_LSCR_TOKEN=xxxxx 
 ```
 #### **Docker**
 ```bash
 docker run \
-  -e WUD_REGISTRY_LSCR_PRIVATE_USERNAME="john@doe" \
-  -e WUD_REGISTRY_LSCR_PRIVATE_TOKEN="xxxxx" \
+  -e WUD_REGISTRY_LSCR_USERNAME="johndoe" \
+  -e WUD_REGISTRY_LSCR_TOKEN="xxxxx" \
   ...
   getwud/wud
 ```
