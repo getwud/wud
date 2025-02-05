@@ -13,6 +13,8 @@ before_install:
 
   - export IMAGE_VERSION=${TRAVIS_BRANCH//\//\_}
   - export IMAGE_VERSION=${IMAGE_VERSION//\#/\_}
+  - export IMAGE_VERSION_MINOR=$(echo $IMAGE_VERSION | sed -rn 's/^(v?[[:digit:]]+.[[:digit:]]+).([[:digit:]]+)(.*)/\1/p')
+  - export IMAGE_VERSION_MAJOR=$(echo $IMAGE_VERSION | sed -rn 's/^(v?[[:digit:]]+).[[:digit:]]+.([[:digit:]]+)(.*)/\1/p')
 
   # Install docker with buildx
   - sudo install -m 0755 -d /etc/apt/keyrings
@@ -194,6 +196,8 @@ script:
   - |
     if [ ! -z "$TRAVIS_TAG" ]
     then
+      export DOCKER_TAGS="${DOCKER_TAGS} -t ${DOCKER_USERNAME}/${IMAGE_NAME}:${IMAGE_VERSION_MAJOR} -t ghcr.io/${GITHUB_USERNAME}/${IMAGE_NAME}:${IMAGE_VERSION_MAJOR}"
+      export DOCKER_TAGS="${DOCKER_TAGS} -t ${DOCKER_USERNAME}/${IMAGE_NAME}:${IMAGE_VERSION_MINOR} -t ghcr.io/${GITHUB_USERNAME}/${IMAGE_NAME}:${IMAGE_VERSION_MINOR}"
       export DOCKER_TAGS="${DOCKER_TAGS} -t ${DOCKER_USERNAME}/${IMAGE_NAME}:latest -t ghcr.io/${GITHUB_USERNAME}/${IMAGE_NAME}:latest"
     fi
 
