@@ -261,6 +261,14 @@ nodejs_gc_duration_seconds_count{kind="weakcb"} 1
 
 You can use [Grafana](https://grafana.com/) to display charts and graphs using the Prometheus metrics.
 
+### Example dashboards
+
+A ready-to-use overview dashboard can be found under `grafana/overview.json`.
+
+It can be imported into any Grafana instance, just pick an existing data source.
+An interactive preview of the dashboard can be found
+[here](https://theforge.grafana.net/dashboard/snapshot/FskV8Lgi41VwD6jnSPnJxzLzz6B42QZF).
+
 ### Watched images
 You can also display WUD watched images on Grafana.
 
