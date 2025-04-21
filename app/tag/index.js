@@ -4,23 +4,22 @@
 const semver = require('semver');
 const log = require('../log');
 
+function coerce(rawVersion) {
+    return semver.coerce(rawVersion);
+}
+
 /**
  * Parse a string to a semver (return null is it cannot be parsed as a valid semver).
  * @param rawVersion
  * @returns {*|SemVer}
  */
 function parse(rawVersion) {
-    const rawVersionCleaned = semver.clean(rawVersion, { loose: true });
     const rawVersionSemver = semver.parse(
-        rawVersionCleaned !== null ? rawVersionCleaned : rawVersion,
+        semver.clean(rawVersion, { loose: true }) || rawVersion,
     );
-    // Hurrah!
-    if (rawVersionSemver !== null) {
-        return rawVersionSemver;
-    }
 
-    // Last chance; try to coerce (all data behind patch digit will be lost).
-    return semver.coerce(rawVersion);
+    // Coerce means that all data behind patch digit will be lost
+    return rawVersionSemver || semver.coerce(rawVersion);
 }
 
 /**
@@ -36,7 +35,7 @@ function isGreater(version1, version2) {
     if (version1Semver === null || version2Semver === null) {
         return false;
     }
-    return semver.gte(version1Semver, version2Semver);
+    return semver.gt(version1Semver, version2Semver);
 }
 
 /**
@@ -96,6 +95,7 @@ function transform(transformFormula, originalTag) {
 }
 
 module.exports = {
+    coerce,
     parse,
     isGreater,
     diff,

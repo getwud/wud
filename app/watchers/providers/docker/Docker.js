@@ -5,6 +5,7 @@ const cron = require('node-cron');
 const parse = require('parse-docker-image-name');
 const debounce = require('just-debounce');
 const {
+    coerce: coerceSemver,
     parse: parseSemver,
     isGreater: isGreaterSemver,
     transform: transformTag,
@@ -21,6 +22,7 @@ const {
     wudDisplayIcon,
     wudTriggerInclude,
     wudTriggerExclude,
+    wudInspectTagPath,
 } = require('./label');
 const storeContainer = require('../../../store/container');
 const log = require('../../../log');
@@ -241,6 +243,46 @@ function isDigestToWatch(wudWatchDigestLabelValue, isSemver) {
 }
 
 /**
+ * Extract image semver from locally installed image.
+ * @param containerData
+ * @param logger
+ * @param inspectPath
+ * @param inspectRegex
+ * @returns {string}
+ */
+function getSemverOfInstalledImage(
+    containerData,
+    logger,
+    inspectPath = 'Config/Labels/org.opencontainers.image.version',
+) {
+    try {
+        const rawValue = getContainerValueByPath(containerData, inspectPath);
+        return coerceSemver(rawValue)?.version;
+    } catch (err) {
+        logger.warn(err);
+    }
+}
+
+function getContainerValueByPath(obj, path) {
+    const parts = path.split('/');
+    let currentValue = obj;
+
+    for (let part of parts) {
+        if (Array.isArray(currentValue)) {
+            const found = currentValue.find((e) => e.startsWith(part + '='));
+            if (found) return found.split('=')[1];
+            return undefined;
+        } else if (currentValue && part in currentValue) {
+            currentValue = currentValue[part];
+        } else {
+            return undefined;
+        }
+    }
+
+    return currentValue;
+}
+
+/**
  * Docker Watcher Component.
  */
 class Docker extends Component {
@@ -377,40 +419,47 @@ class Docker extends Component {
      * @return {Promise<void>}
      */
     async onDockerEvent(dockerEventChunk) {
-        const dockerEvent = JSON.parse(dockerEventChunk.toString());
-        const action = dockerEvent.Action;
-        const containerId = dockerEvent.id;
+        try {
+            const dockerEvent = JSON.parse(dockerEventChunk.toString());
+            const action = dockerEvent.Action;
+            const containerId = dockerEvent.id;
 
-        // If the container was created or destroyed => perform a watch
-        if (action === 'destroy' || action === 'create') {
-            await this.watchCronDebounced();
-        } else {
-            // Update container state in db if so
-            try {
-                const container =
-                    await this.dockerApi.getContainer(containerId);
-                const containerInspect = await container.inspect();
-                const newStatus = containerInspect.State.Status;
-                const containerFound = storeContainer.getContainer(containerId);
-                if (containerFound) {
-                    // Child logger for the container to process
-                    const logContainer = this.log.child({
-                        container: fullName(containerFound),
-                    });
-                    const oldStatus = containerFound.status;
-                    containerFound.status = newStatus;
-                    if (oldStatus !== newStatus) {
-                        storeContainer.updateContainer(containerFound);
-                        logContainer.info(
-                            `Status changed from ${oldStatus} to ${newStatus}`,
-                        );
+            // If the container was created or destroyed => perform a watch
+            if (action === 'destroy' || action === 'create') {
+                await this.watchCronDebounced();
+            } else {
+                // Update container state in db if so
+                try {
+                    const container =
+                        await this.dockerApi.getContainer(containerId);
+                    const containerInspect = await container.inspect();
+                    const newStatus = containerInspect.State.Status;
+                    const containerFound =
+                        storeContainer.getContainer(containerId);
+                    if (containerFound) {
+                        // Child logger for the container to process
+                        const logContainer = this.log.child({
+                            container: fullName(containerFound),
+                        });
+                        const oldStatus = containerFound.status;
+                        containerFound.status = newStatus;
+                        if (oldStatus !== newStatus) {
+                            storeContainer.updateContainer(containerFound);
+                            logContainer.info(
+                                `Status changed from ${oldStatus} to ${newStatus}`,
+                            );
+                        }
                     }
+                } catch (e) {
+                    this.log.debug(
+                        `Unable to get container details for container id=[${containerId}] (${e.message})`,
+                    );
                 }
-            } catch (e) {
-                this.log.debug(
-                    `Unable to get container details for container id=[${containerId}] (${e.message})`,
-                );
             }
+        } catch (e) {
+            this.log.debug(
+                `Unable to parse docker event chunk=[${dockerEventChunk}] (${e.message})`,
+            );
         }
     }
 
@@ -576,7 +625,6 @@ class Docker extends Component {
     /**
      * Find new version for a Container.
      */
-
     async findNewVersion(container, logContainer) {
         const registryProvider = getRegistry(container.image.registry.name);
         const result = { tag: container.image.tag.value };
@@ -681,7 +729,13 @@ class Docker extends Component {
         }
 
         // Get container image details
-        const image = await this.dockerApi.getImage(container.Image).inspect();
+        let image;
+        try {
+            image = await this.dockerApi.getImage(container.Image).inspect();
+        } catch (e) {
+            this.log.warn('Cannot get image inspect', e);
+            return Promise.reject();
+        }
 
         // Get useful properties
         const containerName = getContainerName(container);
@@ -706,7 +760,15 @@ class Docker extends Component {
             [imageNameToParse] = image.RepoTags;
         }
         const parsedImage = parse(imageNameToParse);
-        const tagName = parsedImage.tag || 'latest';
+        const tagName = container.Labels[wudInspectTagPath]
+            ? getSemverOfInstalledImage(
+                  await this.dockerApi.getContainer(containerId).inspect(),
+                  this.log,
+                  container.Labels[wudInspectTagPath],
+              ) ||
+              parsedImage.tag ||
+              'latest'
+            : parsedImage.tag || 'latest';
         const parsedTag = parseSemver(transformTag(transformTags, tagName));
         const isSemver = parsedTag !== null && parsedTag !== undefined;
         const watchDigest = isDigestToWatch(
