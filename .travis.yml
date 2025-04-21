@@ -55,6 +55,9 @@ script:
   # Report to Code Climate
   - (cd app && ./cc-test-reporter after-build -t lcov --debug --exit-code $TRAVIS_TEST_RESULT)
 
+  # Package app
+  - (cd app && npm run build)
+
   # Package ui
   - (cd ui && npm run build)
 

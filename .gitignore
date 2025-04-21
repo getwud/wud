@@ -97,4 +97,7 @@ typings/
 # End of https://www.gitignore.io/api/node
 
 # Ignore loki file
-.store
+.store  
+
+# Ignore TypeScript build output
+app/dist
