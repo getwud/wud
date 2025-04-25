@@ -542,9 +542,12 @@ class Docker extends Component {
                 container.Labels[wudDisplayIcon],
                 container.Labels[wudTriggerInclude],
                 container.Labels[wudTriggerExclude],
-            ),
+            ).catch(e => {
+                this.log.warn(`Failed to fetch image detail for container ${container.Id}: ${e.message}`);
+                return e;
+            }),
         );
-        const containersWithImage = await Promise.all(containerPromises);
+        const containersWithImage = (await Promise.all(containerPromises)).filter(result => !(result instanceof Error));
 
         // Return containers to process
         const containersToReturn = containersWithImage.filter(
