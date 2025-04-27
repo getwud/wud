@@ -82,7 +82,6 @@ export function getLink(container: Container, originalTagValue: string) {
     }
 
     // Export vars for dynamic template interpolation
-    /* eslint-disable @typescript-eslint/no-unused-vars */
     const raw = originalTagValue; // deprecated, kept for backward compatibility
     const original = originalTagValue;
     const transformed = container.transformTags
@@ -103,7 +102,6 @@ export function getLink(container: Container, originalTagValue: string) {
                 ? versionSemver.prerelease.toString()
                 : '';
     }
-    /* eslint-enable @typescript-eslint/no-unused-vars */
     return eval('`' + container.linkTemplate + '`') as string;
 }
 
