@@ -49,14 +49,17 @@ script:
   - (cd e2e && npm run lint)
   - (cd ui && npm run lint)
 
+  # Package app
+  - (cd app && npm run build)
+
+  # Package ui
+  - (cd ui && npm run build)
+
   # Run UT
   - (cd app && npm test)
 
   # Report to Code Climate
-  - (cd app && ./cc-test-reporter after-build -t lcov --debug --exit-code $TRAVIS_TEST_RESULT)
-
-  # Package ui
-  - (cd ui && npm run build)
+#  - (cd app && ./cc-test-reporter after-build -t lcov --debug --exit-code $TRAVIS_TEST_RESULT)
 
   # Build wud docker image
   - docker build -t wud --build-arg WUD_VERSION=$IMAGE_VERSION .

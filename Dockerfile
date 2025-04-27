@@ -43,7 +43,7 @@ CMD ["node", "index"]
 COPY --from=dependencies /home/node/app/node_modules ./node_modules
 
 # Copy app
-COPY app/ ./
+COPY app/dist ./
 
 # Copy ui
 COPY ui/dist/ ./ui
