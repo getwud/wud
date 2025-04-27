@@ -59,7 +59,7 @@ script:
   - (cd app && npm test)
 
   # Report to Code Climate
-  - (cd app && ./cc-test-reporter after-build -t lcov --debug --exit-code $TRAVIS_TEST_RESULT)
+#  - (cd app && ./cc-test-reporter after-build -t lcov --debug --exit-code $TRAVIS_TEST_RESULT)
 
   # Build wud docker image
   - docker build -t wud --build-arg WUD_VERSION=$IMAGE_VERSION .
