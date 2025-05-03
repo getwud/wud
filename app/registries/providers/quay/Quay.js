@@ -39,7 +39,7 @@ class Quay extends Registry {
      */
 
     match(image) {
-        return /^.*\.?quay.io$/.test(image.registry.url);
+        return /^.*\.?quay\.io$/.test(image.registry.url);
     }
 
     /**
