@@ -15,6 +15,7 @@ class Docker extends Trigger {
         return this.joi.object().keys({
             prune: this.joi.boolean().default(false),
             dryrun: this.joi.boolean().default(false),
+            autoremovetimeout: this.joi.number().default(10_000),
         });
     }
 
@@ -211,6 +212,30 @@ class Docker extends Trigger {
         } catch (e) {
             logContainer.warn(
                 `Error when removing container ${containerName} with id ${containerId}`,
+            );
+            throw e;
+        }
+    }
+
+    /**
+     * Wait for a container to be removed.
+     */
+    async waitContainerRemoved(container, containerName, containerId, logContainer) {
+        logContainer.info(
+            `Wait container ${containerName} with id ${containerId}`,
+        );
+        try {
+            await container.wait({
+                condition: 'removed',
+                abortSignal: AbortSignal.timeout(this.configuration.autoremovetimeout),
+            });
+            logContainer.info(
+                `Container ${containerName} with id ${containerId} auto-removed successfully`,
+            );
+        } catch (e) {
+            logContainer.warn(
+                e,
+                `Error while waiting for container ${containerName} with id ${containerId}`,
             );
             throw e;
         }
@@ -426,13 +451,24 @@ class Docker extends Trigger {
                     );
                 }
 
-                // Remove current container
-                await this.removeContainer(
-                    currentContainer,
-                    container.name,
-                    container.id,
-                    logContainer,
-                );
+                if (currentContainerSpec.HostConfig?.AutoRemove !== true) {
+                    // Remove current container
+                    await this.removeContainer(
+                        currentContainer,
+                        container.name,
+                        container.id,
+                        logContainer,
+                    );
+                } else {
+                    // This is a special case when the container is set to be removed automatically when it stops. 
+                    // In this case, we need to wait for the container to be removed before creating the new one.
+                    await this.waitContainerRemoved(
+                        currentContainer,
+                        container.name,
+                        container.id,
+                        logContainer,
+                    );
+                }
 
                 // Create new container
                 const newContainer = await this.createContainer(

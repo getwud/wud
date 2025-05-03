@@ -232,6 +232,33 @@ test('removeContainer should throw error when error occurs', async () => {
     ).rejects.toThrowError('No container');
 });
 
+
+test('waitContainerRemoved should wait for the container to be removed from dockerApi', async () => {
+    await expect(
+        docker.waitContainerRemoved(
+            {
+                wait: () => Promise.resolve(),
+            },
+            'name',
+            'id',
+            log,
+        ),
+    ).resolves.toBeUndefined();
+});
+
+test('waitContainerRemoved should throw error when error occurs', async () => {
+    await expect(
+        docker.waitContainerRemoved(
+            {
+                wait: () => Promise.reject(new Error('No container')),
+            },
+            'name',
+            'id',
+            log,
+        ),
+    ).rejects.toThrowError('No container');
+});
+
 test('startContainer should stop container from dockerApi', async () => {
     await expect(
         docker.startContainer(
