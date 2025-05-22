@@ -60,6 +60,8 @@ services:
         - WUD_TRIGGER_PUSHOVER_1_DEVICE=myIphone,mySamsung
         - WUD_TRIGGER_PUSHOVER_1_SOUND=cosmic
         - WUD_TRIGGER_PUSHOVER_1_PRIORITY=2
+        - WUD_TRIGGER_PUSHOVER_1_EXPIRE=600
+        - WUD_TRIGGER_PUSHOVER_1_RETRY=60
 ```
 
 #### **Docker**
@@ -70,6 +72,8 @@ docker run \
     -e WUD_TRIGGER_PUSHOVER_1_DEVICE="myIphone,mySamsung" \
     -e WUD_TRIGGER_PUSHOVER_1_SOUND="cosmic" \
     -e WUD_TRIGGER_PUSHOVER_1_PRIORITY="2" \
+    -e WUD_TRIGGER_PUSHOVER_1_EXPIRE="600" \
+    -e WUD_TRIGGER_PUSHOVER_1_RETRY="60" \
   ...
   getwud/wud
 ```
