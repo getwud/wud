@@ -2,6 +2,7 @@ import Component, { ComponentConfiguration } from '../../registry/Component';
 import * as event from '../../event';
 import { getTriggerCounter } from '../../prometheus/trigger';
 import { fullName, Container } from '../../model/container';
+import { ObjectSchema } from 'joi';
 
 export interface TriggerConfiguration extends ComponentConfiguration {
     auto?: boolean;
@@ -339,7 +340,7 @@ class Trigger extends Component {
     validateConfiguration(
         configuration: TriggerConfiguration,
     ): TriggerConfiguration {
-        const schema = this.getConfigurationSchema();
+        const schema = this.getConfigurationSchema() as ObjectSchema;
         const schemaWithDefaultOptions = schema.append({
             auto: this.joi.bool().default(true),
             threshold: this.joi

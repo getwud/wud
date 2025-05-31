@@ -43,12 +43,9 @@ export interface RegistryManifestResponse {
 /**
  * Docker Registry Abstract class.
  */
-class Registry extends Component {
+export class Registry extends Component {
     /**
      * Encode Bse64(login:password)
-     * @param login
-     * @param token
-     * @returns {string}
      */
     static base64Encode(login: string, token: string) {
         return Buffer.from(`${login}:${token}`, 'utf-8').toString('base64');
@@ -56,8 +53,6 @@ class Registry extends Component {
 
     /**
      * If this registry is responsible for the image (to be overridden).
-     * @param image the image
-     * @returns {boolean}
      */
     match(_image: ContainerImage): boolean {
         return false;
@@ -65,8 +60,6 @@ class Registry extends Component {
 
     /**
      * Normalize image according to Registry Custom characteristics (to be overridden).
-     * @param image
-     * @returns {*}
      */
     normalizeImage(image: ContainerImage): ContainerImage {
         return image;
@@ -74,9 +67,6 @@ class Registry extends Component {
 
     /**
      * Authenticate and set authentication value to requestOptions.
-     * @param image
-     * @param requestOptions
-     * @returns {*}
      */
     async authenticate(
         _image: ContainerImage,
@@ -87,8 +77,6 @@ class Registry extends Component {
 
     /**
      * Get Tags.
-     * @param image
-     * @returns {*}
      */
     async getTags(image: ContainerImage): Promise<string[]> {
         this.log.debug(`Get ${image.name} tags`);
@@ -118,9 +106,6 @@ class Registry extends Component {
 
     /**
      * Get tags page
-     * @param image
-     * @param lastItem
-     * @returns {Promise<*>}
      */
     getTagsPage(
         image: ContainerImage,
@@ -139,9 +124,6 @@ class Registry extends Component {
 
     /**
      * Get image manifest for a remote tag.
-     * @param image
-     * @param digest (optional)
-     * @returns {Promise<undefined|*>}
      */
     async getImageManifestDigest(
         image: ContainerImage,
@@ -375,9 +357,7 @@ class Registry extends Component {
 
     /**
      * Return {username, pass } or undefined.
-     * @returns {}
      */
-
     async getAuthPull(): Promise<
         { username?: string; password?: string } | undefined
     > {

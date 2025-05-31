@@ -1,22 +1,33 @@
-// @ts-nocheck
-import Ecr from './Ecr';
+jest.mock('@aws-sdk/client-ecr', () => {
+    return {
+        ECRClient: jest.fn().mockImplementation(() => ({
+            send: jest.fn().mockResolvedValue({
+                authorizationData: [
+                    { authorizationToken: 'xxxxx', expiresAt: new Date() },
+                ],
+            }),
+        })),
+        GetAuthorizationTokenCommand: jest.fn(),
+    };
+});
 
-jest.mock('aws-sdk/clients/ecr', () =>
-    jest.fn().mockImplementation(() => ({
-        getAuthorizationToken: () => ({
-            promise: () =>
-                Promise.resolve({
-                    authorizationData: [{ authorizationToken: 'QVdTOnh4eHg=' }], // base64 'AWS:xxxx'
-                }),
-        }),
-    })),
-);
+import Logger from 'bunyan';
+import { ContainerImage } from '../../../model/container';
+import { Ecr } from './Ecr';
 
 const ecr = new Ecr();
+ecr.log = {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+} as any as Logger;
+
 ecr.configuration = {
     accesskeyid: 'accesskeyid',
     secretaccesskey: 'secretaccesskey',
     region: 'region',
+    public: false,
 };
 
 jest.mock('axios');
@@ -27,11 +38,13 @@ test('validatedConfiguration should initialize when configuration is valid', asy
             accesskeyid: 'accesskeyid',
             secretaccesskey: 'secretaccesskey',
             region: 'region',
+            public: false,
         }),
     ).toStrictEqual({
         accesskeyid: 'accesskeyid',
         secretaccesskey: 'secretaccesskey',
         region: 'region',
+        public: false,
     });
 });
 
@@ -68,7 +81,7 @@ test('match should return true when registry url is from ecr', async () => {
             registry: {
                 url: '123456789.dkr.ecr.eu-west-1.amazonaws.com',
             },
-        }),
+        } as ContainerImage),
     ).toBeTruthy();
 });
 
@@ -78,13 +91,14 @@ test('match should return false when registry url is not from ecr', async () => 
             registry: {
                 url: '123456789.dkr.ecr.eu-west-1.acme.com',
             },
-        }),
+        } as ContainerImage),
     ).toBeFalsy();
 });
 
 test('maskConfiguration should mask configuration secrets', async () => {
     expect(ecr.maskConfiguration()).toEqual({
         accesskeyid: 'a*********d',
+        public: false,
         region: 'region',
         secretaccesskey: 's*************y',
     });
@@ -97,7 +111,7 @@ test('normalizeImage should return the proper registry v2 endpoint', async () =>
             registry: {
                 url: '123456789.dkr.ecr.eu-west-1.amazonaws.com/test/image',
             },
-        }),
+        } as ContainerImage),
     ).toStrictEqual({
         name: 'test/image',
         registry: {
@@ -107,16 +121,25 @@ test('normalizeImage should return the proper registry v2 endpoint', async () =>
 });
 
 test('authenticate should call ecr auth endpoint', async () => {
-    expect(ecr.authenticate(undefined, { headers: {} })).resolves.toEqual({
+    expect(
+        ecr.authenticate(
+            {
+                registry: {
+                    url: '123456789.dkr.ecr.eu-west-1.amazonaws.com',
+                },
+            } as ContainerImage,
+            { headers: {} },
+        ),
+    ).resolves.toEqual({
         headers: {
-            Authorization: 'Basic QVdTOnh4eHg=',
+            Authorization: 'Basic xxxxx',
         },
     });
 });
 
 test('getAuthPull should call ecr auth endpoint and get token', async () => {
     await expect(ecr.getAuthPull()).resolves.toEqual({
-        username: 'AWS',
-        password: 'xxxx',
+        username: 'accesskeyid',
+        password: 'secretaccesskey',
     });
 });
