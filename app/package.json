@@ -25,7 +25,7 @@
         "dockerode": "4.0.2",
         "express": "4.21.2",
         "express-healthcheck": "0.1.0",
-        "express-session": "1.18.1",
+        "express-session": "1.18.2",
         "flat": "5.0.2",
         "getmac": "6.6.0",
         "gotify-client": "0.4.2",
