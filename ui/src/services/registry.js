@@ -12,13 +12,13 @@ function getRegistryIcon() {
  * @returns {string}
  */
 function getRegistryProviderIcon(provider) {
-  let icon = "mdi-help";
+  let icon = "si-linuxcontainers";
   switch (provider.split(".")[0]) {
     case "acr":
       icon = "si-microsoftazure";
       break;
     case "custom":
-      icon = "mdi-home";
+      icon = "si-opencontainersinitiative";
       break;
     case "ecr":
       icon = "si-amazonaws";
@@ -43,6 +43,9 @@ function getRegistryProviderIcon(provider) {
       break;
     case "quay":
       icon = "si-redhat";
+      break;
+    case "lscr":
+      icon = "si-linuxserver";
       break;
   }
   return icon;
