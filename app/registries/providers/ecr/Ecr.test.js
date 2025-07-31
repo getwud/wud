@@ -5,7 +5,7 @@ jest.mock('aws-sdk/clients/ecr', () =>
         getAuthorizationToken: () => ({
             promise: () =>
                 Promise.resolve({
-                    authorizationData: [{ authorizationToken: 'xxxxx' }],
+                    authorizationData: [{ authorizationToken: 'QVdTOnh4eHg=' }], // base64 'AWS:xxxx'
                 }),
         }),
     })),
@@ -108,7 +108,14 @@ test('normalizeImage should return the proper registry v2 endpoint', () => {
 test('authenticate should call ecr auth endpoint', () => {
     expect(ecr.authenticate(undefined, { headers: {} })).resolves.toEqual({
         headers: {
-            Authorization: 'Basic xxxxx',
+            Authorization: 'Basic QVdTOnh4eHg=',
         },
+    });
+});
+
+test('getAuthPull should call ecr auth endpoint and get token', async () => {
+    await expect(ecr.getAuthPull()).resolves.toEqual({
+        username: 'AWS',
+        password: 'xxxx',
     });
 });

@@ -108,20 +108,20 @@ test('getAuthCredentials should return base64 encode credentials when auth confi
     );
 });
 
-test('getAuthPull should return undefined when anonymous configuration', () => {
+test('getAuthPull should return undefined when anonymous configuration', async () => {
     const quayInstance = new Quay();
     quayInstance.configuration = {};
-    expect(quayInstance.getAuthPull()).toEqual(undefined);
+    await expect(quayInstance.getAuthPull()).resolves.toEqual(undefined);
 });
 
-test('getAuthPull should return credentials when auth configuration', () => {
+test('getAuthPull should return credentials when auth configuration', async () => {
     const quayInstance = new Quay();
     quayInstance.configuration = {
         namespace: 'namespace',
         account: 'account',
         token: 'token',
     };
-    expect(quayInstance.getAuthPull()).toEqual({
+    await expect(quayInstance.getAuthPull()).resolves.toEqual({
         password: 'token',
         username: 'namespace+account',
     });

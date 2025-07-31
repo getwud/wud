@@ -53,7 +53,7 @@ class Acr extends Registry {
         return requestOptionsWithAuth;
     }
 
-    getAuthPull() {
+    async getAuthPull() {
         return {
             username: this.configuration.clientid,
             password: this.configuration.clientsecret,
