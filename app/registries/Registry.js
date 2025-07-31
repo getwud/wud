@@ -310,7 +310,7 @@ class Registry extends Component {
      * @returns {}
      */
 
-    getAuthPull() {
+    async getAuthPull() {
         return undefined;
     }
 }

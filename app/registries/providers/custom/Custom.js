@@ -97,7 +97,7 @@ class Custom extends Registry {
         return undefined;
     }
 
-    getAuthPull() {
+    async getAuthPull() {
         if (this.configuration.login) {
             return {
                 username: this.configuration.login,

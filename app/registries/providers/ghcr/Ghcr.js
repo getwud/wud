@@ -60,7 +60,7 @@ class Ghcr extends Registry {
         return requestOptionsWithAuth;
     }
 
-    getAuthPull() {
+    async getAuthPull() {
         if (this.configuration.username && this.configuration.token) {
             return {
                 username: this.configuration.username,
