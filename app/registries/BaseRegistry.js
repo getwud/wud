@@ -58,7 +58,7 @@ class BaseRegistry extends Registry {
     /**
      * Common auth pull credentials
      */
-    getAuthPull() {
+    async getAuthPull() {
         if (this.configuration.login && this.configuration.password) {
             return {
                 username: this.configuration.login,

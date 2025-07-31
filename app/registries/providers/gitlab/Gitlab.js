@@ -78,7 +78,7 @@ class Gitlab extends Registry {
      * Return empty username and personal access token value.
      * @returns {{password: (string|undefined|*), username: string}}
      */
-    getAuthPull() {
+    async getAuthPull() {
         return {
             username: '',
             password: this.configuration.token,

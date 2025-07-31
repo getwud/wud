@@ -105,8 +105,8 @@ test('normalizeImage should return the proper registry v2 endpoint', () => {
     });
 });
 
-test('getAuthPull should return pam', () => {
-    expect(gitlab.getAuthPull()).toEqual({
+test('getAuthPull should return pam', async () => {
+    await expect(gitlab.getAuthPull()).resolves.toEqual({
         username: '',
         password: gitlab.configuration.token,
     });

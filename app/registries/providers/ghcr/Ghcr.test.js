@@ -44,18 +44,18 @@ describe('GitHub Container Registry', () => {
         expect(masked.token).toBe('s**********n');
     });
 
-    test('should return auth pull credentials', () => {
+    test('should return auth pull credentials', async () => {
         ghcr.configuration = { username: 'testuser', token: 'testtoken' };
-        const auth = ghcr.getAuthPull();
+        const auth = await ghcr.getAuthPull();
         expect(auth).toEqual({
             username: 'testuser',
             password: 'testtoken',
         });
     });
 
-    test('should return undefined auth pull when no credentials', () => {
+    test('should return undefined auth pull when no credentials', async () => {
         ghcr.configuration = {};
-        const auth = ghcr.getAuthPull();
+        const auth = await ghcr.getAuthPull();
         expect(auth).toBeUndefined();
     });
 
@@ -88,15 +88,15 @@ describe('GitHub Container Registry', () => {
         expect(() => ghcr.validateConfiguration('some-string')).not.toThrow();
     });
 
-    test('should return undefined auth pull when missing username', () => {
+    test('should return undefined auth pull when missing username', async () => {
         ghcr.configuration = { token: 'test-token' };
-        const auth = ghcr.getAuthPull();
+        const auth = await ghcr.getAuthPull();
         expect(auth).toBeUndefined();
     });
 
-    test('should return undefined auth pull when missing token', () => {
+    test('should return undefined auth pull when missing token', async () => {
         ghcr.configuration = { username: 'testuser' };
-        const auth = ghcr.getAuthPull();
+        const auth = await ghcr.getAuthPull();
         expect(auth).toBeUndefined();
     });
 });

@@ -64,18 +64,7 @@ class Ecr extends Registry {
         const requestOptionsWithAuth = requestOptions;
         // Private registry
         if (this.configuration.accesskeyid) {
-            const ecr = new ECR({
-                credentials: {
-                    accessKeyId: this.configuration.accesskeyid,
-                    secretAccessKey: this.configuration.secretaccesskey,
-                },
-                region: this.configuration.region,
-            });
-            const authorizationToken = await ecr
-                .getAuthorizationToken()
-                .promise();
-            const tokenValue =
-                authorizationToken.authorizationData[0].authorizationToken;
+            const tokenValue = await this.fetchPrivateEcrAuthToken();
 
             requestOptionsWithAuth.headers.Authorization = `Basic ${tokenValue}`;
 
@@ -93,13 +82,31 @@ class Ecr extends Registry {
         return requestOptionsWithAuth;
     }
 
-    getAuthPull() {
-        return this.configuration.accesskeyid
-            ? {
-                  username: this.configuration.accesskeyid,
-                  password: this.configuration.secretaccesskey,
-              }
-            : undefined;
+    async fetchPrivateEcrAuthToken() {
+        const ecr = new ECR({
+            credentials: {
+                accessKeyId: this.configuration.accesskeyid,
+                secretAccessKey: this.configuration.secretaccesskey,
+            },
+            region: this.configuration.region,
+        });
+        const authorizationToken = await ecr
+            .getAuthorizationToken()
+            .promise();
+        return authorizationToken.authorizationData[0].authorizationToken;
+    }
+
+    async getAuthPull() {
+        if (this.configuration.accesskeyid) {
+            const tokenValue = await this.fetchPrivateEcrAuthToken();
+            const auth = Buffer.from(tokenValue, 'base64').toString().split(':')
+            return {
+                username: auth[0],
+                password: auth[1],
+            };
+        } else {
+            return undefined;
+        }
     }
 }
 
