@@ -22,7 +22,7 @@
         "capitalize": "2.0.4",
         "connect-loki": "1.2.0",
         "cors": "2.8.5",
-        "dockerode": "4.0.2",
+        "dockerode": "4.0.8",
         "express": "4.21.2",
         "express-healthcheck": "0.1.0",
         "express-session": "1.18.1",
