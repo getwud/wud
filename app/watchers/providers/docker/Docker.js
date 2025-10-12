@@ -21,7 +21,7 @@ const {
     wudDisplayIcon,
     wudTriggerInclude,
     wudTriggerExclude,
-    wudRegistryLookupUrl,
+    wudRegistryLookupImage,
 } = require('./label');
 const storeContainer = require('../../../store/container');
 const log = require('../../../log');
@@ -113,19 +113,35 @@ function getTagCandidates(container, tags, logContainer) {
 
 function normalizeContainer(container) {
     const containerWithNormalizedImage = container;
-    // Create a temporary image with lookupUrl if present for registry matching
-    const imageForMatching = container.image.registry.lookupUrl
-        ? { ...container.image, registry: { ...container.image.registry, url: container.image.registry.lookupUrl } }
-        : container.image;
-    const registryProvider = Object.values(getRegistries()).find((provider) =>
+    // Create a temporary image with parsed lookupImage if present for registry matching
+    let imageForMatching = container.image;
+    if (container.image.registry.lookupImage) {
+        const parsedLookupImage = parse(container.image.registry.lookupImage);
+        // If no domain specified, default to Docker Hub registry
+        const registryUrl = parsedLookupImage.domain || 'registry-1.docker.io';
+        log.info(`[DEBUG] lookupImage: ${container.image.registry.lookupImage}, parsed domain: ${parsedLookupImage.domain}, registryUrl: ${registryUrl}, path: ${parsedLookupImage.path}`);
+        imageForMatching = {
+            ...container.image,
+            registry: {
+                ...container.image.registry,
+                url: registryUrl,
+            },
+            name: parsedLookupImage.path,
+        };
+    }
+    const registries = getRegistries();
+    log.info(`[DEBUG] Available registries: ${Object.keys(registries).join(', ')}`);
+    log.info(`[DEBUG] Matching against registry URL: ${imageForMatching.registry.url}`);
+    const registryProvider = Object.values(registries).find((provider) =>
         provider.match(imageForMatching),
     );
     if (!registryProvider) {
         log.warn(`${fullName(container)} - No Registry Provider found`);
         containerWithNormalizedImage.image.registry.name = 'unknown';
     } else {
+        log.info(`[DEBUG] Found registry provider: ${registryProvider.getId()}`);
         containerWithNormalizedImage.image = registryProvider.normalizeImage(
-            container.image,
+            imageForMatching,
         );
         containerWithNormalizedImage.image.registry.name =
             registryProvider.getId();
@@ -550,7 +566,7 @@ class Docker extends Component {
                 container.Labels[wudDisplayIcon],
                 container.Labels[wudTriggerInclude],
                 container.Labels[wudTriggerExclude],
-                container.Labels[wudRegistryLookupUrl],
+                container.Labels[wudRegistryLookupImage],
             ),
         );
         const containersWithImage = await Promise.all(containerPromises);
@@ -676,7 +692,7 @@ class Docker extends Component {
         displayIcon,
         triggerInclude,
         triggerExclude,
-        wudRegistryLookupUrlValue,
+        wudRegistryLookupImageValue,
     ) {
         const containerId = container.Id;
 
@@ -745,7 +761,7 @@ class Docker extends Component {
                 id: imageId,
                 registry: {
                     url: parsedImage.domain,
-                    lookupUrl: wudRegistryLookupUrlValue,
+                    lookupImage: wudRegistryLookupImageValue,
                 },
                 name: parsedImage.path,
                 tag: {

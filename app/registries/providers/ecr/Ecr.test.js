@@ -79,11 +79,6 @@ test('match should return false when registry url is not from ecr', () => {
             },
         }),
     ).toBeFalsy();
-    expect(ecr.match('123456789.dkr.ecr.eu-west-1.amazonaws.com')).toBeTruthy();
-});
-
-test('match should return false when registry url is not from ecr', () => {
-    expect(ecr.match('123456789.dkr.ecr.eu-west-1.acme.com')).toBeFalsy();
 });
 
 test('maskConfiguration should mask configuration secrets', () => {

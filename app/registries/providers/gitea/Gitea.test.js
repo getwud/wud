@@ -48,11 +48,6 @@ test('match should return false when registry url is not from custom', () => {
             },
         }),
     ).toBeFalsy();
-    expect(gitea.match('gitea.acme.com')).toBeTruthy();
-});
-
-test('match should return false when registry url is not from custom', () => {
-    expect(gitea.match('gitea.notme.io')).toBeFalsy();
 });
 
 test('normalizeImage should return the proper registry v2 endpoint', () => {

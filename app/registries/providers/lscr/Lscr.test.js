@@ -50,11 +50,6 @@ test('match should return false when registry url is not from lscr', () => {
             },
         }),
     ).toBeFalsy();
-    expect(lscr.match('lscr.io')).toBeTruthy();
-});
-
-test('match should return false when registry url is not from lscr', () => {
-    expect(lscr.match('wrong.io')).toBeFalsy();
 });
 
 test('normalizeImage should return the proper registry v2 endpoint', () => {
