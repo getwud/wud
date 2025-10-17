@@ -18,6 +18,7 @@
         - [Mqtt](configuration/triggers/mqtt/)
         - [Ntfy](configuration/triggers/ntfy/)
         - [Pushover](configuration/triggers/pushover/)
+        - [Rocket.Chat](configuration/triggers/rocketchat/)
         - [Slack](configuration/triggers/slack/)
         - [Smtp](configuration/triggers/smtp/)
         - [Telegram](configuration/triggers/telegram/)
