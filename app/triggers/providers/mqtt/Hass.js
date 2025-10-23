@@ -314,7 +314,7 @@ class Hass {
             discoveryTopic,
             JSON.stringify({
                 unique_id: entityId,
-                object_id: entityId,
+                default_entity_id: entityId,
                 name: name || entityId,
                 device: getHaDevice(),
                 icon: icon || sanitizeIcon('mdi:docker'),

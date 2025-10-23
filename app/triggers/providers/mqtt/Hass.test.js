@@ -35,7 +35,7 @@ test('publishDiscoveryMessage must publish a discovery message expected by HA', 
         'my/discovery',
         JSON.stringify({
             unique_id: 'my_state',
-            object_id: 'my_state',
+            default_entity_id: 'my_state',
             name: 'My state',
             device: {
                 identifiers: ['wud'],
@@ -64,7 +64,7 @@ test('addContainerSensor must publish sensor discovery message expected by HA', 
         'homeassistant/update/topic_watcher-name_container-name/config',
         JSON.stringify({
             unique_id: 'topic_watcher-name_container-name',
-            object_id: 'topic_watcher-name_container-name',
+            default_entity_id: 'topic_watcher-name_container-name',
             name: 'topic_watcher-name_container-name',
             device: {
                 identifiers: ['wud'],
@@ -114,7 +114,7 @@ test('updateContainerSensors must publish all sensors expected by HA', async () 
         'homeassistant/sensor/topic_total_count/config',
         JSON.stringify({
             unique_id: 'topic_total_count',
-            object_id: 'topic_total_count',
+            default_entity_id: 'topic_total_count',
             name: 'Total container count',
             device: {
                 identifiers: ['wud'],
@@ -136,7 +136,7 @@ test('updateContainerSensors must publish all sensors expected by HA', async () 
         'homeassistant/sensor/topic_update_count/config',
         JSON.stringify({
             unique_id: 'topic_update_count',
-            object_id: 'topic_update_count',
+            default_entity_id: 'topic_update_count',
             name: 'Total container update count',
             device: {
                 identifiers: ['wud'],
@@ -158,7 +158,7 @@ test('updateContainerSensors must publish all sensors expected by HA', async () 
         'homeassistant/binary_sensor/topic_update_status/config',
         JSON.stringify({
             unique_id: 'topic_update_status',
-            object_id: 'topic_update_status',
+            default_entity_id: 'topic_update_status',
             name: 'Total container update status',
             device: {
                 identifiers: ['wud'],
@@ -182,7 +182,7 @@ test('updateContainerSensors must publish all sensors expected by HA', async () 
         'homeassistant/sensor/topic_watcher-name_total_count/config',
         JSON.stringify({
             unique_id: 'topic_watcher-name_total_count',
-            object_id: 'topic_watcher-name_total_count',
+            default_entity_id: 'topic_watcher-name_total_count',
             name: 'Watcher watcher-name container count',
             device: {
                 identifiers: ['wud'],
@@ -204,7 +204,7 @@ test('updateContainerSensors must publish all sensors expected by HA', async () 
         'homeassistant/sensor/topic_watcher-name_update_count/config',
         JSON.stringify({
             unique_id: 'topic_watcher-name_update_count',
-            object_id: 'topic_watcher-name_update_count',
+            default_entity_id: 'topic_watcher-name_update_count',
             name: 'Watcher watcher-name container update count',
             device: {
                 identifiers: ['wud'],
@@ -226,7 +226,7 @@ test('updateContainerSensors must publish all sensors expected by HA', async () 
         'homeassistant/binary_sensor/topic_watcher-name_update_status/config',
         JSON.stringify({
             unique_id: 'topic_watcher-name_update_status',
-            object_id: 'topic_watcher-name_update_status',
+            default_entity_id: 'topic_watcher-name_update_status',
             name: 'Watcher watcher-name container update status',
             device: {
                 identifiers: ['wud'],
@@ -325,7 +325,7 @@ test('updateWatcherSensors must publish all watcher sensor messages expected by 
         'homeassistant/binary_sensor/topic_watcher-name_running/config',
         JSON.stringify({
             unique_id: 'topic_watcher-name_running',
-            object_id: 'topic_watcher-name_running',
+            default_entity_id: 'topic_watcher-name_running',
             name: 'Watcher watcher-name running status',
             device: {
                 identifiers: ['wud'],
