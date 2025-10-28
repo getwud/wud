@@ -1,5 +1,5 @@
 # Common Stage
-FROM node:23-slim as base
+FROM node:23-slim AS base
 
 LABEL maintainer="fmartinou"
 EXPOSE 3000
@@ -22,7 +22,7 @@ RUN apt update \
     && rm -rf /var/cache/apt/*
 
 # Dependencies stage
-FROM base as dependencies
+FROM base AS dependencies
 
 # Copy app package.json
 COPY app/package* ./
@@ -31,7 +31,7 @@ COPY app/package* ./
 RUN npm ci --omit=dev --omit=optional --no-audit --no-fund --no-update-notifier
 
 # Release stage
-FROM base as release
+FROM base AS release
 
 # Default entrypoint
 COPY Docker.entrypoint.sh /usr/bin/entrypoint.sh
