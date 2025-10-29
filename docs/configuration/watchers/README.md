@@ -183,8 +183,9 @@ To fine-tune the behaviour of WUD _per container_, you can add labels on them.
 |-----------------------|:--------------:|----------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
 | `wud.display.icon`    | :white_circle: | Custom display icon for the container              | Valid [Material Design Icon](https://materialdesignicons.com/), [Fontawesome Icon](https://fontawesome.com/) or [Simple icon](https://simpleicons.org/) (see details below) | `mdi:docker`                                                                          |
 | `wud.display.name`    | :white_circle: | Custom display name for the container              | Valid String                                                                                                                                                                | Container name                                                                        |
-| `wud.link.template`   | :white_circle: | Browsable link associated to the container version | JS string template with vars `${container}`, `${original}`, `${transformed}`, `${major}`, `${minor}`, `${patch}`, `${prerelease}`                                           |                                                                                       |
-| `wud.tag.exclude`     | :white_circle: | Regex to exclude specific tags                     | Valid JavaScript Regex                                                                                                                                                      |                                                                                       |
+| `wud.link.template`         | :white_circle: | Browsable link associated to the container version | JS string template with vars `${container}`, `${original}`, `${transformed}`, `${major}`, `${minor}`, `${patch}`, `${prerelease}`                                           |                                                                                       |
+| `wud.registry.lookup.image` | :white_circle: | Alternative image to use for update lookups        | Full image path (e.g., `namespace/image` or `registry.example.com/namespace/image`)                                                                                        |                                                                                       |
+| `wud.tag.exclude`           | :white_circle: | Regex to exclude specific tags                     | Valid JavaScript Regex                                                                                                                                                      |                                                                                       |
 | `wud.tag.include`     | :white_circle: | Regex to include specific tags only                | Valid JavaScript Regex                                                                                                                                                      |                                                                                       |
 | `wud.tag.transform`   | :white_circle: | Transform function to apply to the tag             | `$valid_regex => $valid_string_with_placeholders` (see below)                                                                                                               |                                                                                       |
 | `wud.trigger.exclude` | :white_circle: | Optional list of triggers to exclude               | `$trigger_1_id,$trigger_2_id:$threshold`                                                                                                                                    |                                                                                       |
@@ -437,3 +438,30 @@ docker run -d --name my_important_service --label 'wud.trigger.include=smtp.gmai
 ?> Threshold `minor` means that the trigger will run only if this is a `minor` or `patch` semver change
 
 ?> Threshold `patch` means that the trigger will run only if this is a `patch` semver change
+
+### Use an alternative image for update lookups
+When using a Docker Registry cache (Harbor, Nexus, etc.), you need to specify the upstream image that WUD should check for updates.
+
+<!-- tabs:start -->
+#### **Docker Compose**
+```yaml
+version: '3'
+
+services:
+
+  traefik:
+    image: harbor.example.com/ghcr-proxy/traefik/traefik:v3.5.3
+    labels:
+      - wud.watch=true
+      - wud.registry.lookup.image=ghcr.io/traefik/traefik
+```
+
+#### **Docker**
+```bash
+docker run -d \
+  --name traefik \
+  --label 'wud.watch=true' \
+  --label 'wud.registry.lookup.image=ghcr.io/traefik/traefik' \
+  harbor.example.com/ghcr-proxy/traefik/traefik:v3.5.3
+```
+<!-- tabs:end -->

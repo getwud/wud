@@ -55,6 +55,7 @@ function init() {
             'image_id',
             'image_name',
             'image_os',
+            'image_registry_lookup_image',
             'image_registry_name',
             'image_registry_url',
             'image_tag_semver',

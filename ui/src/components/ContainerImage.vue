@@ -39,8 +39,13 @@
         <v-icon color="secondary">{{ registryIcon }}</v-icon>
       </v-list-item-avatar>
       <v-list-item-content>
-        <v-list-item-title>Registry</v-list-item-title>
+        <v-list-item-title>Registry name</v-list-item-title>
         <v-list-item-subtitle>{{ image.registry.name }}</v-list-item-subtitle>
+      </v-list-item-content>
+      <v-list-item-content>
+        <v-list-item-title>Registry url</v-list-item-title>
+        <v-list-item-subtitle>{{ image.registry.url }}</v-list-item-subtitle>
+        <v-list-item-subtitle v-if="image.registry.lookupImage">{{ image.registry.lookupImage }} (lookup)</v-list-item-subtitle>
       </v-list-item-content>
     </v-list-item>
     <v-list-item>

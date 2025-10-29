@@ -86,6 +86,8 @@ Feature: WUD Container API Exposure
     And response body should be valid json
     And response body path $.link should be https://github.com/home-assistant/core/releases/tag/2021.6.1
     And response body path $.result.link should be https://github.com/home-assistant/core/releases/tag/2025.7.1
+    And response body path $.result.link should be https://github.com/home-assistant/core/releases/tag/2024.10.2
+>>>>>>> ab7cf7c (:star: [WATCHER] - Add support for alternative lookup registry url (useful when pulling from registry cache))
 
   Scenario: WUD must allow to trigger a watch on a container
     Given I GET /api/containers
