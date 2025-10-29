@@ -53,7 +53,7 @@ module.exports = {
     wudTriggerExclude: 'wud.trigger.exclude',
 
     /**
-     * Optional Lookup image (can be useful when pulling containers from a registry cache)
+     * Optional Lookup URL (can be useful when pulling containers from a registry cache)
      */
-    wudRegistryLookupImage: 'wud.registry.lookup.image',
+    wudRegistryLookupUrl: 'wud.registry.lookup.url',
 };
