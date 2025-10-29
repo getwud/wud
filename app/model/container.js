@@ -26,7 +26,7 @@ const schema = joi.object({
                 .object({
                     name: joi.string().min(1).required(),
                     url: joi.string().min(1).required(),
-                    lookupUrl: joi.string(),
+                    lookupImage: joi.string(),
                 })
                 .required(),
             name: joi.string().min(1).required(),
