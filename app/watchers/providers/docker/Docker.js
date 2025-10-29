@@ -119,7 +119,6 @@ function normalizeContainer(container) {
         const parsedLookupImage = parse(container.image.registry.lookupImage);
         // If no domain specified, default to Docker Hub registry
         const registryUrl = parsedLookupImage.domain || 'registry-1.docker.io';
-        log.info(`[DEBUG] lookupImage: ${container.image.registry.lookupImage}, parsed domain: ${parsedLookupImage.domain}, registryUrl: ${registryUrl}, path: ${parsedLookupImage.path}`);
         imageForMatching = {
             ...container.image,
             registry: {
@@ -130,8 +129,6 @@ function normalizeContainer(container) {
         };
     }
     const registries = getRegistries();
-    log.info(`[DEBUG] Available registries: ${Object.keys(registries).join(', ')}`);
-    log.info(`[DEBUG] Matching against registry URL: ${imageForMatching.registry.url}`);
     const registryProvider = Object.values(registries).find((provider) =>
         provider.match(imageForMatching),
     );
@@ -139,7 +136,6 @@ function normalizeContainer(container) {
         log.warn(`${fullName(container)} - No Registry Provider found`);
         containerWithNormalizedImage.image.registry.name = 'unknown';
     } else {
-        log.info(`[DEBUG] Found registry provider: ${registryProvider.getId()}`);
         containerWithNormalizedImage.image = registryProvider.normalizeImage(
             imageForMatching,
         );
