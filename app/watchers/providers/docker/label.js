@@ -23,6 +23,11 @@ module.exports = {
     wudTagTransform: 'wud.tag.transform',
 
     /**
+     * Optional path of docker inspect object where to find current semver.
+     */
+    wudInspectTagPath: 'wud.inspect.tag.path',
+
+    /**
      * Should container digest be tracked? (true | false).
      */
     wudWatchDigest: 'wud.watch.digest',

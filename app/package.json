@@ -5,6 +5,7 @@
     "main": "index.js",
     "scripts": {
         "start": "nodemon index.js | bunyan -L -o short",
+        "debug": "nodemon --inspect index.js | bunyan -L -o long",
         "doc": ".docsify serve ./docs",
         "format": "prettier --write .",
         "lint:fix": "prettier --write . && eslint '**/*.js'",

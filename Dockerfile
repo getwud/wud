@@ -1,10 +1,12 @@
 # Common Stage
 FROM node:24-slim as base
 
-LABEL maintainer="fmartinou"
-EXPOSE 3000
-
 ARG WUD_VERSION=unknown
+
+LABEL maintainer="fmartinou"
+LABEL org.opencontainers.image.authors="fmartinou"
+LABEL org.opencontainers.image.version="$WUD_VERSION"
+EXPOSE 3000
 
 ENV WORKDIR=/home/node/app
 ENV WUD_LOG_FORMAT=text
