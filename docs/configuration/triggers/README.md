@@ -24,13 +24,17 @@ All implemented triggers, in addition to their specific configuration, also supp
 | `WUD_TRIGGER_{trigger_type}_{trigger_name}_ONCE`        | :white_circle: | Run trigger once (do not repeat previous results)                                             | `true`, `false`                              | `true`                                                                                                                                                                                                                                                                         |
 | `WUD_TRIGGER_{trigger_type}_{trigger_name}_SIMPLEBODY`  | :white_circle: | The template to use to render the body of the notification                                    | JS string template with vars `container`     | `Container ${container.name} running with ${container.updateKind.kind} ${container.updateKind.localValue} can be updated to ${container.updateKind.kind} ${container.updateKind.remoteValue}${container.result && container.result.link ? "\\n" + container.result.link : ""}` |
 | `WUD_TRIGGER_{trigger_type}_{trigger_name}_SIMPLETITLE` | :white_circle: | The template to use to render the title of the notification (simple mode)                     | JS string template with vars `${containers}` | `New ${container.updateKind.kind} found for container ${container.name}`                                                                                                                                                                                                       |
-| `WUD_TRIGGER_{trigger_type}_{trigger_name}_THRESHOLD`   | :white_circle: | The threshold to reach to run the trigger                                                     | `all`, `major`, `minor`, `patch`             | `all`                                                                                                                                                                                                                                                                          |
+| `WUD_TRIGGER_{trigger_type}_{trigger_name}_THRESHOLD`   | :white_circle: | The threshold to reach to run the trigger                                                     | `all`, `major`, `major-only`, `minor`, `minor-only`, `patch`             | `all`                                                                                                                                                                                                                                                                          |
 
 ?> Threshold `all` means that the trigger will run regardless of the nature of the change
 
 ?> Threshold `major` means that the trigger will run only if this is a `major`, `minor` or `patch` semver change 
 
+?> Threshold `major-only` means that the trigger will run only if this is a `major` semver change
+
 ?> Threshold `minor` means that the trigger will run only if this is a `minor` or `patch` semver change
+
+?> Threshold `minor-only` means that the trigger will run only if this is a `minor` semver change
 
 ?> Threshold `patch` means that the trigger will run only if this is a `patch` semver change
 

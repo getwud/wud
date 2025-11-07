@@ -61,6 +61,14 @@ class Trigger extends Component {
             containerResult.updateKind.semverDiff !== 'unknown'
         ) {
             switch (threshold) {
+                case 'major-only':
+                    thresholdPassing =
+                        containerResult.updateKind.semverDiff == 'major';
+                    break;
+                case 'minor-only':
+                    thresholdPassing =
+                        containerResult.updateKind.semverDiff == 'minor';
+                    break;
                 case 'minor':
                     thresholdPassing =
                         containerResult.updateKind.semverDiff !== 'major';
@@ -91,6 +99,12 @@ class Trigger extends Component {
         };
         if (includeOrExcludeTriggerSplit.length === 2) {
             switch (includeOrExcludeTriggerSplit[1]) {
+                case 'major-only':
+                    includeOrExcludeTrigger.threshold = 'major-only';
+                    break;
+                case 'minor-only':
+                    includeOrExcludeTrigger.threshold = 'minor-only';
+                    break;
                 case 'major':
                     includeOrExcludeTrigger.threshold = 'major';
                     break;
@@ -276,7 +290,7 @@ class Trigger extends Component {
             threshold: this.joi
                 .string()
                 .insensitive()
-                .valid('all', 'major', 'minor', 'patch')
+                .valid('all', 'major', 'minor', 'patch', 'major-only', 'minor-only')
                 .default('all'),
             mode: this.joi
                 .string()
@@ -320,7 +334,7 @@ class Trigger extends Component {
     trigger(containerWithResult) {
         // do nothing by default
         this.log.warn(
-            'Cannot trigger container result; this trigger doe not implement "simple" mode',
+            'Cannot trigger container result; this trigger does not implement "simple" mode',
         );
         return containerWithResult;
     }
@@ -333,7 +347,7 @@ class Trigger extends Component {
     triggerBatch(containersWithResult) {
         // do nothing by default
         this.log.warn(
-            'Cannot trigger container results; this trigger doe not implement "batch" mode',
+            'Cannot trigger container results; this trigger does not implement "batch" mode',
         );
         return containersWithResult;
     }
