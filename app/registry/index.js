@@ -2,6 +2,8 @@
  * Registry handling all components (registries, triggers, watchers).
  */
 const capitalize = require('capitalize');
+const fs = require('fs');
+const path = require('path');
 const log = require('../log').child({ component: 'registry' });
 const {
     getWatcherConfigurations,
@@ -25,18 +27,81 @@ function getState() {
 }
 
 /**
+ * Get available providers for a given component kind.
+ * @param {string} basePath relative path to the providers directory
+ * @returns {string[]} sorted list of available provider names
+ */
+function getAvailableProviders(basePath) {
+    try {
+        const resolvedPath = path.resolve(__dirname, basePath);
+        const providers = fs.readdirSync(resolvedPath)
+            .filter((file) => {
+                const filePath = path.join(resolvedPath, file);
+                return fs.statSync(filePath).isDirectory();
+            })
+            .sort();
+        return providers;
+    } catch (e) {
+        return [];
+    }
+}
+
+/**
+ * Get documentation link for a component kind.
+ * @param {string} kind component kind (trigger, watcher, etc.)
+ * @returns {string} documentation path
+ */
+function getDocumentationLink(kind) {
+    const docLinks = {
+        trigger: 'https://github.com/getwud/wud/tree/main/docs/configuration/triggers',
+        watcher: 'https://github.com/getwud/wud/tree/main/docs/configuration/watchers',
+        registry: 'https://github.com/getwud/wud/tree/main/docs/configuration/registries',
+        authentication: 'https://github.com/getwud/wud/tree/main/docs/configuration/authentications',
+    };
+    return docLinks[kind] || 'https://github.com/getwud/wud/tree/main/docs/configuration';
+}
+
+/**
+ * Build error message when a component provider is not found.
+ * @param {string} kind component kind (trigger, watcher, etc.)
+ * @param {string} provider the provider name that was not found
+ * @param {string} error the original error message
+ * @param {string[]} availableProviders list of available providers
+ * @returns {string} formatted error message
+ */
+function getHelpfulErrorMessage(kind, provider, error, availableProviders) {
+    let message = `Error when registering component ${provider} (${error})`;
+
+    if (error.includes('Cannot find module')) {
+        const kindDisplay = kind.charAt(0).toUpperCase() + kind.slice(1);
+        const envVarPattern = `WUD_${kindDisplay.toUpperCase()}_${provider.toUpperCase()}_*`;
+
+        message = `Unknown ${kind} provider: '${provider}'.`;
+        message += `\n  (Check your environment variables - this comes from: ${envVarPattern})`;
+
+        if (availableProviders.length > 0) {
+            message += `\n  Available ${kind} providers: ${availableProviders.join(', ')}`;
+            const docLink = getDocumentationLink(kind);
+            message += `\n  For more information, visit: ${docLink}`;
+        }
+    }
+
+    return message;
+}
+
+/**
  * Register a component.
  *
  * @param {*} kind
  * @param {*} provider
  * @param {*} name
  * @param {*} configuration
- * @param {*} path
+ * @param {*} componentPath
  */
-async function registerComponent(kind, provider, name, configuration, path) {
+async function registerComponent(kind, provider, name, configuration, componentPath) {
     const providerLowercase = provider.toLowerCase();
     const nameLowercase = name.toLowerCase();
-    const componentFile = `${path}/${providerLowercase.toLowerCase()}/${capitalize(provider)}`;
+    const componentFile = `${componentPath}/${providerLowercase.toLowerCase()}/${capitalize(provider)}`;
     try {
         const Component = require(componentFile);
         const component = new Component();
@@ -49,9 +114,9 @@ async function registerComponent(kind, provider, name, configuration, path) {
         state[kind][component.getId()] = component;
         return componentRegistered;
     } catch (e) {
-        throw new Error(
-            `Error when registering component ${providerLowercase} (${e.message})`,
-        );
+        const availableProviders = getAvailableProviders(componentPath);
+        const helpfulMessage = getHelpfulErrorMessage(kind, providerLowercase, e.message, availableProviders);
+        throw new Error(helpfulMessage);
     }
 }
 

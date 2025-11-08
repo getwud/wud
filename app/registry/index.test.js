@@ -42,9 +42,7 @@ test('registerComponent should warn when component does not exist', () => {
     const registerComponent = registry.__get__('registerComponent');
     expect(
         registerComponent('kind', 'provider', 'name', {}, 'path'),
-    ).rejects.toThrow(
-        "Error when registering component provider (Cannot find module 'path/provider/Provider' from 'registry/index.js'",
-    );
+    ).rejects.toThrow(/Unknown kind provider/);
 });
 
 test('registerComponents should return empty array if not components', () => {
@@ -138,7 +136,7 @@ test('registerTriggers should warn when registration errors occur', async () => 
     };
     await registry.__get__('registerTriggers')();
     expect(spyLog).toHaveBeenCalledWith(
-        "Some triggers failed to register (Error when registering component trigger1 (Cannot find module '../triggers/providers/trigger1/Trigger1' from 'registry/index.js'))",
+        expect.stringContaining("Some triggers failed to register (Unknown trigger provider: 'trigger1'"),
     );
 });
 
