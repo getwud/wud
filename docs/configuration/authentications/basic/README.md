@@ -20,6 +20,8 @@ or use single quotes in Bash commands \
 or escape them in Bash commands \
 `WUD_AUTH_BASIC_JOHN_HASH="\$apr1\$aefKbZEa$ZSA5Y3zv9vDQOxr283NGx/"`
 
+!> **Known limitation:** Passwords containing colon characters (`:`) are not supported due to a bug in the underlying `passport-http` library. Authentication will fail if your password contains a colon. Use passwords without colons until this is resolved.
+
 ### Examples
 
 <!-- tabs:start -->
