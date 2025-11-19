@@ -14,6 +14,7 @@
         - [GITLAB](configuration/registries/gitlab/)
         - [HUB](configuration/registries/hub/)
         - [LSCR](configuration/registries/lscr/)
+        - [TRUEFORGE](configuration/registries/trueforge/)
         - [QUAY](configuration/registries/quay/)
     - [Server](configuration/server/)    
     - [Storage](configuration/storage/)    

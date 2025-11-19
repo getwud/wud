@@ -22,6 +22,8 @@ WUD supports most registries:
 
 - [**LSCR** (LinuxServer Container Registry)](configuration/registries/lscr/)
 
+- [**TrueForge** (TrueForge OCI Registry)](configuration/registries/trueforge/)
+
 - [**Quay**](configuration/registries/quay/)
 
 ?> By default, without any further configuration, WUD is handling _out-of-the-box_ public images hosted on \

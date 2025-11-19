@@ -124,6 +124,9 @@ script:
   # LSCR
   - docker run -d --name lscr_radarr              --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+\.\d+\.\d+-ls\d+$'               lscr.io/linuxserver/radarr:5.14.0.9383-ls245
 
+  # TrueForge
+  - docker run -d --name trueforge_radarr         --label 'wud.watch=true' --label 'wud.tag.include=^v\\d+\\.\\d+\\.\\d+$'                    oci.trueforge.org/containerforge/radarr:6.0.4
+
   # QUAY
   - docker run -d --name quay_prometheus          --label 'wud.watch=true' --label 'wud.tag.include=^v\d+\.\d+\.\d+$'                         quay.io/prometheus/prometheus:v2.52.0
 

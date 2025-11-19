@@ -47,6 +47,9 @@ function getRegistryProviderIcon(provider) {
     case "lscr":
       icon = "si-linuxserver";
       break;
+    case "trueforge":
+      icon = "si-linuxcontainers";
+      break;
   }
   return icon;
 }

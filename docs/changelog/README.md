@@ -4,6 +4,7 @@
 - :lock: [UI] - Migrate to Vue 3
 - :lock: [UI] - Migrate to Vuetify 3
 - :lock: Upgrade to node.js 24
+- :star: Add TrueForge Container Registry support (oci.trueforge.org)
 
 ## 8.1.1
 - :fire: [TELEGRAM] - Fix markdown character escape
