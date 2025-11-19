@@ -98,3 +98,6 @@ typings/
 
 # Ignore loki file
 .store
+
+# Ignore OSX crap-files
+*.DS_Store
