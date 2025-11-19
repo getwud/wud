@@ -1,4 +1,5 @@
 const fs = require('fs/promises');
+const path = require('path');
 const yaml = require('yaml');
 const Docker = require('../docker/Docker');
 const { getState } = require('../../../registry');
@@ -35,8 +36,11 @@ class Dockercompose extends Docker {
     getConfigurationSchema() {
         const schemaDocker = super.getConfigurationSchema();
         return schemaDocker.append({
-            file: this.joi.string().required(),
+            // Make file optional since we now support per-container compose files
+            file: this.joi.string().optional(),
             backup: this.joi.boolean().default(false),
+            // Add configuration for the label name to look for
+            composeFileLabel: this.joi.string().default('wud.compose.file'),
         });
     }
 
@@ -44,15 +48,36 @@ class Dockercompose extends Docker {
         // Force mode=batch to avoid docker-compose concurrent operations
         this.configuration.mode = 'batch';
 
-        // Check docker-compose file is found
-        try {
-            await fs.access(this.configuration.file);
-        } catch (e) {
-            this.log.error(
-                `The file ${this.configuration.file} does not exist`,
-            );
-            throw e;
+        // Check default docker-compose file exists if specified
+        if (this.configuration.file) {
+            try {
+                await fs.access(this.configuration.file);
+            } catch (e) {
+                this.log.error(
+                    `The default file ${this.configuration.file} does not exist`,
+                );
+                throw e;
+            }
         }
+    }
+
+    /**
+     * Get the compose file path for a specific container.
+     * First checks for a label, then falls back to default configuration.
+     * @param container
+     * @returns {string|null}
+     */
+    getComposeFileForContainer(container) {
+        // Check if container has a compose file label
+        const composeFileLabel = this.configuration.composeFileLabel;
+        if (container.labels && container.labels[composeFileLabel]) {
+            const labelValue = container.labels[composeFileLabel];
+            // Convert relative paths to absolute paths
+            return path.isAbsolute(labelValue) ? labelValue : path.resolve(labelValue);
+        }
+
+        // Fall back to default configuration file
+        return this.configuration.file || null;
     }
 
     /**
@@ -70,24 +95,71 @@ class Dockercompose extends Docker {
      * @returns {Promise<void>}
      */
     async triggerBatch(containers) {
-        const compose = await this.getComposeFileAsObject();
+        // Group containers by their compose file
+        const containersByComposeFile = new Map();
 
-        const containersFiltered = containers
+        for (const container of containers) {
             // Filter on containers running on local host
-            .filter((container) => {
-                const watcher = this.getWatcher(container);
-                if (watcher.dockerApi.modem.socketPath !== '') {
-                    return true;
-                }
+            const watcher = this.getWatcher(container);
+            if (watcher.dockerApi.modem.socketPath === '') {
                 this.log.warn(
                     `Cannot update container ${container.name} because not running on local host`,
                 );
-                return false;
-            })
-            // Filter on containers defined in the compose file
-            .filter((container) =>
-                doesContainerBelongToCompose(compose, container),
+                continue;
+            }
+
+            const composeFile = this.getComposeFileForContainer(container);
+            if (!composeFile) {
+                this.log.warn(
+                    `No compose file found for container ${container.name} (no label '${this.configuration.composeFileLabel}' and no default file configured)`,
+                );
+                continue;
+            }
+
+            // Check if compose file exists
+            try {
+                await fs.access(composeFile);
+            } catch (e) {
+                this.log.warn(
+                    `Compose file ${composeFile} for container ${container.name} does not exist`,
+                );
+                continue;
+            }
+
+            if (!containersByComposeFile.has(composeFile)) {
+                containersByComposeFile.set(composeFile, []);
+            }
+            containersByComposeFile.get(composeFile).push(container);
+        }
+
+        // Process each compose file group
+        for (const [composeFile, containersInFile] of containersByComposeFile) {
+            await this.processComposeFile(composeFile, containersInFile);
+        }
+    }
+
+    /**
+     * Process a specific compose file with its associated containers.
+     * @param composeFile
+     * @param containers
+     * @returns {Promise<void>}
+     */
+    async processComposeFile(composeFile, containers) {
+        this.log.info(`Processing compose file: ${composeFile}`);
+        
+        const compose = await this.getComposeFileAsObject(composeFile);
+
+        // Filter containers that belong to this compose file
+        const containersFiltered = containers.filter((container) =>
+            doesContainerBelongToCompose(compose, container),
+        );
+
+        if (containersFiltered.length === 0) {
+            this.log.warn(
+                `No containers found in compose file ${composeFile}`,
             );
+            return;
+        }
 
         // [{ current: '1.0.0', update: '2.0.0' }, {...}]
         const currentVersionToUpdateVersionArray = containersFiltered
@@ -99,17 +171,17 @@ class Dockercompose extends Docker {
         // Dry-run?
         if (this.configuration.dryrun) {
             this.log.info(
-                'Do not replace existing docker-compose file (dry-run mode enabled)',
+                `Do not replace existing docker-compose file ${composeFile} (dry-run mode enabled)`,
             );
         } else {
             // Backup docker-compose file
             if (this.configuration.backup) {
-                const backupFile = `${this.configuration.file}.back`;
-                await this.backup(this.configuration.file, backupFile);
+                const backupFile = `${composeFile}.back`;
+                await this.backup(composeFile, backupFile);
             }
 
             // Read the compose file as a string
-            let composeFileStr = (await this.getComposeFile()).toString();
+            let composeFileStr = (await this.getComposeFile(composeFile)).toString();
 
             // Replace all versions
             currentVersionToUpdateVersionArray.forEach(
@@ -119,10 +191,7 @@ class Dockercompose extends Docker {
             );
 
             // Write docker-compose.yml file back
-            await this.writeComposeFile(
-                this.configuration.file,
-                composeFileStr,
-            );
+            await this.writeComposeFile(composeFile, composeFileStr);
         }
 
         // Update all containers
@@ -175,6 +244,13 @@ class Dockercompose extends Docker {
             },
         );
 
+        if (!serviceKeyToUpdate) {
+            this.log.warn(
+                `Could not find service for container ${container.name} with image ${currentImage}`,
+            );
+            return undefined;
+        }
+
         // Rebuild image definition string
         return {
             current: compose.services[serviceKeyToUpdate].image,
@@ -199,14 +275,16 @@ class Dockercompose extends Docker {
 
     /**
      * Read docker-compose file as a buffer.
+     * @param file - Optional file path, defaults to configuration file
      * @returns {Promise<any>}
      */
-    getComposeFile() {
+    getComposeFile(file = null) {
+        const filePath = file || this.configuration.file;
         try {
-            return fs.readFile(this.configuration.file);
+            return fs.readFile(filePath);
         } catch (e) {
             this.log.error(
-                `Error when reading the docker-compose yaml file (${e.message})`,
+                `Error when reading the docker-compose yaml file ${filePath} (${e.message})`,
             );
             throw e;
         }
@@ -214,14 +292,16 @@ class Dockercompose extends Docker {
 
     /**
      * Read docker-compose file as an object.
+     * @param file - Optional file path, defaults to configuration file
      * @returns {Promise<any>}
      */
-    async getComposeFileAsObject() {
+    async getComposeFileAsObject(file = null) {
         try {
-            return yaml.parse((await this.getComposeFile()).toString());
+            return yaml.parse((await this.getComposeFile(file)).toString());
         } catch (e) {
+            const filePath = file || this.configuration.file;
             this.log.error(
-                `Error when parsing the docker-compose yaml file (${e.message})`,
+                `Error when parsing the docker-compose yaml file ${filePath} (${e.message})`,
             );
             throw e;
         }

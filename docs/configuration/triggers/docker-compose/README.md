@@ -50,4 +50,9 @@ docker run \
   ...
   getwud/wud
 ```
+#### **Label**
+```yaml
+labels:
+  wud.compose.file: "/my/path/docker-compose.yaml
+```
 <!-- tabs:end -->
