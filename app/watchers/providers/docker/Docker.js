@@ -69,6 +69,9 @@ function getTagCandidates(container, tags, logContainer) {
         );
     }
 
+    // Always filter out tags ending with ".sig"
+    filteredTags = filteredTags.filter(tag => !tag.endsWith('.sig'));
+    
     // Semver image -> find higher semver tag
     if (container.image.tag.semver) {
         if (filteredTags.length === 0) {
