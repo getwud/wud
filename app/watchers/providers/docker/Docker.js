@@ -77,6 +77,26 @@ function getTagCandidates(container, tags, logContainer) {
             );
         }
 
+        // If user has not specified custom include regex, default to keep current prefix
+        // Prefix is almost-always standardised around "must stay the same" for tags
+        if (! container.includeTags){
+            // Determine current tag prefix
+            const currentTag = container.image.tag.value;
+            const match = currentTag.match(/^(.*?)(\d+\.\d+\.\d+.*)$/);
+            const currentPrefix = match ? match[1] : '';
+    
+            // Retain only tags with the same prefix
+            if (currentPrefix) {
+                filteredTags = filteredTags.filter(tag => tag.startsWith(currentPrefix));
+            }
+    
+            if (filteredTags.length === 0) {
+                logContainer.warn(
+                   "No tags found with existing prefix: " + currentPrefix + " ; check you regex filters",
+                );
+            }
+        }
+
         // Keep semver only
         filteredTags = filteredTags.filter(
             (tag) =>
@@ -107,7 +127,7 @@ function getTagCandidates(container, tags, logContainer) {
         // Non semver tag -> do not propose any other registry tag
         filteredTags = [];
     }
-    return filteredTags;
+    throw new Error(`Tag is Neither Semver or not-Semver ${container.image.tag.value}`);
 }
 
 function normalizeContainer(container) {
