@@ -54,14 +54,25 @@ function getRegistries() {
  */
 function getTagCandidates(container, tags, logContainer) {
     let filteredTags = tags;
+    let alterCurrent = false;
 
     // Match include tag regex
     if (container.includeTags) {
         const includeTagsRegex = new RegExp(container.includeTags);
         filteredTags = filteredTags.filter((tag) => includeTagsRegex.test(tag));
+
     } else {
         // If no includeTags, filter out tags starting with "sha"
         filteredTags = filteredTags.filter(tag => !tag.startsWith('sha'));
+
+
+        // Check if current tag complies with includeTags
+        if (!includeTagsRegex.test(container.image.tag.value)) {
+            logContainer.warn(
+                `container.image.tag.value "${container.image.tag.value}" does not match includeTags regex "${container.includeTags}". Will attempt upgrade anyway.`
+            );
+            alterCurrent = true;
+        }
     }
 
     // Match exclude tag regex
@@ -72,11 +83,12 @@ function getTagCandidates(container, tags, logContainer) {
         );
     }
 
+
     // Always filter out tags ending with ".sig"
     filteredTags = filteredTags.filter(tag => !tag.endsWith('.sig'));
     
-    // Semver image -> find higher semver tag
-    if (container.image.tag.semver) {
+    // Semver image -> find higher semver tag or if the current tag doesn't match the filter try to find semver tag that does.
+    if (container.image.tag.semver || alterCurrent) {
         if (filteredTags.length === 0) {
             logContainer.warn(
                 'No tags found after filtering; check you regex filters',
@@ -119,6 +131,7 @@ function getTagCandidates(container, tags, logContainer) {
                 null,
         );
 
+
         // Remove prefix and suffix (keep only digits and dots)
         const numericPart = container.image.tag.semver.match(/(\d+(\.\d+)*)/);
         
@@ -135,16 +148,16 @@ function getTagCandidates(container, tags, logContainer) {
           });
         }
 
-        // Keep only greater semver
-        filteredTags = filteredTags.filter((tag) =>
-            isGreaterSemver(
-                transformTag(container.transformTags, tag),
-                transformTag(
-                    container.transformTags,
-                    container.image.tag.value,
+        // Only take current tag into consideration when semver
+        if (container.image.tag.semver) {
+            filteredTags = filteredTags.filter((tag) =>
+                isGreaterSemver(
+                    transformTag(container.transformTags, tag),
+                    transformTag(container.transformTags, container.image.tag.value),
+
                 ),
-            ),
-        );
+            );
+        }
 
         // Apply semver sort desc
         filteredTags.sort((t1, t2) => {
