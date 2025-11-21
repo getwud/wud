@@ -215,30 +215,28 @@ function isContainerToWatch(wudWatchLabelValue, watchByDefault) {
 
 /**
  * Return true if container digest must be watched.
- * @param wudWatchDigestLabelValue the value of wud.watch.digest label
- * @param isSemver if image is semver
- * @returns {boolean|*}
+ * @param {string} wudWatchDigestLabelValue - the value of wud.watch.digest label
+ * @param {object} parsedImage - object containing at least `domain` property
+ * @returns {boolean}
  */
-function isDigestToWatch(wudWatchDigestLabelValue, isSemver) {
-    let result = false;
-    if (isSemver) {
-        if (
-            wudWatchDigestLabelValue !== undefined &&
-            wudWatchDigestLabelValue !== ''
-        ) {
-            result = wudWatchDigestLabelValue.toLowerCase() === 'true';
-        }
-    } else {
-        result = true;
-        if (
-            wudWatchDigestLabelValue !== undefined &&
-            wudWatchDigestLabelValue !== ''
-        ) {
-            result = wudWatchDigestLabelValue.toLowerCase() === 'true';
-        }
+function isDigestToWatch(wudWatchDigestLabelValue, parsedImage) {
+    let result = true;
+
+    if (
+        parsedImage.domain === "docker.io" ||
+        parsedImage.domain === "registry-1.docker.io" ||
+        parsedImage.domain === ''
+    ) {
+        result = false;
     }
+
+    if (wudWatchDigestLabelValue) {
+        result = wudWatchDigestLabelValue.toLowerCase() === 'true';
+    }
+
     return result;
 }
+
 
 /**
  * Docker Watcher Component.
@@ -754,7 +752,7 @@ class Docker extends Component {
         const isSemver = parsedTag !== null && parsedTag !== undefined;
         const watchDigest = isDigestToWatch(
             container.Labels[wudWatchDigest],
-            isSemver,
+            parsedImage.domain,
         );
         if (!isSemver && !watchDigest) {
             this.ensureLogger();
