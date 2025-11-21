@@ -84,6 +84,22 @@ function getTagCandidates(container, tags, logContainer) {
                 null,
         );
 
+        // Remove prefix and suffix (keep only digits and dots)
+        const numericPart = container.image.tag.semver.match(/(\d+(\.\d+)*)/);
+        
+        if (numericPart) {
+          const referenceGroups = numericPart[0].split('.').length;
+        
+          filteredTags = filteredTags.filter((tag) => {
+            const tagNumericPart = tag.match(/(\d+(\.\d+)*)/);
+            if (!tagNumericPart) return false; // skip tags without numeric part
+            const tagGroups = tagNumericPart[0].split('.').length;
+        
+            // Keep only tags with the same number of numeric segments
+            return tagGroups === referenceGroups;
+          });
+        }
+
         // Keep only greater semver
         filteredTags = filteredTags.filter((tag) =>
             isGreaterSemver(
