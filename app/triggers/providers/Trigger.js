@@ -54,6 +54,13 @@ class Trigger extends Component {
     static isThresholdReached(containerResult, threshold) {
         let thresholdPassing = true;
         if (
+            threshold.toLowerCase() == 'digest' &&
+            containerResult.updateKind &&
+            containerResult.updateKind.kind === 'digest'
+        ) {
+            thresholdPassing = true;
+        }
+        else if (
             threshold.toLowerCase() !== 'all' &&
             containerResult.updateKind &&
             containerResult.updateKind.kind === 'tag' &&
@@ -77,6 +84,7 @@ class Trigger extends Component {
                     thresholdPassing =
                         containerResult.updateKind.semverDiff !== 'major' &&
                         containerResult.updateKind.semverDiff !== 'minor';
+                    break;
                     break;
                 default:
                     thresholdPassing = true;
