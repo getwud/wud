@@ -49,49 +49,64 @@ class Trigger extends Component {
      * Return true if update reaches trigger threshold.
      * @param containerResult
      * @param threshold
+     * @param nonDigestOnly - If true, digest updates are never allowed; only semver changes count.
      * @returns {boolean}
      */
-    static isThresholdReached(containerResult, threshold) {
+    static isThresholdReached(containerResult, threshold, nonDigestOnly = false) {
         let thresholdPassing = true;
-        if (
-            threshold.toLowerCase() == 'digest' &&
-            containerResult.updateKind &&
-            containerResult.updateKind.kind === 'digest'
-        ) {
-            thresholdPassing = true;
+
+        const updateKind = containerResult.updateKind?.kind;
+        const semverDiff = containerResult.updateKind?.semverDiff;
+
+        // If non-digest-only is enabled, then digest updates must NEVER count
+        if (nonDigestOnly && updateKind === 'digest') {
+            return false;
         }
-        else if (
-            threshold.toLowerCase() !== 'all' &&
-            containerResult.updateKind &&
-            containerResult.updateKind.kind === 'tag' &&
-            containerResult.updateKind.semverDiff &&
-            containerResult.updateKind.semverDiff !== 'unknown'
+
+        // --- Handle DIGEST threshold ---
+        if (
+            threshold.toLowerCase() === 'digest' &&
+            updateKind === 'digest'
         ) {
-            switch (threshold) {
+            return true;
+        }
+
+        // --- Handle SEMVER TAG threshold paths ---
+        if (
+            threshold.toLowerCase() !== 'all' &&
+            updateKind === 'tag' &&
+            semverDiff &&
+            semverDiff !== 'unknown'
+        ) {
+            switch (threshold.toLowerCase()) {
                 case 'major-only':
-                    thresholdPassing =
-                        containerResult.updateKind.semverDiff == 'major';
+                    thresholdPassing = semverDiff === 'major';
                     break;
+
                 case 'minor-only':
-                    thresholdPassing =
-                        containerResult.updateKind.semverDiff == 'minor';
+                    thresholdPassing = semverDiff === 'minor';
                     break;
+
                 case 'minor':
-                    thresholdPassing =
-                        containerResult.updateKind.semverDiff !== 'major';
+                    // minor or patch
+                    thresholdPassing = semverDiff !== 'major';
                     break;
+
                 case 'patch':
+                    // only patch
                     thresholdPassing =
-                        containerResult.updateKind.semverDiff !== 'major' &&
-                        containerResult.updateKind.semverDiff !== 'minor';
+                        semverDiff !== 'major' && semverDiff !== 'minor';
                     break;
-                    break;
+
                 default:
                     thresholdPassing = true;
             }
         }
+
         return thresholdPassing;
     }
+}
+
 
     /**
      * Parse $name:$threshold string.
