@@ -1,14 +1,21 @@
-const Ghcr = require('../ghcr/Ghcr');
+const Quay = require('../quay/Quay');
 
 /**
  * Linux-Server Container Registry integration.
  */
-class Trueforge extends Ghcr {
+class Trueforge extends Quay {
     getConfigurationSchema() {
-        return this.joi.object().keys({
-            username: this.joi.string().required(),
-            token: this.joi.string().required(),
-        });
+        return this.joi.alternatives([
+            // Anonymous configuration
+            this.joi.string().allow(''),
+
+            // Auth configuration
+            this.joi.object().keys({
+                namespace: this.joi.string().required(),
+                account: this.joi.string().required(),
+                token: this.joi.string().required(),
+            }),
+        ]);
     }
 
     /**
