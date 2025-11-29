@@ -161,14 +161,26 @@ class Dockercompose extends Docker {
             return;
         }
 
-        // [{ current: '1.0.0', update: '2.0.0' }, {...}]
-        const currentVersionToUpdateVersionArray = containersFiltered
-            .map((container) =>
-                this.mapCurrentVersionToUpdateVersion(compose, container),
-            )
-            .filter((map) => map !== undefined);
+        // Build an array with container + version mapping in one pass
+        // [{ container, current, update }]
+        const versionMappings = containersFiltered
+            .map((container) => {
+                const map = this.mapCurrentVersionToUpdateVersion(compose, container);
+                if (!map) return undefined;
+                return { container, ...map }; // { container, current, update }
+            })
+            .filter((entry) => entry !== undefined);
 
-        // Dry-run?
+        // Split into need-update and no-op updates
+        const mappingsNeedingUpdate = versionMappings.filter(
+            ({ current, update }) => current !== update
+        );
+
+        // Nothing to update?
+        if (mappingsNeedingUpdate.length === 0) {
+            this.log.info(`All containers in ${composeFile} are already up to date`);
+        }
+
         if (this.configuration.dryrun) {
             this.log.info(
                 `Do not replace existing docker-compose file ${composeFile} (dry-run mode enabled)`,
@@ -182,22 +194,19 @@ class Dockercompose extends Docker {
 
             // Read the compose file as a string
             let composeFileStr = (await this.getComposeFile(composeFile)).toString();
+    
+            // Apply only changes that actually update a version
+            mappingsNeedingUpdate.forEach(({ current, update }) => {
+                composeFileStr = composeFileStr.replaceAll(current, update);
+            });
 
-            // Replace all versions
-            currentVersionToUpdateVersionArray.forEach(
-                ({ current, update }) => {
-                    composeFileStr = composeFileStr.replaceAll(current, update);
-                },
-            );
-
-            // Write docker-compose.yml file back
+            // Write compose file back
             await this.writeComposeFile(composeFile, composeFileStr);
         }
 
-        // Update all containers
-        // (super.notify will take care of the dry-run mode for each container as well)
+        // Trigger only containers that actually need updates
         await Promise.all(
-            containersFiltered.map((container) => super.trigger(container)),
+            mappingsNeedingUpdate.map(({ container }) => super.trigger(container)),
         );
     }
 
