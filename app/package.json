@@ -38,7 +38,7 @@
         "nocache": "4.0.0",
         "node-cron": "4.2.1",
         "node-telegram-bot-api": "0.66.0",
-        "nodemailer": "7.0.10",
+        "nodemailer": "7.0.11",
         "openid-client": "4.9.1",
         "parse-docker-image-name": "3.0.0",
         "pass": "0.2.0",
