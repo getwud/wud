@@ -445,7 +445,16 @@ class Docker extends Component {
                     this.log.debug(err);
                 }
             } else {
-                stream.on('data', (chunk) => this.onDockerEvent(chunk));
+                let chunks = [];
+                const collectChunks = (chunk) => {
+                    chunks.push(chunk);
+                    if (chunk.toString().endsWith('\n')) {
+                        const dockerEventChunk = Buffer.concat(chunks);
+                        this.onDockerEvent(dockerEventChunk);
+                        chunks = [];
+                    }
+                };
+                stream.on('data', collectChunks);
             }
         });
     }
@@ -457,7 +466,15 @@ class Docker extends Component {
      */
     async onDockerEvent(dockerEventChunk) {
         this.ensureLogger();
-        const dockerEvent = JSON.parse(dockerEventChunk.toString());
+        let dockerEvent;
+        try {
+            dockerEvent = JSON.parse(dockerEventChunk.toString());
+        } catch (e) {
+            this.log.warn(
+                `Unable to parse Docker event (${e.message}): ${dockerEventChunk.toString()}`,
+            );
+            return;
+        }
         const action = dockerEvent.Action;
         const containerId = dockerEvent.id;
 
