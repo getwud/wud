@@ -38,6 +38,12 @@ services:
 
 WUD exposes various metrics that [Prometheus](https://prometheus.io/) can scrape.
 
+### Configuration
+
+| Env var                  | Required       | Description               | Supported values | Default value when missing |
+| ------------------------ | :------------: | ------------------------- | ---------------- | -------------------------- |
+| `WUD_PROMETHEUS_ENABLED` | :white_circle: | If Metrics must be exposed | `true`, `false`  | `true`                     |
+
 ### Endpoint
 The metrics are exposed at [/metrics](http://localhost:3000/metrics).
 
