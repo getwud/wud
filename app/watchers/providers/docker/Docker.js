@@ -270,22 +270,32 @@ function isContainerToWatch(wudWatchLabelValue, watchByDefault) {
  * @param {object} parsedImage - object containing at least `domain` property
  * @returns {boolean}
  */
-function isDigestToWatch(wudWatchDigestLabelValue, parsedImage) {
-    let result = true;
+function isDigestToWatch(wudWatchDigestLabelValue, parsedImage, isSemver) {
+    const domain = parsedImage.domain;
+    const isDockerHub =
+        !domain ||
+        domain === '' ||
+        domain === 'docker.io' ||
+        domain.endsWith('.docker.io');
 
     if (
-        parsedImage.domain === "docker.io" ||
-        parsedImage.domain === "registry-1.docker.io" ||
-        parsedImage.domain === ''
+        wudWatchDigestLabelValue !== undefined &&
+        wudWatchDigestLabelValue !== ''
     ) {
-        result = false;
+        const shouldWatch = wudWatchDigestLabelValue.toLowerCase() === 'true';
+        if (shouldWatch && isDockerHub) {
+            log.warn(
+                `Watching digest for image ${parsedImage.path} with domain ${domain} may result in throttled requests`,
+            );
+        }
+        return shouldWatch;
     }
 
-    if (wudWatchDigestLabelValue) {
-        result = wudWatchDigestLabelValue.toLowerCase() === 'true';
+    if (isSemver) {
+        return false;
     }
 
-    return result;
+    return !isDockerHub;
 }
 
 
@@ -806,7 +816,8 @@ class Docker extends Component {
         const isSemver = parsedTag !== null && parsedTag !== undefined;
         const watchDigest = isDigestToWatch(
             container.Labels[wudWatchDigest],
-            parsedImage.domain,
+            parsedImage,
+            isSemver,
         );
         if (!isSemver && !watchDigest) {
             this.ensureLogger();
