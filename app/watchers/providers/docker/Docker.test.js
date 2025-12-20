@@ -691,6 +691,41 @@ describe('Docker Watcher', () => {
 
             expect(mockRegistry.getTags).toHaveBeenCalled();
         });
+
+        test('should filter tags with different number of semver parts', async () => {
+            const container = {
+                image: {
+                    registry: { name: 'hub' },
+                    tag: { value: '1.2', semver: true },
+                    digest: { watch: false },
+                },
+            };
+            const mockRegistry = {
+                getTags: jest
+                    .fn()
+                    .mockResolvedValue([
+                        '1.2.1', // 3 parts, should be filtered out
+                        '1.3', // 2 parts, should be kept
+                        '1.1', // 2 parts, should be kept (but lower)
+                        '2', // 1 part, should be filtered out
+                    ]),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+
+            // Mock isGreater to return true for 1.3 > 1.2
+            mockTag.isGreater.mockImplementation((t1, t2) => {
+                if (t1 === '1.3' && t2 === '1.2') return true;
+                return false;
+            });
+
+            const mockLogChild = { error: jest.fn(), warn: jest.fn() };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(result).toEqual({ tag: '1.3' });
+        });
     });
 
     describe('Container Details', () => {
