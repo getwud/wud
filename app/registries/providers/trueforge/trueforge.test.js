@@ -1,4 +1,4 @@
-const trueforge = require('./trueforge');
+const Trueforge = require('./trueforge');
 
 jest.mock('axios', () =>
     jest.fn().mockImplementation(() => ({
@@ -6,7 +6,7 @@ jest.mock('axios', () =>
     })),
 );
 
-const trueforge = new trueforge();
+const trueforge = new Trueforge();
 trueforge.configuration = {
     username: 'user',
     token: 'token',
