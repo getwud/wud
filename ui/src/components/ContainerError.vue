@@ -12,12 +12,4 @@
   </v-list>
 </template>
 
-<script>
-export default {
-  props: {
-    error: {
-      type: Object,
-    },
-  },
-};
-</script>
+<script lang="ts" src="./ContainerError.ts"></script>

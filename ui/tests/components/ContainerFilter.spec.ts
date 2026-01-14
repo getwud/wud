@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import ContainerFilter from '@/components/ContainerFilter.vue';
+import ContainerFilter from '@/components/ContainerFilter';
 
 const mockProps = {
   registries: ['hub', 'ghcr'],

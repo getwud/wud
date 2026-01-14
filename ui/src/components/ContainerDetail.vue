@@ -123,23 +123,4 @@
     </v-list-item>
   </v-list>
 </template>
-<script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      required: true,
-    },
-  },
-  data() {
-    return {};
-  },
-
-  methods: {
-    copyToClipboard(kind, value) {
-      navigator.clipboard.writeText(value);
-      this.$eventBus.emit("notify", `${kind} copied to clipboard`);
-    },
-  },
-};
-</script>
+<script lang="ts" src="./ContainerDetail.ts"></script>

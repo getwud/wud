@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import LoginOidc from '@/components/LoginOidc.vue';
+import LoginOidc from '@/components/LoginOidc';
 
 jest.mock('@/services/auth', () => ({
   getOidcRedirection: jest.fn(() => Promise.resolve({ url: 'http://test.com' }))

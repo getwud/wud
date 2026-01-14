@@ -13,32 +13,4 @@
   </v-container>
 </template>
 
-<script>
-import ConfigurationItem from "@/components/ConfigurationItem";
-import { getAllAuthentications } from "@/services/authentication";
-
-export default {
-  data() {
-    return {
-      authentications: [],
-    };
-  },
-  components: {
-    ConfigurationItem,
-  },
-
-  async beforeRouteEnter(to, from, next) {
-    try {
-      const authentications = await getAllAuthentications();
-      next((vm) => (vm.authentications = authentications));
-    } catch (e) {
-      this.$eventBus.emit(
-        "notify",
-        `Error when trying to load the authentications (${e.message})`,
-        "error",
-      );
-    }
-    next();
-  },
-};
-</script>
+<script lang="ts" src="./ConfigurationAuthenticationsView.ts"></script>

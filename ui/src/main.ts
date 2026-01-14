@@ -1,5 +1,5 @@
 import { createApp } from "vue";
-import App from "./App.vue";
+import App from "./App";
 import { createVuetify } from "./plugins/vuetify";
 import router from "./router";
 import { registerGlobalProperties } from "./filters";

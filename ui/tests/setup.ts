@@ -73,6 +73,12 @@ config.global.mocks = {
 
 // Mock fetch globally
 global.fetch = jest.fn();
+(global.fetch as any).mockResolvedValue = jest.fn();
+(global.fetch as any).mockResolvedValueOnce = jest.fn();
+(global.fetch as any).mockRejectedValue = jest.fn();
+(global.fetch as any).mockRejectedValueOnce = jest.fn();
+(global.fetch as any).mockClear = jest.fn();
+
 
 // Mock Vuetify components with templates
 config.global.stubs = {

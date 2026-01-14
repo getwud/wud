@@ -26,45 +26,4 @@
   </v-form>
 </template>
 
-<script>
-import { loginBasic } from "@/services/auth";
-
-export default {
-  data() {
-    return {
-      username: "",
-      password: "",
-      rules: {
-        required: (value) => !!value || "Required",
-      },
-    };
-  },
-
-  computed: {
-    /**
-     * Is form valid?
-     * @returns {boolean}
-     */
-    valid() {
-      return this.username !== "" && this.password !== "";
-    },
-  },
-
-  methods: {
-    /**
-     * Perform login.
-     * @returns {Promise<void>}
-     */
-    async login() {
-      if (this.valid) {
-        try {
-          await loginBasic(this.username, this.password);
-          this.$emit("authentication-success");
-        } catch (e) {
-          this.$eventBus.emit("notify", "Username or password error", "error");
-        }
-      }
-    },
-  },
-};
-</script>
+<script lang="ts" src="./LoginBasic.ts"></script>

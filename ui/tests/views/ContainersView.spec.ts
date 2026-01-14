@@ -30,7 +30,7 @@ const mockContainers = [
 describe('ContainersView', () => {
   let wrapper;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     const { getAllContainers } = require('@/services/container');
     getAllContainers.mockResolvedValue(mockContainers);
 
@@ -42,7 +42,9 @@ describe('ContainersView', () => {
         }
       }
     });
+    // Force update data directly
     wrapper.vm.containers = mockContainers;
+    await wrapper.vm.$nextTick();
   });
 
   afterEach(() => {
