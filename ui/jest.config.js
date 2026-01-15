@@ -11,13 +11,11 @@ module.exports = {
   moduleFileExtensions: ['js', 'json', 'vue', 'ts'],
   extensionsToTreatAsEsm: ['.vue'],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1'
+    '\\.svg$': '<rootDir>/tests/mocks/svgMock.js',
+    '^@/(.*)$': '<rootDir>/src/$1',
+    '^@vue/test-utils$': '<rootDir>/node_modules/@vue/test-utils/dist/vue-test-utils.cjs.js'
   },
-  globals: {
-    'ts-jest': {
-      isolatedModules: true
-    }
-  },
+  cache: false,
   collectCoverage: true,
   collectCoverageFrom: [
     'src/**/*.{js,vue,ts}',

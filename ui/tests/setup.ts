@@ -82,6 +82,8 @@ global.fetch = jest.fn();
 
 // Mock Vuetify components with templates
 config.global.stubs = {
+  'v-img': { template: '<div class="v-img"><slot /></div>' },
+  'v-avatar': { template: '<div class="v-avatar"><slot /></div>' },
   'v-app': { template: '<div class="v-app"><slot /></div>' },
   'v-main': { template: '<div class="v-main"><slot /></div>' },
   'v-container': { template: '<div class="v-container"><slot /></div>' },
@@ -93,9 +95,10 @@ config.global.stubs = {
   'v-card-text': { template: '<div class="v-card-text"><slot /></div>' },
   'v-card-actions': { template: '<div class="v-card-actions"><slot /></div>' },
   'v-btn': { 
-    template: '<button class="v-btn" :disabled="disabled" :type="type" @click="$emit(\'click\')"><slot /></button>', 
-    props: ['disabled', 'type'],
-    emits: ['click']
+    template: '<button class="v-btn" :to="to" :disabled="disabled" :type="type" @click="$emit(\'click\')"><slot /></button>', 
+    props: ['disabled', 'type', 'to', 'color'],
+    emits: ['click'],
+    name: 'v-btn'
   },
   'v-icon': { template: '<i class="v-icon"><slot /></i>' },
   'v-chip': { template: '<span class="v-chip"><slot /></span>' },
@@ -143,8 +146,8 @@ config.global.stubs = {
   'v-navigation-drawer': { template: '<div class="v-navigation-drawer"><slot /></div>' },
   'v-toolbar': { template: '<div class="v-toolbar"><slot /></div>' },
   'v-footer': { template: '<footer class="v-footer"><slot /></footer>' },
-  'v-menu': { template: '<div class="v-menu"><slot /></div>' },
-  'container-filter': { 
+  'v-menu': { template: '<div class="v-menu"><slot name="activator" :props="{}" /><slot /></div>' },
+  'container-filter': {  
     template: '<div class="container-filter">Watcher Registry Update kind Group by label</div>',
     name: 'container-filter'
   },

@@ -1,6 +1,11 @@
 import { mount } from '@vue/test-utils';
 import AppBar from '@/components/AppBar';
 
+jest.mock('vue-router', () => ({
+  useRoute: jest.fn(() => ({ name: 'home' })),
+  useRouter: jest.fn(() => ({ push: jest.fn() }))
+}));
+
 jest.mock('@/services/auth', () => ({
   logout: jest.fn(() => Promise.resolve({}))
 }));

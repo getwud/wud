@@ -7,6 +7,21 @@ jest.mock('@/services/auth', () => ({
 
 describe('LoginOidc', () => {
   let wrapper;
+  const originalLocation = window.location;
+
+  beforeAll(() => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { href: '' },
+    });
+  });
+
+  afterAll(() => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: originalLocation,
+    });
+  });
 
   beforeEach(() => {
     try {
