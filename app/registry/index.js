@@ -218,6 +218,7 @@ async function registerTriggers() {
  */
 async function registerRegistries() {
     const defaultRegistries = {
+        codeberg: { public: '' },
         ecr: { public: '' },
         gcr: { public: '' },
         ghcr: { public: '' },
