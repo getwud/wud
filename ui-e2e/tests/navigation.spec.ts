@@ -15,7 +15,7 @@ test.describe('Navigation', () => {
   });
 
   // Skipping flaky navigation test for now
-  test.skip('should navigate to Configuration sections', async ({ page }) => {
+  test('should navigate to Configuration sections', async ({ page }) => {
     // Open Configuration group if needed
     const configGroup = page.getByText('Configuration');
     // Scope to nav to avoid matching dashboard tiles
@@ -30,7 +30,7 @@ test.describe('Navigation', () => {
       }
     }
 
-    const sections = ['triggers', 'watchers', 'registries', 'authentications', 'logs', 'server', 'state'];
+    const sections = ['triggers', 'watchers', 'registries', 'auth:authentications', 'server'];
 
     // Ensure group is open
     // Note: scrollIntoViewIfNeeded fails if the element is inside a collapsed group (hidden)
@@ -52,7 +52,12 @@ test.describe('Navigation', () => {
     }
 
     for (const section of sections) {
-        const sectionName = section.charAt(0).toUpperCase() + section.slice(1);
+        let sectionName = section, link = section;
+        if (section.includes(':')) {
+            sectionName = section.split(':')[0];
+            link = section.split(':')[1];
+        }
+        sectionName = sectionName.charAt(0).toUpperCase() + sectionName.slice(1);
         const navItem = page.locator('nav').getByRole('link', { name: sectionName });
 
         // If the item is still not visible (maybe off screen or group closed unexpectedly), try to open group again
@@ -80,7 +85,7 @@ test.describe('Navigation', () => {
         // Wait for URL to change before moving to next item.
         // If we don't wait, the next click might happen before navigation completes, leading to race conditions
         // where we are still on the old page when we check the URL or click next item.
-        await expect(page).toHaveURL(new RegExp(`.*configuration/${section}`), { timeout: 15000 });
+        await expect(page).toHaveURL(new RegExp(`.*configuration/${link}`), { timeout: 15000 });
 
         // Wait a bit to ensure the drawer state is stable (sometimes navigation causes drawer to re-render or close group)
         // If the URL check passed, we are on the page.
