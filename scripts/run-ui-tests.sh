@@ -30,6 +30,10 @@ done
 echo "📦 Installing UI test dependencies..."
 (cd "$SCRIPT_DIR/../ui-e2e" && npm install)
 
+# Install Playwright browsers
+echo "🌐 Installing Playwright browsers..."
+(cd "$SCRIPT_DIR/../ui-e2e" && npx playwright install)
+
 # Run Playwright tests
 echo "🏃 Running Playwright tests..."
 (cd "$SCRIPT_DIR/../ui-e2e" && npm test)
