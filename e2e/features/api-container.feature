@@ -23,14 +23,14 @@ Feature: WUD Container API Exposure
       | index | registry       | containerName            | registryUrl                                             | imageName                           | tag                | resultTag          | updateAvailable | testCase                    |
       # Containers in alphabetical order by name
       # | 0     | ecr.private    | ecr_sub_sub_test         | https://229211676173.dkr.ecr.eu-west-1.amazonaws.com/v2 | sub/sub/test                        | 1.0.0              | 2.0.0              | true            | ECR semver major update     |
-      | 1     | ghcr.private   | ghcr_radarr              | https://ghcr.io/v2                                      | linuxserver/radarr                  | 5.14.0.9383-ls245  | 6.0.4.10291-ls289  | true           | GHCR complex semver update  |
+      | 1     | ghcr.private   | ghcr_radarr              | https://ghcr.io/v2                                      | linuxserver/radarr                  | 5.14.0.9383-ls245  | 6.0.4.10291-ls290  | true           | GHCR complex semver update  |
       | 2     | gitlab.private | gitlab_test              | https://registry.gitlab.com/v2                          | gitlab-org/gitlab-runner            | v16.0.0            | v16.1.0            | true            | GitLab semver update        |
-      | 3     | hub.public     | hub_homeassistant_202161 | https://registry-1.docker.io/v2                         | homeassistant/home-assistant        | 2021.6.1           | 2026.1.0           | true           | Hub date-based versioning   |
+      | 3     | hub.public     | hub_homeassistant_202161 | https://registry-1.docker.io/v2                         | homeassistant/home-assistant        | 2021.6.1           | 2026.1.2           | true           | Hub date-based versioning   |
       | 4     | hub.public     | hub_homeassistant_latest | https://registry-1.docker.io/v2                         | homeassistant/home-assistant        | latest             | latest             | false           | Hub latest tag no update    |
       | 5     | hub.public     | hub_nginx_120            | https://registry-1.docker.io/v2                         | library/nginx                       | 1.20-alpine        | 1.29-alpine        | true           | Hub alpine minor update     |
       | 6     | hub.public     | hub_nginx_latest         | https://registry-1.docker.io/v2                         | library/nginx                       | latest             | latest             | true            | Hub latest tag digest update|
-      | 7     | hub.public     | hub_traefik_245          | https://registry-1.docker.io/v2                         | library/traefik                     | 2.4.5              | 3.6.6              | true           | Hub semver major update     |
-      | 8     | lscr.private   | lscr_radarr              | https://lscr.io/v2                                      | linuxserver/radarr                  | 5.14.0.9383-ls245  | 6.0.4.10291-ls289  | true            | LSCR complex semver update  |
+      | 7     | hub.public     | hub_traefik_245          | https://registry-1.docker.io/v2                         | library/traefik                     | 2.4.5              | 3.6.7              | true           | Hub semver major update     |
+      | 8     | lscr.private   | lscr_radarr              | https://lscr.io/v2                                      | linuxserver/radarr                  | 5.14.0.9383-ls245  | 6.0.4.10291-ls290  | true            | LSCR complex semver update  |
       | 9     | quay.public    | quay_prometheus          | https://quay.io/v2                                      | prometheus/prometheus               | v2.52.0            | v3.9.1             | true            | Quay semver major update    |
 
   # Test detailed container inspection (semver)
@@ -58,7 +58,7 @@ Feature: WUD Container API Exposure
     And response body path $.name should be hub_nginx_latest
     And response body path $.image.tag.semver should be false
     And response body path $.image.digest.value should be sha256:f94d6dd9b5761f33a21bb92848a1f70ea11a1c15f3a142c19a44ea3a4c545a4d
-    And response body path $.result.digest should be sha256:c6c55d513dd0e897a6a1c1f1405e00f8fc49bf67eab2e14e43a705a9a6080b8b
+    And response body path $.result.digest should be sha256:617fef3c6adb90788d06f7ebe634fe990a6cd1e63c815facaf5fcaf3fa1ea003
     And response body path $.updateAvailable should be true
 
   # Test link functionality
@@ -69,7 +69,7 @@ Feature: WUD Container API Exposure
     Then response code should be 200
     And response body should be valid json
     And response body path $.link should be https://github.com/home-assistant/core/releases/tag/2021.6.1
-    And response body path $.result.link should be https://github.com/home-assistant/core/releases/tag/2026.1.0
+    And response body path $.result.link should be https://github.com/home-assistant/core/releases/tag/2026.1.2
 
   # Test watch trigger functionality
   Scenario: WUD must allow triggering container watch
