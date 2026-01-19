@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Registry handling all components (registries, triggers, watchers).
  */
@@ -12,11 +11,25 @@ import { getWatcherConfigurations,
     getRegistryConfigurations,
     getAuthenticationConfigurations,
  } from '../configuration';
+import Component, { ComponentConfiguration } from './Component';
+import Trigger from '../triggers/providers/Trigger';
+import Watcher from '../watchers/Watcher';
+import Registry from '../registries/Registry';
+import Authentication from '../authentications/providers/Authentication';
+
+export interface RegistryState {
+    trigger: { [key: string]: Trigger };
+    watcher: { [key: string]: Watcher };
+    registry: { [key: string]: Registry };
+    authentication: { [key: string]: Authentication };
+}
+
+type ComponentKind = keyof RegistryState;
 
 /**
  * Registry state.
  */
-const state = {
+const state: RegistryState = {
     trigger: {},
     watcher: {},
     registry: {},
@@ -32,7 +45,7 @@ export function getState() {
  * @param {string} basePath relative path to the providers directory
  * @returns {string[]} sorted list of available provider names
  */
-function getAvailableProviders(basePath) {
+function getAvailableProviders(basePath: string) {
     try {
         const resolvedPath = path.resolve(__dirname, basePath);
         const providers = fs.readdirSync(resolvedPath)
@@ -52,8 +65,8 @@ function getAvailableProviders(basePath) {
  * @param {string} kind component kind (trigger, watcher, etc.)
  * @returns {string} documentation path
  */
-function getDocumentationLink(kind) {
-    const docLinks = {
+function getDocumentationLink(kind: ComponentKind) {
+    const docLinks: Record<ComponentKind, string> = {
         trigger: 'https://github.com/getwud/wud/tree/main/docs/configuration/triggers',
         watcher: 'https://github.com/getwud/wud/tree/main/docs/configuration/watchers',
         registry: 'https://github.com/getwud/wud/tree/main/docs/configuration/registries',
@@ -70,7 +83,7 @@ function getDocumentationLink(kind) {
  * @param {string[]} availableProviders list of available providers
  * @returns {string} formatted error message
  */
-function getHelpfulErrorMessage(kind, provider, error, availableProviders) {
+function getHelpfulErrorMessage(kind: ComponentKind, provider: string, error: string, availableProviders: string[]) {
     let message = `Error when registering component ${provider} (${error})`;
 
     if (error.includes('Cannot find module')) {
@@ -99,23 +112,32 @@ function getHelpfulErrorMessage(kind, provider, error, availableProviders) {
  * @param {*} configuration
  * @param {*} componentPath
  */
-async function registerComponent(kind, provider, name, configuration, componentPath) {
+async function registerComponent(
+    kind: ComponentKind,
+    provider: string,
+    name: string,
+    configuration: ComponentConfiguration,
+    componentPath: string
+): Promise<Component> {
     const providerLowercase = provider.toLowerCase();
     const nameLowercase = name.toLowerCase();
     const componentFile = `${componentPath}/${providerLowercase.toLowerCase()}/${capitalize(provider)}`;
     try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const Component = (await import(componentFile)).default;
-        const component = new Component();
+        const ComponentClass = (await import(componentFile)).default;
+        const component: Component = new ComponentClass();
         const componentRegistered = await component.register(
             kind,
             providerLowercase,
             nameLowercase,
             configuration,
         );
-        state[kind][component.getId()] = component;
+
+        // Type assertion is safe here because we know the kind matches the expected type
+        // if the file structure and inheritance are correct
+        (state[kind] as any)[component.getId()] = component;
         return componentRegistered;
-    } catch (e) {
+    } catch (e: any) {
         const availableProviders = getAvailableProviders(componentPath);
         const helpfulMessage = getHelpfulErrorMessage(kind, providerLowercase, e.message, availableProviders);
         throw new Error(helpfulMessage);
@@ -129,7 +151,7 @@ async function registerComponent(kind, provider, name, configuration, componentP
  * @param path
  * @returns {*[]}
  */
-async function registerComponents(kind, configurations, path) {
+async function registerComponents(kind: ComponentKind, configurations: Record<string, any>, path: string) {
     if (configurations) {
         const providers = Object.keys(configurations);
         const providerPromises = providers
@@ -161,7 +183,7 @@ async function registerComponents(kind, configurations, path) {
  */
 async function registerWatchers() {
     const configurations = getWatcherConfigurations();
-    let watchersToRegister = [];
+    let watchersToRegister: Promise<any>[] = [];
     try {
         if (Object.keys(configurations).length === 0) {
             log.info(
@@ -191,7 +213,7 @@ async function registerWatchers() {
             );
         }
         await Promise.all(watchersToRegister);
-    } catch (e) {
+    } catch (e: any) {
         log.warn(`Some watchers failed to register (${e.message})`);
         log.debug(e);
     }
@@ -208,7 +230,7 @@ async function registerTriggers() {
             configurations,
             '../triggers/providers',
         );
-    } catch (e) {
+    } catch (e: any) {
         log.warn(`Some triggers failed to register (${e.message})`);
         log.debug(e);
     }
@@ -237,7 +259,7 @@ async function registerRegistries() {
             registriesToRegister,
             '../registries/providers',
         );
-    } catch (e) {
+    } catch (e: any) {
         log.warn(`Some registries failed to register (${e.message})`);
         log.debug(e);
     }
@@ -264,7 +286,7 @@ async function registerAuthentications() {
             configurations,
             '../authentications/providers',
         );
-    } catch (e) {
+    } catch (e: any) {
         log.warn(`Some authentications failed to register (${e.message})`);
         log.debug(e);
     }
@@ -276,10 +298,10 @@ async function registerAuthentications() {
  * @param kind
  * @returns {Promise}
  */
-async function deregisterComponent(component, kind) {
+async function deregisterComponent(component: Component, kind: ComponentKind) {
     try {
         await component.deregister();
-    } catch (e) {
+    } catch (e: any) {
         throw new Error(
             `Error when deregistering component ${component.getId()} (${e.message})`,
         );
@@ -297,7 +319,7 @@ async function deregisterComponent(component, kind) {
  * @param kind
  * @returns {Promise}
  */
-async function deregisterComponents(components, kind) {
+async function deregisterComponents(components: Component[], kind: ComponentKind) {
     const deregisterPromises = components.map(async (component) =>
         deregisterComponent(component, kind),
     );
@@ -349,7 +371,7 @@ async function deregisterAll() {
         await deregisterTriggers();
         await deregisterRegistries();
         await deregisterAuthentications();
-    } catch (e) {
+    } catch (e: any) {
         throw new Error(`Error when trying to deregister ${e.message}`);
     }
 }

@@ -1,8 +1,45 @@
-// @ts-nocheck
-import axios from 'axios';
+
+import axios, { AxiosRequestConfig, Method, AxiosResponse } from 'axios';
 import log from '../log';
 import Component from '../registry/Component';
-import { getSummaryTags  } from '../prometheus/registry';
+import { getSummaryTags } from '../prometheus/registry';
+import { ContainerImage } from '../model/container';
+
+export interface RegistryImage extends ContainerImage {
+    // Add any registry specific properties if needed
+}
+
+export interface RegistryManifest {
+    digest?: string;
+    version?: number;
+    created?: string;
+}
+
+export interface RegistryTagsList {
+    name: string;
+    tags: string[];
+}
+
+export interface RegistryManifestResponse {
+    schemaVersion: number;
+    mediaType?: string;
+    manifests?: {
+        digest: string;
+        mediaType: string;
+        platform: {
+            architecture: string;
+            os: string;
+            variant?: string;
+        };
+    }[];
+    config?: {
+        digest: string;
+        mediaType: string;
+    };
+    history?: {
+        v1Compatibility: string;
+    }[];
+}
 
 /**
  * Docker Registry Abstract class.
@@ -14,25 +51,8 @@ class Registry extends Component {
      * @param token
      * @returns {string}
      */
-    static base64Encode(login, token) {
+    static base64Encode(login: string, token: string) {
         return Buffer.from(`${login}:${token}`, 'utf-8').toString('base64');
-    }
-
-    /**
-     * Override to apply custom format to the logger.
-     */
-    async register(kind, type, name, configuration) {
-        this.log = log.child({ component: `${kind}.${type}.${name}` });
-        this.kind = kind;
-        this.type = type;
-        this.name = name;
-
-        this.configuration = this.validateConfiguration(configuration);
-        this.log.info(
-            `Register with configuration ${JSON.stringify(this.maskConfiguration(configuration))}`,
-        );
-        await this.init();
-        return this;
     }
 
     /**
@@ -40,8 +60,7 @@ class Registry extends Component {
      * @param image the image
      * @returns {boolean}
      */
-
-    match(image) {
+    match(_image: ContainerImage): boolean {
         return false;
     }
 
@@ -50,8 +69,7 @@ class Registry extends Component {
      * @param image
      * @returns {*}
      */
-
-    normalizeImage(image) {
+    normalizeImage(image: ContainerImage): ContainerImage {
         return image;
     }
 
@@ -61,8 +79,7 @@ class Registry extends Component {
      * @param requestOptions
      * @returns {*}
      */
-
-    async authenticate(image, requestOptions) {
+    async authenticate(_image: ContainerImage, requestOptions: AxiosRequestConfig): Promise<AxiosRequestConfig> {
         return requestOptions;
     }
 
@@ -71,12 +88,12 @@ class Registry extends Component {
      * @param image
      * @returns {*}
      */
-    async getTags(image) {
+    async getTags(image: ContainerImage): Promise<string[]> {
         this.log.debug(`Get ${image.name} tags`);
-        const tags = [];
-        let page;
+        const tags: string[] = [];
+        let page: AxiosResponse<RegistryTagsList> | undefined = undefined;
         let hasNext = true;
-        let link;
+        let link: string | undefined = undefined;
         while (hasNext) {
             const lastItem =
                 page && page.data && page.data.tags
@@ -103,11 +120,11 @@ class Registry extends Component {
      * @param lastItem
      * @returns {Promise<*>}
      */
-    getTagsPage(image, lastItem = undefined) {
+    getTagsPage(image: ContainerImage, lastItem: string | undefined = undefined, _link: string | undefined = undefined) {
         // Default items per page (not honoured by all registries)
         const itemsPerPage = 1000;
         const last = lastItem ? `&last=${lastItem}` : '';
-        return this.callRegistry({
+        return this.callRegistry<RegistryTagsList>({
             image,
             url: `${image.registry.url}/${image.name}/tags/list?n=${itemsPerPage}${last}`,
             resolveWithFullResponse: true,
@@ -120,14 +137,14 @@ class Registry extends Component {
      * @param digest (optional)
      * @returns {Promise<undefined|*>}
      */
-    async getImageManifestDigest(image, digest) {
+    async getImageManifestDigest(image: ContainerImage, digest?: string): Promise<RegistryManifest> {
         const tagOrDigest = digest || image.tag.value;
         let manifestDigestFound;
         let manifestMediaType;
         this.log.debug(
             `${this.getId()} - Get ${image.name}:${tagOrDigest} manifest`,
         );
-        const responseManifests = await this.callRegistry({
+        const responseManifests = await this.callRegistry<RegistryManifestResponse>({
             image,
             url: `${image.registry.url}/${image.name}/manifests/${tagOrDigest}`,
             headers: {
@@ -152,7 +169,7 @@ class Registry extends Component {
                     );
                     let manifestFound;
                     const manifestFounds = responseManifests.manifests.filter(
-                        (manifest) =>
+                        (manifest: any) =>
                             manifest.platform.architecture ===
                                 image.architecture &&
                             manifest.platform.os === image.os,
@@ -167,7 +184,7 @@ class Registry extends Component {
                     if (manifestFounds.length > 1) {
                         const manifestFoundFilteredOnVariant =
                             manifestFounds.find(
-                                (manifest) =>
+                                (manifest: any) =>
                                     manifest.platform.variant === image.variant,
                             );
 
@@ -222,7 +239,7 @@ class Registry extends Component {
                 log.debug(
                     'Calling registry to get docker-content-digest header',
                 );
-                const responseManifest = await this.callRegistry({
+                const responseManifest = await this.callRegistry<RegistryManifestResponse>({
                     image,
                     method: 'head',
                     url: `${image.registry.url}/${image.name}/manifests/${manifestDigestFound}`,
@@ -262,7 +279,23 @@ class Registry extends Component {
         throw new Error('Unexpected error; no manifest found');
     }
 
-    async callRegistry({
+    async callRegistry<T = any>(options: {
+        image: ContainerImage;
+        url: string;
+        method?: Method;
+        headers?: any;
+        resolveWithFullResponse: true;
+    }): Promise<AxiosResponse<T>>;
+
+    async callRegistry<T = any>(options: {
+        image: ContainerImage;
+        url: string;
+        method?: Method;
+        headers?: any;
+        resolveWithFullResponse?: false;
+    }): Promise<T>;
+
+    async callRegistry<T = any>({
         image,
         url,
         method = 'get',
@@ -270,11 +303,17 @@ class Registry extends Component {
             Accept: 'application/json',
         },
         resolveWithFullResponse = false,
-    }) {
+    }: {
+        image: ContainerImage;
+        url: string;
+        method?: Method;
+        headers?: any;
+        resolveWithFullResponse?: boolean;
+    }): Promise<T | AxiosResponse<T>> {
         const start = new Date().getTime();
 
         // Request options
-        const axiosOptions = {
+        const axiosOptions: AxiosRequestConfig = {
             url,
             method,
             headers,
@@ -287,7 +326,7 @@ class Registry extends Component {
         );
 
         try {
-            const response = await axios(axiosOptionsWithAuth);
+            const response = await axios(axiosOptionsWithAuth) as AxiosResponse<T>;
             const end = new Date().getTime();
             getSummaryTags().observe(
                 { type: this.type, name: this.name },
@@ -304,7 +343,7 @@ class Registry extends Component {
         }
     }
 
-    getImageFullName(image, tagOrDigest) {
+    getImageFullName(image: ContainerImage, tagOrDigest: string) {
         // digests are separated with @ whereas tags are separated with :
         const tagOrDigestWithSeparator =
             tagOrDigest.indexOf(':') !== -1
@@ -322,7 +361,7 @@ class Registry extends Component {
      * @returns {}
      */
 
-    getAuthPull() {
+    getAuthPull(): { username?: string, password?: string } | undefined {
         return undefined;
     }
 }

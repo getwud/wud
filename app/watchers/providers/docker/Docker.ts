@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import fs from 'fs';
 import Dockerode from 'dockerode';
 import Joi from 'joi';
@@ -26,13 +26,32 @@ import { wudWatch,
  } from './label';
 import * as storeContainer from '../../../store/container';
 import log from '../../../log';
-import Component from '../../../registry/Component';
 import {
     validate as validateContainer,
     fullName,
+    Container,
+    ContainerImage,
 } from '../../../model/container';
 import * as registry from '../../../registry';
 import { getWatchContainerGauge  } from '../../../prometheus/watcher';
+import Watcher from '../../Watcher';
+import { ComponentConfiguration } from '../../../registry/Component';
+
+export interface DockerWatcherConfiguration extends ComponentConfiguration {
+    socket: string;
+    host?: string;
+    port: number;
+    cafile?: string;
+    certfile?: string;
+    keyfile?: string;
+    cron: string;
+    jitter: number;
+    watchbydefault: boolean;
+    watchall: boolean;
+    watchdigest?: any;
+    watchevents: boolean;
+    watchatstart: boolean;
+}
 
 // The delay before starting the watcher when the app is started
 const START_WATCHER_DELAY_MS = 1000;
@@ -54,7 +73,7 @@ function getRegistries() {
  * @param tags
  * @returns {*}
  */
-function getTagCandidates(container, tags, logContainer) {
+function getTagCandidates(container: Container, tags: string[], logContainer: any) {
     let filteredTags = tags;
 
     // Match include tag regex
@@ -163,7 +182,7 @@ function getTagCandidates(container, tags, logContainer) {
     return filteredTags;
 }
 
-function normalizeContainer(container) {
+function normalizeContainer(container: Container) {
     const containerWithNormalizedImage = container;
     const registryProvider = Object.values(getRegistries()).find((provider) =>
         provider.match(container.image),
@@ -185,7 +204,7 @@ function normalizeContainer(container) {
  * Get the Docker Registry by name.
  * @param registryName
  */
-function getRegistry(registryName) {
+function getRegistry(registryName: string) {
     const registryToReturn = getRegistries()[registryName];
     if (!registryToReturn) {
         throw new Error(`Unsupported Registry ${registryName}`);
@@ -199,7 +218,7 @@ function getRegistry(registryName) {
  * @param containersFromTheStore
  * @returns {*[]|*}
  */
-function getOldContainers(newContainers, containersFromTheStore) {
+function getOldContainers(newContainers: Container[], containersFromTheStore: Container[]) {
     if (!containersFromTheStore || !newContainers) {
         return [];
     }
@@ -216,7 +235,7 @@ function getOldContainers(newContainers, containersFromTheStore) {
  * @param newContainers
  * @param containersFromTheStore
  */
-function pruneOldContainers(newContainers, containersFromTheStore) {
+function pruneOldContainers(newContainers: Container[], containersFromTheStore: Container[]) {
     const containersToRemove = getOldContainers(
         newContainers,
         containersFromTheStore,
@@ -226,8 +245,8 @@ function pruneOldContainers(newContainers, containersFromTheStore) {
     });
 }
 
-function getContainerName(container) {
-    let containerName;
+function getContainerName(container: any) {
+    let containerName = '';
     const names = container.Names;
     if (names && names.length > 0) {
         [containerName] = names;
@@ -242,7 +261,7 @@ function getContainerName(container) {
  * @param containerImage
  * @returns {*} digest
  */
-function getRepoDigest(containerImage) {
+function getRepoDigest(containerImage: any) {
     if (
         !containerImage.RepoDigests ||
         containerImage.RepoDigests.length === 0
@@ -260,7 +279,7 @@ function getRepoDigest(containerImage) {
  * @param watchByDefault true if containers must be watched by default
  * @returns {boolean}
  */
-function isContainerToWatch(wudWatchLabelValue, watchByDefault) {
+function isContainerToWatch(wudWatchLabelValue: string, watchByDefault: boolean) {
     return wudWatchLabelValue !== undefined && wudWatchLabelValue !== ''
         ? wudWatchLabelValue.toLowerCase() === 'true'
         : watchByDefault;
@@ -272,7 +291,7 @@ function isContainerToWatch(wudWatchLabelValue, watchByDefault) {
  * @param {object} parsedImage - object containing at least `domain` property
  * @returns {boolean}
  */
-function isDigestToWatch(wudWatchDigestLabelValue, parsedImage, isSemver) {
+function isDigestToWatch(wudWatchDigestLabelValue: string, parsedImage: any, isSemver: boolean) {
     const domain = parsedImage.domain;
     const isDockerHub =
         !domain ||
@@ -304,7 +323,14 @@ function isDigestToWatch(wudWatchDigestLabelValue, parsedImage, isSemver) {
 /**
  * Docker Watcher Component.
  */
-class Docker extends Component {
+class Docker extends Watcher {
+    public configuration: DockerWatcherConfiguration = {} as DockerWatcherConfiguration;
+    public dockerApi: Dockerode;
+    public watchCron: any;
+    public watchCronTimeout: any;
+    public watchCronDebounced: any;
+    public listenDockerEventsTimeout: any;
+
     ensureLogger() {
         if (!this.log) {
             try {
@@ -314,9 +340,13 @@ class Docker extends Component {
             } catch (error) {
                 // Fallback to silent logger if log module fails
                 this.log = {
+                    // @ts-ignore Unused implementation
                     info: () => {},
+                    // @ts-ignore Unused implementation
                     warn: () => {},
+                    // @ts-ignore Unused implementation
                     error: () => {},
+                    // @ts-ignore Unused implementation
                     debug: () => {},
                     child: () => this.log,
                 };
@@ -345,7 +375,7 @@ class Docker extends Component {
     /**
      * Init the Watcher.
      */
-    init() {
+    async init() {
         this.ensureLogger();
         this.initWatcher();
         if (this.configuration.watchdigest !== undefined) {
@@ -386,7 +416,7 @@ class Docker extends Component {
     }
 
     initWatcher() {
-        const options = {};
+        const options: Dockerode.DockerOptions = {};
         if (this.configuration.host) {
             options.host = this.configuration.host;
             options.port = this.configuration.port;
@@ -433,7 +463,7 @@ class Docker extends Component {
             return;
         }
         this.log.info('Listening to docker events');
-        const options = {
+        const options: Dockerode.GetEventsOptions = {
             filters: {
                 type: ['container'],
                 event: [
@@ -457,7 +487,7 @@ class Docker extends Component {
                     this.log.debug(err);
                 }
             } else {
-                stream.on('data', (chunk) => this.onDockerEvent(chunk));
+                stream.on('data', (chunk: any) => this.onDockerEvent(chunk));
             }
         });
     }
@@ -467,7 +497,7 @@ class Docker extends Component {
      * @param dockerEventChunk
      * @return {Promise<void>}
      */
-    async onDockerEvent(dockerEventChunk) {
+    async onDockerEvent(dockerEventChunk: any) {
         this.ensureLogger();
         const dockerEvent = JSON.parse(dockerEventChunk.toString());
         const action = dockerEvent.Action;
@@ -498,7 +528,7 @@ class Docker extends Component {
                         );
                     }
                 }
-            } catch (e) {
+            } catch (e: any) {
                 this.log.debug(
                     `Unable to get container details for container id=[${containerId}] (${e.message})`,
                 );
@@ -547,7 +577,7 @@ class Docker extends Component {
      */
     async watch() {
         this.ensureLogger();
-        let containers = [];
+        let containers: Container[] = [];
 
         // Dispatch event to notify start watching
         event.emitWatcherStart(this);
@@ -555,7 +585,7 @@ class Docker extends Component {
         // List images to watch
         try {
             containers = await this.getContainers();
-        } catch (e) {
+        } catch (e: any) {
             this.log.warn(
                 `Error when trying to get the list of the containers to watch (${e.message})`,
             );
@@ -566,7 +596,7 @@ class Docker extends Component {
             );
             event.emitContainerReports(containerReports);
             return containerReports;
-        } catch (e) {
+        } catch (e: any) {
             this.log.warn(
                 `Error when processing some containers (${e.message})`,
             );
@@ -582,7 +612,7 @@ class Docker extends Component {
      * @param container
      * @returns {Promise<*>}
      */
-    async watchContainer(container) {
+    async watchContainer(container: Container) {
         this.ensureLogger();
         // Child logger for the container to process
         const logContainer = this.log.child({ container: fullName(container) });
@@ -598,7 +628,7 @@ class Docker extends Component {
                 container,
                 logContainer,
             );
-        } catch (e) {
+        } catch (e: any) {
             logContainer.warn(`Error when processing (${e.message})`);
             logContainer.debug(e);
             containerWithResult.error = {
@@ -616,9 +646,9 @@ class Docker extends Component {
      * Get all containers to watch.
      * @returns {Promise<unknown[]>}
      */
-    async getContainers() {
+    async getContainers(): Promise<Container[]> {
         this.ensureLogger();
-        const listContainersOptions = {};
+        const listContainersOptions: Dockerode.ContainerListOptions = {};
         if (this.configuration.watchall) {
             listContainersOptions.all = true;
         }
@@ -627,13 +657,13 @@ class Docker extends Component {
         );
 
         // Filter on containers to watch
-        const filteredContainers = containers.filter((container) =>
+        const filteredContainers = containers.filter((container: any) =>
             isContainerToWatch(
                 container.Labels[wudWatch],
                 this.configuration.watchbydefault,
             ),
         );
-        const containerPromises = filteredContainers.map((container) =>
+        const containerPromises = filteredContainers.map((container: any) =>
             this.addImageDetailsToContainer(
                 container,
                 container.Labels[wudTagInclude],
@@ -662,7 +692,7 @@ class Docker extends Component {
                 watcher: this.name,
             });
             pruneOldContainers(containersToReturn, containersFromTheStore);
-        } catch (e) {
+        } catch (e: any) {
             this.log.warn(
                 `Error when trying to prune the old containers (${e.message})`,
             );
@@ -682,9 +712,9 @@ class Docker extends Component {
      * Find new version for a Container.
      */
 
-    async findNewVersion(container, logContainer) {
+    async findNewVersion(container: Container, logContainer: any) {
         const registryProvider = getRegistry(container.image.registry.name);
-        const result = { tag: container.image.tag.value };
+        const result: any = { tag: container.image.tag.value };
         if (!registryProvider) {
             logContainer.error(
                 `Unsupported registry (${container.image.registry.name})`,
@@ -763,15 +793,15 @@ class Docker extends Component {
      * @returns {Promise<Image>}
      */
     async addImageDetailsToContainer(
-        container,
-        includeTags,
-        excludeTags,
-        transformTags,
-        linkTemplate,
-        displayName,
-        displayIcon,
-        triggerInclude,
-        triggerExclude,
+        container: any,
+        includeTags: string,
+        excludeTags: string,
+        transformTags: string,
+        linkTemplate: string,
+        displayName: string,
+        displayIcon: string,
+        triggerInclude: string,
+        triggerExclude: string,
     ) {
         const containerId = container.Id;
 
@@ -843,6 +873,7 @@ class Docker extends Component {
             image: {
                 id: imageId,
                 registry: {
+                    name: 'unknown', // Will be overwritten by normalizeContainer
                     url: parsedImage.domain,
                 },
                 name: parsedImage.path,
@@ -863,7 +894,9 @@ class Docker extends Component {
             result: {
                 tag: tagName,
             },
-        });
+            updateAvailable: false,
+            updateKind: { kind: 'unknown' }
+        } as Container);
     }
 
     /**
@@ -871,7 +904,7 @@ class Docker extends Component {
      * @param containerWithResult
      * @return {*}
      */
-    mapContainerToContainerReport(containerWithResult) {
+    mapContainerToContainerReport(containerWithResult: Container) {
         this.ensureLogger();
         const logContainer = this.log.child({
             container: fullName(containerWithResult),

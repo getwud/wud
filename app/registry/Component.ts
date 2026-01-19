@@ -1,25 +1,39 @@
-// @ts-nocheck
+
 import joi from 'joi';
 import log from '../log';
+import Logger from 'bunyan';
+
+export interface ComponentConfiguration {
+    [key: string]: any;
+}
 
 /**
  * Base Component Class.
  */
 class Component {
+    public joi: typeof joi;
+    public log: Logger;
+    public kind: string = '';
+    public type: string = '';
+    public name: string = '';
+    public configuration: ComponentConfiguration = {};
+
     /**
      * Constructor.
      */
     constructor() {
         this.joi = joi;
+        this.log = log;
     }
 
     /**
      * Register the component.
+     * @param kind the kind of the component
      * @param type the type of the component
      * @param name the name of the component
      * @param configuration the configuration of the component
      */
-    async register(kind, type, name, configuration) {
+    async register(kind: string, type: string, name: string, configuration: ComponentConfiguration): Promise<this> {
         // Child log for the component
         this.log = log.child({ component: `${kind}.${type}.${name}` });
         this.kind = kind;
@@ -38,7 +52,7 @@ class Component {
      * Deregister the component.
      * @returns {Promise<void>}
      */
-    async deregister() {
+    async deregister(): Promise<this> {
         this.log.info('Deregister component');
         await this.deregisterComponent();
         return this;
@@ -49,7 +63,7 @@ class Component {
      * @returns {Promise<void>}
      */
 
-    async deregisterComponent() {
+    async deregisterComponent(): Promise<void> {
         // Do nothing by default
     }
 
@@ -59,7 +73,7 @@ class Component {
      * @param configuration the configuration
      * @returns {*} or throw a validation error
      */
-    validateConfiguration(configuration) {
+    validateConfiguration(configuration: ComponentConfiguration): ComponentConfiguration {
         const schema = this.getConfigurationSchema();
         const schemaValidated = schema.validate(configuration);
         if (schemaValidated.error) {
@@ -73,7 +87,7 @@ class Component {
      * Can be overridden by the component implementation class
      * @returns {*}
      */
-    getConfigurationSchema() {
+    getConfigurationSchema(): joi.ObjectSchema {
         return this.joi.object();
     }
 
@@ -82,21 +96,21 @@ class Component {
      * Can be overridden by the component implementation class
      */
 
-    init() {}
+    async init(): Promise<void> {}
 
     /**
      * Sanitize sensitive data
      * @returns {*}
      */
-    maskConfiguration() {
-        return this.configuration;
+    maskConfiguration(configuration?: ComponentConfiguration): ComponentConfiguration {
+        return configuration || this.configuration;
     }
 
     /**
      * Get Component ID.
      * @returns {string}
      */
-    getId() {
+    getId(): string {
         return `${this.type}.${this.name}`;
     }
 
@@ -107,7 +121,7 @@ class Component {
      * @param char the replacement char
      * @returns {string|undefined} the masked string
      */
-    static mask(value, nb = 1, char = '*') {
+    static mask(value: string | undefined, nb = 1, char = '*'): string | undefined {
         if (!value) {
             return undefined;
         }

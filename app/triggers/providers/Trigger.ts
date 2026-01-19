@@ -1,8 +1,23 @@
-// @ts-nocheck
-import Component from '../../registry/Component';
+
+import Component, { ComponentConfiguration } from '../../registry/Component';
 import * as event from '../../event';
-import { getTriggerCounter  } from '../../prometheus/trigger';
-import { fullName  } from '../../model/container';
+import { getTriggerCounter } from '../../prometheus/trigger';
+import { fullName, Container } from '../../model/container';
+
+export interface TriggerConfiguration extends ComponentConfiguration {
+    auto?: boolean;
+    threshold?: string;
+    mode?: string;
+    once?: boolean;
+    simpletitle?: string;
+    simplebody?: string;
+    batchtitle?: string;
+}
+
+export interface ContainerReport {
+    container: Container;
+    changed: boolean;
+}
 
 /**
  * Render body or title simple template.
@@ -10,35 +25,46 @@ import { fullName  } from '../../model/container';
  * @param container
  * @returns {*}
  */
-function renderSimple(template, container) {
+function renderSimple(template: string, container: Container) {
     // Set deprecated vars for backward compatibility
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const id = container.id;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const name = container.name;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const watcher = container.watcher;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const kind =
         container.updateKind && container.updateKind.kind
             ? container.updateKind.kind
             : '';
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const semver =
         container.updateKind && container.updateKind.semverDiff
             ? container.updateKind.semverDiff
             : '';
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const local =
         container.updateKind && container.updateKind.localValue
             ? container.updateKind.localValue
             : '';
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const remote =
         container.updateKind && container.updateKind.remoteValue
             ? container.updateKind.remoteValue
             : '';
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const link =
         container.result && container.result.link ? container.result.link : '';
+    // eslint-disable-next-line no-eval
     return eval('`' + template + '`');
 }
 
-function renderBatch(template, containers) {
+function renderBatch(template: string, containers: Container[]) {
     // Set deprecated vars for backward compatibility
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const count = containers ? containers.length : 0;
+    // eslint-disable-next-line no-eval
     return eval('`' + template + '`');
 }
 
@@ -46,13 +72,15 @@ function renderBatch(template, containers) {
  * Trigger base component.
  */
 class Trigger extends Component {
+    public configuration: TriggerConfiguration = {};
+
     /**
      * Return true if update reaches trigger threshold.
      * @param containerResult
      * @param threshold
      * @returns {boolean}
      */
-    static isThresholdReached(containerResult, threshold) {
+    static isThresholdReached(containerResult: Container, threshold: string) {
         let thresholdPassing = true;
         if (
             threshold.toLowerCase() !== 'all' &&
@@ -91,7 +119,7 @@ class Trigger extends Component {
      * @param {*} includeOrExcludeTriggerString
      * @returns
      */
-    static parseIncludeOrIncludeTriggerString(includeOrExcludeTriggerString) {
+    static parseIncludeOrIncludeTriggerString(includeOrExcludeTriggerString: string) {
         const includeOrExcludeTriggerSplit =
             includeOrExcludeTriggerString.split(/\s*:\s*/);
         const includeOrExcludeTrigger = {
@@ -127,7 +155,7 @@ class Trigger extends Component {
      * @param containerReport
      * @returns {Promise<void>}
      */
-    async handleContainerReport(containerReport) {
+    async handleContainerReport(containerReport: ContainerReport) {
         // Filter on changed containers with update available and passing trigger threshold
         if (
             (containerReport.changed || !this.configuration.once) &&
@@ -142,7 +170,7 @@ class Trigger extends Component {
                 if (
                     !Trigger.isThresholdReached(
                         containerReport.container,
-                        this.configuration.threshold.toLowerCase(),
+                        (this.configuration.threshold || 'all').toLowerCase(),
                     )
                 ) {
                     logContainer.debug('Threshold not reached => ignore');
@@ -153,7 +181,7 @@ class Trigger extends Component {
                     await this.trigger(containerReport.container);
                 }
                 status = 'success';
-            } catch (e) {
+            } catch (e: any) {
                 logContainer.warn(`Error (${e.message})`);
                 logContainer.debug(e);
             } finally {
@@ -171,7 +199,7 @@ class Trigger extends Component {
      * @param containerReports
      * @returns {Promise<void>}
      */
-    async handleContainerReports(containerReports) {
+    async handleContainerReports(containerReports: ContainerReport[]) {
         // Filter on containers with update available and passing trigger threshold
         try {
             const containerReportsFiltered = containerReports
@@ -189,7 +217,7 @@ class Trigger extends Component {
                 .filter((containerReport) =>
                     Trigger.isThresholdReached(
                         containerReport.container,
-                        this.configuration.threshold.toLowerCase(),
+                        (this.configuration.threshold || 'all').toLowerCase(),
                     ),
                 );
             const containersFiltered = containerReportsFiltered.map(
@@ -199,13 +227,13 @@ class Trigger extends Component {
                 this.log.debug('Run batch');
                 await this.triggerBatch(containersFiltered);
             }
-        } catch (e) {
+        } catch (e: any) {
             this.log.warn(`Error (${e.message})`);
             this.log.debug(e);
         }
     }
 
-    isTriggerIncludedOrExcluded(containerResult, trigger) {
+    isTriggerIncludedOrExcluded(containerResult: Container, trigger: string) {
         const triggers = trigger
             .split(/\s*,\s*/)
             .map((triggerToMatch) =>
@@ -224,7 +252,7 @@ class Trigger extends Component {
         );
     }
 
-    isTriggerIncluded(containerResult, triggerInclude) {
+    isTriggerIncluded(containerResult: Container, triggerInclude: string | undefined) {
         if (!triggerInclude) {
             return true;
         }
@@ -234,7 +262,7 @@ class Trigger extends Component {
         );
     }
 
-    isTriggerExcluded(containerResult, triggerExclude) {
+    isTriggerExcluded(containerResult: Container, triggerExclude: string | undefined) {
         if (!triggerExclude) {
             return false;
         }
@@ -249,7 +277,7 @@ class Trigger extends Component {
      * @param containerResult
      * @returns {boolean}
      */
-    mustTrigger(containerResult) {
+    mustTrigger(containerResult: Container) {
         const { triggerInclude, triggerExclude } = containerResult;
         return (
             this.isTriggerIncluded(containerResult, triggerInclude) &&
@@ -264,12 +292,12 @@ class Trigger extends Component {
         await this.initTrigger();
         if (this.configuration.auto) {
             this.log.info(`Registering for auto execution`);
-            if (this.configuration.mode.toLowerCase() === 'simple') {
+            if (this.configuration.mode && this.configuration.mode.toLowerCase() === 'simple') {
                 event.registerContainerReport(async (containerReport) =>
                     this.handleContainerReport(containerReport),
                 );
             }
-            if (this.configuration.mode.toLowerCase() === 'batch') {
+            if (this.configuration.mode && this.configuration.mode.toLowerCase() === 'batch') {
                 event.registerContainerReports(async (containersReports) =>
                     this.handleContainerReports(containersReports),
                 );
@@ -284,7 +312,7 @@ class Trigger extends Component {
      * @param configuration
      * @returns {*}
      */
-    validateConfiguration(configuration) {
+    validateConfiguration(configuration: TriggerConfiguration): TriggerConfiguration {
         const schema = this.getConfigurationSchema();
         const schemaWithDefaultOptions = schema.append({
             auto: this.joi.bool().default(true),
@@ -332,7 +360,8 @@ class Trigger extends Component {
     /**
      * Trigger method. Must be overridden in trigger implementation class.
      */
-    trigger(containerWithResult) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    trigger(containerWithResult: Container) {
         // do nothing by default
         this.log.warn(
             'Cannot trigger container result; this trigger does not implement "simple" mode',
@@ -345,7 +374,7 @@ class Trigger extends Component {
      * @param containersWithResult
      * @returns {*}
      */
-    triggerBatch(containersWithResult) {
+    triggerBatch(containersWithResult: Container[]) {
         // do nothing by default
         this.log.warn(
             'Cannot trigger container results; this trigger does not implement "batch" mode',
@@ -358,8 +387,8 @@ class Trigger extends Component {
      * @param container
      * @returns {*}
      */
-    renderSimpleTitle(container) {
-        return renderSimple(this.configuration.simpletitle, container);
+    renderSimpleTitle(container: Container) {
+        return renderSimple(this.configuration.simpletitle!, container);
     }
 
     /**
@@ -367,8 +396,8 @@ class Trigger extends Component {
      * @param container
      * @returns {*}
      */
-    renderSimpleBody(container) {
-        return renderSimple(this.configuration.simplebody, container);
+    renderSimpleBody(container: Container) {
+        return renderSimple(this.configuration.simplebody!, container);
     }
 
     /**
@@ -376,8 +405,8 @@ class Trigger extends Component {
      * @param containers
      * @returns {*}
      */
-    renderBatchTitle(containers) {
-        return renderBatch(this.configuration.batchtitle, containers);
+    renderBatchTitle(containers: Container[]) {
+        return renderBatch(this.configuration.batchtitle!, containers);
     }
 
     /**
@@ -385,7 +414,7 @@ class Trigger extends Component {
      * @param containers
      * @returns {*}
      */
-    renderBatchBody(containers) {
+    renderBatchBody(containers: Container[]) {
         return containers
             .map((container) => `- ${this.renderSimpleBody(container)}\n`)
             .join('\n');

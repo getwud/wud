@@ -1,5 +1,6 @@
-// @ts-nocheck
+
 import Component from '../../registry/Component';
+import { Strategy } from 'passport';
 
 class Authentication extends Component {
     /**
@@ -19,7 +20,7 @@ class Authentication extends Component {
     /**
      * Return passport strategy.
      */
-    getStrategy() {
+    getStrategy(): Strategy {
         throw new Error('getStrategy must be implemented');
     }
 
