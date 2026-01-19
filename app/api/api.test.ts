@@ -25,6 +25,9 @@ jest.mock('./registry', () => ({
 jest.mock('./authentication', () => ({
     init: jest.fn(() => ({ use: jest.fn(), get: jest.fn() })),
 }));
+jest.mock('./auth', () => ({
+    requireAuthentication: jest.fn(),
+}));
 jest.mock('./log', () => ({
     init: jest.fn(() => ({ use: jest.fn(), get: jest.fn() })),
 }));
@@ -38,26 +41,24 @@ jest.mock('./auth', () => ({
     getAllIds: jest.fn(() => ['basic', 'anonymous']),
 }));
 
-// Mock passport
-jest.mock('passport', () => ({
-    authenticate: jest.fn(() => (req, res, next) => next()),
-}));
-
 import * as api from './api';
 
 describe('API Router', () => {
     let router;
+    let auth;
 
     beforeEach(async () => {
         jest.clearAllMocks();
-        router = api.init();
+        auth = await import('./auth');
     });
 
     test('should initialize and return a router', async () => {
+        router = api.init();
         expect(router).toBeDefined();
     });
 
     test('should mount all sub-routers', async () => {
+        router = api.init();
         const appRouter = await import('./app');
         const containerRouter = await import('./container');
         const watcherRouter = await import('./watcher');
@@ -79,11 +80,8 @@ describe('API Router', () => {
         expect(serverRouter.init).toHaveBeenCalled();
     });
 
-    test('should use passport authentication middleware', async () => {
-        const passport = await import('passport');
-        expect(passport.authenticate).toHaveBeenCalledWith([
-            'basic',
-            'anonymous',
-        ]);
+    test('should use requireAuthentication middleware', async () => {
+        router = api.init();
+        expect(router.use).toHaveBeenCalledWith(auth.requireAuthentication);
     });
 });

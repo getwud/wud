@@ -28,6 +28,20 @@ export function getAllIds() {
 }
 
 /**
+ * Express middleware to protect routes.
+ * @param req
+ * @param res
+ * @param next
+ * @returns {*}
+ */
+export function requireAuthentication(req, res, next): any {
+    if (req.isAuthenticated()) {
+        return next();
+    }
+    return passport.authenticate(getAllIds(), { session: true })(req, res, next);
+}
+
+/**
  * Get cookie max age.
  * @param days
  * @returns {number}
@@ -173,7 +187,7 @@ export function init(app) {
     router.get('/strategies', getStrategies);
 
     // Routes to protect after this line
-    router.use(passport.authenticate(STRATEGY_IDS, { session: true }));
+    router.use(requireAuthentication);
 
     // Add login/logout routes
     router.post('/login', login);
