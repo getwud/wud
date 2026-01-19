@@ -19,7 +19,7 @@ module.exports = {
     '!**/node_modules/**',
     '!**/dist/**',
     '!**/coverage/**',
-    '!jest.config.js'
+    '!jest.config.cjs'
   ],
   testPathIgnorePatterns: [
     '<rootDir>/dist/',

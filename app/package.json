@@ -8,8 +8,8 @@
         "start": "nodemon --exec ts-node index.ts | bunyan -L -o short",
         "doc": ".docsify serve ./docs",
         "format": "prettier --write .",
-        "lint:fix": "prettier --write . && eslint '**/*.js'",
-        "lint": "eslint '**/*.js'",
+        "lint:fix": "prettier --write . && eslint '**/*.ts'",
+        "lint": "eslint '**/*.ts'",
         "test": "jest --coverage"
     },
     "author": "fmartinou",
@@ -31,6 +31,7 @@
         "flat": "5.0.2",
         "getmac": "6.6.0",
         "gotify-client": "0.4.2",
+        "jiti": "^2.6.1",
         "joi": "17.13.3",
         "joi-cron-expression": "1.0.1",
         "just-debounce": "1.1.0",
@@ -81,6 +82,7 @@
         "prettier": "3.6.2",
         "ts-jest": "^29.4.6",
         "ts-node": "^10.9.2",
-        "typescript": "^5.9.3"
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.53.1"
     }
 }
