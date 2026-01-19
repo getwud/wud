@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { byValues, byString  } from 'sort-es';
+import { byValues, byString } from 'sort-es';
 
 import express from 'express';
 import nocache from 'nocache';
@@ -74,4 +74,3 @@ export function init(kind) {
     router.get('/:type/:name', (req, res) => getById(req, res, kind));
     return router;
 }
-

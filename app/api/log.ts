@@ -1,7 +1,7 @@
 // @ts-nocheck
 import express from 'express';
 import nocache from 'nocache';
-import { getLogLevel  } from '../configuration';
+import { getLogLevel } from '../configuration';
 
 const router = express.Router();
 
@@ -25,4 +25,3 @@ export function init() {
     router.get('/', getLog);
     return router;
 }
-

@@ -36,7 +36,7 @@ describe('Server Router', () => {
     });
 
     test('should call getServerConfiguration when route handler is called', async () => {
-        const { getServerConfiguration  } = await import('../configuration');
+        const { getServerConfiguration } = await import('../configuration');
         const router = serverRouter.init();
 
         // Get the route handler function

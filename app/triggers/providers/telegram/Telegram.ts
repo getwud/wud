@@ -87,7 +87,7 @@ class Telegram extends Trigger {
      * @returns {Promise<>}
      */
     async sendMessage(text) {
-        let txtToSend = text;
+        const txtToSend = text;
         return this.telegramBot.sendMessage(
             this.configuration.chatid,
             txtToSend,

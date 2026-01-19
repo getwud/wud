@@ -1,7 +1,7 @@
 // @ts-nocheck
-import { ValidationError  } from 'joi';
+import { ValidationError } from 'joi';
 import express from 'express';
-import { Issuer  } from 'openid-client';
+import { Issuer } from 'openid-client';
 import Oidc from './Oidc';
 
 const app = express();

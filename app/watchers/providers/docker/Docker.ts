@@ -1,4 +1,3 @@
-
 import fs from 'fs';
 import Dockerode from 'dockerode';
 import Joi from 'joi';
@@ -13,7 +12,8 @@ import {
     transform as transformTag,
 } from '../../../tag';
 import * as event from '../../../event';
-import { wudWatch,
+import {
+    wudWatch,
     wudTagInclude,
     wudTagExclude,
     wudTagTransform,
@@ -23,7 +23,7 @@ import { wudWatch,
     wudDisplayIcon,
     wudTriggerInclude,
     wudTriggerExclude,
- } from './label';
+} from './label';
 import * as storeContainer from '../../../store/container';
 import log from '../../../log';
 import {
@@ -33,7 +33,7 @@ import {
     ContainerImage,
 } from '../../../model/container';
 import * as registry from '../../../registry';
-import { getWatchContainerGauge  } from '../../../prometheus/watcher';
+import { getWatchContainerGauge } from '../../../prometheus/watcher';
 import Watcher from '../../Watcher';
 import { ComponentConfiguration } from '../../../registry/Component';
 
@@ -73,7 +73,11 @@ function getRegistries() {
  * @param tags
  * @returns {*}
  */
-function getTagCandidates(container: Container, tags: string[], logContainer: any) {
+function getTagCandidates(
+    container: Container,
+    tags: string[],
+    logContainer: any,
+) {
     let filteredTags = tags;
 
     // Match include tag regex
@@ -82,7 +86,7 @@ function getTagCandidates(container: Container, tags: string[], logContainer: an
         filteredTags = filteredTags.filter((tag) => includeTagsRegex.test(tag));
     } else {
         // If no includeTags, filter out tags starting with "sha"
-        filteredTags = filteredTags.filter(tag => !tag.startsWith('sha'));
+        filteredTags = filteredTags.filter((tag) => !tag.startsWith('sha'));
     }
 
     // Match exclude tag regex
@@ -94,8 +98,8 @@ function getTagCandidates(container: Container, tags: string[], logContainer: an
     }
 
     // Always filter out tags ending with ".sig"
-    filteredTags = filteredTags.filter(tag => !tag.endsWith('.sig'));
-    
+    filteredTags = filteredTags.filter((tag) => !tag.endsWith('.sig'));
+
     // Semver image -> find higher semver tag
     if (container.image.tag.semver) {
         if (filteredTags.length === 0) {
@@ -110,24 +114,28 @@ function getTagCandidates(container: Container, tags: string[], logContainer: an
             const currentTag = container.image.tag.value;
             const match = currentTag.match(/^(.*?)(\d+.*)$/);
             const currentPrefix = match ? match[1] : '';
-        
+
             if (currentPrefix) {
                 // Retain only tags with the same non-empty prefix
-                filteredTags = filteredTags.filter(tag => tag.startsWith(currentPrefix));
+                filteredTags = filteredTags.filter((tag) =>
+                    tag.startsWith(currentPrefix),
+                );
             } else {
                 // Retain only tags that start with a number (no prefix)
-                filteredTags = filteredTags.filter(tag => /^\d/.test(tag));
+                filteredTags = filteredTags.filter((tag) => /^\d/.test(tag));
             }
-        
+
             // Ensure we throw good errors when we've prefix-related issues
             if (filteredTags.length === 0) {
                 if (currentPrefix) {
                     logContainer.warn(
-                        "No tags found with existing prefix: '" + currentPrefix + "'; check your regex filters",
+                        "No tags found with existing prefix: '" +
+                            currentPrefix +
+                            "'; check your regex filters",
                     );
                 } else {
                     logContainer.warn(
-                        "No tags found starting with a number (no prefix); check your regex filters",
+                        'No tags found starting with a number (no prefix); check your regex filters',
                     );
                 }
             }
@@ -142,18 +150,18 @@ function getTagCandidates(container: Container, tags: string[], logContainer: an
 
         // Remove prefix and suffix (keep only digits and dots)
         const numericPart = container.image.tag.value.match(/(\d+(\.\d+)*)/);
-        
+
         if (numericPart) {
-          const referenceGroups = numericPart[0].split('.').length;
-        
-          filteredTags = filteredTags.filter((tag) => {
-            const tagNumericPart = tag.match(/(\d+(\.\d+)*)/);
-            if (!tagNumericPart) return false; // skip tags without numeric part
-            const tagGroups = tagNumericPart[0].split('.').length;
-        
-            // Keep only tags with the same number of numeric segments
-            return tagGroups === referenceGroups;
-          });
+            const referenceGroups = numericPart[0].split('.').length;
+
+            filteredTags = filteredTags.filter((tag) => {
+                const tagNumericPart = tag.match(/(\d+(\.\d+)*)/);
+                if (!tagNumericPart) return false; // skip tags without numeric part
+                const tagGroups = tagNumericPart[0].split('.').length;
+
+                // Keep only tags with the same number of numeric segments
+                return tagGroups === referenceGroups;
+            });
         }
 
         // Keep only greater semver
@@ -218,7 +226,10 @@ function getRegistry(registryName: string) {
  * @param containersFromTheStore
  * @returns {*[]|*}
  */
-function getOldContainers(newContainers: Container[], containersFromTheStore: Container[]) {
+function getOldContainers(
+    newContainers: Container[],
+    containersFromTheStore: Container[],
+) {
     if (!containersFromTheStore || !newContainers) {
         return [];
     }
@@ -235,7 +246,10 @@ function getOldContainers(newContainers: Container[], containersFromTheStore: Co
  * @param newContainers
  * @param containersFromTheStore
  */
-function pruneOldContainers(newContainers: Container[], containersFromTheStore: Container[]) {
+function pruneOldContainers(
+    newContainers: Container[],
+    containersFromTheStore: Container[],
+) {
     const containersToRemove = getOldContainers(
         newContainers,
         containersFromTheStore,
@@ -279,7 +293,10 @@ function getRepoDigest(containerImage: any) {
  * @param watchByDefault true if containers must be watched by default
  * @returns {boolean}
  */
-function isContainerToWatch(wudWatchLabelValue: string, watchByDefault: boolean) {
+function isContainerToWatch(
+    wudWatchLabelValue: string,
+    watchByDefault: boolean,
+) {
     return wudWatchLabelValue !== undefined && wudWatchLabelValue !== ''
         ? wudWatchLabelValue.toLowerCase() === 'true'
         : watchByDefault;
@@ -291,7 +308,11 @@ function isContainerToWatch(wudWatchLabelValue: string, watchByDefault: boolean)
  * @param {object} parsedImage - object containing at least `domain` property
  * @returns {boolean}
  */
-function isDigestToWatch(wudWatchDigestLabelValue: string, parsedImage: any, isSemver: boolean) {
+function isDigestToWatch(
+    wudWatchDigestLabelValue: string,
+    parsedImage: any,
+    isSemver: boolean,
+) {
     const domain = parsedImage.domain;
     const isDockerHub =
         !domain ||
@@ -319,12 +340,12 @@ function isDigestToWatch(wudWatchDigestLabelValue: string, parsedImage: any, isS
     return !isDockerHub;
 }
 
-
 /**
  * Docker Watcher Component.
  */
 class Docker extends Watcher {
-    public configuration: DockerWatcherConfiguration = {} as DockerWatcherConfiguration;
+    public configuration: DockerWatcherConfiguration =
+        {} as DockerWatcherConfiguration;
     public dockerApi: Dockerode;
     public watchCron: any;
     public watchCronTimeout: any;
@@ -674,12 +695,16 @@ class Docker extends Watcher {
                 container.Labels[wudDisplayIcon],
                 container.Labels[wudTriggerInclude],
                 container.Labels[wudTriggerExclude],
-            ).catch(e => {
-                this.log.warn(`Failed to fetch image detail for container ${container.Id}: ${e.message}`);
+            ).catch((e) => {
+                this.log.warn(
+                    `Failed to fetch image detail for container ${container.Id}: ${e.message}`,
+                );
                 return e;
             }),
         );
-        const containersWithImage = (await Promise.all(containerPromises)).filter(result => !(result instanceof Error));
+        const containersWithImage = (
+            await Promise.all(containerPromises)
+        ).filter((result) => !(result instanceof Error));
 
         // Return containers to process
         const containersToReturn = containersWithImage.filter(
@@ -895,7 +920,7 @@ class Docker extends Watcher {
                 tag: tagName,
             },
             updateAvailable: false,
-            updateKind: { kind: 'unknown' }
+            updateKind: { kind: 'unknown' },
         } as Container);
     }
 

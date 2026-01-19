@@ -4,7 +4,7 @@ import child_process from 'node:child_process';
 const exec = util.promisify(child_process.exec);
 import Trigger from '../Trigger';
 
-import { flatten  } from '../../../model/container';
+import { flatten } from '../../../model/container';
 /**
  * Command Trigger implementation
  */

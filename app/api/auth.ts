@@ -9,7 +9,7 @@ import getmac from 'getmac';
 import * as store from '../store';
 import * as registry from '../registry';
 import log from '../log';
-import { getVersion  } from '../configuration';
+import { getVersion } from '../configuration';
 
 const router = express.Router();
 
@@ -184,4 +184,3 @@ export function init(app) {
 
     app.use('/auth', router);
 }
-

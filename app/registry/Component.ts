@@ -1,4 +1,3 @@
-
 import joi from 'joi';
 import log from '../log';
 import Logger from 'bunyan';
@@ -33,7 +32,12 @@ class Component {
      * @param name the name of the component
      * @param configuration the configuration of the component
      */
-    async register(kind: string, type: string, name: string, configuration: ComponentConfiguration): Promise<this> {
+    async register(
+        kind: string,
+        type: string,
+        name: string,
+        configuration: ComponentConfiguration,
+    ): Promise<this> {
         // Child log for the component
         this.log = log.child({ component: `${kind}.${type}.${name}` });
         this.kind = kind;
@@ -73,7 +77,9 @@ class Component {
      * @param configuration the configuration
      * @returns {*} or throw a validation error
      */
-    validateConfiguration(configuration: ComponentConfiguration): ComponentConfiguration {
+    validateConfiguration(
+        configuration: ComponentConfiguration,
+    ): ComponentConfiguration {
         const schema = this.getConfigurationSchema();
         const schemaValidated = schema.validate(configuration);
         if (schemaValidated.error) {
@@ -102,7 +108,9 @@ class Component {
      * Sanitize sensitive data
      * @returns {*}
      */
-    maskConfiguration(configuration?: ComponentConfiguration): ComponentConfiguration {
+    maskConfiguration(
+        configuration?: ComponentConfiguration,
+    ): ComponentConfiguration {
         return configuration || this.configuration;
     }
 
@@ -121,7 +129,11 @@ class Component {
      * @param char the replacement char
      * @returns {string|undefined} the masked string
      */
-    static mask(value: string | undefined, nb = 1, char = '*'): string | undefined {
+    static mask(
+        value: string | undefined,
+        nb = 1,
+        char = '*',
+    ): string | undefined {
         if (!value) {
             return undefined;
         }

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { Issuer  } from 'openid-client';
+import { Issuer } from 'openid-client';
 import OidcStrategy from './OidcStrategy';
 import log from '../../../log';
 

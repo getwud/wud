@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { ValidationError  } from 'joi';
+import { ValidationError } from 'joi';
 import Docker from './Docker';
 import log from '../../../log';
 

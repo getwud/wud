@@ -37,7 +37,7 @@ describe('Main Application', () => {
         const registry = await import('./registry');
         const api = await import('./api');
         const prometheus = await import('./prometheus');
-        const { getVersion  } = await import('./configuration');
+        const { getVersion } = await import('./configuration');
 
         // Import and run the main module
         await import('./index');

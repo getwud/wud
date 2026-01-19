@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { collectDefaultMetrics, register  } from 'prom-client';
+import { collectDefaultMetrics, register } from 'prom-client';
 
 import logger from '../log';
 const log = logger.child({ component: 'prometheus' });

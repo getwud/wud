@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { Gauge, register  } from 'prom-client';
+import { Gauge, register } from 'prom-client';
 
 let watchContainerGauge;
 

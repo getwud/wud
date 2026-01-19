@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { WebClient  } from '@slack/web-api';
+import { WebClient } from '@slack/web-api';
 import Trigger from '../Trigger';
 
 /*

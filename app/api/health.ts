@@ -18,4 +18,3 @@ export function init() {
     router.get('/', healthcheck());
     return router;
 }
-

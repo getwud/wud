@@ -1,4 +1,3 @@
-
 import Component from '../registry/Component';
 import { Container } from '../model/container';
 

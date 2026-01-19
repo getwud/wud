@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { ValidationError  } from 'joi';
+import { ValidationError } from 'joi';
 import axios from 'axios';
 import Ntfy from './Ntfy';
 

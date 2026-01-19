@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { Summary, register  } from 'prom-client';
+import { Summary, register } from 'prom-client';
 
 let summaryGetTags;
 

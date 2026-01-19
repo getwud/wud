@@ -11,7 +11,7 @@ import * as apiRouter from './api';
 import * as uiRouter from './ui';
 import * as prometheusRouter from './prometheus';
 import * as healthRouter from './health';
-import { getServerConfiguration  } from '../configuration';
+import { getServerConfiguration } from '../configuration';
 
 const configuration = getServerConfiguration();
 

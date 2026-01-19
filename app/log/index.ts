@@ -1,6 +1,6 @@
 // @ts-nocheck
 import bunyan from 'bunyan';
-import { getLogLevel  } from '../configuration';
+import { getLogLevel } from '../configuration';
 
 // Init Bunyan logger
 const logger = bunyan.createLogger({

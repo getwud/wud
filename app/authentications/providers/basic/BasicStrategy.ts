@@ -22,6 +22,6 @@ class BasicStrategy extends HttpBasicStrategy {
     _challenge() {
         return 401;
     }
-};
+}
 
 export default BasicStrategy;

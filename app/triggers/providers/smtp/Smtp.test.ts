@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { ValidationError  } from 'joi';
+import { ValidationError } from 'joi';
 import Smtp from './Smtp';
 import log from '../../../log';
 

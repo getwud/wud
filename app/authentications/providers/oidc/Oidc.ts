@@ -1,9 +1,9 @@
 // @ts-nocheck
-import { Issuer, generators, custom  } from 'openid-client';
+import { Issuer, generators, custom } from 'openid-client';
 import { v4 as uuid } from 'uuid';
 import Authentication from '../Authentication';
 import OidcStrategy from './OidcStrategy';
-import { getPublicUrl  } from '../../../configuration';
+import { getPublicUrl } from '../../../configuration';
 
 /**
  * Htpasswd authentication.

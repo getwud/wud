@@ -1,4 +1,3 @@
-
 import axios, { AxiosRequestConfig, Method, AxiosResponse } from 'axios';
 import log from '../log';
 import Component from '../registry/Component';
@@ -79,7 +78,10 @@ class Registry extends Component {
      * @param requestOptions
      * @returns {*}
      */
-    async authenticate(_image: ContainerImage, requestOptions: AxiosRequestConfig): Promise<AxiosRequestConfig> {
+    async authenticate(
+        _image: ContainerImage,
+        requestOptions: AxiosRequestConfig,
+    ): Promise<AxiosRequestConfig> {
         return requestOptions;
     }
 
@@ -120,7 +122,11 @@ class Registry extends Component {
      * @param lastItem
      * @returns {Promise<*>}
      */
-    getTagsPage(image: ContainerImage, lastItem: string | undefined = undefined, _link: string | undefined = undefined) {
+    getTagsPage(
+        image: ContainerImage,
+        lastItem: string | undefined = undefined,
+        _link: string | undefined = undefined,
+    ) {
         // Default items per page (not honoured by all registries)
         const itemsPerPage = 1000;
         const last = lastItem ? `&last=${lastItem}` : '';
@@ -137,20 +143,24 @@ class Registry extends Component {
      * @param digest (optional)
      * @returns {Promise<undefined|*>}
      */
-    async getImageManifestDigest(image: ContainerImage, digest?: string): Promise<RegistryManifest> {
+    async getImageManifestDigest(
+        image: ContainerImage,
+        digest?: string,
+    ): Promise<RegistryManifest> {
         const tagOrDigest = digest || image.tag.value;
         let manifestDigestFound;
         let manifestMediaType;
         this.log.debug(
             `${this.getId()} - Get ${image.name}:${tagOrDigest} manifest`,
         );
-        const responseManifests = await this.callRegistry<RegistryManifestResponse>({
-            image,
-            url: `${image.registry.url}/${image.name}/manifests/${tagOrDigest}`,
-            headers: {
-                Accept: 'application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json',
-            },
-        });
+        const responseManifests =
+            await this.callRegistry<RegistryManifestResponse>({
+                image,
+                url: `${image.registry.url}/${image.name}/manifests/${tagOrDigest}`,
+                headers: {
+                    Accept: 'application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json',
+                },
+            });
         if (responseManifests) {
             log.debug(`Found manifests [${JSON.stringify(responseManifests)}]`);
             if (responseManifests.schemaVersion === 2) {
@@ -239,15 +249,16 @@ class Registry extends Component {
                 log.debug(
                     'Calling registry to get docker-content-digest header',
                 );
-                const responseManifest = await this.callRegistry<RegistryManifestResponse>({
-                    image,
-                    method: 'head',
-                    url: `${image.registry.url}/${image.name}/manifests/${manifestDigestFound}`,
-                    headers: {
-                        Accept: manifestMediaType,
-                    },
-                    resolveWithFullResponse: true,
-                });
+                const responseManifest =
+                    await this.callRegistry<RegistryManifestResponse>({
+                        image,
+                        method: 'head',
+                        url: `${image.registry.url}/${image.name}/manifests/${manifestDigestFound}`,
+                        headers: {
+                            Accept: manifestMediaType,
+                        },
+                        resolveWithFullResponse: true,
+                    });
                 const manifestFound = {
                     digest: responseManifest.headers['docker-content-digest'],
                     version: 2,
@@ -326,7 +337,9 @@ class Registry extends Component {
         );
 
         try {
-            const response = await axios(axiosOptionsWithAuth) as AxiosResponse<T>;
+            const response = (await axios(
+                axiosOptionsWithAuth,
+            )) as AxiosResponse<T>;
             const end = new Date().getTime();
             getSummaryTags().observe(
                 { type: this.type, name: this.name },
@@ -361,7 +374,7 @@ class Registry extends Component {
      * @returns {}
      */
 
-    getAuthPull(): { username?: string, password?: string } | undefined {
+    getAuthPull(): { username?: string; password?: string } | undefined {
         return undefined;
     }
 }

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { Counter, register  } from 'prom-client';
+import { Counter, register } from 'prom-client';
 
 let triggerCounter;
 

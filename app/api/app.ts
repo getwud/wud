@@ -26,4 +26,3 @@ export function init() {
     router.get('/', getAppInfos);
     return router;
 }
-

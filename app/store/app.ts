@@ -6,7 +6,7 @@ import logger from '../log';
 const log = logger.child({ component: 'store' });
 import * as migrate from './migrate';
 const { migrate: migrateData } = migrate;
-import { getVersion  } from '../configuration';
+import { getVersion } from '../configuration';
 
 let app;
 

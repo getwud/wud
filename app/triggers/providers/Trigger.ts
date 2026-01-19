@@ -1,4 +1,3 @@
-
 import Component, { ComponentConfiguration } from '../../registry/Component';
 import * as event from '../../event';
 import { getTriggerCounter } from '../../prometheus/trigger';
@@ -119,7 +118,9 @@ class Trigger extends Component {
      * @param {*} includeOrExcludeTriggerString
      * @returns
      */
-    static parseIncludeOrIncludeTriggerString(includeOrExcludeTriggerString: string) {
+    static parseIncludeOrIncludeTriggerString(
+        includeOrExcludeTriggerString: string,
+    ) {
         const includeOrExcludeTriggerSplit =
             includeOrExcludeTriggerString.split(/\s*:\s*/);
         const includeOrExcludeTrigger = {
@@ -252,7 +253,10 @@ class Trigger extends Component {
         );
     }
 
-    isTriggerIncluded(containerResult: Container, triggerInclude: string | undefined) {
+    isTriggerIncluded(
+        containerResult: Container,
+        triggerInclude: string | undefined,
+    ) {
         if (!triggerInclude) {
             return true;
         }
@@ -262,7 +266,10 @@ class Trigger extends Component {
         );
     }
 
-    isTriggerExcluded(containerResult: Container, triggerExclude: string | undefined) {
+    isTriggerExcluded(
+        containerResult: Container,
+        triggerExclude: string | undefined,
+    ) {
         if (!triggerExclude) {
             return false;
         }
@@ -292,12 +299,18 @@ class Trigger extends Component {
         await this.initTrigger();
         if (this.configuration.auto) {
             this.log.info(`Registering for auto execution`);
-            if (this.configuration.mode && this.configuration.mode.toLowerCase() === 'simple') {
+            if (
+                this.configuration.mode &&
+                this.configuration.mode.toLowerCase() === 'simple'
+            ) {
                 event.registerContainerReport(async (containerReport) =>
                     this.handleContainerReport(containerReport),
                 );
             }
-            if (this.configuration.mode && this.configuration.mode.toLowerCase() === 'batch') {
+            if (
+                this.configuration.mode &&
+                this.configuration.mode.toLowerCase() === 'batch'
+            ) {
                 event.registerContainerReports(async (containersReports) =>
                     this.handleContainerReports(containersReports),
                 );
@@ -312,14 +325,23 @@ class Trigger extends Component {
      * @param configuration
      * @returns {*}
      */
-    validateConfiguration(configuration: TriggerConfiguration): TriggerConfiguration {
+    validateConfiguration(
+        configuration: TriggerConfiguration,
+    ): TriggerConfiguration {
         const schema = this.getConfigurationSchema();
         const schemaWithDefaultOptions = schema.append({
             auto: this.joi.bool().default(true),
             threshold: this.joi
                 .string()
                 .insensitive()
-                .valid('all', 'major', 'minor', 'patch', 'major-only', 'minor-only')
+                .valid(
+                    'all',
+                    'major',
+                    'minor',
+                    'patch',
+                    'major-only',
+                    'minor-only',
+                )
                 .default('all'),
             mode: this.joi
                 .string()

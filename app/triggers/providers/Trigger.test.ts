@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { ValidationError  } from 'joi';
+import { ValidationError } from 'joi';
 import * as event from '../../event';
 import log from '../../log';
 import Trigger from './Trigger';

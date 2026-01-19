@@ -3,10 +3,11 @@ import fs from 'fs/promises';
 import mqtt from 'mqtt';
 import Trigger from '../Trigger';
 import Hass from './Hass';
-import { registerContainerAdded,
+import {
+    registerContainerAdded,
     registerContainerUpdated,
- } from '../../../event';
-import { flatten  } from '../../../model/container';
+} from '../../../event';
+import { flatten } from '../../../model/container';
 
 const containerDefaultTopic = 'wud/container';
 const hassDefaultPrefix = 'homeassistant';

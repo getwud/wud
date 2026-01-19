@@ -2,15 +2,16 @@
 /**
  * Container store.
  */
-import { byString, byValues  } from 'sort-es';
+import { byString, byValues } from 'sort-es';
 import logger from '../log';
 const log = logger.child({ component: 'store' });
 import * as container from '../model/container';
 const { validate: validateContainer } = container;
-import { emitContainerAdded,
+import {
+    emitContainerAdded,
     emitContainerUpdated,
     emitContainerRemoved,
- } from '../event';
+} from '../event';
 
 let containers;
 

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { Strategy  } from 'openid-client';
+import { Strategy } from 'openid-client';
 
 class OidcStrategy extends Strategy {
     /**
@@ -47,6 +47,6 @@ class OidcStrategy extends Strategy {
             }
         }
     }
-};
+}
 
 export default OidcStrategy;

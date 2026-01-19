@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { ValidationError  } from 'joi';
-import { WebClient  } from '@slack/web-api';
+import { ValidationError } from 'joi';
+import { WebClient } from '@slack/web-api';
 
 jest.mock('@slack/web-api');
 import Slack from './Slack';

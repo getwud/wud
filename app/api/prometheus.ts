@@ -2,7 +2,7 @@
 import express from 'express';
 import passport from 'passport';
 import nocache from 'nocache';
-import { output  } from '../prometheus';
+import { output } from '../prometheus';
 import * as auth from './auth';
 
 /**
@@ -35,4 +35,3 @@ export function init() {
     router.get('/', outputMetrics);
     return router;
 }
-

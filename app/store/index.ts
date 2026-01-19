@@ -4,7 +4,7 @@ import Loki from 'lokijs';
 import fs from 'fs';
 import logger from '../log';
 const log = logger.child({ component: 'store' });
-import { getStoreConfiguration  } from '../configuration';
+import { getStoreConfiguration } from '../configuration';
 
 import * as app from './app';
 import * as container from './container';

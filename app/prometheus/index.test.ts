@@ -39,7 +39,7 @@ describe('Prometheus Module', () => {
     });
 
     test('should initialize all prometheus components', async () => {
-        const { collectDefaultMetrics  } = await import('prom-client');
+        const { collectDefaultMetrics } = await import('prom-client');
         const container = await import('./container');
         const trigger = await import('./trigger');
         const watcher = await import('./watcher');
@@ -55,7 +55,7 @@ describe('Prometheus Module', () => {
     });
 
     test('should return metrics output', async () => {
-        const { register  } = await import('prom-client');
+        const { register } = await import('prom-client');
 
         const output = await prometheus.output();
 

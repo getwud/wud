@@ -1,8 +1,8 @@
 // @ts-nocheck
-import { Gauge, register  } from 'prom-client';
+import { Gauge, register } from 'prom-client';
 import * as storeContainer from '../store/container';
 import log from '../log';
-import { flatten  } from '../model/container';
+import { flatten } from '../model/container';
 
 let gaugeContainer;
 

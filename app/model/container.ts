@@ -148,25 +148,24 @@ function getLink(container: Container, originalTagValue: string) {
     const raw = originalTagValue; // deprecated, kept for backward compatibility
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const original = originalTagValue;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const transformed = container.transformTags
         ? transformTag(container.transformTags, originalTagValue)
         : originalTagValue;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let major = '';
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let minor = '';
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let patch = '';
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let prerelease = '';
 
     if (container.image.tag.semver) {
         const versionSemver = parseSemver(transformed);
         if (versionSemver) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             major = String(versionSemver.major);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             minor = String(versionSemver.minor);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             patch = String(versionSemver.patch);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             prerelease =
                 versionSemver.prerelease && versionSemver.prerelease.length > 0
                     ? String(versionSemver.prerelease[0])
@@ -286,7 +285,8 @@ function addUpdateKindProperty(container: Container) {
             ) {
                 if (container.image.tag.value !== container.result.tag) {
                     updateKind.kind = 'tag';
-                    let semverDiffWud: ContainerUpdateKind['semverDiff'] = 'unknown';
+                    let semverDiffWud: ContainerUpdateKind['semverDiff'] =
+                        'unknown';
                     const isSemver = container.image.tag.semver;
                     if (isSemver) {
                         const semverDiff = diffSemver(
@@ -341,7 +341,10 @@ function addUpdateKindProperty(container: Container) {
  * @param otherContainer
  * @returns {boolean}
  */
-function resultChangedFunction(this: Container, otherContainer: Container | undefined) {
+function resultChangedFunction(
+    this: Container,
+    otherContainer: Container | undefined,
+) {
     return (
         otherContainer === undefined ||
         this.result?.tag !== otherContainer.result?.tag ||

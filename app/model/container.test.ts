@@ -351,9 +351,7 @@ test('getLink should render undefined when template is missing', async () => {
 });
 
 test('addUpdateKindProperty should detect major update', async () => {
-    const {
-        testable_addUpdateKindProperty: addUpdateKindProperty,
-    } = container;
+    const { testable_addUpdateKindProperty: addUpdateKindProperty } = container;
     const containerObject = {
         updateAvailable: true,
         image: {
@@ -376,9 +374,7 @@ test('addUpdateKindProperty should detect major update', async () => {
 });
 
 test('addUpdateKindProperty should detect minor update', async () => {
-    const {
-        testable_addUpdateKindProperty: addUpdateKindProperty,
-    } = container;
+    const { testable_addUpdateKindProperty: addUpdateKindProperty } = container;
     const containerObject = {
         updateAvailable: true,
         image: {
@@ -401,9 +397,7 @@ test('addUpdateKindProperty should detect minor update', async () => {
 });
 
 test('addUpdateKindProperty should detect patch update', async () => {
-    const {
-        testable_addUpdateKindProperty: addUpdateKindProperty,
-    } = container;
+    const { testable_addUpdateKindProperty: addUpdateKindProperty } = container;
     const containerObject = {
         updateAvailable: true,
         image: {
@@ -426,9 +420,7 @@ test('addUpdateKindProperty should detect patch update', async () => {
 });
 
 test('addUpdateKindProperty should support transforms', async () => {
-    const {
-        testable_addUpdateKindProperty: addUpdateKindProperty,
-    } = container;
+    const { testable_addUpdateKindProperty: addUpdateKindProperty } = container;
     const containerObject = {
         transformTags: '^(\\d+\\.\\d+)-.*-(\\d+) => $1.$2',
         updateAvailable: true,
@@ -452,9 +444,7 @@ test('addUpdateKindProperty should support transforms', async () => {
 });
 
 test('addUpdateKindProperty should detect prerelease semver update', async () => {
-    const {
-        testable_addUpdateKindProperty: addUpdateKindProperty,
-    } = container;
+    const { testable_addUpdateKindProperty: addUpdateKindProperty } = container;
     const containerObject = {
         updateAvailable: true,
         image: {
@@ -477,9 +467,7 @@ test('addUpdateKindProperty should detect prerelease semver update', async () =>
 });
 
 test('addUpdateKindProperty should detect digest update', async () => {
-    const {
-        testable_addUpdateKindProperty: addUpdateKindProperty,
-    } = container;
+    const { testable_addUpdateKindProperty: addUpdateKindProperty } = container;
     const containerObject = {
         updateAvailable: true,
         image: {
@@ -505,9 +493,7 @@ test('addUpdateKindProperty should detect digest update', async () => {
 });
 
 test('addUpdateKindProperty should return unknown when no image or result', async () => {
-    const {
-        testable_addUpdateKindProperty: addUpdateKindProperty,
-    } = container;
+    const { testable_addUpdateKindProperty: addUpdateKindProperty } = container;
     const containerObject = {};
     addUpdateKindProperty(containerObject);
     expect(containerObject.updateKind).toEqual({
@@ -516,9 +502,7 @@ test('addUpdateKindProperty should return unknown when no image or result', asyn
 });
 
 test('addUpdateKindProperty should return unknown when no update available', async () => {
-    const {
-        testable_addUpdateKindProperty: addUpdateKindProperty,
-    } = container;
+    const { testable_addUpdateKindProperty: addUpdateKindProperty } = container;
     const containerObject = {
         image: 'image',
         result: {},
