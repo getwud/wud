@@ -19,14 +19,23 @@ RUN mkdir /store
 # Add useful stuff
 RUN apk add --no-cache tzdata openssl curl git jq bash
 
-# Dependencies stage
-FROM base AS dependencies
+# Dependencies stage (Build)
+FROM base AS build
 
 # Copy app package.json
 COPY app/package* ./
 
-# Install dependencies
-RUN npm ci --omit=dev --omit=optional --no-audit --no-fund --no-update-notifier
+# Install dependencies (including dev)
+RUN npm ci --include=dev --omit=optional --no-audit --no-fund --no-update-notifier
+
+# Copy app source
+COPY app/ ./
+
+# Build
+RUN npm run build
+
+# Remove dev dependencies
+RUN npm prune --omit=dev
 
 # Release stage
 FROM base AS release
@@ -35,13 +44,14 @@ FROM base AS release
 COPY Docker.entrypoint.sh /usr/bin/entrypoint.sh
 RUN chmod +x /usr/bin/entrypoint.sh
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
-CMD ["node", "index"]
+CMD ["node", "dist/index"]
 
 ## Copy node_modules
-COPY --from=dependencies /home/node/app/node_modules ./node_modules
+COPY --from=build /home/node/app/node_modules ./node_modules
 
-# Copy app
-COPY app/ ./
+# Copy app (dist)
+COPY --from=build /home/node/app/dist ./dist
+COPY --from=build /home/node/app/package.json ./package.json
 
 # Copy ui
 COPY ui/dist/ ./ui

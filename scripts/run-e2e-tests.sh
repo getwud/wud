@@ -2,19 +2,21 @@
 
 set -e
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
 echo "🧪 Running complete e2e test suite..."
 
 # Cleanup any existing containers
-./scripts/cleanup-test-containers.sh
+"$SCRIPT_DIR/cleanup-test-containers.sh"
 
 # Setup test containers
-./scripts/setup-test-containers.sh
+"$SCRIPT_DIR/setup-test-containers.sh"
 
 # Start WUD
-./scripts/start-wud.sh
+"$SCRIPT_DIR/start-wud.sh"
 
 # Run e2e tests
 echo "🏃 Running cucumber tests..."
-(cd e2e && npm run cucumber)
+(cd "$SCRIPT_DIR/../e2e" && npm run cucumber)
 
 echo "✅ E2E tests completed!"

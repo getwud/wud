@@ -25,6 +25,8 @@ docker tag nginx:1.10-alpine wudtest.azurecr.io/test:1.0.0
 docker tag nginx:1.10-alpine wudtest.azurecr.io/sub/test:1.0.0
 docker tag nginx:1.10-alpine wudtest.azurecr.io/sub/sub/test:1.0.0
 
-docker-compose down --remove-orphans
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-docker-compose up -d
+docker-compose -f "$SCRIPT_DIR/docker-compose.yml" down --remove-orphans
+
+docker-compose -f "$SCRIPT_DIR/docker-compose.yml" up -d
