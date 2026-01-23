@@ -39,6 +39,39 @@ test('validateConfiguration should return validated configuration when valid', (
 });
 
 test.each([
+    { fromValue: 'This is a display name <from@xx.com>', expectedResult: '"This is a display name" <from@xx.com>' },
+    { fromValue: '"This is a display name" <from@xx.com>', expectedResult: '"This is a display name" <from@xx.com>' },
+    { fromValue: '"This is a display name <from@xx.com>', expectedResult: '"This is a display name" <from@xx.com>' },
+    { fromValue: 'This is a display name" <from@xx.com>', expectedResult: '"This is a display name" <from@xx.com>' },
+    { fromValue: 'This is a display name from@xx.com>', expectedResult: null },
+    { fromValue: 'This is a display name <from@xx.com', expectedResult: '"This is a display name" <from@xx.com>' },
+    { fromValue: 'from@xx.com', expectedResult: 'from@xx.com' },
+    { fromValue: 'This is a display name <from@@xx.com>', expectedResult: null },
+    { fromValue: 'This is a display name from@@xx.com', expectedResult: null },
+    { fromValue: 'from@@xx.com', expectedResult: null },
+])(
+    'trigger final from value sould be \'$expectedResult\' when from configuration value is \'$fromValue\'',
+    async ({ fromValue, expectedResult }) => {
+        const config = {
+            ...configurationValid,
+            from: fromValue
+        };
+
+        if (expectedResult) {
+			let validatedConfiguration;
+            expect(() => {
+                validatedConfiguration = smtp.validateConfiguration(config);
+            }).not.toThrow(ValidationError);
+			expect(validatedConfiguration.from).toStrictEqual(expectedResult);
+        } else {
+            expect(() => {
+                smtp.validateConfiguration(config);
+            }).toThrow(ValidationError);
+        }
+    },
+);
+
+test.each([
     { allowCustomTld: true, field: 'from' },
     { allowCustomTld: false, field: 'from' },
     { allowCustomTld: true, field: 'to' },
