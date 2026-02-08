@@ -52,7 +52,7 @@ class Gcr extends BaseRegistry {
         return requestOptionsWithAuth;
     }
 
-    getAuthPull() {
+    async getAuthPull() {
         return {
             username: this.configuration.clientemail,
             password: this.configuration.privatekey,

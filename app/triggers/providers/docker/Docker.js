@@ -404,7 +404,7 @@ class Docker extends Trigger {
         logContainer.debug(
             `Get ${container.image.registry.name} registry credentials`,
         );
-        const auth = registry.getAuthPull();
+        const auth = await registry.getAuthPull();
 
         // Rebuild image definition string
         const newImage = this.getNewImageFullName(registry, container);

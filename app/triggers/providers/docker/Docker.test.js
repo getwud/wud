@@ -99,7 +99,7 @@ jest.mock('../../../registry', () => ({
             },
             registry: {
                 hub: {
-                    getAuthPull: () => undefined,
+                    getAuthPull: async () => undefined,
                     getImageFullName: (image, tagOrDigest) =>
                         `${image.registry.url}/${image.name}:${tagOrDigest}`,
                 },

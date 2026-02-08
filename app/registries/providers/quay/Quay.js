@@ -106,7 +106,7 @@ class Quay extends Registry {
      * Return username / password for Docker(+compose) triggers usage
      * @return {{password: string, username: string}|undefined}
      */
-    getAuthPull() {
+    async getAuthPull() {
         if (this.configuration.namespace && this.configuration.account) {
             return {
                 username: `${this.configuration.namespace}+${this.configuration.account}`,
