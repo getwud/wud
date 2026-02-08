@@ -297,7 +297,7 @@ class Dockercompose extends Docker {
      */
     async getComposeFileAsObject(file = null) {
         try {
-            return yaml.parse((await this.getComposeFile(file)).toString());
+            return yaml.parse((await this.getComposeFile(file)).toString(), {maxAliasCount: 10000});
         } catch (e) {
             const filePath = file || this.configuration.file;
             this.log.error(
