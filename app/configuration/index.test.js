@@ -103,3 +103,17 @@ test('replaceSecrets must read secret in file', () => {
         WUD_SERVER_X: 'super_secret',
     });
 });
+
+test('getPrometheusConfiguration should result in enabled by default', () => {
+    delete configuration.wudEnvVars.WUD_PROMETHEUS_ENABLED;
+    expect(configuration.getPrometheusConfiguration()).toStrictEqual({
+        enabled: true,
+    });
+});
+
+test('getPrometheusConfiguration should be disabled when overridden', () => {
+    configuration.wudEnvVars.WUD_PROMETHEUS_ENABLED = 'false';
+    expect(configuration.getPrometheusConfiguration()).toStrictEqual({
+        enabled: false,
+    });
+});

@@ -150,6 +150,25 @@ function getServerConfiguration() {
     return configurationToValidate.value;
 }
 
+/**
+ * Get Prometheus configurations.
+ */
+function getPrometheusConfiguration() {
+    const configurationFromEnv = get('wud.prometheus', wudEnvVars);
+    const configurationSchema = joi.object().keys({
+        enabled: joi.boolean().default(true),
+    });
+
+    // Validate Configuration
+    const configurationToValidate = configurationSchema.validate(
+        configurationFromEnv || {},
+    );
+    if (configurationToValidate.error) {
+        throw configurationToValidate.error;
+    }
+    return configurationToValidate.value;
+}
+
 function getPublicUrl(req) {
     const publicUrl = wudEnvVars.WUD_PUBLIC_URL;
     if (publicUrl) {
@@ -171,5 +190,6 @@ module.exports = {
     getRegistryConfigurations,
     getAuthenticationConfigurations,
     getServerConfiguration,
+    getPrometheusConfiguration,
     getPublicUrl,
 };
