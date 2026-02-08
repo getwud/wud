@@ -1,10 +1,20 @@
 # Changelog
 
 ## dev
+- :star: Add TrueForge Container Registry support (oci.trueforge.org)
+- :star: Add Codeberge registry
+- :star: Allow disabling Prometheus metrics
+- :star: Enable digest watching by default (except for Docker hub images)
+- :star: Ensure tag candidates keep same number of semver parts
+- :star: Ensure tag candidates keep same prefix
+- :star: Add `wud.compose.file` supported label
+- :star: Add Rocket.chat trigger
 - :lock: [UI] - Migrate to Vue 3
 - :lock: [UI] - Migrate to Vuetify 3
 - :lock: Upgrade to node.js 24
-- :star: Add TrueForge Container Registry support (oci.trueforge.org)
+- :lock: Switch to Alpine docker image
+- :fire: Fix docker-compose yaml when many aliases
+- :fire: Ignore `sig` tags
 
 ## 8.1.1
 - :fire: [TELEGRAM] - Fix markdown character escape
