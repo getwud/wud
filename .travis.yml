@@ -142,6 +142,8 @@ script:
   # Give wud a little time to fetch all available updates
   - sleep 20
 
+  - docker logs wud
+  
   # Run E2E Tests
   - (cd e2e && npm run cucumber)
 
