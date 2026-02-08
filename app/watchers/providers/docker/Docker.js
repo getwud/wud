@@ -124,7 +124,7 @@ function getTagCandidates(container, tags, logContainer) {
         );
 
         // Remove prefix and suffix (keep only digits and dots)
-        const numericPart = container.image.tag.value.match(/(\d+(\.\d+)*)/);
+            const numericPart = container.image.tag.value.match(/(\d+(\.\d+)*)/);
 
         if (numericPart) {
             const referenceGroups = numericPart[0].split('.').length;
@@ -162,7 +162,7 @@ function getTagCandidates(container, tags, logContainer) {
         // Non semver tag -> do not propose any other registry tag
         filteredTags = [];
     }
-    return filteredTags;
+        return filteredTags;
 }
 
 function normalizeContainer(container) {
@@ -824,13 +824,23 @@ class Docker extends Component {
             // Get the first repo tag (better than nothing ;)
             [imageNameToParse] = image.RepoTags;
         }
-        const parsedImage = parse(imageNameToParse);
-        const tagName = parsedImage.tag || 'latest';
+        let parsedImage = parse(imageNameToParse);
+        const tagName =
+            parsedImage && parsedImage.tag ? parsedImage.tag : 'latest';
+
+        if (!parsedImage) {
+            parsedImage = {
+                domain: '',
+                path: imageNameToParse,
+                tag: tagName,
+            };
+        }
+
         const parsedTag = parseSemver(transformTag(transformTags, tagName));
         const isSemver = parsedTag !== null && parsedTag !== undefined;
         const watchDigest = isDigestToWatch(
             container.Labels[wudWatchDigest],
-            parsedImage.domain,
+            parsedImage,
         );
         if (!isSemver && !watchDigest) {
             this.ensureLogger();
