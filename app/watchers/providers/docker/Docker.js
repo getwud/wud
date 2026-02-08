@@ -124,7 +124,7 @@ function getTagCandidates(container, tags, logContainer) {
         );
 
         // Remove prefix and suffix (keep only digits and dots)
-        const numericPart = container.image.tag.semver.match(/(\d+(\.\d+)*)/);
+        const numericPart = container.image.tag.value.match(/(\d+(\.\d+)*)/);
 
         if (numericPart) {
             const referenceGroups = numericPart[0].split('.').length;
@@ -162,9 +162,7 @@ function getTagCandidates(container, tags, logContainer) {
         // Non semver tag -> do not propose any other registry tag
         filteredTags = [];
     }
-    throw new Error(
-        `Tag is Neither Semver or not-Semver ${container.image.tag.value}`,
-    );
+    return filteredTags;
 }
 
 function normalizeContainer(container) {
