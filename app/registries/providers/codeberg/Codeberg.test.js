@@ -3,7 +3,7 @@ const Codeberg = require('./CodebergCodeberg');
 const codeberg = new Codeberg();
 
 codeberg.configuration = {
-    public: ''
+    public: '',
 };
 
 test('normalizeImage should return the proper registry v2 endpoint', () => {

@@ -41,7 +41,9 @@ jest.mock('../log', () => ({
 describe('Prometheus Module', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        configuration.getPrometheusConfiguration.mockReturnValue({ enabled: true });
+        configuration.getPrometheusConfiguration.mockReturnValue({
+            enabled: true,
+        });
     });
 
     test('should initialize all prometheus components when enabled', () => {
@@ -61,7 +63,9 @@ describe('Prometheus Module', () => {
     });
 
     test('should NOT initialize metrics when disabled', () => {
-        configuration.getPrometheusConfiguration.mockReturnValue({ enabled: false });
+        configuration.getPrometheusConfiguration.mockReturnValue({
+            enabled: false,
+        });
         const { collectDefaultMetrics } = require('prom-client');
         const container = require('./container');
         const trigger = require('./trigger');

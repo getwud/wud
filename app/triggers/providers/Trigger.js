@@ -290,7 +290,14 @@ class Trigger extends Component {
             threshold: this.joi
                 .string()
                 .insensitive()
-                .valid('all', 'major', 'minor', 'patch', 'major-only', 'minor-only')
+                .valid(
+                    'all',
+                    'major',
+                    'minor',
+                    'patch',
+                    'major-only',
+                    'minor-only',
+                )
                 .default('all'),
             mode: this.joi
                 .string()

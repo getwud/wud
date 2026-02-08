@@ -61,7 +61,7 @@ function getTagCandidates(container, tags, logContainer) {
         filteredTags = filteredTags.filter((tag) => includeTagsRegex.test(tag));
     } else {
         // If no includeTags, filter out tags starting with "sha"
-        filteredTags = filteredTags.filter(tag => !tag.startsWith('sha'));
+        filteredTags = filteredTags.filter((tag) => !tag.startsWith('sha'));
     }
 
     // Match exclude tag regex
@@ -73,8 +73,8 @@ function getTagCandidates(container, tags, logContainer) {
     }
 
     // Always filter out tags ending with ".sig"
-    filteredTags = filteredTags.filter(tag => !tag.endsWith('.sig'));
-    
+    filteredTags = filteredTags.filter((tag) => !tag.endsWith('.sig'));
+
     // Semver image -> find higher semver tag
     if (container.image.tag.semver) {
         if (filteredTags.length === 0) {
@@ -89,24 +89,28 @@ function getTagCandidates(container, tags, logContainer) {
             const currentTag = container.image.tag.value;
             const match = currentTag.match(/^(.*?)(\d+.*)$/);
             const currentPrefix = match ? match[1] : '';
-        
+
             if (currentPrefix) {
                 // Retain only tags with the same non-empty prefix
-                filteredTags = filteredTags.filter(tag => tag.startsWith(currentPrefix));
+                filteredTags = filteredTags.filter((tag) =>
+                    tag.startsWith(currentPrefix),
+                );
             } else {
                 // Retain only tags that start with a number (no prefix)
-                filteredTags = filteredTags.filter(tag => /^\d/.test(tag));
+                filteredTags = filteredTags.filter((tag) => /^\d/.test(tag));
             }
-        
+
             // Ensure we throw good errors when we've prefix-related issues
             if (filteredTags.length === 0) {
                 if (currentPrefix) {
                     logContainer.warn(
-                        "No tags found with existing prefix: '" + currentPrefix + "'; check your regex filters",
+                        "No tags found with existing prefix: '" +
+                            currentPrefix +
+                            "'; check your regex filters",
                     );
                 } else {
                     logContainer.warn(
-                        "No tags found starting with a number (no prefix); check your regex filters",
+                        'No tags found starting with a number (no prefix); check your regex filters',
                     );
                 }
             }
@@ -121,18 +125,18 @@ function getTagCandidates(container, tags, logContainer) {
 
         // Remove prefix and suffix (keep only digits and dots)
         const numericPart = container.image.tag.semver.match(/(\d+(\.\d+)*)/);
-        
+
         if (numericPart) {
-          const referenceGroups = numericPart[0].split('.').length;
-        
-          filteredTags = filteredTags.filter((tag) => {
-            const tagNumericPart = tag.match(/(\d+(\.\d+)*)/);
-            if (!tagNumericPart) return false; // skip tags without numeric part
-            const tagGroups = tagNumericPart[0].split('.').length;
-        
-            // Keep only tags with the same number of numeric segments
-            return tagGroups === referenceGroups;
-          });
+            const referenceGroups = numericPart[0].split('.').length;
+
+            filteredTags = filteredTags.filter((tag) => {
+                const tagNumericPart = tag.match(/(\d+(\.\d+)*)/);
+                if (!tagNumericPart) return false; // skip tags without numeric part
+                const tagGroups = tagNumericPart[0].split('.').length;
+
+                // Keep only tags with the same number of numeric segments
+                return tagGroups === referenceGroups;
+            });
         }
 
         // Keep only greater semver
@@ -158,7 +162,9 @@ function getTagCandidates(container, tags, logContainer) {
         // Non semver tag -> do not propose any other registry tag
         filteredTags = [];
     }
-    throw new Error(`Tag is Neither Semver or not-Semver ${container.image.tag.value}`);
+    throw new Error(
+        `Tag is Neither Semver or not-Semver ${container.image.tag.value}`,
+    );
 }
 
 function normalizeContainer(container) {
@@ -274,8 +280,8 @@ function isDigestToWatch(wudWatchDigestLabelValue, parsedImage) {
     let result = true;
 
     if (
-        parsedImage.domain === "docker.io" ||
-        parsedImage.domain === "registry-1.docker.io" ||
+        parsedImage.domain === 'docker.io' ||
+        parsedImage.domain === 'registry-1.docker.io' ||
         parsedImage.domain === ''
     ) {
         result = false;
@@ -287,7 +293,6 @@ function isDigestToWatch(wudWatchDigestLabelValue, parsedImage) {
 
     return result;
 }
-
 
 /**
  * Docker Watcher Component.
@@ -649,12 +654,16 @@ class Docker extends Component {
                 container.Labels[wudDisplayIcon],
                 container.Labels[wudTriggerInclude],
                 container.Labels[wudTriggerExclude],
-            ).catch(e => {
-                this.log.warn(`Failed to fetch image detail for container ${container.Id}: ${e.message}`);
+            ).catch((e) => {
+                this.log.warn(
+                    `Failed to fetch image detail for container ${container.Id}: ${e.message}`,
+                );
                 return e;
             }),
         );
-        const containersWithImage = (await Promise.all(containerPromises)).filter(result => !(result instanceof Error));
+        const containersWithImage = (
+            await Promise.all(containerPromises)
+        ).filter((result) => !(result instanceof Error));
 
         // Return containers to process
         const containersToReturn = containersWithImage.filter(

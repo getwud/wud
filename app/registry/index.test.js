@@ -136,7 +136,9 @@ test('registerTriggers should warn when registration errors occur', async () => 
     };
     await registry.__get__('registerTriggers')();
     expect(spyLog).toHaveBeenCalledWith(
-        expect.stringContaining("Some triggers failed to register (Unknown trigger provider: 'trigger1'"),
+        expect.stringContaining(
+            "Some triggers failed to register (Unknown trigger provider: 'trigger1'",
+        ),
     );
 });
 

@@ -90,16 +90,16 @@ class Ecr extends Registry {
             },
             region: this.configuration.region,
         });
-        const authorizationToken = await ecr
-            .getAuthorizationToken()
-            .promise();
+        const authorizationToken = await ecr.getAuthorizationToken().promise();
         return authorizationToken.authorizationData[0].authorizationToken;
     }
 
     async getAuthPull() {
         if (this.configuration.accesskeyid) {
             const tokenValue = await this.fetchPrivateEcrAuthToken();
-            const auth = Buffer.from(tokenValue, 'base64').toString().split(':')
+            const auth = Buffer.from(tokenValue, 'base64')
+                .toString()
+                .split(':');
             return {
                 username: auth[0],
                 password: auth[1],

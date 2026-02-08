@@ -73,7 +73,9 @@ class Dockercompose extends Docker {
         if (container.labels && container.labels[composeFileLabel]) {
             const labelValue = container.labels[composeFileLabel];
             // Convert relative paths to absolute paths
-            return path.isAbsolute(labelValue) ? labelValue : path.resolve(labelValue);
+            return path.isAbsolute(labelValue)
+                ? labelValue
+                : path.resolve(labelValue);
         }
 
         // Fall back to default configuration file
@@ -146,7 +148,7 @@ class Dockercompose extends Docker {
      */
     async processComposeFile(composeFile, containers) {
         this.log.info(`Processing compose file: ${composeFile}`);
-        
+
         const compose = await this.getComposeFileAsObject(composeFile);
 
         // Filter containers that belong to this compose file
@@ -155,9 +157,7 @@ class Dockercompose extends Docker {
         );
 
         if (containersFiltered.length === 0) {
-            this.log.warn(
-                `No containers found in compose file ${composeFile}`,
-            );
+            this.log.warn(`No containers found in compose file ${composeFile}`);
             return;
         }
 
@@ -181,7 +181,9 @@ class Dockercompose extends Docker {
             }
 
             // Read the compose file as a string
-            let composeFileStr = (await this.getComposeFile(composeFile)).toString();
+            let composeFileStr = (
+                await this.getComposeFile(composeFile)
+            ).toString();
 
             // Replace all versions
             currentVersionToUpdateVersionArray.forEach(
@@ -297,7 +299,9 @@ class Dockercompose extends Docker {
      */
     async getComposeFileAsObject(file = null) {
         try {
-            return yaml.parse((await this.getComposeFile(file)).toString(), {maxAliasCount: 10000});
+            return yaml.parse((await this.getComposeFile(file)).toString(), {
+                maxAliasCount: 10000,
+            });
         } catch (e) {
             const filePath = file || this.configuration.file;
             this.log.error(
