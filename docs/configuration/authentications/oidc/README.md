@@ -35,9 +35,9 @@ identity_providers:
     id_token_lifespan: 1h
     refresh_token_lifespan: 90m
     clients:
-      - id: my-wud-client-id
-        description: WUD openid client
-        secret: this-is-a-very-secure-secret
+      - client_id: my-wud-client-id
+        client_name: WUD openid client
+        client_secret: this-is-a-very-secure-secret
         public: false
         authorization_policy: one_factor
         audience: []
