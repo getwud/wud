@@ -1,8 +1,15 @@
 const { ValidationError } = require('joi');
 const Smtp = require('./Smtp');
-const log = require('../../../log');
+var bunyan = require('bunyan');
+
+var loggerBuffer = new bunyan.RingBuffer({ limit: 5 });
+var log = bunyan.createLogger({
+    name: 'Smtp.Tests',
+    streams: [{ stream: loggerBuffer }]
+});
 
 const smtp = new Smtp();
+smtp.log = log;
 
 const configurationValid = {
     allowcustomtld: false,
@@ -29,8 +36,8 @@ const configurationValid = {
 };
 
 test('validateConfiguration should return validated configuration when valid', () => {
-    const validatedConfiguration =
-        smtp.validateConfiguration(configurationValid);
+    const validatedConfiguration = smtp.validateConfiguration(configurationValid);
+
     expect(validatedConfiguration).toStrictEqual({
         ...configurationValid,
         port: 465,
@@ -46,9 +53,9 @@ test('trigger from value display name is optional', () => {
             ...configurationValid,
 			from: { address: 'from@xx.com' }
 	}
-	
-    const validatedConfiguration =
-        smtp.validateConfiguration(config);
+
+    const validatedConfiguration = smtp.validateConfiguration(config);
+
     expect(validatedConfiguration).toStrictEqual({
         ...config,
         port: 465,
@@ -62,19 +69,16 @@ test('trigger from value display name is optional', () => {
 test('trigger from value provided as string address is correctly transformed to nodemailer model for backward compatibility and raise deprecation warning', () => {
 	const address = 'from@xx.com';
 	const config = {
-		allowcustomtld: false,
-		host: 'smtp.gmail.com',
-		port: '465',
-		from: address,
-		to: 'to@xx.com'
-	};
-	
-    const validatedConfiguration =
-        smtp.getConfigurationSchema().validate(config);
-	expect(validatedConfiguration.error).toBeUndefined();
-	expect(validatedConfiguration.warning.message).toStrictEqual("WUD_TRIGGER_SMTP__FROM is deprecated, use WUD_TRIGGER_SMTP__FROM_ADDRESS instead");
-    expect(validatedConfiguration.value).toStrictEqual({
-        ...config,
+            ...configurationValid,
+			from: address
+	}
+
+    let validatedConfiguration = smtp.validateConfiguration(config);
+    validatedConfiguration = smtp.validateConfiguration(config);
+
+	expect(loggerBuffer.records.find(m => m.includes(Smtp.deprecatedWarningMessage))).toBeDefined();
+    expect(validatedConfiguration).toStrictEqual({
+        ...configurationValid,
         port: 465,
 		from: { address: address },
         tls: {
@@ -133,7 +137,6 @@ test('validateConfiguration should throw error when invalid', () => {
 
 test('init should create a mailer transporter with expected configuration when called', () => {
     smtp.configuration = configurationValid;
-    smtp.log = log;
     smtp.init();
     expect(smtp.transporter.options).toEqual(
         expect.objectContaining({
