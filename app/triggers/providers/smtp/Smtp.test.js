@@ -10,7 +10,10 @@ const configurationValid = {
     port: '465',
     user: 'user',
     pass: 'pass',
-    from: 'from@xx.com',
+    from: {
+		name: 'This is a display name',
+		address: 'from@xx.com'
+	},
     to: 'to@xx.com',
     threshold: 'all',
     mode: 'simple',
@@ -38,38 +41,48 @@ test('validateConfiguration should return validated configuration when valid', (
     });
 });
 
-test.each([
-    { fromValue: 'This is a display name <from@xx.com>', expectedResult: '"This is a display name" <from@xx.com>' },
-    { fromValue: '"This is a display name" <from@xx.com>', expectedResult: '"This is a display name" <from@xx.com>' },
-    { fromValue: '"This is a display name <from@xx.com>', expectedResult: '"This is a display name" <from@xx.com>' },
-    { fromValue: 'This is a display name" <from@xx.com>', expectedResult: '"This is a display name" <from@xx.com>' },
-    { fromValue: 'This is a display name from@xx.com>', expectedResult: null },
-    { fromValue: 'This is a display name <from@xx.com', expectedResult: '"This is a display name" <from@xx.com>' },
-    { fromValue: 'from@xx.com', expectedResult: 'from@xx.com' },
-    { fromValue: 'This is a display name <from@@xx.com>', expectedResult: null },
-    { fromValue: 'This is a display name from@@xx.com', expectedResult: null },
-    { fromValue: 'from@@xx.com', expectedResult: null },
-])(
-    'trigger final from value sould be \'$expectedResult\' when from configuration value is \'$fromValue\'',
-    async ({ fromValue, expectedResult }) => {
-        const config = {
+test('trigger from value display name is optional', () => {
+	const config = {
             ...configurationValid,
-            from: fromValue
-        };
+			from: { address: 'from@xx.com' }
+	}
+	
+    const validatedConfiguration =
+        smtp.validateConfiguration(config);
+    expect(validatedConfiguration).toStrictEqual({
+        ...config,
+        port: 465,
+        tls: {
+            enabled: false,
+            verify: true,
+        },
+    });
+});
 
-        if (expectedResult) {
-			let validatedConfiguration;
-            expect(() => {
-                validatedConfiguration = smtp.validateConfiguration(config);
-            }).not.toThrow(ValidationError);
-			expect(validatedConfiguration.from).toStrictEqual(expectedResult);
-        } else {
-            expect(() => {
-                smtp.validateConfiguration(config);
-            }).toThrow(ValidationError);
-        }
-    },
-);
+test('trigger from value provided as string address is correctly transformed to nodemailer model for backward compatibility and raise deprecation warning', () => {
+	const address = 'from@xx.com';
+	const config = {
+		allowcustomtld: false,
+		host: 'smtp.gmail.com',
+		port: '465',
+		from: address,
+		to: 'to@xx.com'
+	};
+	
+    const validatedConfiguration =
+        smtp.getConfigurationSchema().validate(config);
+	expect(validatedConfiguration.error).toBeUndefined();
+	expect(validatedConfiguration.warning.message).toStrictEqual("WUD_TRIGGER_SMTP__FROM is deprecated, use WUD_TRIGGER_SMTP__FROM_ADDRESS instead");
+    expect(validatedConfiguration.value).toStrictEqual({
+        ...config,
+        port: 465,
+		from: { address: address },
+        tls: {
+            enabled: false,
+            verify: true,
+        },
+    });
+});
 
 test.each([
     { allowCustomTld: true, field: 'from' },

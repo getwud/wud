@@ -10,6 +10,35 @@ class Smtp extends Trigger {
      * @returns {*}
      */
     getConfigurationSchema() {
+		const emailAddressRule = this.joi
+	                    .string()
+						.required()
+						.when('/allowcustomtld', {
+							is: true,
+							then: this.joi.string().email({ tlds: { allow: false } }),
+							otherwise: this.joi.string().email(),
+						});
+						
+		const nodemailerAddressRule = this.joi.extend({
+			type: 'withBackwardCompatibility',
+			base: this.joi
+				.object({
+					address: emailAddressRule,
+					name: this.joi.string().optional()
+				})
+				.required(),
+			messages: {
+				'deprecated': 'WUD_TRIGGER_SMTP_{trigger_name}_FROM is deprecated, use WUD_TRIGGER_SMTP_{trigger_name}_FROM_ADDRESS instead'
+			},
+			coerce: {
+				from: 'string',
+				method(value, helpers) {
+					helpers.warn('deprecated');
+					return { value: { address: value } };
+				} 
+			}
+		}).withBackwardCompatibility();
+		
         return this.joi.object().keys({
             host: [
                 this.joi.string().hostname().required(),
@@ -19,32 +48,8 @@ class Smtp extends Trigger {
             port: this.joi.number().port().required(),
             user: this.joi.string(),
             pass: this.joi.string(),
-            from: this.joi.string().required().custom((value, helpers) => {
-					const match = /^("?(?<displayName>[^"]*)"? <)?(?<emailAddress>[^ <]+@[^ >]+)>?$/.exec(value);
-					if (!match) {
-						return helpers.error('string.email');
-					}
-
-					const emailAddress = match.groups.emailAddress;
-					const emailValidationResult = this.joi
-													.string()
-													.email({ tlds: { allow: !helpers.state.ancestors[0].allowcustomtld } })
-													.validate(emailAddress);
-					if (emailValidationResult.error) {
-						return helpers.error('string.email');
-					}
-					
-					const displayName = match.groups.displayName;
-					return displayName ? `"${displayName}" <${emailAddress}>` : emailAddress;
-				}),
-            to: this.joi
-                .string()
-                .required()
-                .when('allowcustomtld', {
-                    is: true,
-                    then: this.joi.string().email({ tlds: { allow: false } }),
-                    otherwise: this.joi.string().email(),
-                }),
+            from: nodemailerAddressRule,
+            to: emailAddressRule,
             tls: this.joi
                 .object({
                     enabled: this.joi.boolean().default(false),
