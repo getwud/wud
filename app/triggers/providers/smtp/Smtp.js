@@ -5,14 +5,14 @@ const Trigger = require('../Trigger');
  * SMTP Trigger implementation
  */
 class Smtp extends Trigger {
-	static deprecatedWarningMessage = 'WUD_TRIGGER_SMTP__FROM is deprecated, use WUD_TRIGGER_SMTP__FROM_ADDRESS instead';
+	static deprecatedWarningMessage = 'WUD_TRIGGER_SMTP_{trigger_name}_FROM is deprecated, use WUD_TRIGGER_SMTP_{trigger_name}_FROM_ADDRESS instead';
 	
     /**
      * Get the Trigger configuration schema.
      * @returns {*}
      */
     getConfigurationSchema() {
-		const emailAddressRule = this.joi
+		const emailAddressSchema = this.joi
 	                    .string()
 						.required()
 						.when('/allowcustomtld', {
@@ -21,11 +21,11 @@ class Smtp extends Trigger {
 							otherwise: this.joi.string().email(),
 						});
 						
-		const nodemailerAddressRule = this.joi.extend({
+		const nodemailerAddressSchema = this.joi.extend({
 			type: 'withBackwardCompatibility',
 			base: this.joi
 				.object({
-					address: emailAddressRule,
+					address: emailAddressSchema,
 					name: this.joi.string().optional()
 				})
 				.required(),
@@ -50,8 +50,8 @@ class Smtp extends Trigger {
             port: this.joi.number().port().required(),
             user: this.joi.string(),
             pass: this.joi.string(),
-            from: nodemailerAddressRule,
-            to: emailAddressRule,
+            from: nodemailerAddressSchema,
+            to: emailAddressSchema,
             tls: this.joi
                 .object({
                     enabled: this.joi.boolean().default(false),
