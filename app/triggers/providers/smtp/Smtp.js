@@ -5,7 +5,7 @@ const Trigger = require('../Trigger');
  * SMTP Trigger implementation
  */
 class Smtp extends Trigger {
-	static deprecatedWarningMessage = 'WUD_TRIGGER_SMTP_{trigger_name}_FROM is deprecated, use WUD_TRIGGER_SMTP_{trigger_name}_FROM_ADDRESS instead';
+	static fromDeprecationWarningMessage = 'WUD_TRIGGER_SMTP_[trigger_name]_FROM is deprecated, use WUD_TRIGGER_SMTP_[trigger_name]_FROM_ADDRESS instead'
 	
     /**
      * Get the Trigger configuration schema.
@@ -30,12 +30,12 @@ class Smtp extends Trigger {
 				})
 				.required(),
 			messages: {
-				'deprecated': Smtp.deprecatedWarningMessage
+				'from.deprecated': Smtp.fromDeprecationWarningMessage
 			},
 			coerce: {
 				from: 'string',
 				method(value, helpers) {
-					helpers.warn('deprecated');
+					helpers.warn('from.deprecated');
 					return { value: { address: value } };
 				} 
 			}

@@ -11,6 +11,10 @@ var log = bunyan.createLogger({
 const smtp = new Smtp();
 smtp.log = log;
 
+beforeEach(() => {
+  loggerBuffer.records = []
+});
+
 const configurationValid = {
     allowcustomtld: false,
     host: 'smtp.gmail.com',
@@ -67,20 +71,19 @@ test('trigger from value display name is optional', () => {
 });
 
 test('trigger from value provided as string address is correctly transformed to nodemailer model for backward compatibility and raise deprecation warning', () => {
-	const address = 'from@xx.com';
+	const fromAddress = 'from@xx.com';
 	const config = {
             ...configurationValid,
-			from: address
+			from: fromAddress
 	}
 
     let validatedConfiguration = smtp.validateConfiguration(config);
-    validatedConfiguration = smtp.validateConfiguration(config);
 
-	expect(loggerBuffer.records.find(m => m.includes(Smtp.deprecatedWarningMessage))).toBeDefined();
+	expect(loggerBuffer.records.find(m => m.includes(Smtp.fromDeprecationWarningMessage))).toBeDefined();
     expect(validatedConfiguration).toStrictEqual({
         ...configurationValid,
         port: 465,
-		from: { address: address },
+		from: { address: fromAddress },
         tls: {
             enabled: false,
             verify: true,
