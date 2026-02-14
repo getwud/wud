@@ -12,6 +12,7 @@
 - :star: [SMTP] - Allow from address to take a display name
 - :lock: [UI] - Migrate to Vue 3
 - :lock: [UI] - Migrate to Vuetify 3
+- :lock: [UI] - Migrate to typescript
 - :lock: Upgrade to node.js 24
 - :lock: Switch to Alpine docker image
 - :fire: Fix docker-compose yaml when many aliases
