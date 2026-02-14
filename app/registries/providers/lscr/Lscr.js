@@ -5,10 +5,13 @@ const Ghcr = require('../ghcr/Ghcr');
  */
 class Lscr extends Ghcr {
     getConfigurationSchema() {
-        return this.joi.object().keys({
-            username: this.joi.string().required(),
-            token: this.joi.string().required(),
-        });
+        return this.joi.alternatives([
+            this.joi.string().allow(''),
+            this.joi.object().keys({
+                username: this.joi.string().required(),
+                token: this.joi.string().required(),
+            }),
+        ]);
     }
 
     /**
