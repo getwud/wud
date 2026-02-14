@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import SnackBar from '@/components/SnackBar.vue';
+import SnackBar from '@/components/SnackBar';
 
 describe('SnackBar', () => {
   it('renders with default props', () => {

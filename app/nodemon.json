@@ -5,7 +5,7 @@
         "WUD_LOG_LEVEL": "debug",
         "WUD_WATCHER_LOCAL_WATCHBYDEFAULT": "false",
         "WUD_AUTH_BASIC_JOHN_USER": "john",
-        "WUD_AUTH_BASIC_JOHN_HASH": "$apr1$aefKbZEa$ZSA5Y3zv9vDQOxr283NGx/",
+        "WUD_AUTH_BASIC_JOHN_HASH": "$apr1$8zDVtSAY$62WBh9DspNbUKMZXYRsjS/",
         "WUD_TRIGGER_COMMAND_TMP_CMD": "bash -c ../test/cmd_test.sh",
         "WUD_TRIGGER_COMMAND_TMP_ONCE": "false",
         "WUD_TRIGGER_NTFY_ONE_TOPIC": "235ef38e-f1db-414a-964f-ce3f2cc8094d",

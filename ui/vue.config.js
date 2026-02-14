@@ -2,8 +2,19 @@ const { defineConfig } = require("@vue/cli-service");
 const webpack = require("webpack");
 
 module.exports = defineConfig({
+  parallel: false, // Disable parallel build to avoid Thread Loader errors
   devServer: {
-    proxy: "http://localhost:3000",
+    host: '0.0.0.0',
+    proxy: {
+      "^/api": {
+        target: "http://localhost:3000",
+        changeOrigin: true
+      },
+      "^/auth": {
+        target: "http://localhost:3000",
+        changeOrigin: true
+      },
+    }
   },
 
   pwa: {
@@ -15,6 +26,31 @@ module.exports = defineConfig({
       short_name: "WUD",
       background_color: "#00355E",
     },
+  },
+
+  chainWebpack: config => {
+    // Prioritize .vue files
+    config.resolve.extensions.prepend('.vue');
+    config.plugin('fork-ts-checker').tap(args => {
+      args[0].typescript = {
+        ...args[0].typescript,
+        configFile: 'tsconfig.build.json'
+      }
+      return args
+    })
+
+    config.module
+      .rule('ts')
+      .use('ts-loader')
+      .loader('ts-loader')
+      .tap(options => {
+        return {
+          ...options,
+          configFile: 'tsconfig.build.json',
+          appendTsSuffixTo: [/\.vue$/],
+          transpileOnly: true
+        }
+      })
   },
 
   configureWebpack: {

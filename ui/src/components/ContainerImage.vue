@@ -96,43 +96,4 @@
   </v-list>
 </template>
 
-<script>
-import { getRegistryProviderIcon } from "@/services/registry";
-
-export default {
-  props: {
-    image: {
-      type: Object,
-      required: true,
-    },
-  },
-  data() {
-    return {};
-  },
-  computed: {
-    registryIcon() {
-      return getRegistryProviderIcon(this.image.registry.name);
-    },
-
-    osIcon() {
-      let icon = "mdi-help";
-      switch (this.image.os) {
-        case "linux":
-          icon = "mdi-linux";
-          break;
-        case "windows":
-          icon = "mdi-microsoft-windows";
-          break;
-      }
-      return icon;
-    },
-  },
-
-  methods: {
-    copyToClipboard(kind, value) {
-      navigator.clipboard.writeText(value);
-      this.$eventBus.emit("notify", `${kind} copied to clipboard`);
-    },
-  },
-};
-</script>
+<script lang="ts" src="./ContainerImage.ts"></script>

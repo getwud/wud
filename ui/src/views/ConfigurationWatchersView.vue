@@ -11,32 +11,4 @@
   </v-container>
 </template>
 
-<script>
-import ConfigurationItem from "@/components/ConfigurationItem";
-import { getAllWatchers } from "@/services/watcher";
-
-export default {
-  data() {
-    return {
-      watchers: [],
-    };
-  },
-  components: {
-    ConfigurationItem,
-  },
-
-  async beforeRouteEnter(to, from, next) {
-    try {
-      const watchers = await getAllWatchers();
-      next((vm) => (vm.watchers = watchers));
-    } catch (e) {
-      this.$eventBus.emit(
-        "notify",
-        `Error when trying to load the watchers (${e.message})`,
-        "error",
-      );
-    }
-    next();
-  },
-};
-</script>
+<script lang="ts" src="./ConfigurationWatchersView.ts"></script>

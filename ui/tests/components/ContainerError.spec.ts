@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import ContainerError from '@/components/ContainerError.vue';
+import ContainerError from '@/components/ContainerError';
 
 const mockError = {
   message: 'Test error message',

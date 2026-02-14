@@ -67,8 +67,8 @@ async function applyAuthNavigationGuard(to) {
     if (user !== undefined) {
       // Emit authenticated event after navigation
       nextTick(() => {
-        if (router.app?.config?.globalProperties?.$eventBus) {
-          router.app.config.globalProperties.$eventBus.emit("authenticated", user);
+        if ((router as any).app?.config?.globalProperties?.$eventBus) {
+          (router as any).app.config.globalProperties.$eventBus.emit("authenticated", user);
         }
       });
       

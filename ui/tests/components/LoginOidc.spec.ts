@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import LoginOidc from '@/components/LoginOidc.vue';
+import LoginOidc from '@/components/LoginOidc';
 
 jest.mock('@/services/auth', () => ({
   getOidcRedirection: jest.fn(() => Promise.resolve({ url: 'http://test.com' }))
@@ -7,6 +7,21 @@ jest.mock('@/services/auth', () => ({
 
 describe('LoginOidc', () => {
   let wrapper;
+  const originalLocation = window.location;
+
+  beforeAll(() => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { href: '' },
+    });
+  });
+
+  afterAll(() => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: originalLocation,
+    });
+  });
 
   beforeEach(() => {
     try {

@@ -13,29 +13,4 @@
   </v-container>
 </template>
 
-<script>
-import ContainerTrigger from "@/components/ContainerTrigger";
-import { getContainerTriggers } from "@/services/container";
-
-export default {
-  components: {
-    ContainerTrigger,
-  },
-  props: {
-    container: {
-      type: Object,
-      required: true,
-    },
-  },
-
-  data() {
-    return {
-      triggers: [],
-    };
-  },
-
-  async created() {
-    this.triggers = await getContainerTriggers(this.container.id);
-  },
-};
-</script>
+<script lang="ts" src="./ContainerTriggers.ts"></script>
