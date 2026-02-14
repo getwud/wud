@@ -5,11 +5,42 @@ const Trigger = require('../Trigger');
  * SMTP Trigger implementation
  */
 class Smtp extends Trigger {
+	static fromDeprecationWarningMessage = 'WUD_TRIGGER_SMTP_[trigger_name]_FROM is deprecated, use WUD_TRIGGER_SMTP_[trigger_name]_FROM_ADDRESS instead'
+	
     /**
      * Get the Trigger configuration schema.
      * @returns {*}
      */
     getConfigurationSchema() {
+		const emailAddressSchema = this.joi
+	                    .string()
+						.required()
+						.when('/allowcustomtld', {
+							is: true,
+							then: this.joi.string().email({ tlds: { allow: false } }),
+							otherwise: this.joi.string().email(),
+						});
+						
+		const nodemailerAddressSchema = this.joi.extend({
+			type: 'withBackwardCompatibility',
+			base: this.joi
+				.object({
+					address: emailAddressSchema,
+					name: this.joi.string().optional()
+				})
+				.required(),
+			messages: {
+				'from.deprecated': Smtp.fromDeprecationWarningMessage
+			},
+			coerce: {
+				from: 'string',
+				method(value, helpers) {
+					helpers.warn('from.deprecated');
+					return { value: { address: value } };
+				} 
+			}
+		}).withBackwardCompatibility();
+		
         return this.joi.object().keys({
             host: [
                 this.joi.string().hostname().required(),
@@ -19,22 +50,8 @@ class Smtp extends Trigger {
             port: this.joi.number().port().required(),
             user: this.joi.string(),
             pass: this.joi.string(),
-            from: this.joi
-                .string()
-                .required()
-                .when('allowcustomtld', {
-                    is: true,
-                    then: this.joi.string().email({ tlds: { allow: false } }),
-                    otherwise: this.joi.string().email(),
-                }),
-            to: this.joi
-                .string()
-                .required()
-                .when('allowcustomtld', {
-                    is: true,
-                    then: this.joi.string().email({ tlds: { allow: false } }),
-                    otherwise: this.joi.string().email(),
-                }),
+            from: nodemailerAddressSchema,
+            to: emailAddressSchema,
             tls: this.joi
                 .object({
                     enabled: this.joi.boolean().default(false),
