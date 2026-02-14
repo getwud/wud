@@ -1,6 +1,6 @@
 # Changelog
 
-## dev
+## 8.2.0
 - :star: Add TrueForge Container Registry support (oci.trueforge.org)
 - :star: Add Codeberge registry
 - :star: Allow disabling Prometheus metrics
