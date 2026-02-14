@@ -13,7 +13,7 @@
     "@fortawesome/fontawesome-free": "6.7.2",
     "core-js": "3.39.0",
     "install": "0.13.0",
-    "npm": "11.0.0",
+    "npm": "11.10.0",
     "register-service-worker": "1.7.2",
     "vue": "^3.3.0",
     "vue-inline-svg": "2.1.4",
