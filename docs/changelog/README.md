@@ -9,6 +9,7 @@
 - :star: Ensure tag candidates keep same prefix
 - :star: Add `wud.compose.file` supported label
 - :star: Add Rocket.chat trigger
+- :star: [SMTP] - Allow from address to take a display name
 - :lock: [UI] - Migrate to Vue 3
 - :lock: [UI] - Migrate to Vuetify 3
 - :lock: Upgrade to node.js 24

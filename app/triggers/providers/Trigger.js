@@ -321,9 +321,9 @@ class Trigger extends Component {
         });
         const schemaValidated =
             schemaWithDefaultOptions.validate(configuration);
-		if (schemaValidated.warning) {
-			this.log.warn(schemaValidated.warning.message);
-		}
+        if (schemaValidated.warning) {
+            this.log.warn(schemaValidated.warning.message);
+        }
         if (schemaValidated.error) {
             throw schemaValidated.error;
         }

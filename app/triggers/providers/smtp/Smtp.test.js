@@ -5,14 +5,14 @@ var bunyan = require('bunyan');
 var loggerBuffer = new bunyan.RingBuffer({ limit: 5 });
 var log = bunyan.createLogger({
     name: 'Smtp.Tests',
-    streams: [{ stream: loggerBuffer }]
+    streams: [{ stream: loggerBuffer }],
 });
 
 const smtp = new Smtp();
 smtp.log = log;
 
 beforeEach(() => {
-  loggerBuffer.records = []
+    loggerBuffer.records = [];
 });
 
 const configurationValid = {
@@ -22,9 +22,9 @@ const configurationValid = {
     user: 'user',
     pass: 'pass',
     from: {
-		name: 'This is a display name',
-		address: 'from@xx.com'
-	},
+        name: 'This is a display name',
+        address: 'from@xx.com',
+    },
     to: 'to@xx.com',
     threshold: 'all',
     mode: 'simple',
@@ -40,7 +40,8 @@ const configurationValid = {
 };
 
 test('validateConfiguration should return validated configuration when valid', () => {
-    const validatedConfiguration = smtp.validateConfiguration(configurationValid);
+    const validatedConfiguration =
+        smtp.validateConfiguration(configurationValid);
 
     expect(validatedConfiguration).toStrictEqual({
         ...configurationValid,
@@ -53,10 +54,10 @@ test('validateConfiguration should return validated configuration when valid', (
 });
 
 test('trigger from value display name is optional', () => {
-	const config = {
-            ...configurationValid,
-			from: { address: 'from@xx.com' }
-	}
+    const config = {
+        ...configurationValid,
+        from: { address: 'from@xx.com' },
+    };
 
     const validatedConfiguration = smtp.validateConfiguration(config);
 
@@ -71,19 +72,23 @@ test('trigger from value display name is optional', () => {
 });
 
 test('trigger from value provided as string address is correctly transformed to nodemailer model for backward compatibility and raise deprecation warning', () => {
-	const fromAddress = 'from@xx.com';
-	const config = {
-            ...configurationValid,
-			from: fromAddress
-	}
+    const fromAddress = 'from@xx.com';
+    const config = {
+        ...configurationValid,
+        from: fromAddress,
+    };
 
     let validatedConfiguration = smtp.validateConfiguration(config);
 
-	expect(loggerBuffer.records.find(m => m.includes(Smtp.fromDeprecationWarningMessage))).toBeDefined();
+    expect(
+        loggerBuffer.records.find((m) =>
+            m.includes(Smtp.fromDeprecationWarningMessage),
+        ),
+    ).toBeDefined();
     expect(validatedConfiguration).toStrictEqual({
         ...configurationValid,
         port: 465,
-		from: { address: fromAddress },
+        from: { address: fromAddress },
         tls: {
             enabled: false,
             verify: true,
