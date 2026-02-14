@@ -81,39 +81,4 @@
   </div>
 </template>
 
-<script>
-export default {
-  props: {
-    semver: {
-      type: Boolean,
-    },
-    result: {
-      type: Object,
-    },
-    updateKind: {
-      type: Object,
-    },
-    updateAvailable: {
-      type: Boolean,
-    },
-  },
-  computed: {
-    updateKindFormatted() {
-      let kind = "Unknown";
-      if (this.updateKind) {
-        kind = this.updateKind.kind;
-      }
-      if (this.updateKind.semverDiff) {
-        kind = this.updateKind.semverDiff;
-      }
-      return kind;
-    },
-  },
-  methods: {
-    copyToClipboard(kind, value) {
-      navigator.clipboard.writeText(value);
-      this.$eventBus.emit("notify", `${kind} copied to clipboard`);
-    },
-  },
-};
-</script>
+<script lang="ts" src="./ContainerUpdate.ts"></script>

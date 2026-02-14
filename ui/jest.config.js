@@ -2,20 +2,24 @@ module.exports = {
   testEnvironment: 'jsdom',
   transform: {
     '^.+\\.vue$': '@vue/vue3-jest',
-    '^.+\\.js$': 'babel-jest'
+    '^.+\\.js$': 'babel-jest',
+    '^.+\\.ts$': 'ts-jest'
   },
   transformIgnorePatterns: [
     'node_modules/(?!(vuetify|@vue/test-utils|vue3-simple-icons)/)',
   ],
-  moduleFileExtensions: ['js', 'json', 'vue'],
+  moduleFileExtensions: ['js', 'json', 'vue', 'ts'],
   extensionsToTreatAsEsm: ['.vue'],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1'
+    '\\.svg$': '<rootDir>/tests/mocks/svgMock.js',
+    '^@/(.*)$': '<rootDir>/src/$1',
+    '^@vue/test-utils$': '<rootDir>/node_modules/@vue/test-utils/dist/vue-test-utils.cjs.js'
   },
+  cache: false,
   collectCoverage: true,
   collectCoverageFrom: [
-    'src/**/*.{js,vue}',
-    '!src/main.js',
+    'src/**/*.{js,vue,ts}',
+    '!src/main.ts',
     '!src/registerServiceWorker.js',
     '!**/node_modules/**'
   ],
@@ -29,5 +33,6 @@ module.exports = {
   //     statements: 80
   //   }
   // },
-  setupFilesAfterEnv: ['<rootDir>/tests/setup.js']
+  clearMocks: true,
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts']
 };

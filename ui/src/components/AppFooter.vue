@@ -6,27 +6,4 @@
   </v-footer>
 </template>
 
-<script>
-import { getAppInfos } from "@/services/app";
-
-export default {
-  data() {
-    return {
-      version: "unknown",
-    };
-  },
-
-  async beforeMount() {
-    try {
-      const appInfos = await getAppInfos();
-      this.version = appInfos.version || "unknown";
-    } catch (e) {
-      this.$eventBus.emit(
-        "notify",
-        `Error when trying to get app version (${e.message})`,
-        "error",
-      );
-    }
-  },
-};
-</script>
+<script lang="ts" src="./AppFooter.ts"></script>

@@ -11,33 +11,4 @@
   </v-container>
 </template>
 
-<script>
-import TriggerDetail from "@/components/TriggerDetail";
-import { getAllTriggers } from "@/services/trigger";
-
-export default {
-  data() {
-    return {
-      triggers: [],
-    };
-  },
-  components: {
-    TriggerDetail,
-  },
-
-  async beforeRouteEnter(to, from, next) {
-    try {
-      const triggers = await getAllTriggers();
-      next((vm) => (vm.triggers = triggers));
-    } catch (e) {
-      next((vm) => {
-        vm.$eventBus.emit(
-          "notify",
-          `Error when trying to load the triggers (${e.message})`,
-          "error",
-        );
-      });
-    }
-  },
-};
-</script>
+<script lang="ts" src="./ConfigurationTriggersView.ts"></script>

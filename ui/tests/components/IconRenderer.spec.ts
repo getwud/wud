@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import IconRenderer from '@/components/IconRenderer.vue';
+import IconRenderer from '@/components/IconRenderer';
 
 describe('IconRenderer', () => {
   it('renders v-icon for standard mdi icons', () => {

@@ -42,7 +42,7 @@ describe('ContainersView', () => {
         }
       }
     });
-    wrapper.vm.containers = mockContainers;
+    wrapper.vm.onRefreshAllContainers(mockContainers);
   });
 
   afterEach(() => {

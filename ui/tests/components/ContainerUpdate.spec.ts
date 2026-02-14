@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import ContainerUpdate from '@/components/ContainerUpdate.vue';
+import ContainerUpdate from '@/components/ContainerUpdate';
 
 const mockUpdateKind = {
   kind: 'tag',
