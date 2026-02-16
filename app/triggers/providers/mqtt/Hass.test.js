@@ -107,7 +107,7 @@ test('addContainerSensor must publish sensor discovery message expected by HA', 
             value_template: '{{ value_json.image_tag_value }}',
             latest_version_topic: 'topic/watcher-name/container-name',
             latest_version_template:
-                '{% if value_json.update_kind_kind == "digest" %}{{ value_json.result_digest[:15] }}{% else %}{{ value_json.result_tag }}{% endif %}',
+                '{% if value_json.update_kind_kind == "digest" %}{{ value_json.result_digest[:15] }}{% elif value_json.result_tag is defined %}{{ value_json.result_tag }}{% elif value_json.result_digest is defined %}{{ value_json.result_digest[:15] }}{% else %}{{ value_json.image_tag_value }}{% endif %}',
             json_attributes_topic: 'topic/watcher-name/container-name',
         }),
         { retain: true },

@@ -13,7 +13,7 @@ const HASS_DEVICE_NAME = 'wud';
 const HASS_MANUFACTURER = 'wud';
 const HASS_ENTITY_VALUE_TEMPLATE = '{{ value_json.image_tag_value }}';
 const HASS_LATEST_VERSION_TEMPLATE =
-    '{% if value_json.update_kind_kind == "digest" %}{{ value_json.result_digest[:15] }}{% else %}{{ value_json.result_tag }}{% endif %}';
+    '{% if value_json.update_kind_kind == "digest" %}{{ value_json.result_digest[:15] }}{% elif value_json.result_tag is defined %}{{ value_json.result_tag }}{% elif value_json.result_digest is defined %}{{ value_json.result_digest[:15] }}{% else %}{{ value_json.image_tag_value }}{% endif %}';
 
 /**
  * Get hass entity unique id.
