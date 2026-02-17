@@ -85,6 +85,7 @@ test('registerRegistries should register all registries', async () => {
         'ghcr.public',
         'hub.private',
         'quay.public',
+        'trueforge.public',
     ]);
 });
 
@@ -97,6 +98,7 @@ test('registerRegistries should register all anonymous registries by default', a
         'ghcr.public',
         'hub.public',
         'quay.public',
+        'trueforge.public',
     ]);
 });
 
@@ -270,6 +272,7 @@ test('init should register all components', async () => {
         'ghcr.public',
         'hub.private',
         'quay.public',
+        'trueforge.public',
     ]);
     expect(Object.keys(registry.getState().trigger)).toEqual([
         'mock.mock1',

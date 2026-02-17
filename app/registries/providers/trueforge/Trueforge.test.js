@@ -1,4 +1,4 @@
-const Trueforge = require('./trueforge');
+const Trueforge = require('./Trueforge');
 
 jest.mock('axios', () =>
     jest.fn().mockImplementation(() => ({
@@ -8,20 +8,28 @@ jest.mock('axios', () =>
 
 const trueforge = new Trueforge();
 trueforge.configuration = {
-    username: 'user',
+    namespace: 'namespace',
+    account: 'account',
     token: 'token',
 };
 
 jest.mock('axios');
 
-test('validatedConfiguration should initialize when configuration is valid', () => {
+test('validatedConfiguration should initialize when anonymous configuration is valid', () => {
+    expect(trueforge.validateConfiguration('')).toStrictEqual({});
+    expect(trueforge.validateConfiguration(undefined)).toStrictEqual({});
+});
+
+test('validatedConfiguration should initialize when auth configuration is valid', () => {
     expect(
         trueforge.validateConfiguration({
-            username: 'user',
+            namespace: 'namespace',
+            account: 'account',
             token: 'token',
         }),
     ).toStrictEqual({
-        username: 'user',
+        namespace: 'namespace',
+        account: 'account',
         token: 'token',
     });
 });
@@ -29,7 +37,7 @@ test('validatedConfiguration should initialize when configuration is valid', () 
 test('validatedConfiguration should throw error when configuration is missing', () => {
     expect(() => {
         trueforge.validateConfiguration({});
-    }).toThrow('"username" is required');
+    }).toThrow('"namespace" is required');
 });
 
 test('match should return true when registry url is from trueforge', () => {

@@ -243,6 +243,7 @@ async function registerRegistries() {
         ghcr: { public: '' },
         hub: { public: '' },
         quay: { public: '' },
+        trueforge: { public: '' },
     };
     const registriesToRegister = {
         ...defaultRegistries,
