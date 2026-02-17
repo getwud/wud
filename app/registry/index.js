@@ -22,6 +22,8 @@ const state = {
     authentication: {},
 };
 
+const CONTAINER_TRIGGER_DEFAULT_NAME = 'container';
+
 function getState() {
     return state;
 }
@@ -219,6 +221,7 @@ async function registerWatchers() {
  */
 async function registerTriggers() {
     const configurations = getTriggerConfigurations();
+
     try {
         await registerComponents(
             'trigger',
@@ -229,6 +232,40 @@ async function registerTriggers() {
         log.warn(`Some triggers failed to register (${e.message})`);
         log.debug(e);
     }
+}
+
+function sanitizeComponentName(name) {
+    const nameSanitized = `${name || ''}`
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9._-]/g, '-');
+    return nameSanitized || CONTAINER_TRIGGER_DEFAULT_NAME;
+}
+
+/**
+ * Ensure a dockercompose trigger exists for a container name.
+ * Name collision strategy: append a number to the container name.
+ * @param {string} containerName
+ * @returns {Promise<string>} trigger id
+ */
+async function ensureDockercomposeTriggerForContainer(containerName) {
+    const triggerBaseName = sanitizeComponentName(containerName);
+    let triggerName = triggerBaseName;
+    let conflictIndex = 2;
+
+    while (state.trigger[`dockercompose.${triggerName}`]) {
+        triggerName = `${triggerBaseName}${conflictIndex}`;
+        conflictIndex += 1;
+    }
+
+    const triggerRegistered = await registerComponent(
+        'trigger',
+        'dockercompose',
+        triggerName,
+        {},
+        '../triggers/providers',
+    );
+    return triggerRegistered.getId();
 }
 
 /**
@@ -393,4 +430,5 @@ async function init() {
 module.exports = {
     init,
     getState,
+    ensureDockercomposeTriggerForContainer,
 };

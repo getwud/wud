@@ -83,6 +83,18 @@ class Dockercompose extends Docker {
     }
 
     /**
+     * Return true if this trigger should run for this container.
+     * @param container
+     * @returns {boolean}
+     */
+    mustTrigger(container) {
+        if (!super.mustTrigger(container)) {
+            return false;
+        }
+        return !!this.getComposeFileForContainer(container);
+    }
+
+    /**
      * Update the container.
      * @param container the container
      * @returns {Promise<void>}

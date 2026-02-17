@@ -20,6 +20,7 @@ const {
     wudDisplayName,
     wudDisplayIcon,
     wudTriggerInclude,
+    wudComposeFile,
     wudTriggerExclude,
 } = require('./label');
 const storeContainer = require('../../../store/container');
@@ -37,6 +38,22 @@ const START_WATCHER_DELAY_MS = 1000;
 
 // Debounce delay used when performing a watch after a docker event has been received
 const DEBOUNCED_WATCH_CRON_MS = 5000;
+
+function appendTriggerId(triggerInclude, triggerId) {
+    if (!triggerId) {
+        return triggerInclude;
+    }
+    const triggersIncluded = triggerInclude
+        ? triggerInclude.split(/\s*,\s*/)
+        : [];
+    if (triggersIncluded.includes(triggerId)) {
+        return triggerInclude;
+    }
+    if (!triggerInclude) {
+        return triggerId;
+    }
+    return `${triggerInclude},${triggerId}`;
+}
 
 /**
  * Return all supported registries
@@ -296,6 +313,11 @@ function isDigestToWatch(wudWatchDigestLabelValue, parsedImage) {
  * Docker Watcher Component.
  */
 class Docker extends Component {
+    constructor() {
+        super();
+        this.composeTriggersByContainer = {};
+    }
+
     ensureLogger() {
         if (!this.log) {
             try {
@@ -673,6 +695,15 @@ class Docker extends Component {
             const containersFromTheStore = storeContainer.getContainers({
                 watcher: this.name,
             });
+            const currentContainerIds = containersToReturn.map((c) => c.id);
+            Object.keys(this.composeTriggersByContainer)
+                .filter(
+                    (containerId) =>
+                        !currentContainerIds.includes(containerId),
+                )
+                .forEach((containerId) => {
+                    delete this.composeTriggersByContainer[containerId];
+                });
             pruneOldContainers(containersToReturn, containersFromTheStore);
         } catch (e) {
             this.log.warn(
@@ -842,6 +873,31 @@ class Docker extends Component {
             container.Labels[wudWatchDigest],
             parsedImage,
         );
+        let triggerIncludeUpdated = triggerInclude;
+
+        if (container.Labels && container.Labels[wudComposeFile]) {
+            let dockercomposeTriggerId =
+                this.composeTriggersByContainer[containerId];
+            if (!dockercomposeTriggerId) {
+                try {
+                    dockercomposeTriggerId =
+                        await registry.ensureDockercomposeTriggerForContainer(
+                            containerName,
+                        );
+                    this.composeTriggersByContainer[containerId] =
+                        dockercomposeTriggerId;
+                } catch (e) {
+                    this.ensureLogger();
+                    this.log.warn(
+                        `Unable to create dockercompose trigger for ${containerName} (${e.message})`,
+                    );
+                }
+            }
+            triggerIncludeUpdated = appendTriggerId(
+                triggerInclude,
+                dockercomposeTriggerId,
+            );
+        }
         if (!isSemver && !watchDigest) {
             this.ensureLogger();
             this.log.warn(
@@ -859,7 +915,7 @@ class Docker extends Component {
             linkTemplate,
             displayName,
             displayIcon,
-            triggerInclude,
+            triggerInclude: triggerIncludeUpdated,
             triggerExclude,
             image: {
                 id: imageId,

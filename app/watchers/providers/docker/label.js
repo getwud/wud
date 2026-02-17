@@ -48,6 +48,11 @@ module.exports = {
     wudTriggerInclude: 'wud.trigger.include',
 
     /**
+     * Optional compose file location for dockercompose trigger.
+     */
+    wudComposeFile: 'wud.compose.file',
+
+    /**
      * Optional list of triggers to exclude
      */
     wudTriggerExclude: 'wud.trigger.exclude',

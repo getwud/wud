@@ -74,6 +74,9 @@ describe('Docker Watcher', () => {
 
         // Setup registry mock
         registry.getState.mockReturnValue({ registry: {} });
+        registry.ensureDockercomposeTriggerForContainer.mockResolvedValue(
+            'dockercompose.test-container',
+        );
 
         // Setup event mock
         event.emitWatcherStart.mockImplementation(() => {});
@@ -896,6 +899,49 @@ describe('Docker Watcher', () => {
             const result = await docker.addImageDetailsToContainer(container);
 
             expect(result).toBeDefined();
+        });
+
+        test('should auto-include dockercompose trigger named after container when compose label is set', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const container = {
+                Id: '123',
+                Image: 'nginx:1.0.0',
+                Names: ['/test-container'],
+                State: 'running',
+                Labels: {
+                    'wud.compose.file': '/tmp/docker-compose.yml',
+                },
+            };
+            const imageDetails = {
+                Id: 'image123',
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+            };
+            mockImage.inspect.mockResolvedValue(imageDetails);
+            mockTag.parse.mockReturnValue({ major: 1, minor: 0, patch: 0 });
+            const mockRegistry = {
+                normalizeImage: jest.fn((img) => img),
+                getId: () => 'hub',
+                match: () => true,
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+
+            const {
+                validate: validateContainer,
+            } = require('../../../model/container');
+            validateContainer.mockImplementation((containerToValidate) =>
+                containerToValidate,
+            );
+
+            const result = await docker.addImageDetailsToContainer(container);
+
+            expect(
+                registry.ensureDockercomposeTriggerForContainer,
+            ).toHaveBeenCalledWith('test-container');
+            expect(result.triggerInclude).toBe('dockercompose.test-container');
         });
     });
 

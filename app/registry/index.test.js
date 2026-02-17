@@ -129,6 +129,22 @@ test('registerTriggers should register all triggers', async () => {
     ]);
 });
 
+test('ensureDockercomposeTriggerForContainer should create a trigger with container name', async () => {
+    const triggerId =
+        await registry.ensureDockercomposeTriggerForContainer('my-service');
+    expect(triggerId).toBe('dockercompose.my-service');
+    expect(Object.keys(registry.getState().trigger)).toContain(triggerId);
+});
+
+test('ensureDockercomposeTriggerForContainer should append a number when name conflicts', async () => {
+    const triggerId1 =
+        await registry.ensureDockercomposeTriggerForContainer('my-service');
+    const triggerId2 =
+        await registry.ensureDockercomposeTriggerForContainer('my-service');
+    expect(triggerId1).toBe('dockercompose.my-service');
+    expect(triggerId2).toBe('dockercompose.my-service2');
+});
+
 test('registerTriggers should warn when registration errors occur', async () => {
     const spyLog = jest.spyOn(registry.__get__('log'), 'warn');
     triggers = {
