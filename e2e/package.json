@@ -6,9 +6,9 @@
   "scripts": {
     "lint": "eslint '**/*.js'",
     "cucumber": "cucumber-js **/*.feature",
-    "test:local": "../scripts/run-e2e-tests.sh",
-    "test:setup": "../scripts/setup-test-containers.sh",
-    "test:start-wud": "../scripts/start-wud.sh",
+    "test:local": "dotenvx run -- ../scripts/run-e2e-tests.sh",
+    "test:setup": "dotenvx run -- ../scripts/setup-test-containers.sh",
+    "test:start-wud": "dotenvx run -- ../scripts/start-wud.sh",
     "test:cleanup": "../scripts/cleanup-test-containers.sh"
   },
   "author": "fmartinou",
@@ -19,6 +19,7 @@
     "apickli": "3.0.3"
   },
   "devDependencies": {
+    "@dotenvx/dotenvx": "^1.51.4",
     "eslint": "8.57.0",
     "eslint-config-airbnb-base": "15.0.0",
     "eslint-plugin-cucumber": "2.0.0",

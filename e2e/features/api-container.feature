@@ -22,29 +22,29 @@ Feature: WUD Container API Exposure
     Examples:
       | index | registry       | containerName            | registryUrl                                             | imageName                           | tag                | resultTag          | updateAvailable | testCase                    |
       # Containers in alphabetical order by name
-      | 0     | ecr.private    | ecr_sub_sub_test         | https://229211676173.dkr.ecr.eu-west-1.amazonaws.com/v2 | sub/sub/test                        | 1.0.0              | 2.0.0              | true            | ECR semver major update     |
-      | 1     | ghcr.private   | ghcr_radarr              | https://ghcr.io/v2                                      | linuxserver/radarr                  | 5.14.0.9383-ls245  | 6.0.4.10291-ls292 | true            | GHCR complex semver update  |
-      | 2     | gitlab.private | gitlab_test              | https://registry.gitlab.com/v2                          | manfred-martin/docker-registry-test | 1.0.0              | 2.0.0              | true            | GitLab semver major update  |
-      | 3     | hub.public     | hub_homeassistant_202161 | https://registry-1.docker.io/v2                         | homeassistant/home-assistant        | 2021.6.1           | 2026.2.2          | true            | Hub date-based versioning   |
+      # | 0     | ecr.private    | ecr_sub_sub_test         | https://229211676173.dkr.ecr.eu-west-1.amazonaws.com/v2 | sub/sub/test                        | 1.0.0              | 2.0.0              | true            | ECR semver major update     |
+      | 1     | ghcr.private   | ghcr_radarr              | https://ghcr.io/v2                                      | linuxserver/radarr                  | 5.14.0.9383-ls245  | 6.0.4.10291-ls293  | true           | GHCR complex semver update  |
+      | 2     | gitlab.private | gitlab_test              | https://registry.gitlab.com/v2                          | gitlab-org/gitlab-runner            | v16.0.0            | v16.1.0            | true            | GitLab semver update        |
+      | 3     | hub.public     | hub_homeassistant_202161 | https://registry-1.docker.io/v2                         | homeassistant/home-assistant        | 2021.6.1           | 2026.2.2           | true           | Hub date-based versioning   |
       | 4     | hub.public     | hub_homeassistant_latest | https://registry-1.docker.io/v2                         | homeassistant/home-assistant        | latest             | latest             | false           | Hub latest tag no update    |
-      | 5     | hub.public     | hub_nginx_120            | https://registry-1.docker.io/v2                         | library/nginx                       | 1.20-alpine        | 1.29-alpine        | true            | Hub alpine minor update     |
+      | 5     | hub.public     | hub_nginx_120            | https://registry-1.docker.io/v2                         | library/nginx                       | 1.20-alpine        | 1.29-alpine        | true           | Hub alpine minor update     |
       | 6     | hub.public     | hub_nginx_latest         | https://registry-1.docker.io/v2                         | library/nginx                       | latest             | latest             | true            | Hub latest tag digest update|
-      | 7     | hub.public     | hub_traefik_245          | https://registry-1.docker.io/v2                         | library/traefik                     | 2.4.5              | 3.6.8              | true            | Hub semver major update     |
-      | 8     | lscr.private   | lscr_radarr              | https://lscr.io/v2                                      | linuxserver/radarr                  | 5.14.0.9383-ls245  | 6.0.4.10291-ls292 | true            | LSCR complex semver update  |
+      | 7     | hub.public     | hub_traefik_245          | https://registry-1.docker.io/v2                         | library/traefik                     | 2.4.5              | 3.6.8              | true           | Hub semver major update     |
+      | 8     | lscr.private   | lscr_radarr              | https://lscr.io/v2                                      | linuxserver/radarr                  | 5.14.0.9383-ls245  | 6.0.4.10291-ls293  | true            | LSCR complex semver update  |
       | 9     | quay.public    | quay_prometheus          | https://quay.io/v2                                      | prometheus/prometheus               | v2.52.0            | v3.9.1             | true            | Quay semver major update    |
 
   # Test detailed container inspection (semver)
   Scenario: WUD must provide detailed container information for semver containers
     Given I GET /api/containers
-    And I store the value of body path $[0].id as containerId in scenario scope
+    And I store the value of body path $[2].id as containerId in scenario scope
     When I GET /api/containers/`containerId`
     Then response code should be 200
     And response body should be valid json
     And response body path $.watcher should be local
-    And response body path $.name should be ecr_sub_sub_test
-    And response body path $.image.registry.name should be ecr.private
+    And response body path $.name should be gitlab_test
+    And response body path $.image.registry.name should be gitlab.private
     And response body path $.image.tag.semver should be true
-    And response body path $.result.tag should be 2.0.0
+    And response body path $.result.tag should be v16.1.0
     And response body path $.updateAvailable should be true
 
   # Test detailed container inspection (digest)
@@ -74,8 +74,8 @@ Feature: WUD Container API Exposure
   # Test watch trigger functionality
   Scenario: WUD must allow triggering container watch
     Given I GET /api/containers
-    And I store the value of body path $[0].id as containerId in scenario scope
+    And I store the value of body path $[2].id as containerId in scenario scope
     When I POST to /api/containers/`containerId`/watch
     Then response code should be 200
     And response body should be valid json
-    And response body path $.result.tag should be 2.0.0
+    And response body path $.result.tag should be v16.1.0
