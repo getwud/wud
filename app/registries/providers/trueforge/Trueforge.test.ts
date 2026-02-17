@@ -1,5 +1,5 @@
 // @ts-nocheck
-import Trueforge from './trueforge';
+import Trueforge from './Trueforge';
 
 jest.mock('axios', () =>
     jest.fn().mockImplementation(() => ({

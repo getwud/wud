@@ -137,7 +137,6 @@ async function registerComponent(
     const nameLowercase = name.toLowerCase();
     const componentFile = `${componentPath}/${providerLowercase.toLowerCase()}/${capitalize(provider)}`;
     try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const ComponentClass = (await import(componentFile)).default;
         const component: Component = new ComponentClass();
         const componentRegistered = await component.register(

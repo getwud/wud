@@ -374,7 +374,9 @@ class Registry extends Component {
      * @returns {}
      */
 
-    async getAuthPull(): Promise<{ username?: string, password?: string } | undefined> {
+    async getAuthPull(): Promise<
+        { username?: string; password?: string } | undefined
+    > {
         return undefined;
     }
 }

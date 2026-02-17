@@ -55,7 +55,7 @@ function renderSimple(template: string, container: Container) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const link =
         container.result && container.result.link ? container.result.link : '';
-    // eslint-disable-next-line no-eval
+
     return eval('`' + template + '`');
 }
 
@@ -63,7 +63,7 @@ function renderBatch(template: string, containers: Container[]) {
     // Set deprecated vars for backward compatibility
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const count = containers ? containers.length : 0;
-    // eslint-disable-next-line no-eval
+
     return eval('`' + template + '`');
 }
 
@@ -385,7 +385,7 @@ class Trigger extends Component {
     /**
      * Trigger method. Must be overridden in trigger implementation class.
      */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     trigger(containerWithResult: Container) {
         // do nothing by default
         this.log.warn(

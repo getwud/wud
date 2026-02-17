@@ -79,7 +79,7 @@ test('trigger from value provided as string address is correctly transformed to 
         from: fromAddress,
     };
 
-    let validatedConfiguration = smtp.validateConfiguration(config);
+    const validatedConfiguration = smtp.validateConfiguration(config);
 
     expect(
         loggerBuffer.records.find((m) =>

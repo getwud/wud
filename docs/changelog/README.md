@@ -1,5 +1,8 @@
 # Changelog
 
+## dev
+- :lock: Migrate backend to typescript
+
 ## 8.2.0
 - :star: Add TrueForge Container Registry support (oci.trueforge.org)
 - :star: Add Codeberge registry

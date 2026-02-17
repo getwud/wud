@@ -172,7 +172,7 @@ function getLink(container: Container, originalTagValue: string) {
                     : '';
         }
     }
-    // eslint-disable-next-line no-eval
+
     return eval('`' + container.linkTemplate + '`');
 }
 
