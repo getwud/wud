@@ -22,7 +22,7 @@ function doesContainerBelongToCompose(compose, container) {
     );
     return Object.keys(compose.services).some((key) => {
         const service = compose.services[key];
-        return service.image.includes(currentImage);
+        return (service.image && []).includes(currentImage);
     });
 }
 
@@ -243,7 +243,7 @@ class Dockercompose extends Docker {
         const serviceKeyToUpdate = Object.keys(compose.services).find(
             (serviceKey) => {
                 const service = compose.services[serviceKey];
-                return service.image.includes(currentImage);
+                return (service.image && []).includes(currentImage);
             },
         );
 
