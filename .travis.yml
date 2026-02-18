@@ -62,85 +62,11 @@ script:
   # Build wud docker image
   - docker build -t wud --build-arg WUD_VERSION=$IMAGE_VERSION .
 
-  # Login to private registries
-  - docker login registry.gitlab.com -u "$GITLAB_USERNAME" -p "$GITLAB_TOKEN"
+  # Setup test containers
+  - (cd scripts && ./setup-test-containers.sh)
 
-  # Pull nginx as a test image
-  - docker pull nginx:1.10-alpine
-  - docker pull nginx:1.20-alpine
-
-  # Tag nginx 1.10 as latest to simulate an update_available
-  - docker tag nginx:1.10-alpine nginx:latest
-
-  # Tag nginx as if it was coming from private Hub, ECR, GCR, ACR...
-  - docker tag nginx:1.10-alpine fmartinou/test:1.0.0
-  - docker tag nginx:1.10-alpine 229211676173.dkr.ecr.eu-west-1.amazonaws.com/test:1.0.0
-  - docker tag nginx:1.10-alpine 229211676173.dkr.ecr.eu-west-1.amazonaws.com/sub/test:1.0.0
-  - docker tag nginx:1.10-alpine 229211676173.dkr.ecr.eu-west-1.amazonaws.com/sub/sub/test:1.0.0
-#  - docker tag nginx:1.10-alpine gcr.io/wud-test/test:1.0.0
-#  - docker tag nginx:1.10-alpine gcr.io/wud-test/sub/test:1.0.0
-#  - docker tag nginx:1.10-alpine gcr.io/wud-test/sub/sub/test:1.0.0
-#  - docker tag nginx:1.10-alpine wudtest.azurecr.io/test:1.0.0
-#  - docker tag nginx:1.10-alpine wudtest.azurecr.io/sub/test:1.0.0
-#  - docker tag nginx:1.10-alpine wudtest.azurecr.io/sub/sub/test:1.0.0
-
-  # Pull homeassistant
-  - docker pull homeassistant/home-assistant
-  - docker pull homeassistant/home-assistant:2021.6.1
-
-  # Pull traefik
-  - docker pull traefik:2.4.5
-
-  # Run containers for tests
-
-  # ECR
-  - docker run -d --name ecr_sub_sub_test --label 'wud.watch=true' 229211676173.dkr.ecr.eu-west-1.amazonaws.com/sub/sub/test:1.0.0
-
-  # GHCR
-  - docker run -d --name ghcr_radarr              --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+\.\d+\.\d+-ls\d+$'               ghcr.io/linuxserver/radarr:5.14.0.9383-ls245
-
-  # GITLAB
-  - docker run -d --name gitlab_test              --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+\.\d+$'                         registry.gitlab.com/manfred-martin/docker-registry-test:1.0.0
-
-  # HUB
-  - docker run -d --name hub_homeassistant_202161 --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+.\d+$' --label 'wud.link.template=https://github.com/home-assistant/core/releases/tag/${major}.${minor}.${patch}' homeassistant/home-assistant:2021.6.1
-  - docker run -d --name hub_homeassistant_latest --label 'wud.watch=true' --label 'wud.watch.digest=true' --label 'wud.tag.include=^latest$' homeassistant/home-assistant
-  - docker run -d --name hub_nginx_120            --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+-alpine$'                        nginx:1.20-alpine
-  - docker run -d --name hub_nginx_latest         --label 'wud.watch=true' --label 'wud.watch.digest=true' --label 'wud.tag.include=^latest$' nginx
-  - docker run -d --name hub_traefik_245          --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+.\d+$'                           traefik:2.4.5
-
-  # LSCR
-  - docker run -d --name lscr_radarr              --label 'wud.watch=true' --label 'wud.tag.include=^\d+\.\d+\.\d+\.\d+-ls\d+$'               lscr.io/linuxserver/radarr:5.14.0.9383-ls245
-
-  # QUAY
-  - docker run -d --name quay_prometheus          --label 'wud.watch=true' --label 'wud.tag.include=^v\d+\.\d+\.\d+$'                         quay.io/prometheus/prometheus:v2.52.0
-
-  # Run wud docker image
-  - >
-    docker run -d
-    --name wud
-    --publish 3000:3000
-    --volume /var/run/docker.sock:/var/run/docker.sock
-    --env WUD_TRIGGER_MOCK_EXAMPLE_MOCK=mock
-    --env WUD_WATCHER_LOCAL_WATCHBYDEFAULT=false
-    --env WUD_REGISTRY_ACR_PRIVATE_CLIENTID="$ACR_CLIENT_ID"
-    --env WUD_REGISTRY_ACR_PRIVATE_CLIENTSECRET="$ACR_CLIENT_SECRET"
-    --env WUD_REGISTRY_ECR_PRIVATE_ACCESSKEYID="$AWS_ACCESSKEY_ID"
-    --env WUD_REGISTRY_ECR_PRIVATE_SECRETACCESSKEY="$AWS_SECRET_ACCESSKEY"
-    --env WUD_REGISTRY_ECR_PRIVATE_REGION=eu-west-1
-    --env WUD_REGISTRY_GCR_PRIVATE_CLIENTEMAIL="$GCR_CLIENT_EMAIL"
-    --env WUD_REGISTRY_GCR_PRIVATE_PRIVATEKEY="$GCR_PRIVATE_KEY"
-    --env WUD_REGISTRY_GHCR_PRIVATE_USERNAME="$GITHUB_USERNAME"
-    --env WUD_REGISTRY_GHCR_PRIVATE_TOKEN="$GITHUB_TOKEN"
-    --env WUD_REGISTRY_GITLAB_PRIVATE_TOKEN="$GITLAB_TOKEN"
-    --env WUD_REGISTRY_LSCR_PRIVATE_USERNAME="$GITHUB_USERNAME"
-    --env WUD_REGISTRY_LSCR_PRIVATE_TOKEN="$GITHUB_TOKEN"
-    --env WUD_AUTH_BASIC_JOHN_USER="john"
-    --env WUD_AUTH_BASIC_JOHN_HASH='$apr1$8zDVtSAY$62WBh9DspNbUKMZXYRsjS/'
-    wud
-
-  # Give wud a little time to fetch all available updates
-  - sleep 20
+  # Start wud
+  - (cd scripts && ./start-wud.sh)
 
   - docker logs wud
   

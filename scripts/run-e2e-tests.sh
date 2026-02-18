@@ -12,6 +12,9 @@ echo "🧪 Running complete e2e test suite..."
 # Setup test containers
 "$SCRIPT_DIR/setup-test-containers.sh"
 
+# Build WUD
+"$SCRIPT_DIR/build-wud.sh"
+
 # Start WUD
 "$SCRIPT_DIR/start-wud.sh"
 

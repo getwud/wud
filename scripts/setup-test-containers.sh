@@ -11,7 +11,6 @@ fi
 
 # Pull nginx as a test image
 docker pull nginx:1.10-alpine
-docker pull nginx:1.20-alpine
 
 # Tag nginx 1.10 as latest to simulate an update_available
 docker tag nginx:1.10-alpine nginx:latest
@@ -21,13 +20,6 @@ docker tag nginx:1.10-alpine fmartinou/test:1.0.0
 docker tag nginx:1.10-alpine 229211676173.dkr.ecr.eu-west-1.amazonaws.com/test:1.0.0
 docker tag nginx:1.10-alpine 229211676173.dkr.ecr.eu-west-1.amazonaws.com/sub/test:1.0.0
 docker tag nginx:1.10-alpine 229211676173.dkr.ecr.eu-west-1.amazonaws.com/sub/sub/test:1.0.0
-
-# Pull homeassistant
-docker pull homeassistant/home-assistant
-docker pull homeassistant/home-assistant:2021.6.1
-
-# Pull traefik
-docker pull traefik:2.4.5
 
 echo "✅ Docker images pulled and tagged"
 
