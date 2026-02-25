@@ -186,12 +186,23 @@ class Trigger extends Component {
                 logContainer.warn(`Error (${e.message})`);
                 logContainer.debug(e);
             } finally {
-                getTriggerCounter().inc({
-                    type: this.type,
-                    name: this.name,
-                    status,
-                });
+                this.increasePrometheusTriggerCounter(status);
             }
+        }
+    }
+
+    /**
+     * Inccrease the Prometheus trigger counter with the provided status.
+     * @param status the trigger result status
+     */
+    increasePrometheusTriggerCounter(status: string) {
+        const triggerCounter = getTriggerCounter();
+        if (triggerCounter) {
+            triggerCounter.inc({
+                type: this.type,
+                name: this.name,
+                status,
+            });
         }
     }
 

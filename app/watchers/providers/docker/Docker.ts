@@ -739,15 +739,22 @@ class Docker extends Watcher {
                 `Error when trying to prune the old containers (${e.message})`,
             );
         }
-        getWatchContainerGauge().set(
-            {
-                type: this.type,
-                name: this.name,
-            },
-            containersToReturn.length,
-        );
+        this.updatePrometheusGauge(containersToReturn);
 
         return containersToReturn;
+    }
+
+    private updatePrometheusGauge(containersToReturn: any[]) {
+        const containerGauge = getWatchContainerGauge();
+        if (containerGauge) {
+            getWatchContainerGauge().set(
+                {
+                    type: this.type,
+                    name: this.name,
+                },
+                containersToReturn.length,
+            );
+        }
     }
 
     /**

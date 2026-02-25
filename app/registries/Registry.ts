@@ -340,19 +340,23 @@ class Registry extends Component {
             const response = (await axios(
                 axiosOptionsWithAuth,
             )) as AxiosResponse<T>;
-            const end = new Date().getTime();
-            getSummaryTags().observe(
-                { type: this.type, name: this.name },
-                (end - start) / 1000,
-            );
+            this.observePrometheusSummaryTags(start);
             return resolveWithFullResponse ? response : response.data;
         } catch (error) {
             const end = new Date().getTime();
-            getSummaryTags().observe(
+            this.observePrometheusSummaryTags(start);
+            throw error;
+        }
+    }
+
+    observePrometheusSummaryTags(start: number) {
+        const summaryTags = getSummaryTags();
+        if (summaryTags) {
+            const end = new Date().getTime();
+            summaryTags.observe(
                 { type: this.type, name: this.name },
                 (end - start) / 1000,
             );
-            throw error;
         }
     }
 
