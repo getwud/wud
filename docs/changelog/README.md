@@ -4,6 +4,7 @@
 - :lock: Migrate backend to typescript
 - :fire: [APPRISE] - Fix bad request error ("Payload lacks minimum requirements")
 - :fire: [DISCORD] - Fix bad request error ("Invalid URL")
+- :fire: [NTFY] - Fix token auth
 
 ## 8.2.0
 - :star: Add TrueForge Container Registry support (oci.trueforge.org)

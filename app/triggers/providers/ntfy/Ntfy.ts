@@ -98,9 +98,7 @@ class Ntfy extends Trigger {
             };
         }
         if (this.configuration.auth && this.configuration.auth.token) {
-            options.auth = {
-                bearer: this.configuration.auth.token,
-            };
+            options.headers.Authorization = `Bearer ${this.configuration.auth.token}`;
         }
         const response = await axios(options);
         return response.data;

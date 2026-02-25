@@ -147,10 +147,9 @@ test('trigger should use bearer auth when configured like that', async () => {
         },
         headers: {
             'Content-Type': 'application/json',
+            Authorization: 'Bearer token',
         },
         method: 'POST',
-
         url: 'http://xxx.com',
-        auth: { bearer: 'token' },
     });
 });
