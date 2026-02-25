@@ -1,4 +1,5 @@
 // @ts-nocheck
+import axios from 'axios';
 import Custom from '../custom/Custom';
 
 /**
@@ -65,6 +66,33 @@ class Gitea extends Custom {
         const imageNormalized = image;
         imageNormalized.registry.url = `${this.configuration.url}/v2`;
         return imageNormalized;
+    }
+
+    /**
+     * Authenticate to Gitea/Forgejo Container Registry.
+     * @param image
+     * @param requestOptions
+     * @returns {Promise<*>}
+     */
+    async authenticate(image, requestOptions) {
+        const axiosConfig = {
+            method: 'GET',
+            url: `${this.configuration.url}/v2/token?service=container_registry&scope=repository:${image.name}:pull`,
+            headers: {
+                Accept: 'application/json',
+            },
+        };
+
+        // Add Authorization if any
+        const credentials = this.getAuthCredentials();
+        if (credentials) {
+            axiosConfig.headers.Authorization = `Basic ${credentials}`;
+        }
+
+        const response = await axios(axiosConfig);
+        const requestOptionsWithAuth = requestOptions;
+        requestOptionsWithAuth.headers.Authorization = `Bearer ${response.data.token}`;
+        return requestOptionsWithAuth;
     }
 }
 
