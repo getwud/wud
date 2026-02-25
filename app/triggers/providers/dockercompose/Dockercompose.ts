@@ -162,11 +162,20 @@ class Dockercompose extends Docker {
             return;
         }
 
+        // Track which services have already been mapped to avoid duplicates
+        // (multiple containers can share the same image/service)
+        const processedServices = new Set();
+
         // [{ current: '1.0.0', update: '2.0.0' }, {...}]
         const currentVersionToUpdateVersionArray = containersFiltered
-            .map((container) =>
-                this.mapCurrentVersionToUpdateVersion(compose, container),
-            )
+            .map((container) => {
+                const mapping = this.mapCurrentVersionToUpdateVersion(
+                    compose,
+                    container,
+                    processedServices,
+                );
+                return mapping;
+            })
             .filter((map) => map !== undefined);
 
         // Dry-run?
@@ -227,9 +236,10 @@ class Dockercompose extends Docker {
      * and the image declaration with the update version.
      * @param compose
      * @param container
+     * @param processedServices - Set to track which services have already been processed
      * @returns {{current, update}|undefined}
      */
-    mapCurrentVersionToUpdateVersion(compose, container) {
+    mapCurrentVersionToUpdateVersion(compose, container, processedServices) {
         // Get registry configuration
         this.log.debug(`Get ${container.image.registry.name} registry manager`);
         const registry = getState().registry[container.image.registry.name];
@@ -252,6 +262,19 @@ class Dockercompose extends Docker {
                 `Could not find service for container ${container.name} with image ${currentImage}`,
             );
             return undefined;
+        }
+
+        // Skip if this service has already been processed (duplicate container with same image)
+        if (processedServices && processedServices.has(serviceKeyToUpdate)) {
+            this.log.debug(
+                `Service ${serviceKeyToUpdate} already processed for container ${container.name} (duplicate image)`,
+            );
+            return undefined;
+        }
+
+        // Mark this service as processed
+        if (processedServices) {
+            processedServices.add(serviceKeyToUpdate);
         }
 
         // Rebuild image definition string
