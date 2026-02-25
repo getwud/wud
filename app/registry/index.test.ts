@@ -102,6 +102,7 @@ test('registerRegistries should register all registries', async () => {
     expect(Object.keys(registry.getState().registry).sort()).toEqual([
         'codeberg.public',
         'ecr.private',
+        'forgejo.public',
         'gcr.public',
         'ghcr.public',
         'hub.private',
@@ -114,6 +115,7 @@ test('registerRegistries should register all anonymous registries by default', a
     expect(Object.keys(registry.getState().registry).sort()).toEqual([
         'codeberg.public',
         'ecr.public',
+        'forgejo.public',
         'gcr.public',
         'ghcr.public',
         'hub.public',
@@ -287,6 +289,7 @@ test('init should register all components', async () => {
     expect(Object.keys(registry.getState().registry).sort()).toEqual([
         'codeberg.public',
         'ecr.private',
+        'forgejo.public',
         'gcr.public',
         'ghcr.public',
         'hub.private',

@@ -266,6 +266,7 @@ async function registerRegistries() {
     const defaultRegistries = {
         codeberg: { public: '' },
         ecr: { public: '' },
+        forgejo: { public: '' },
         gcr: { public: '' },
         ghcr: { public: '' },
         hub: { public: '' },

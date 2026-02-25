@@ -1,5 +1,9 @@
 # Changelog
 
+## dev
+- :star: Add public Codeberg registry (codeberg.org) to the list of default supported registries
+- :star: Add public Forgejo registry (code.forgejo.org) to the list of default supported registries
+
 ## 8.2.1
 - :lock: Migrate backend to typescript
 - :fire: [APPRISE] - Fix bad request error ("Payload lacks minimum requirements")
