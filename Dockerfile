@@ -44,7 +44,7 @@ FROM base AS release
 COPY Docker.entrypoint.sh /usr/bin/entrypoint.sh
 RUN chmod +x /usr/bin/entrypoint.sh
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
-CMD ["node", "dist/index"]
+CMD ["node", "dist/index.js"]
 
 ## Copy node_modules
 COPY --from=build /home/node/app/node_modules ./node_modules
