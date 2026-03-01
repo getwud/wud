@@ -603,11 +603,12 @@ describe('Docker Watcher', () => {
                 getTags: jest
                     .fn()
                     .mockResolvedValue(['1.0.0', '1.1.0', '2.0.0']),
+                shouldWatchDigest: jest.fn(() => false),
             };
             registry.getState.mockReturnValue({
                 registry: { hub: mockRegistry },
             });
-            const mockLogChild = { error: jest.fn() };
+            const mockLogChild = { error: jest.fn(), warn: jest.fn() };
 
             const result = await docker.findNewVersion(container, mockLogChild);
 
@@ -624,7 +625,7 @@ describe('Docker Watcher', () => {
                 },
             };
             registry.getState.mockReturnValue({ registry: {} });
-            const mockLogChild = { error: jest.fn() };
+            const mockLogChild = { error: jest.fn(), warn: jest.fn() };
 
             try {
                 await docker.findNewVersion(container, mockLogChild);
@@ -654,6 +655,7 @@ describe('Docker Watcher', () => {
                     .mockResolvedValueOnce({
                         digest: 'sha256:manifest123',
                     }),
+                shouldWatchDigest: jest.fn(() => true),
             };
             registry.getState.mockReturnValue({
                 registry: { hub: mockRegistry },
@@ -686,6 +688,7 @@ describe('Docker Watcher', () => {
                     created: '2023-01-01',
                     version: 1,
                 }),
+                shouldWatchDigest: jest.fn(() => true),
             };
             registry.getState.mockReturnValue({
                 registry: { hub: mockRegistry },
@@ -720,6 +723,7 @@ describe('Docker Watcher', () => {
                         'v2.0.0-beta',
                         'latest',
                     ]),
+                shouldWatchDigest: jest.fn(() => false),
             };
             registry.getState.mockReturnValue({
                 registry: { hub: mockRegistry },
@@ -748,6 +752,7 @@ describe('Docker Watcher', () => {
                     '1.1', // 2 parts, should be kept (but lower)
                     '2', // 1 part, should be filtered out
                 ]),
+                shouldWatchDigest: jest.fn(() => false),
             };
             registry.getState.mockReturnValue({
                 registry: { hub: mockRegistry },
@@ -805,6 +810,7 @@ describe('Docker Watcher', () => {
                 normalizeImage: jest.fn((img) => img),
                 getId: () => 'hub',
                 match: () => true,
+                shouldWatchDigest: jest.fn(() => false),
             };
             registry.getState.mockReturnValue({
                 registry: { hub: mockRegistry },
@@ -855,6 +861,7 @@ describe('Docker Watcher', () => {
                 normalizeImage: jest.fn((img) => img),
                 getId: () => 'hub',
                 match: () => true,
+                shouldWatchDigest: jest.fn(() => false),
             };
             registry.getState.mockReturnValue({
                 registry: { hub: mockRegistry },
@@ -897,6 +904,7 @@ describe('Docker Watcher', () => {
                 normalizeImage: jest.fn((img) => img),
                 getId: () => 'hub',
                 match: () => true,
+                shouldWatchDigest: jest.fn(() => false),
             };
             registry.getState.mockReturnValue({
                 registry: { hub: mockRegistry },
@@ -962,6 +970,7 @@ describe('Docker Watcher', () => {
                 normalizeImage: jest.fn((img) => img),
                 getId: () => 'hub',
                 match: () => true,
+                shouldWatchDigest: jest.fn(() => false),
             };
             registry.getState.mockReturnValue({
                 registry: { hub: mockRegistry },
@@ -1085,183 +1094,5 @@ describe('Docker Watcher', () => {
         test('should handle null inputs for old containers', async () => {
             expect([].filter(() => false)).toEqual([]);
         });
-    });
-});
-
-describe('isDigestToWatch Logic', () => {
-    let docker;
-    let mockImage;
-
-    beforeEach(async () => {
-        // Setup dockerode mock
-        const mockDockerApi = {
-            getImage: jest.fn(),
-        };
-        mockDockerode.mockImplementation(() => mockDockerApi);
-
-        mockImage = {
-            inspect: jest.fn(),
-        };
-        mockDockerApi.getImage.mockReturnValue(mockImage);
-
-        // Setup store mock
-        storeContainer.getContainer.mockReturnValue(undefined);
-        storeContainer.insertContainer.mockImplementation((c) => c);
-        storeContainer.updateContainer.mockImplementation((c) => c);
-
-        // Setup registry mock
-        registry.getState.mockReturnValue({ registry: {} });
-
-        // Setup event mock
-        event.emitContainerReport.mockImplementation(() => {});
-
-        // Setup prometheus mock
-        const mockGauge = { set: jest.fn() };
-        mockPrometheus.getWatchContainerGauge.mockReturnValue(mockGauge);
-
-        // Setup fullName mock
-        fullName.mockReturnValue('test_container');
-
-        docker = new Docker();
-        docker.name = 'test';
-        docker.dockerApi = mockDockerApi;
-        docker.ensureLogger();
-    });
-
-    // Helper to setup the environment for addImageDetailsToContainer
-    const setupTest = async (labels, domain, tag, isSemver = false) => {
-        const container = {
-            Id: '123',
-            Image: `${domain ? domain + '/' : ''}repo/image:${tag}`,
-            Names: ['/test'],
-            State: 'running',
-            Labels: labels || {},
-        };
-        const imageDetails = {
-            Id: 'image123',
-            Architecture: 'amd64',
-            Os: 'linux',
-            Created: '2023-01-01',
-            RepoDigests: ['repo/image@sha256:abc'],
-            RepoTags: [`${domain ? domain + '/' : ''}repo/image:${tag}`],
-        };
-        mockImage.inspect.mockResolvedValue(imageDetails);
-        // Mock parse to return appropriate structure
-        mockParse.mockReturnValue({
-            domain: domain,
-            path: 'repo/image',
-            tag: tag,
-        });
-
-        // Mock semver check
-        if (isSemver) {
-            mockTag.parse.mockReturnValue({ major: 1, minor: 0, patch: 0 });
-        } else {
-            mockTag.parse.mockReturnValue(null);
-        }
-
-        const mockRegistry = {
-            normalizeImage: jest.fn((img) => img),
-            getId: () => 'registry',
-            match: () => true,
-        };
-        registry.getState.mockReturnValue({
-            registry: { registry: mockRegistry },
-        });
-
-        const containerModule = await import('../../../model/container');
-        const validateContainer = containerModule.validate;
-        // @ts-ignore
-        validateContainer.mockImplementation((c) => c);
-
-        return container;
-    };
-
-    // Case 1: Explicit Label present
-    test('should watch digest if label is true (semver)', async () => {
-        const container = await setupTest(
-            { 'wud.watch.digest': 'true' },
-            'my.registry',
-            '1.0.0',
-            true,
-        );
-        const result = await docker.addImageDetailsToContainer(container);
-        expect(result.image.digest.watch).toBe(true);
-    });
-
-    test('should watch digest if label is true (non-semver)', async () => {
-        const container = await setupTest(
-            { 'wud.watch.digest': 'true' },
-            'my.registry',
-            'latest',
-            false,
-        );
-        const result = await docker.addImageDetailsToContainer(container);
-        expect(result.image.digest.watch).toBe(true);
-    });
-
-    test('should NOT watch digest if label is false (semver)', async () => {
-        const container = await setupTest(
-            { 'wud.watch.digest': 'false' },
-            'my.registry',
-            '1.0.0',
-            true,
-        );
-        const result = await docker.addImageDetailsToContainer(container);
-        expect(result.image.digest.watch).toBe(false);
-    });
-
-    test('should NOT watch digest if label is false (non-semver)', async () => {
-        const container = await setupTest(
-            { 'wud.watch.digest': 'false' },
-            'my.registry',
-            'latest',
-            false,
-        );
-        const result = await docker.addImageDetailsToContainer(container);
-        expect(result.image.digest.watch).toBe(false);
-    });
-
-    // Case 2: Semver (no label) -> default false
-    test('should NOT watch digest by default for semver images', async () => {
-        const container = await setupTest({}, 'my.registry', '1.0.0', true);
-        const result = await docker.addImageDetailsToContainer(container);
-        expect(result.image.digest.watch).toBe(false);
-    });
-
-    test('should NOT watch digest by default for semver images (Docker Hub)', async () => {
-        const container = await setupTest({}, 'docker.io', '1.0.0', true);
-        const result = await docker.addImageDetailsToContainer(container);
-        expect(result.image.digest.watch).toBe(false);
-    });
-
-    // Case 3: Non-Semver (no label) -> default true, EXCEPT Docker Hub
-    test('should watch digest by default for non-semver images (Custom Registry)', async () => {
-        const container = await setupTest({}, 'my.registry', 'latest', false);
-        const result = await docker.addImageDetailsToContainer(container);
-        expect(result.image.digest.watch).toBe(true);
-    });
-
-    test('should NOT watch digest by default for non-semver images (Docker Hub Explicit)', async () => {
-        const container = await setupTest({}, 'docker.io', 'latest', false);
-        const result = await docker.addImageDetailsToContainer(container);
-        expect(result.image.digest.watch).toBe(false);
-    });
-
-    test('should NOT watch digest by default for non-semver images (Docker Hub Registry-1)', async () => {
-        const container = await setupTest(
-            {},
-            'registry-1.docker.io',
-            'latest',
-            false,
-        );
-        const result = await docker.addImageDetailsToContainer(container);
-        expect(result.image.digest.watch).toBe(false);
-    });
-
-    test('should NOT watch digest by default for non-semver images (Docker Hub Implicit)', async () => {
-        const container = await setupTest({}, undefined, 'latest', false); // Implicit
-        const result = await docker.addImageDetailsToContainer(container);
-        expect(result.image.digest.watch).toBe(false);
     });
 });

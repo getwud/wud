@@ -1,4 +1,4 @@
-// @ts-nocheck
+import { ContainerImage } from '../../../model/container';
 import Ghcr from '../ghcr/Ghcr';
 
 /**
@@ -14,21 +14,15 @@ class Trueforge extends Ghcr {
 
     /**
      * Return true if image has not registry url.
-     * @param image the image
-     * @returns {boolean}
      */
-
-    match(image) {
-        return /^.*\.?oci.trueforge.org$/.test(image.registry.url);
+    match(imageUrl: string) {
+        return /^.*\.?oci.trueforge.org$/.test(imageUrl);
     }
 
     /**
      * Normalize image according to Github Container Registry characteristics.
-     * @param image
-     * @returns {*}
      */
-
-    normalizeImage(image) {
+    normalizeImage(image: ContainerImage) {
         const imageNormalized = image;
         if (!imageNormalized.registry.url.startsWith('https://')) {
             imageNormalized.registry.url = `https://${imageNormalized.registry.url}/v2`;

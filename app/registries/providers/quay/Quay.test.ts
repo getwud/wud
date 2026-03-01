@@ -5,7 +5,9 @@ import log from '../../../log';
 
 jest.mock('axios');
 axios.mockImplementation(() => ({
-    token: 'token',
+    data: {
+        token: 'token',
+    },
 }));
 
 const quay = new Quay();
@@ -56,23 +58,11 @@ test('maskConfiguration should mask authentication configuration secrets', async
 });
 
 test('match should return true when registry url is from quay.io', async () => {
-    expect(
-        quay.match({
-            registry: {
-                url: 'quay.io',
-            },
-        }),
-    ).toBeTruthy();
+    expect(quay.match('quay.io')).toBeTruthy();
 });
 
 test('match should return false when registry url is not from quay.io', async () => {
-    expect(
-        quay.match({
-            registry: {
-                url: 'error.io',
-            },
-        }),
-    ).toBeFalsy();
+    expect(quay.match('error.io')).toBeFalsy();
 });
 
 test('normalizeImage should return the proper registry v2 endpoint', async () => {

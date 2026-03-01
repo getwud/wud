@@ -1,8 +1,9 @@
-// @ts-nocheck
+import { ContainerImage } from '../../../model/container';
+import { ComponentConfiguration } from '../../../registry/Component';
 import Ghcr from './Ghcr';
 
 describe('GitHub Container Registry', () => {
-    let ghcr;
+    let ghcr: Ghcr;
 
     beforeEach(async () => {
         ghcr = new Ghcr();
@@ -18,12 +19,15 @@ describe('GitHub Container Registry', () => {
     });
 
     test('should match registry', async () => {
-        expect(ghcr.match({ registry: { url: 'ghcr.io' } })).toBe(true);
-        expect(ghcr.match({ registry: { url: 'docker.io' } })).toBe(false);
+        expect(ghcr.match('ghcr.io')).toBe(true);
+        expect(ghcr.match('docker.io')).toBe(false);
     });
 
     test('should normalize image name', async () => {
-        const image = { name: 'user/repo', registry: { url: 'ghcr.io' } };
+        const image = {
+            name: 'user/repo',
+            registry: { url: 'ghcr.io' },
+        } as ContainerImage;
         const normalized = ghcr.normalizeImage(image);
         expect(normalized.name).toBe('user/repo');
         expect(normalized.registry.url).toBe('https://ghcr.io/v2');
@@ -33,7 +37,7 @@ describe('GitHub Container Registry', () => {
         const image = {
             name: 'user/repo',
             registry: { url: 'https://ghcr.io/v2' },
-        };
+        } as ContainerImage;
         const normalized = ghcr.normalizeImage(image);
         expect(normalized.registry.url).toBe('https://ghcr.io/v2');
     });
@@ -62,7 +66,7 @@ describe('GitHub Container Registry', () => {
 
     test('should authenticate with token', async () => {
         ghcr.configuration = { token: 'test-token' };
-        const image = { name: 'user/repo' };
+        const image = { name: 'user/repo' } as ContainerImage;
         const requestOptions = { headers: {} };
 
         const result = await ghcr.authenticate(image, requestOptions);
@@ -75,7 +79,7 @@ describe('GitHub Container Registry', () => {
 
     test('should authenticate without token', async () => {
         ghcr.configuration = {};
-        const image = { name: 'user/repo' };
+        const image = { name: 'user/repo' } as ContainerImage;
         const requestOptions = { headers: {} };
 
         const result = await ghcr.authenticate(image, requestOptions);
@@ -85,8 +89,14 @@ describe('GitHub Container Registry', () => {
     });
 
     test('should validate string configuration', async () => {
-        expect(() => ghcr.validateConfiguration('')).not.toThrow();
-        expect(() => ghcr.validateConfiguration('some-string')).not.toThrow();
+        expect(() =>
+            ghcr.validateConfiguration('' as unknown as ComponentConfiguration),
+        ).not.toThrow();
+        expect(() =>
+            ghcr.validateConfiguration(
+                'some-string' as unknown as ComponentConfiguration,
+            ),
+        ).not.toThrow();
     });
 
     test('should return undefined auth pull when missing username', async () => {
