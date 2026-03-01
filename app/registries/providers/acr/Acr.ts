@@ -1,4 +1,5 @@
-// @ts-nocheck
+import { AxiosRequestConfig } from 'axios';
+import { ContainerImage } from '../../../model/container';
 import Registry from '../../Registry';
 
 /**
@@ -14,7 +15,6 @@ class Acr extends Registry {
 
     /**
      * Sanitize sensitive data
-     * @returns {*}
      */
     maskConfiguration() {
         return {
@@ -26,21 +26,17 @@ class Acr extends Registry {
 
     /**
      * Return true if image has not registryUrl.
-     * @param image the image
-     * @returns {boolean}
      */
 
-    match(image) {
-        return /^.*\.?azurecr.io$/.test(image.registry.url);
+    match(imageUrl: string) {
+        return /^.*\.?azurecr.io$/.test(imageUrl);
     }
 
     /**
      * Normalize image according to AWS ECR characteristics.
-     * @param image
-     * @returns {*}
      */
 
-    normalizeImage(image) {
+    normalizeImage(image: ContainerImage) {
         const imageNormalized = image;
         if (!imageNormalized.registry.url.startsWith('https://')) {
             imageNormalized.registry.url = `https://${imageNormalized.registry.url}/v2`;
@@ -48,7 +44,10 @@ class Acr extends Registry {
         return imageNormalized;
     }
 
-    async authenticate(image, requestOptions) {
+    async authenticate(
+        image: ContainerImage,
+        requestOptions: AxiosRequestConfig,
+    ) {
         const requestOptionsWithAuth = requestOptions;
         requestOptionsWithAuth.headers.Authorization = `Basic ${Acr.base64Encode(this.configuration.clientid, this.configuration.clientsecret)}`;
         return requestOptionsWithAuth;

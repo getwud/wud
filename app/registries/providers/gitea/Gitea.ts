@@ -1,6 +1,6 @@
-// @ts-nocheck
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import Custom from '../custom/Custom';
+import { ContainerImage } from '../../../model/container';
 
 /**
  * Gitea Container Registry integration.
@@ -35,7 +35,7 @@ class Gitea extends Custom {
     /**
      * Custom init behavior.
      */
-    init() {
+    async init() {
         // Prepend the URL with https protocol if protocol is missing
         if (!this.configuration.url.toLowerCase().startsWith('http')) {
             this.configuration.url = `https://${this.configuration.url}`;
@@ -44,25 +44,21 @@ class Gitea extends Custom {
 
     /**
      * Return true if image registry match gitea fqdn.
-     * @param image the image
-     * @returns {boolean}
      */
-    match(image) {
+    match(imageUrl: string) {
         const fqdnConfigured = /(?:https?:\/\/)?(.*)/
             .exec(this.configuration.url)[1]
             .toLowerCase();
         const imageRegistryFqdn = /(?:https?:\/\/)?(.*)/
-            .exec(image.registry.url)[1]
+            .exec(imageUrl)[1]
             .toLowerCase();
         return fqdnConfigured === imageRegistryFqdn;
     }
 
     /**
      * Normalize image according to Gitea Container Registry characteristics.
-     * @param image
-     * @returns {*}
      */
-    normalizeImage(image) {
+    normalizeImage(image: ContainerImage) {
         const imageNormalized = image;
         imageNormalized.registry.url = `${this.configuration.url}/v2`;
         return imageNormalized;
@@ -70,12 +66,12 @@ class Gitea extends Custom {
 
     /**
      * Authenticate to Gitea/Forgejo Container Registry.
-     * @param image
-     * @param requestOptions
-     * @returns {Promise<*>}
      */
-    async authenticate(image, requestOptions) {
-        const axiosConfig = {
+    async authenticate(
+        image: ContainerImage,
+        requestOptions: AxiosRequestConfig,
+    ) {
+        const axiosConfig: AxiosRequestConfig = {
             method: 'GET',
             url: `${this.configuration.url}/v2/token?service=container_registry&scope=repository:${image.name}:pull`,
             headers: {

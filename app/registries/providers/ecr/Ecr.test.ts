@@ -76,23 +76,11 @@ test('validatedConfiguration should throw error when secretaccesskey is missing'
 });
 
 test('match should return true when registry url is from ecr', async () => {
-    expect(
-        ecr.match({
-            registry: {
-                url: '123456789.dkr.ecr.eu-west-1.amazonaws.com',
-            },
-        } as ContainerImage),
-    ).toBeTruthy();
+    expect(ecr.match('123456789.dkr.ecr.eu-west-1.amazonaws.com')).toBeTruthy();
 });
 
 test('match should return false when registry url is not from ecr', async () => {
-    expect(
-        ecr.match({
-            registry: {
-                url: '123456789.dkr.ecr.eu-west-1.acme.com',
-            },
-        } as ContainerImage),
-    ).toBeFalsy();
+    expect(ecr.match('123456789.dkr.ecr.eu-west-1.acme.com')).toBeFalsy();
 });
 
 test('maskConfiguration should mask configuration secrets', async () => {

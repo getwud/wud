@@ -56,7 +56,7 @@ class Telegram extends Trigger {
         };
     }
 
-    initTrigger() {
+    async initTrigger() {
         this.proxyAgent = this.configuration.proxy
             ? createProxyAgent(this.configuration.proxy)
             : undefined;

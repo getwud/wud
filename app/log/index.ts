@@ -1,4 +1,3 @@
-// @ts-nocheck
 import bunyan from 'bunyan';
 import { getLogLevel } from '../configuration';
 

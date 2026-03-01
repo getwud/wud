@@ -1,4 +1,4 @@
-// @ts-nocheck
+import { ContainerImage } from '../../../model/container';
 import Gcr from './Gcr';
 
 jest.mock('axios', () =>
@@ -41,44 +41,14 @@ test('maskConfiguration should mask configuration secrets', async () => {
 });
 
 test('match should return true when registry url is from gcr', async () => {
-    expect(
-        gcr.match({
-            registry: {
-                url: 'gcr.io',
-            },
-        }),
-    ).toBeTruthy();
-    expect(
-        gcr.match({
-            registry: {
-                url: 'us.gcr.io',
-            },
-        }),
-    ).toBeTruthy();
-    expect(
-        gcr.match({
-            registry: {
-                url: 'eu.gcr.io',
-            },
-        }),
-    ).toBeTruthy();
-    expect(
-        gcr.match({
-            registry: {
-                url: 'asia.gcr.io',
-            },
-        }),
-    ).toBeTruthy();
+    expect(gcr.match('gcr.io')).toBeTruthy();
+    expect(gcr.match('us.gcr.io')).toBeTruthy();
+    expect(gcr.match('eu.gcr.io')).toBeTruthy();
+    expect(gcr.match('asia.gcr.io')).toBeTruthy();
 });
 
 test('match should return false when registry url is not from gcr', async () => {
-    expect(
-        gcr.match({
-            registry: {
-                url: 'grr.io',
-            },
-        }),
-    ).toBeFalsy();
+    expect(gcr.match('grr.io')).toBeFalsy();
 });
 
 test('normalizeImage should return the proper registry v2 endpoint', async () => {
@@ -88,7 +58,7 @@ test('normalizeImage should return the proper registry v2 endpoint', async () =>
             registry: {
                 url: 'eu.gcr.io/test/image',
             },
-        }),
+        } as ContainerImage),
     ).toStrictEqual({
         name: 'test/image',
         registry: {
@@ -98,7 +68,9 @@ test('normalizeImage should return the proper registry v2 endpoint', async () =>
 });
 
 test('authenticate should call ecr auth endpoint', async () => {
-    expect(gcr.authenticate({}, { headers: {} })).resolves.toEqual({
+    expect(
+        gcr.authenticate({} as ContainerImage, { headers: {} }),
+    ).resolves.toEqual({
         headers: {
             Authorization: 'Bearer xxxxx',
         },

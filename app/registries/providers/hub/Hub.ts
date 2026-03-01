@@ -1,12 +1,12 @@
-// @ts-nocheck
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import Custom from '../custom/Custom';
+import { ContainerImage } from '../../../model/container';
 
 /**
  * Docker Hub integration.
  */
 class Hub extends Custom {
-    init() {
+    async init() {
         this.configuration.url = 'https://registry-1.docker.io';
         if (this.configuration.token) {
             this.configuration.password = this.configuration.token;
@@ -15,7 +15,6 @@ class Hub extends Custom {
 
     /**
      * Get the Hub configuration schema.
-     * @returns {*}
      */
     getConfigurationSchema() {
         return this.joi.alternatives([
@@ -25,13 +24,28 @@ class Hub extends Custom {
                 password: this.joi.string(),
                 token: this.joi.string(),
                 auth: this.joi.string().base64(),
+                watchdigest: this.joi.bool().default(false),
+                suppressdigestwatchwarning: this.joi.bool().default(false),
             }),
         ]);
     }
 
+    shouldWatchDigest(wudWatchDigestLabelValue: string, image: string) {
+        const shouldWatch =
+            (wudWatchDigestLabelValue &&
+                wudWatchDigestLabelValue.toLowerCase() === 'true') ||
+            this.configuration.watchdigest === true;
+        if (shouldWatch && !this.configuration.suppressdigestwatchwarning) {
+            this.log.warn(
+                `Watching digest for image ${image} may result in throttled requests`,
+            );
+        }
+
+        return shouldWatch;
+    }
+
     /**
      * Sanitize sensitive data
-     * @returns {*}
      */
     maskConfiguration() {
         return {
@@ -46,22 +60,16 @@ class Hub extends Custom {
 
     /**
      * Return true if image has no registry url.
-     * @param image the image
-     * @returns {boolean}
      */
 
-    match(image) {
-        return (
-            !image.registry.url || /^.*\.?docker.io$/.test(image.registry.url)
-        );
+    match(imageUrl: string) {
+        return !imageUrl || /^.*\.?docker.io$/.test(imageUrl);
     }
 
     /**
      * Normalize images according to Hub characteristics.
-     * @param image
-     * @returns {*}
      */
-    normalizeImage(image) {
+    normalizeImage(image: ContainerImage) {
         const imageNormalized = super.normalizeImage(image);
         if (imageNormalized.name) {
             imageNormalized.name = imageNormalized.name.includes('/')
@@ -73,12 +81,12 @@ class Hub extends Custom {
 
     /**
      * Authenticate to Hub.
-     * @param image
-     * @param requestOptions
-     * @returns {Promise<*>}
      */
-    async authenticate(image, requestOptions) {
-        const axiosConfig = {
+    async authenticate(
+        image: ContainerImage,
+        requestOptions: AxiosRequestConfig,
+    ) {
+        const axiosConfig: AxiosRequestConfig = {
             method: 'GET',
             url: `https://auth.docker.io/token?service=registry.docker.io&scope=repository:${image.name}:pull&grant_type=password`,
             headers: {
@@ -98,7 +106,7 @@ class Hub extends Custom {
         return requestOptionsWithAuth;
     }
 
-    getImageFullName(image, tagOrDigest) {
+    getImageFullName(image: ContainerImage, tagOrDigest: string) {
         let fullName = super.getImageFullName(image, tagOrDigest);
         fullName = fullName.replace(/registry-1.docker.io\//, '');
         fullName = fullName.replace(/library\//, '');
