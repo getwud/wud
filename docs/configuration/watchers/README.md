@@ -38,7 +38,7 @@ You just need to give them different names.
 [See dockerd documentation](https://docs.docker.com/engine/security/protect-access/#use-tls-https-to-protect-the-docker-daemon-socket)
 
 !> Watching image digests causes an extensive usage of _Docker Registry Pull API_ which is restricted by [**Quotas on the Docker Hub**](https://docs.docker.com/docker-hub/download-rate-limit/). \
-By default, WUD enables it only for **non semver** image tags. \
+By default, WUD enables it only for **non semver** image tags and not on the Docker Hub repository. \
 You can tune this behavior per container using the `wud.watch.digest` label. \
 If you face [quota related errors](https://docs.docker.com/docker-hub/download-rate-limit/#how-do-i-know-my-pull-requests-are-being-limited), consider slowing down the watcher rate by adjusting the `WUD_WATCHER_{watcher_name}_CRON` variable.
 
