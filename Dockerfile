@@ -37,6 +37,14 @@ RUN npm run build
 # Remove dev dependencies
 RUN npm prune --omit=dev
 
+# UI Build stage
+FROM base AS ui-build
+WORKDIR /home/node/ui
+COPY ui/package*.json ./
+RUN npm ci --include=dev --omit=optional --no-audit --no-fund --no-update-notifier
+COPY ui/ ./
+RUN npm run build
+
 # Release stage
 FROM base AS release
 
@@ -54,4 +62,4 @@ COPY --from=build /home/node/app/dist ./dist
 COPY --from=build /home/node/app/package.json ./package.json
 
 # Copy ui
-COPY ui/dist/ ./ui
+COPY --from=ui-build /home/node/ui/dist ./ui

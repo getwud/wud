@@ -1,9 +1,8 @@
 // @ts-nocheck
 import express from 'express';
-import passport from 'passport';
 import nocache from 'nocache';
 import { output } from '../prometheus';
-import * as auth from './auth';
+import { requireAuthentication } from './auth';
 
 /**
  * Prometheus Metrics router.
@@ -30,7 +29,7 @@ export function init() {
     router.use(nocache());
 
     // Routes to protect after this line
-    router.use(passport.authenticate(auth.getAllIds()));
+    router.use(requireAuthentication);
 
     router.get('/', outputMetrics);
     return router;

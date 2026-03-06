@@ -1,6 +1,5 @@
 // @ts-nocheck
 import express from 'express';
-import passport from 'passport';
 import * as appRouter from './app';
 import * as containerRouter from './container';
 import * as watcherRouter from './watcher';
@@ -10,7 +9,7 @@ import * as authenticationRouter from './authentication';
 import * as logRouter from './log';
 import * as storeRouter from './store';
 import * as serverRouter from './server';
-import * as auth from './auth';
+import { requireAuthentication } from './auth';
 
 /**
  * Init the API router.
@@ -23,7 +22,7 @@ export function init() {
     router.use('/app', appRouter.init());
 
     // Routes to protect after this line
-    router.use(passport.authenticate(auth.getAllIds()));
+    router.use(requireAuthentication);
 
     // Mount log router
     router.use('/log', logRouter.init());
