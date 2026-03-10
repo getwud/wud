@@ -9,6 +9,19 @@ module.exports = {
             'ts-jest',
             {
                 useESM: true,
+                tsconfig: {
+                    module: 'ESNext',
+                    moduleResolution: 'node',
+                },
+            },
+        ],
+        '^.+\\.jsx?$': [
+            'ts-jest',
+            {
+                useESM: true,
+                tsconfig: {
+                    allowJs: true,
+                },
             },
         ],
     },
@@ -16,6 +29,9 @@ module.exports = {
         '^(\\.{1,2}/.*)\\.js$': '$1',
     },
     extensionsToTreatAsEsm: ['.ts'],
+    transformIgnorePatterns: [
+        'node_modules/(?!(oauth4webapi|openid-client|jose)/)',
+    ],
     coverageDirectory: 'coverage',
     collectCoverageFrom: [
         '**/*.{js,ts}',
