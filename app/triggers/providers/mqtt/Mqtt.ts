@@ -113,9 +113,39 @@ class Mqtt extends Trigger {
             options.ca = [await fs.readFile(this.configuration.tls.cachain)];
         }
         options.rejectUnauthorized = this.configuration.tls.rejectunauthorized;
+        options.manualConnect = true;
+        options.reconnectPeriod = 10000; // Reconnect every 10 seconds
 
-        this.client = await mqtt.connectAsync(this.configuration.url, options);
+        this.client = mqtt.connect(this.configuration.url, options);
 
+        // Register event handlers for logging
+        this.client.on('connect', (connack) => {
+            this.log.debug('MQTT client connected');
+        });
+
+        this.client.on('reconnect', () => {
+            this.log.debug('MQTT client reconnecting');
+        });
+
+        this.client.on('close', () => {
+            this.log.debug('MQTT connection closed');
+        });
+
+        this.client.on('disconnect', (packet) => {
+            this.log.debug(`MQTT client disconnected, reasonCode: ${packet?.reasonCode}`);
+        });
+
+        this.client.on('error', (error) => {
+            this.log.debug(`MQTT client error ${error.code}` );
+
+        });
+
+        this.client.on('end', () => {
+            this.log.debug('MQTT client ended');
+        });
+
+        this.client.connect();
+        
         if (this.configuration.hass.enabled) {
             this.hass = new Hass({
                 client: this.client,
@@ -156,6 +186,15 @@ class Mqtt extends Trigger {
 
     async triggerBatch() {
         throw new Error('This trigger does not support "batch" mode');
+    }
+
+    /**
+     * Deregister the component
+     * @returns {Promise<void>}
+     */
+
+    async deregisterComponent(): Promise<void> {
+        return this.client.end(true);
     }
 }
 
