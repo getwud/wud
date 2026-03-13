@@ -9,6 +9,7 @@ The `discord` trigger lets you send realtime notifications using [Discord](https
 |--------------------------------------------------|:--------------:|------------------------------------------|-----------------------|-----------------------------|
 | `WUD_TRIGGER_DISCORD_{trigger_name}_URL`         | :red_circle:   | The Discord webhook URL                  | HTTPS URL             |                             |
 | `WUD_TRIGGER_DISCORD_{trigger_name}_BOTUSERNAME` | :white_circle: | The bot username                         |                       | WUD                         |
+| `WUD_TRIGGER_DISCORD_{trigger_name}_AVATARURL`   | :white_circle: | Avatar image URL for the webhook bot     | HTTPS URL             |                             |
 | `WUD_TRIGGER_DISCORD_{trigger_name}_CARDCOLOR`   | :white_circle: | Color of the message card                | Color in decimal base | 65280                       |
 | `WUD_TRIGGER_DISCORD_{trigger_name}_CARDLABEL`   | :white_circle: | Optional label to display in the message | String                |                             |
 
