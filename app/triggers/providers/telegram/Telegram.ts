@@ -1,15 +1,6 @@
-// @ts-nocheck
-import TelegramBot from 'node-telegram-bot-api';
+import axios from 'axios';
+import { Container } from '../../../model/container';
 import Trigger from '../Trigger';
-
-/**
- * Escape special characters.
- * @param {*} text
- * @returns
- */
-function escapeMarkdown(text) {
-    return text.replace(/([\\_*`|!.[\](){}>+#=~-])/gm, '\\$1');
-}
 
 /**
  * Telegram Trigger implementation
@@ -17,7 +8,6 @@ function escapeMarkdown(text) {
 class Telegram extends Trigger {
     /**
      * Get the Trigger configuration schema.
-     * @returns {*}
      */
     getConfigurationSchema() {
         return this.joi.object().keys({
@@ -34,7 +24,6 @@ class Telegram extends Trigger {
 
     /**
      * Sanitize sensitive data
-     * @returns {*}
      */
     maskConfiguration() {
         return {
@@ -45,19 +34,10 @@ class Telegram extends Trigger {
     }
 
     /**
-     * Init trigger (create telegram client).
-     * @returns {Promise<void>}
-     */
-    async initTrigger() {
-        this.telegramBot = new TelegramBot(this.configuration.bottoken);
-    }
-
-    /*
      * Post a message with new image version details.
-     *
-     * @param image the image
+     * @param container the image
      */
-    async trigger(container) {
+    trigger(container: Container) {
         const body = this.renderSimpleBody(container);
 
         if (this.configuration.disabletitle) {
@@ -67,11 +47,11 @@ class Telegram extends Trigger {
         const title = this.renderSimpleTitle(container);
 
         return this.sendMessage(
-            `${this.bold(title)}\n\n${escapeMarkdown(body)}`,
+            `${this.bold(title)}\n\n${this.escapeMarkdown(body)}`,
         );
     }
 
-    async triggerBatch(containers) {
+    triggerBatch(containers: Container[]) {
         const body = this.renderBatchBody(containers);
         if (this.configuration.disabletitle) {
             return this.sendMessage(body);
@@ -81,32 +61,43 @@ class Telegram extends Trigger {
         return this.sendMessage(`${this.bold(title)}\n\n${body}`);
     }
 
-    /**
-     * Post a message to a Slack channel.
-     * @param text the text to post
-     * @returns {Promise<>}
-     */
-    async sendMessage(text) {
-        const txtToSend = text;
-        return this.telegramBot.sendMessage(
-            this.configuration.chatid,
-            txtToSend,
-            {
-                parse_mode: this.getParseMode(),
-            },
+    private async sendMessage(text: string) {
+        const message = {
+            chat_id: this.configuration.chatid,
+            text: text,
+            parse_mode: this.getParseMode(),
+        };
+
+        const response = await axios.post(
+            `https://api.telegram.org/bot${this.configuration.bottoken}/sendMessage`,
+            message,
         );
+
+        if (response.status < 200 || response.status >= 300) {
+            // log the error message from Telegram API
+            this.log.error(
+                `Failed to send message to Telegram: ${JSON.stringify(response.data)}`,
+            );
+        }
     }
 
-    bold(text) {
+    private bold(text: string) {
         return this.configuration.messageformat.toLowerCase() === 'markdown'
-            ? `*${escapeMarkdown(text)}*`
+            ? `*${this.escapeMarkdown(text)}*`
             : `<b>${text}</b>`;
     }
 
-    getParseMode() {
+    private getParseMode() {
         return this.configuration.messageformat.toLowerCase() === 'markdown'
             ? 'MarkdownV2'
             : 'HTML';
+    }
+
+    /**
+     * Escape special characters.
+     */
+    private escapeMarkdown(text: string) {
+        return text.replace(/([\\_*`|!.[\](){}>+#=~-])/gm, '\\$1');
     }
 }
 
