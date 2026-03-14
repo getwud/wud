@@ -1,13 +1,12 @@
-// @ts-nocheck
 import { ValidationError } from 'joi';
 import express from 'express';
-import { Issuer } from 'openid-client';
+import * as client from 'openid-client';
 import Oidc from './Oidc';
 
-const app = express();
+// Mock the openid-client module
+jest.mock('openid-client');
 
-const { Client } = new Issuer({ issuer: 'issuer' });
-const client = new Client({ client_id: '123456789' });
+const app = express();
 
 const configurationValid = {
     clientid: '123465798',
@@ -15,14 +14,23 @@ const configurationValid = {
     discovery: 'https://idp/.well-known/openid-configuration',
     redirect: false,
     timeout: 5000,
+    usernameclaim: 'email',
 };
 
-const oidc = new Oidc();
-oidc.configuration = configurationValid;
-oidc.client = client;
+const mockConfig = {
+    serverMetadata: jest.fn().mockReturnValue({
+        supportsPKCE: jest.fn().mockReturnValue(true),
+    }),
+};
+
+let oidc: any;
 
 beforeEach(async () => {
     jest.resetAllMocks();
+    oidc = new Oidc();
+    oidc.configuration = configurationValid;
+    // Access private config property for testing
+    (oidc as any).config = mockConfig;
 });
 
 test('validateConfiguration should return validated configuration when valid', async () => {
@@ -35,7 +43,7 @@ test('validateConfiguration should throw error when invalid', async () => {
     const configuration = {};
     expect(() => {
         oidc.validateConfiguration(configuration);
-    }).toThrowError(ValidationError);
+    }).toThrow(ValidationError);
 });
 
 test('getStrategy should return an Authentication strategy', async () => {
@@ -50,11 +58,13 @@ test('maskConfiguration should mask configuration secrets', async () => {
         discovery: 'https://idp/.well-known/openid-configuration',
         redirect: false,
         timeout: 5000,
+        usernameclaim: 'email',
     });
 });
 
 test('getStrategyDescription should return strategy description', async () => {
-    oidc.logoutUrl = 'https://idp/logout';
+    // Set private logoutUrl property for testing
+    (oidc as any).logoutUrl = 'https://idp/logout';
     expect(oidc.getStrategyDescription()).toEqual({
         type: 'oidc',
         name: oidc.name,
@@ -65,7 +75,7 @@ test('getStrategyDescription should return strategy description', async () => {
 
 test('verify should return user on valid token', async () => {
     const mockUserInfo = { email: 'test@example.com' };
-    oidc.client.userinfo = jest.fn().mockResolvedValue(mockUserInfo);
+    (client.fetchUserInfo as jest.Mock).mockResolvedValue(mockUserInfo);
 
     const done = jest.fn();
     await oidc.verify('valid-token', done);
@@ -74,9 +84,9 @@ test('verify should return user on valid token', async () => {
 });
 
 test('verify should return false on invalid token', async () => {
-    oidc.client.userinfo = jest
-        .fn()
-        .mockRejectedValue(new Error('Invalid token'));
+    (client.fetchUserInfo as jest.Mock).mockRejectedValue(
+        new Error('Invalid token'),
+    );
     oidc.log = { warn: jest.fn() };
 
     const done = jest.fn();
@@ -87,7 +97,7 @@ test('verify should return false on invalid token', async () => {
 
 test('getUserFromAccessToken should return user with email', async () => {
     const mockUserInfo = { email: 'user@example.com' };
-    oidc.client.userinfo = jest.fn().mockResolvedValue(mockUserInfo);
+    (client.fetchUserInfo as jest.Mock).mockResolvedValue(mockUserInfo);
 
     const user = await oidc.getUserFromAccessToken('token');
     expect(user).toEqual({ username: 'user@example.com' });
@@ -95,7 +105,7 @@ test('getUserFromAccessToken should return user with email', async () => {
 
 test('getUserFromAccessToken should return unknown for missing email', async () => {
     const mockUserInfo = {};
-    oidc.client.userinfo = jest.fn().mockResolvedValue(mockUserInfo);
+    (client.fetchUserInfo as jest.Mock).mockResolvedValue(mockUserInfo);
 
     const user = await oidc.getUserFromAccessToken('token');
     expect(user).toEqual({ username: 'unknown' });
