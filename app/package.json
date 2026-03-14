@@ -41,7 +41,6 @@
         "mqtt": "5.14.1",
         "nocache": "4.0.0",
         "node-cron": "4.2.1",
-        "node-telegram-bot-api": "^1.1.2",
         "nodemailer": "^9.0.3",
         "openid-client": "6.8.2",
         "parse-docker-image-name": "3.0.0",

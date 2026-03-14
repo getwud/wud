@@ -1,11 +1,16 @@
-// @ts-nocheck
-import { ValidationError } from 'joi';
-import TelegramBot from 'node-telegram-bot-api';
-import { SocksProxyAgent } from 'socks-proxy-agent';
+import axios from 'axios';
 import { HttpsProxyAgent } from 'https-proxy-agent';
+import { ValidationError } from 'joi';
+import { SocksProxyAgent } from 'socks-proxy-agent';
+import { Container } from '../../../model/container';
 import Telegram from './Telegram';
 
-jest.mock('node-telegram-bot-api');
+jest.mock('axios', () => ({
+    post: jest.fn(),
+}));
+
+const mockedPost = axios.post as jest.MockedFunction<typeof axios.post>;
+const emptyContainer = {} as Container;
 
 const telegram = new Telegram();
 
@@ -28,7 +33,9 @@ const configurationValid = {
 };
 
 beforeEach(async () => {
-    jest.resetAllMocks();
+    jest.restoreAllMocks();
+    mockedPost.mockReset();
+    mockedPost.mockResolvedValue({ status: 200, data: {} } as any);
 });
 
 test('validateConfiguration should return validated configuration when valid', async () => {
@@ -41,7 +48,7 @@ test('validateConfiguration should throw error when invalid', async () => {
     const configuration = {};
     expect(() => {
         telegram.validateConfiguration(configuration);
-    }).toThrowError(ValidationError);
+    }).toThrow(ValidationError);
 });
 
 test('maskConfiguration should mask sensitive data', async () => {
@@ -80,7 +87,7 @@ test('validateConfiguration should throw when proxy is not a valid url', async (
             ...configurationValid,
             proxy: 'not a url',
         });
-    }).toThrowError(ValidationError);
+    }).toThrow(ValidationError);
 });
 
 test('maskConfiguration should mask only the proxy password', async () => {
@@ -103,16 +110,14 @@ test.each([
     async ({ proxy, agentType }) => {
         telegram.configuration = { ...configurationValid, proxy };
         await telegram.initTrigger();
-        const [, options] = TelegramBot.mock.calls.at(-1);
-        expect(options.request.agent).toBeInstanceOf(agentType);
+        expect((telegram as any).proxyAgent).toBeInstanceOf(agentType);
     },
 );
 
 test('initTrigger should not set a proxy agent when proxy is not configured', async () => {
     telegram.configuration = { ...configurationValid };
     await telegram.initTrigger();
-    const [, options] = TelegramBot.mock.calls.at(-1);
-    expect(options).toEqual({});
+    expect((telegram as any).proxyAgent).toBeUndefined();
 });
 
 test('should send message with correct text', async () => {
@@ -121,11 +126,12 @@ test('should send message with correct text', async () => {
         simpletitle: 'Test Title',
         simplebody: 'Test Body',
     };
-    telegram.sendMessage = jest.fn();
-    await telegram.trigger({});
-    expect(telegram.sendMessage).toHaveBeenCalledWith(
-        '*Test Title*\n\nTest Body',
-    );
+    const sendMessageSpy = jest
+        .spyOn(telegram as any, 'sendMessage')
+        .mockResolvedValue(undefined);
+    await telegram.trigger(emptyContainer);
+
+    expect(sendMessageSpy).toHaveBeenCalledWith('*Test Title*\n\nTest Body');
 });
 
 test.each([
@@ -140,9 +146,11 @@ test.each([
             simplebody: 'Test Body',
             messageformat: messageformat,
         };
-        telegram.sendMessage = jest.fn();
-        await telegram.trigger({});
-        expect(telegram.sendMessage).toHaveBeenCalledWith(expected);
+        const sendMessageSpy = jest
+            .spyOn(telegram as any, 'sendMessage')
+            .mockResolvedValue(undefined);
+        await telegram.trigger(emptyContainer);
+        expect(sendMessageSpy).toHaveBeenCalledWith(expected);
     },
 );
 
@@ -153,17 +161,18 @@ test('disabletitle should result in no title in message', async () => {
         simplebody: 'Test Body',
         disabletitle: true,
     };
+    const sendMessageSpy = jest
+        .spyOn(telegram as any, 'sendMessage')
+        .mockResolvedValue(undefined);
 
-    telegram.sendMessage = jest.fn();
-    await telegram.trigger({});
+    await telegram.trigger(emptyContainer);
 
-    expect(telegram.sendMessage).toHaveBeenCalledWith('Test Body');
+    expect(sendMessageSpy).toHaveBeenCalledWith('Test Body');
 });
 
 test('triggerBatch should send batch notification', async () => {
     telegram.configuration = configurationValid;
-    telegram.sendMessage = jest.fn();
-    const containers = [
+    const containers: Container[] = [
         {
             name: 'container1',
             updateKind: {
@@ -171,7 +180,7 @@ test('triggerBatch should send batch notification', async () => {
                 localValue: '1.0.0',
                 remoteValue: '2.0.0',
             },
-        },
+        } as Container,
         {
             name: 'container2',
             updateKind: {
@@ -179,10 +188,37 @@ test('triggerBatch should send batch notification', async () => {
                 localValue: '1.1.0',
                 remoteValue: '2.1.0',
             },
-        },
+        } as Container,
     ];
+    const sendMessageSpy = jest
+        .spyOn(telegram as any, 'sendMessage')
+        .mockResolvedValue(undefined);
     await telegram.triggerBatch(containers);
-    expect(telegram.sendMessage).toHaveBeenCalledWith(
+    expect(sendMessageSpy).toHaveBeenCalledWith(
         '*2 updates available*\n\n- Container container1 running with tag 1.0.0 can be updated to tag 2.0.0\n\n- Container container2 running with tag 1.1.0 can be updated to tag 2.1.0\n',
+    );
+});
+
+test('sendMessage should call the Telegram API with proxy settings when configured', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        proxy: 'http://user:pass@host:8118',
+    };
+
+    await telegram.initTrigger();
+    await (telegram as any).sendMessage('Test Body');
+
+    expect(mockedPost).toHaveBeenCalledWith(
+        'https://api.telegram.org/bottoken/sendMessage',
+        {
+            chat_id: configurationValid.chatid,
+            text: 'Test Body',
+            parse_mode: 'MarkdownV2',
+        },
+        expect.objectContaining({
+            proxy: false,
+            httpAgent: expect.any(HttpsProxyAgent),
+            httpsAgent: expect.any(HttpsProxyAgent),
+        }),
     );
 });
