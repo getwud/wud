@@ -1,6 +1,12 @@
-// @ts-nocheck
 import { ValidationError } from 'joi';
 import Telegram from './Telegram';
+import { Container } from '../../../model/container';
+
+jest.mock('axios', () => ({
+    post: jest.fn().mockResolvedValue({ data: {} }),
+}));
+
+const emptyContainer = {} as Container;
 
 const telegram = new Telegram();
 
@@ -36,7 +42,7 @@ test('validateConfiguration should throw error when invalid', async () => {
     const configuration = {};
     expect(() => {
         telegram.validateConfiguration(configuration);
-    }).toThrowError(ValidationError);
+    }).toThrow(ValidationError);
 });
 
 test('maskConfiguration should mask sensitive data', async () => {
@@ -65,11 +71,12 @@ test('should send message with correct text', async () => {
         simpletitle: 'Test Title',
         simplebody: 'Test Body',
     };
-    telegram.sendMessage = jest.fn();
-    await telegram.trigger({});
-    expect(telegram.sendMessage).toHaveBeenCalledWith(
-        '*Test Title*\n\nTest Body',
-    );
+    const sendMessageSpy = jest
+        .spyOn(telegram as any, 'sendMessage')
+        .mockResolvedValue(undefined);
+    await telegram.trigger(emptyContainer);
+
+    expect(sendMessageSpy).toHaveBeenCalledWith('*Test Title*\n\nTest Body');
 });
 
 test.each([
@@ -84,9 +91,11 @@ test.each([
             simplebody: 'Test Body',
             messageformat: messageformat,
         };
-        telegram.sendMessage = jest.fn();
-        await telegram.trigger({});
-        expect(telegram.sendMessage).toHaveBeenCalledWith(expected);
+        const sendMessageSpy = jest
+            .spyOn(telegram as any, 'sendMessage')
+            .mockResolvedValue(undefined);
+        await telegram.trigger(emptyContainer);
+        expect(sendMessageSpy).toHaveBeenCalledWith(expected);
     },
 );
 
@@ -97,17 +106,18 @@ test('disabletitle should result in no title in message', async () => {
         simplebody: 'Test Body',
         disabletitle: true,
     };
+    const sendMessageSpy = jest
+        .spyOn(telegram as any, 'sendMessage')
+        .mockResolvedValue(undefined);
 
-    telegram.sendMessage = jest.fn();
-    await telegram.trigger({});
+    await telegram.trigger(emptyContainer);
 
-    expect(telegram.sendMessage).toHaveBeenCalledWith('Test Body');
+    expect(sendMessageSpy).toHaveBeenCalledWith('Test Body');
 });
 
 test('triggerBatch should send batch notification', async () => {
     telegram.configuration = configurationValid;
-    telegram.sendMessage = jest.fn();
-    const containers = [
+    const containers: Container[] = [
         {
             name: 'container1',
             updateKind: {
@@ -115,7 +125,7 @@ test('triggerBatch should send batch notification', async () => {
                 localValue: '1.0.0',
                 remoteValue: '2.0.0',
             },
-        },
+        } as Container,
         {
             name: 'container2',
             updateKind: {
@@ -123,10 +133,13 @@ test('triggerBatch should send batch notification', async () => {
                 localValue: '1.1.0',
                 remoteValue: '2.1.0',
             },
-        },
+        } as Container,
     ];
+    const sendMessageSpy = jest
+        .spyOn(telegram as any, 'sendMessage')
+        .mockResolvedValue(undefined);
     await telegram.triggerBatch(containers);
-    expect(telegram.sendMessage).toHaveBeenCalledWith(
+    expect(sendMessageSpy).toHaveBeenCalledWith(
         '*2 updates available*\n\n- Container container1 running with tag 1.0.0 can be updated to tag 2.0.0\n\n- Container container2 running with tag 1.1.0 can be updated to tag 2.1.0\n',
     );
 });

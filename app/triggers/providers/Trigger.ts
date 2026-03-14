@@ -396,26 +396,21 @@ class Trigger extends Component {
     /**
      * Trigger method. Must be overridden in trigger implementation class.
      */
-
-    trigger(containerWithResult: Container) {
+    async trigger(_containerWithResult: Container) {
         // do nothing by default
         this.log.warn(
             'Cannot trigger container result; this trigger does not implement "simple" mode',
         );
-        return containerWithResult;
     }
 
     /**
      * Trigger batch method. Must be overridden in trigger implementation class.
-     * @param containersWithResult
-     * @returns {*}
      */
-    triggerBatch(containersWithResult: Container[]) {
+    async triggerBatch(_containersWithResult: Container[]) {
         // do nothing by default
         this.log.warn(
             'Cannot trigger container results; this trigger does not implement "batch" mode',
         );
-        return containersWithResult;
     }
 
     /**
