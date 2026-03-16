@@ -1,10 +1,10 @@
-// @ts-nocheck
 import ECR from 'aws-sdk/clients/ecr';
 import maintenanceMode from 'aws-sdk/lib/maintenance_mode_message';
 // @ts-ignore
 maintenanceMode.suppress = true; // Disable aws sdk maintenance mode message at startup
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import Registry from '../../Registry';
+import { ContainerImage } from '../../../model/container';
 
 const ECR_PUBLIC_GALLERY_HOSTNAME = 'public.ecr.aws';
 
@@ -38,24 +38,21 @@ class Ecr extends Registry {
 
     /**
      * Return true if image has not registryUrl.
-     * @param image the image
-     * @returns {boolean}
      */
 
-    match(image) {
+    match(imageUrl: string) {
         return (
-            /^.*\.dkr\.ecr\..*\.amazonaws\.com$/.test(image.registry.url) ||
-            image.registry.url === ECR_PUBLIC_GALLERY_HOSTNAME
+            /^.*\.dkr\.ecr\..*\.amazonaws\.com$/.test(imageUrl) ||
+            imageUrl === ECR_PUBLIC_GALLERY_HOSTNAME
         );
     }
 
     /**
      * Normalize image according to AWS ECR characteristics.
      * @param image
-     * @returns {*}
      */
 
-    normalizeImage(image) {
+    normalizeImage(image: ContainerImage) {
         const imageNormalized = image;
         if (!imageNormalized.registry.url.startsWith('https://')) {
             imageNormalized.registry.url = `https://${imageNormalized.registry.url}/v2`;
@@ -63,7 +60,10 @@ class Ecr extends Registry {
         return imageNormalized;
     }
 
-    async authenticate(image, requestOptions) {
+    async authenticate(
+        image: ContainerImage,
+        requestOptions: AxiosRequestConfig,
+    ) {
         const requestOptionsWithAuth = requestOptions;
         // Private registry
         if (this.configuration.accesskeyid) {

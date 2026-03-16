@@ -35,23 +35,11 @@ test('validatedConfiguration should throw error when auth is not base64', async 
 });
 
 test('match should return true when registry url is from gitea', async () => {
-    expect(
-        gitea.match({
-            registry: {
-                url: 'gitea.acme.com',
-            },
-        }),
-    ).toBeTruthy();
+    expect(gitea.match('gitea.acme.com')).toBeTruthy();
 });
 
 test('match should return false when registry url is not from custom', async () => {
-    expect(
-        gitea.match({
-            registry: {
-                url: 'gitea.notme.io',
-            },
-        }),
-    ).toBeFalsy();
+    expect(gitea.match('gitea.notme.io')).toBeFalsy();
 });
 
 test('normalizeImage should return the proper registry v2 endpoint', async () => {
@@ -116,22 +104,14 @@ test('match should handle URLs with different protocols', async () => {
     const giteaWithHttp = new Gitea();
     giteaWithHttp.configuration = { url: 'http://gitea.acme.com' };
 
-    expect(
-        giteaWithHttp.match({
-            registry: { url: 'https://gitea.acme.com' },
-        }),
-    ).toBeTruthy();
+    expect(giteaWithHttp.match('https://gitea.acme.com')).toBeTruthy();
 });
 
 test('match should be case insensitive', async () => {
     const giteaUpper = new Gitea();
     giteaUpper.configuration = { url: 'https://GITEA.ACME.COM' };
 
-    expect(
-        giteaUpper.match({
-            registry: { url: 'gitea.acme.com' },
-        }),
-    ).toBeTruthy();
+    expect(giteaUpper.match('gitea.acme.com')).toBeTruthy();
 });
 
 test('should authenticate with credentials', async () => {

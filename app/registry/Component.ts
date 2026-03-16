@@ -54,7 +54,6 @@ class Component {
 
     /**
      * Deregister the component.
-     * @returns {Promise<void>}
      */
     async deregister(): Promise<this> {
         this.log.info('Deregister component');
@@ -63,10 +62,8 @@ class Component {
     }
 
     /**
-     * Deregistger the component (do nothing by default).
-     * @returns {Promise<void>}
+     * Deregister the component (do nothing by default).
      */
-
     async deregisterComponent(): Promise<void> {
         // Do nothing by default
     }
@@ -75,7 +72,7 @@ class Component {
      * Validate the configuration of the component.
      *
      * @param configuration the configuration
-     * @returns {*} or throw a validation error
+     * @returns or throw a validation error
      */
     validateConfiguration(
         configuration: ComponentConfiguration,
@@ -91,9 +88,8 @@ class Component {
     /**
      * Get the component configuration schema.
      * Can be overridden by the component implementation class
-     * @returns {*}
      */
-    getConfigurationSchema(): joi.ObjectSchema {
+    getConfigurationSchema(): joi.AnySchema {
         return this.joi.object();
     }
 
@@ -101,12 +97,10 @@ class Component {
      * Init the component.
      * Can be overridden by the component implementation class
      */
-
     async init(): Promise<void> {}
 
     /**
      * Sanitize sensitive data
-     * @returns {*}
      */
     maskConfiguration(
         configuration?: ComponentConfiguration,
@@ -116,7 +110,6 @@ class Component {
 
     /**
      * Get Component ID.
-     * @returns {string}
      */
     getId(): string {
         return `${this.type}.${this.name}`;
@@ -127,7 +120,7 @@ class Component {
      * @param value the value to mask
      * @param nb the number of chars to keep start/end
      * @param char the replacement char
-     * @returns {string|undefined} the masked string
+     * @returns the masked string
      */
     static mask(
         value: string | undefined,

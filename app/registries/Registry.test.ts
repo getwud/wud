@@ -24,7 +24,7 @@ test('getId should return registry type only', async () => {
 });
 
 test('match should return false when not overridden', async () => {
-    expect(registry.match({})).toBeFalsy();
+    expect(registry.match('')).toBeFalsy();
 });
 
 test('normalizeImage should return same image when not overridden', async () => {
@@ -287,4 +287,26 @@ test('callRegistry should call authenticate', async () => {
         method: 'get',
     });
     expect(spyAuthenticate).toHaveBeenCalledTimes(1);
+});
+
+describe('shouldWatchDigest', () => {
+    test('should return true when label is true', () => {
+        const result = registry.shouldWatchDigest('true', 'image/name');
+        expect(result).toBe(true);
+    });
+
+    test('should return true when label is TRUE (case insensitive)', () => {
+        const result = registry.shouldWatchDigest('TRUE', 'image/name');
+        expect(result).toBe(true);
+    });
+
+    test('should return true without label', () => {
+        const result = registry.shouldWatchDigest(undefined, 'image/name');
+        expect(result).toBe(true);
+    });
+
+    test('should return true with empty label', () => {
+        const result = registry.shouldWatchDigest('', 'image/name');
+        expect(result).toBe(true);
+    });
 });

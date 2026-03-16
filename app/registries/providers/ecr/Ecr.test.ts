@@ -1,4 +1,4 @@
-// @ts-nocheck
+import { ContainerImage } from '../../../model/container';
 import Ecr from './Ecr';
 
 jest.mock('aws-sdk/clients/ecr', () =>
@@ -63,23 +63,11 @@ test('validatedConfiguration should throw error when secretaccesskey is missing'
 });
 
 test('match should return true when registry url is from ecr', async () => {
-    expect(
-        ecr.match({
-            registry: {
-                url: '123456789.dkr.ecr.eu-west-1.amazonaws.com',
-            },
-        }),
-    ).toBeTruthy();
+    expect(ecr.match('123456789.dkr.ecr.eu-west-1.amazonaws.com')).toBeTruthy();
 });
 
 test('match should return false when registry url is not from ecr', async () => {
-    expect(
-        ecr.match({
-            registry: {
-                url: '123456789.dkr.ecr.eu-west-1.acme.com',
-            },
-        }),
-    ).toBeFalsy();
+    expect(ecr.match('123456789.dkr.ecr.eu-west-1.acme.com')).toBeFalsy();
 });
 
 test('maskConfiguration should mask configuration secrets', async () => {
@@ -97,7 +85,7 @@ test('normalizeImage should return the proper registry v2 endpoint', async () =>
             registry: {
                 url: '123456789.dkr.ecr.eu-west-1.amazonaws.com/test/image',
             },
-        }),
+        } as ContainerImage),
     ).toStrictEqual({
         name: 'test/image',
         registry: {

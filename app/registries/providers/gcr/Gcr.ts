@@ -1,6 +1,6 @@
-// @ts-nocheck
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import BaseRegistry from '../../BaseRegistry';
+import { ContainerImage } from '../../../model/container';
 
 /**
  * Google Container Registry integration.
@@ -20,15 +20,18 @@ class Gcr extends BaseRegistry {
         return this.maskSensitiveFields(['privatekey']);
     }
 
-    match(image) {
-        return this.matchUrlPattern(image, /^.*\.?gcr.io$/);
+    match(imageUrl: string) {
+        return this.matchUrlPattern(imageUrl, /^.*\.?gcr.io$/);
     }
 
-    normalizeImage(image) {
+    normalizeImage(image: ContainerImage) {
         return this.normalizeImageUrl(image);
     }
 
-    async authenticate(image, requestOptions) {
+    async authenticate(
+        image: ContainerImage,
+        requestOptions: AxiosRequestConfig,
+    ) {
         if (!this.configuration.clientemail) {
             return requestOptions;
         }

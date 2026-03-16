@@ -1,6 +1,6 @@
-// @ts-nocheck
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import Registry from '../../Registry';
+import { ContainerImage } from '../../../model/container';
 
 /**
  * Quay.io Registry integration.
@@ -22,7 +22,6 @@ class Quay extends Registry {
 
     /**
      * Sanitize sensitive data
-     * @returns {*}
      */
     maskConfiguration() {
         return {
@@ -35,21 +34,15 @@ class Quay extends Registry {
 
     /**
      * Return true if image has not registry url.
-     * @param image the image
-     * @returns {boolean}
      */
-
-    match(image) {
-        return /^.*\.?quay\.io$/.test(image.registry.url);
+    match(imageUrl: string) {
+        return /^.*\.?quay\.io$/.test(imageUrl);
     }
 
     /**
      * Normalize image according to Github Container Registry characteristics.
-     * @param image
-     * @returns {*}
      */
-
-    normalizeImage(image) {
+    normalizeImage(image: ContainerImage) {
         const imageNormalized = image;
         if (!imageNormalized.registry.url.startsWith('https://')) {
             imageNormalized.registry.url = `https://${imageNormalized.registry.url}/v2`;
@@ -57,9 +50,12 @@ class Quay extends Registry {
         return imageNormalized;
     }
 
-    async authenticate(image, requestOptions) {
+    async authenticate(
+        image: ContainerImage,
+        requestOptions: AxiosRequestConfig,
+    ) {
         const requestOptionsWithAuth = requestOptions;
-        let token;
+        let token: string | undefined;
 
         // Add Authorization if any
         const credentials = this.getAuthCredentials();
@@ -73,8 +69,8 @@ class Quay extends Registry {
                 },
             };
             try {
-                const response = await axios(request);
-                token = response.token;
+                const response = await axios<{ token: string }>(request);
+                token = response.data.token;
             } catch (e) {
                 this.log.warn(
                     `Error when trying to get an access token (${e.message})`,
@@ -91,7 +87,6 @@ class Quay extends Registry {
 
     /**
      * Return Base64 credentials if any.
-     * @returns {string|undefined|*}
      */
     getAuthCredentials() {
         if (this.configuration.namespace && this.configuration.account) {
@@ -105,7 +100,6 @@ class Quay extends Registry {
 
     /**
      * Return username / password for Docker(+compose) triggers usage
-     * @return {{password: string, username: string}|undefined}
      */
     async getAuthPull() {
         if (this.configuration.namespace && this.configuration.account) {
@@ -117,7 +111,11 @@ class Quay extends Registry {
         return undefined;
     }
 
-    getTagsPage(image, lastItem, link) {
+    getTagsPage(
+        image: ContainerImage,
+        _lastItem: string | undefined = undefined,
+        link: string | undefined = undefined,
+    ) {
         // Default items per page (not honoured by all registries)
         const itemsPerPage = 1000;
         let nextOrLast = '';
