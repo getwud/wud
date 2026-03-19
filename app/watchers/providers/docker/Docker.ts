@@ -49,6 +49,7 @@ export interface DockerWatcherConfiguration extends ComponentConfiguration {
     watchbydefault: boolean;
     watchall: boolean;
     watchdigest?: any;
+    watchdigestdefault?: boolean;
     watchevents: boolean;
     watchatstart: boolean;
 }
@@ -312,6 +313,7 @@ function isDigestToWatch(
     wudWatchDigestLabelValue: string,
     parsedImage: any,
     isSemver: boolean,
+    watchDigestDefault?: boolean,
 ) {
     const domain = parsedImage.domain;
     const isDockerHub =
@@ -335,6 +337,10 @@ function isDigestToWatch(
 
     if (isSemver) {
         return false;
+    }
+
+    if (watchDigestDefault !== undefined) {
+        return watchDigestDefault;
     }
 
     return !isDockerHub;
@@ -388,6 +394,7 @@ class Docker extends Watcher {
             watchbydefault: this.joi.boolean().default(true),
             watchall: this.joi.boolean().default(false),
             watchdigest: this.joi.any(),
+            watchdigestdefault: this.joi.boolean().optional(),
             watchevents: this.joi.boolean().default(true),
             watchatstart: this.joi.boolean().default(true),
         });
@@ -909,6 +916,7 @@ class Docker extends Watcher {
             container.Labels[wudWatchDigest],
             parsedImage,
             isSemver,
+            this.configuration.watchdigestdefault,
         );
         if (!isSemver && !watchDigest) {
             this.ensureLogger();
