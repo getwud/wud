@@ -15,12 +15,12 @@ The trigger will:
 
 ### Variables
 
-| Env var                                           | Required       | Description                                                    | Supported values | Default value when missing |
-| ------------------------------------------------- |:--------------:| -------------------------------------------------------------- | ---------------- | -------------------------- | 
-| `WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_FILE`   | :red_circle:   | The docker-compose.yml file location                           |                  |                            |
-| `WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_BACKUP` | :white_circle: | Backup the docker-compose.yml file as `.back` before updating? | `true`, `false`  | `false`                    |
-| `WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_PRUNE`  | :white_circle: | If the old image must be pruned after upgrade                  | `true`, `false`  | `false`                    |
-| `WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_DRYRUN` | :white_circle: | When enabled, only pull the new image ahead of time            | `true`, `false`  | `false`                    |
+| Env var                                           | Required       | Description                                                    | Supported values | Default value when missing                                               |
+| ------------------------------------------------- |:--------------:| -------------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------ |
+| `WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_FILE`   | :white_circle: | The docker-compose.yml file location                           |                  | The value of the automatic com.docker.compose.project.config_files label |
+| `WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_BACKUP` | :white_circle: | Backup the docker-compose.yml file as `.back` before updating? | `true`, `false`  | `false`                                                                  |
+| `WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_PRUNE`  | :white_circle: | If the old image must be pruned after upgrade                  | `true`, `false`  | `false`                                                                  |
+| `WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_DRYRUN` | :white_circle: | When enabled, only pull the new image ahead of time            | `true`, `false`  | `false`                                                                  |
 
 ?> This trigger also supports the [common configuration variables](configuration/triggers/?id=common-trigger-configuration). but only supports the `batch` mode.
 
