@@ -26,7 +26,7 @@ The trigger will:
 
 !> This trigger will only work with locally watched containers.
 
-!> Do not forget to mount the docker-compose.yml file in the wud container.
+!> Do not forget to mount the docker-compose.yml file in the wud container. If you're relying on the com.docker.compose.project.config_files label, you'll need to mount it so that the path insides the container matches your docker host.
 
 ### Examples
 
