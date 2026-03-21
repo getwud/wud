@@ -69,7 +69,7 @@ class Dockercompose extends Docker {
      * @returns {string|null}
      */
     getComposeFileForContainer(container) {
-        // Check if container has a compose file label
+        // Check if container has a custom wud compose file label
         const composeFileLabel = this.configuration.composeFileLabel;
         if (container.labels && container.labels[composeFileLabel]) {
             const labelValue = container.labels[composeFileLabel];
@@ -77,6 +77,11 @@ class Dockercompose extends Docker {
             return path.isAbsolute(labelValue)
                 ? labelValue
                 : path.resolve(labelValue);
+        }
+
+        // Check if container has automatic compose file label
+        if (container.labels && container.labels["com.docker.compose.project.config_files"]) {
+            return container.labels["com.docker.compose.project.config_files"]
         }
 
         // Fall back to default configuration file
