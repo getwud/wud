@@ -94,6 +94,14 @@ class Mqtt extends Trigger {
         // Enforce simple mode
         this.configuration.mode = 'simple';
 
+        if (this.configuration.hass.enabled) {
+            this.hass = new Hass({
+                configuration: this.configuration,
+                log: this.log,
+            });
+        }
+
+        // Set MQTT connection options and create client
         const options = {
             clientId: this.configuration.clientid,
         };
@@ -115,12 +123,17 @@ class Mqtt extends Trigger {
         options.rejectUnauthorized = this.configuration.tls.rejectunauthorized;
         options.manualConnect = true;
         options.reconnectPeriod = 10000; // Reconnect every 10 seconds
-
+        if (this.hass) {
+            options.will = this.hass.getWill();
+        }
         this.client = mqtt.connect(this.configuration.url, options);
 
-        // Register event handlers for logging
-        this.client.on('connect', (connack) => {
+        // Register MQTT connection event handlers
+        this.client.on('connect', () => {
             this.log.debug('MQTT client connected');
+            if (this.hass) {
+                this.hass.updateConnectionStatusSensor(true);
+            }
         });
 
         this.client.on('reconnect', () => {
@@ -132,26 +145,23 @@ class Mqtt extends Trigger {
         });
 
         this.client.on('disconnect', (packet) => {
-            this.log.debug(`MQTT client disconnected, reasonCode: ${packet?.reasonCode}`);
+            this.log.debug(
+                `MQTT client disconnected, reasonCode: ${packet?.reasonCode}`,
+            );
         });
 
         this.client.on('error', (error) => {
-            this.log.debug(`MQTT client error ${error.code}` );
-
+            this.log.debug(`MQTT client error ${error.code}`);
         });
 
         this.client.on('end', () => {
             this.log.debug('MQTT client ended');
         });
 
+        // Start MQTT client and initialize HA integration if enabled
         this.client.connect();
-        
-        if (this.configuration.hass.enabled) {
-            this.hass = new Hass({
-                client: this.client,
-                configuration: this.configuration,
-                log: this.log,
-            });
+        if (this.hass) {
+            this.hass.init(this.client);
         }
         registerContainerAdded((container) => this.trigger(container));
         registerContainerUpdated((container) => this.trigger(container));
@@ -194,6 +204,9 @@ class Mqtt extends Trigger {
      */
 
     async deregisterComponent(): Promise<void> {
+        if (this.hass) {
+            this.hass.updateConnectionStatusSensor(false);
+        }
         return this.client.end(true);
     }
 }
