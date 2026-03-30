@@ -77,10 +77,21 @@ export default defineComponent({
         );
       }
       if (this.container.updateKind) {
-        newVersion = this.container.updateKind.remoteValue;
-      }
-      if (this.container.updateKind.kind === "digest") {
-        newVersion = (this as any).$filters.short(newVersion, 15);
+        if (this.container.updateKind.kind === "tag") {
+          // For tag updates, use version formatting
+          const version = extractVersionFromLabels(this.container.result?.labels);
+          if (version) {
+            // If we have version info, show tag with version
+            newVersion = `${this.container.updateKind.remoteValue} (${version})`;
+          } else {
+            // No version info, just show the tag
+            newVersion = this.container.updateKind.remoteValue;
+          }
+        } else if (this.container.updateKind.kind === "digest") {
+          newVersion = (this as any).$filters.short(this.container.updateKind.remoteValue, 15);
+        } else {
+          newVersion = this.container.updateKind.remoteValue;
+        }
       }
       return newVersion;
     },

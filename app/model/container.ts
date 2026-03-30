@@ -31,6 +31,7 @@ export interface ContainerResult {
     digest?: string;
     created?: string;
     link?: string;
+    labels?: Record<string, string>; // Labels from the new image (for version display)
 }
 
 export interface ContainerUpdateKind {
@@ -322,6 +323,20 @@ function addUpdateKindProperty(container: Container) {
                     updateKind.localValue = container.image.tag.value;
                     updateKind.remoteValue = container.result.tag;
                     updateKind.semverDiff = semverDiffWud;
+                } else if (
+                    // Check for version labels in rolling release containers first
+                    // where tags are identical but versions differ
+                    container.result.labels &&
+                    (container.result.labels['io.hass.version'] ||
+                     container.result.labels['org.opencontainers.image.version'] ||
+                     container.result.labels['org.label-schema.version'] ||
+                     container.result.labels['version'] ||
+                     container.result.labels['build_version'])
+                ) {
+                    // Force tag update kind to enable version formatting in frontend
+                    updateKind.kind = 'tag';
+                    updateKind.localValue = container.image.tag.value;
+                    updateKind.remoteValue = container.result.tag;
                 } else if (
                     container.image.digest &&
                     container.image.digest.value !== container.result.digest
