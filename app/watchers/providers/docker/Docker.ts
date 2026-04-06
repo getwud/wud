@@ -349,7 +349,7 @@ function isDigestToWatch(
 /**
  * Docker Watcher Component.
  */
-class Docker extends Watcher {
+export class Docker extends Watcher {
     public configuration: DockerWatcherConfiguration =
         {} as DockerWatcherConfiguration;
     public dockerApi: Dockerode;

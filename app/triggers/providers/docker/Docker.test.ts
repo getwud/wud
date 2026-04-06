@@ -6,6 +6,7 @@ import log from '../../../log';
 const configurationValid = {
     prune: false,
     dryrun: false,
+    multinetworkfallback: true,
     threshold: 'all',
     mode: 'simple',
     once: true,
@@ -63,6 +64,7 @@ jest.mock('../../../registry', () => ({
                         createContainer: (container) => {
                             if (container.name === 'container-name') {
                                 return Promise.resolve({
+                                    id: 'new-container-id',
                                     start: () => Promise.resolve(),
                                 });
                             }
@@ -95,6 +97,9 @@ jest.mock('../../../registry', () => ({
                         modem: {
                             followProgress: (pullStream, res) => res(),
                         },
+                        getNetwork: () => ({
+                            connect: () => Promise.resolve(),
+                        }),
                     },
                 },
             },
@@ -394,6 +399,34 @@ test('clone should clone an existing container spec', async () => {
     });
 });
 
+test('clone should remove hostname and exposed ports when network mode is container:*', async () => {
+    const clone = docker.cloneContainer(
+        {
+            Name: '/test',
+            Id: '123456789',
+            HostConfig: {
+                NetworkMode: 'container:sidecar',
+            },
+            Config: {
+                Hostname: 'test-host',
+                ExposedPorts: {
+                    '8080/tcp': {},
+                },
+                configA: 'a',
+            },
+            NetworkSettings: {
+                Networks: {
+                    default: {},
+                },
+            },
+        },
+        'test/test:2.0.0',
+    );
+    expect(clone.Hostname).toBeUndefined();
+    expect(clone.ExposedPorts).toBeUndefined();
+    expect(clone.HostConfig.NetworkMode).toEqual('container:sidecar');
+});
+
 test('trigger should not throw when all is ok', async () => {
     await expect(
         docker.trigger({
@@ -412,4 +445,256 @@ test('trigger should not throw when all is ok', async () => {
             },
         }),
     ).resolves.toBeUndefined();
+});
+
+test('trigger should not use fallback when multi-network create succeeds', async () => {
+    const createContainer = jest.fn(() =>
+        Promise.resolve({
+            id: 'created-id',
+            start: () => Promise.resolve(),
+        }),
+    );
+    const getNetwork = jest.fn(() => ({
+        connect: jest.fn(() => Promise.resolve()),
+    }));
+    const dockerApi = {
+        createContainer,
+        getNetwork,
+        pull: () => Promise.resolve(),
+        modem: {
+            followProgress: (pullStream, res) => res(),
+        },
+        getContainer: () =>
+            Promise.resolve({
+                inspect: () =>
+                    Promise.resolve({
+                        Name: '/container-name',
+                        Id: '123456798',
+                        State: {
+                            Running: false,
+                        },
+                        HostConfig: {
+                            NetworkMode: 'postgres_default',
+                        },
+                        NetworkSettings: {
+                            Networks: {
+                                cloud_default: {
+                                    Aliases: ['cloud'],
+                                },
+                                postgres_default: {
+                                    Aliases: ['postgres'],
+                                },
+                            },
+                        },
+                    }),
+                stop: () => Promise.resolve(),
+                remove: () => Promise.resolve(),
+                start: () => Promise.resolve(),
+            }),
+    };
+    const watcherSpy = jest.spyOn(docker, 'getWatcher').mockReturnValue({
+        dockerApi,
+    });
+
+    await expect(
+        docker.trigger({
+            watcher: 'test',
+            id: '123456789',
+            name: 'container-name',
+            image: {
+                name: 'test/test',
+                registry: {
+                    name: 'hub',
+                    url: 'my-registry',
+                },
+            },
+            updateKind: {
+                remoteValue: '4.5.6',
+            },
+        }),
+    ).resolves.toBeUndefined();
+
+    watcherSpy.mockRestore();
+
+    expect(createContainer).toHaveBeenCalledTimes(1);
+    expect(getNetwork).not.toHaveBeenCalled();
+});
+
+test('trigger should fallback to primary then connect secondary networks', async () => {
+    const createContainer = jest
+        .fn()
+        .mockRejectedValueOnce(
+            new Error(
+                'Container cannot be connected to network endpoints: cloud_default, postgres_default, valkey_default',
+            ),
+        )
+        .mockResolvedValueOnce({
+            id: 'created-id',
+            start: () => Promise.resolve(),
+        });
+    const connectCalls = [];
+    const getNetwork = jest.fn((networkName) => ({
+        connect: (payload) => {
+            connectCalls.push({
+                networkName,
+                payload,
+            });
+            return Promise.resolve();
+        },
+    }));
+    const dockerApi = {
+        createContainer,
+        getNetwork,
+        pull: () => Promise.resolve(),
+        modem: {
+            followProgress: (pullStream, res) => res(),
+        },
+        getContainer: () =>
+            Promise.resolve({
+                inspect: () =>
+                    Promise.resolve({
+                        Name: '/container-name',
+                        Id: '123456798',
+                        State: {
+                            Running: false,
+                        },
+                        HostConfig: {
+                            NetworkMode: 'postgres_default',
+                        },
+                        NetworkSettings: {
+                            Networks: {
+                                cloud_default: {
+                                    Aliases: ['123456798abc', 'cloud'],
+                                },
+                                postgres_default: {
+                                    Aliases: ['postgres'],
+                                },
+                                valkey_default: {
+                                    Aliases: ['valkey'],
+                                },
+                            },
+                        },
+                    }),
+                stop: () => Promise.resolve(),
+                remove: () => Promise.resolve(),
+                start: () => Promise.resolve(),
+            }),
+    };
+    const watcherSpy = jest.spyOn(docker, 'getWatcher').mockReturnValue({
+        dockerApi,
+    });
+
+    await expect(
+        docker.trigger({
+            watcher: 'test',
+            id: '123456789',
+            name: 'container-name',
+            image: {
+                name: 'test/test',
+                registry: {
+                    name: 'hub',
+                    url: 'my-registry',
+                },
+            },
+            updateKind: {
+                remoteValue: '4.5.6',
+            },
+        }),
+    ).resolves.toBeUndefined();
+
+    watcherSpy.mockRestore();
+
+    expect(createContainer).toHaveBeenCalledTimes(2);
+    expect(
+        Object.keys(
+            createContainer.mock.calls[1][0].NetworkingConfig.EndpointsConfig,
+        ),
+    ).toEqual(['postgres_default']);
+    expect(getNetwork).toHaveBeenCalledTimes(2);
+    expect(connectCalls.map((call) => call.networkName)).toEqual([
+        'cloud_default',
+        'valkey_default',
+    ]);
+    expect(connectCalls[0].payload.EndpointConfig.Aliases).toEqual(['cloud']);
+});
+
+test('trigger should throw when fallback cannot connect a secondary network', async () => {
+    const createContainer = jest
+        .fn()
+        .mockRejectedValueOnce(
+            new Error(
+                'Container cannot be connected to network endpoints: cloud_default, postgres_default, valkey_default',
+            ),
+        )
+        .mockResolvedValueOnce({
+            id: 'created-id',
+            start: () => Promise.resolve(),
+        });
+    const getNetwork = jest.fn((networkName) => ({
+        connect: () =>
+            networkName === 'valkey_default'
+                ? Promise.reject(new Error('connect failed'))
+                : Promise.resolve(),
+    }));
+    const dockerApi = {
+        createContainer,
+        getNetwork,
+        pull: () => Promise.resolve(),
+        modem: {
+            followProgress: (pullStream, res) => res(),
+        },
+        getContainer: () =>
+            Promise.resolve({
+                inspect: () =>
+                    Promise.resolve({
+                        Name: '/container-name',
+                        Id: '123456798',
+                        State: {
+                            Running: false,
+                        },
+                        HostConfig: {
+                            NetworkMode: 'postgres_default',
+                        },
+                        NetworkSettings: {
+                            Networks: {
+                                cloud_default: {
+                                    Aliases: ['cloud'],
+                                },
+                                postgres_default: {
+                                    Aliases: ['postgres'],
+                                },
+                                valkey_default: {
+                                    Aliases: ['valkey'],
+                                },
+                            },
+                        },
+                    }),
+                stop: () => Promise.resolve(),
+                remove: () => Promise.resolve(),
+                start: () => Promise.resolve(),
+            }),
+    };
+    const watcherSpy = jest.spyOn(docker, 'getWatcher').mockReturnValue({
+        dockerApi,
+    });
+
+    await expect(
+        docker.trigger({
+            watcher: 'test',
+            id: '123456789',
+            name: 'container-name',
+            image: {
+                name: 'test/test',
+                registry: {
+                    name: 'hub',
+                    url: 'my-registry',
+                },
+            },
+            updateKind: {
+                remoteValue: '4.5.6',
+            },
+        }),
+    ).rejects.toThrow('connect failed');
+
+    watcherSpy.mockRestore();
 });
