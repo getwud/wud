@@ -221,7 +221,7 @@ class Registry extends Component {
                         `Manifest found with [digest=${responseManifests.config.digest}, mediaType=${responseManifests.config.mediaType}]`,
                     );
                     manifestDigestFound = responseManifests.config.digest;
-                    manifestMediaType = responseManifests.config.mediaType;
+                    manifestMediaType = responseManifests.mediaType;
                 }
             } else if (responseManifests.schemaVersion === 1) {
                 log.debug('Manifests found with schemaVersion = 1');
