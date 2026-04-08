@@ -275,6 +275,55 @@ test('getImageManifestDigest should throw when no digest found', async () => {
     ).rejects.toEqual(new Error('Unexpected error; no manifest found'));
 });
 
+test('getImageManifestDigest should return manifest digest (not config digest) for single-platform application/vnd.docker.distribution.manifest.v2+json with container image config', async () => {
+    const registryMocked = new Registry();
+    registryMocked.log = log;
+    registryMocked.callRegistry = (options) => {
+        if (
+            options.headers.Accept ===
+            'application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json'
+        ) {
+            return {
+                schemaVersion: 2,
+                mediaType:
+                    'application/vnd.docker.distribution.manifest.v2+json',
+                config: {
+                    digest: 'config_digest',
+                    mediaType:
+                        'application/vnd.docker.container.image.v1+json',
+                },
+            };
+        }
+        if (
+            options.headers.Accept ===
+            'application/vnd.docker.distribution.manifest.v2+json'
+        ) {
+            return {
+                headers: {
+                    'docker-content-digest': 'manifest_digest',
+                },
+            };
+        }
+        throw new Error('Boom!');
+    };
+    expect(
+        registryMocked.getImageManifestDigest({
+            name: 'image',
+            architecture: 'amd64',
+            os: 'linux',
+            tag: {
+                value: 'tag',
+            },
+            registry: {
+                url: 'url',
+            },
+        }),
+    ).resolves.toStrictEqual({
+        version: 2,
+        digest: 'manifest_digest',
+    });
+});
+
 test('callRegistry should call authenticate', async () => {
     const { default: axios } = await import('axios');
     axios.mockResolvedValue({ data: {} });
