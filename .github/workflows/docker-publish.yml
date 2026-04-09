@@ -2,7 +2,7 @@ name: Docker Publish
 
 on:
   push:
-    branches: [ "main", "feature/xmpp-trigger" ]
+    branches: [ "main", "feature/xmpp-trigger", "infra/docker-publish" ]
     tags: [ 'v*.*.*' ]
 
 env:
