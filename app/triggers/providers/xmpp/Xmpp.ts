@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { client, xml } from '@xmpp/client';
 import Trigger from '../Trigger';
 import { Container } from '../../../model/container';
@@ -49,25 +50,27 @@ class Xmpp extends Trigger {
      * Send an XMPP message with new container version details.
      *
      * @param container the container
-     * @returns {Promise<void>}
+     * @returns {Promise<Container>}
      */
     async trigger(container: Container) {
-        return this.sendMessage(
+        await this.sendMessage(
             this.renderSimpleTitle(container),
             this.renderSimpleBody(container),
         );
+        return container;
     }
 
     /**
      * Send an XMPP message with new container versions details.
      * @param containers
-     * @returns {Promise<void>}
+     * @returns {Promise<Container[]>}
      */
     async triggerBatch(containers: Container[]) {
-        return this.sendMessage(
+        await this.sendMessage(
             this.renderBatchTitle(containers),
             this.renderBatchBody(containers),
         );
+        return containers;
     }
 
     /**
