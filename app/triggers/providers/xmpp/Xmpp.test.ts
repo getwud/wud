@@ -115,6 +115,20 @@ test('trigger should send xmpp message as expected', async () => {
         username: configurationValid.user,
         password: configurationValid.password,
     });
+
+    // Verify the body xml element was constructed
+    expect(xml).toHaveBeenCalledWith('body', {}, expect.stringContaining('homeassistant'));
+
+    // Verify the message xml element was constructed with correct type and recipient
+    expect(xml).toHaveBeenCalledWith(
+        'message',
+        { type: 'chat', to: configurationValid.to },
+        expect.anything(),
+    );
+
+    // Verify the message was actually sent
+    const mockClientInstance = (client as jest.Mock).mock.results[0].value;
+    expect(mockClientInstance.send).toHaveBeenCalled();
 });
 
 test('triggerBatch should send xmpp message as expected', async () => {
@@ -137,4 +151,15 @@ test('triggerBatch should send xmpp message as expected', async () => {
         username: configurationValid.user,
         password: configurationValid.password,
     });
+
+    // Verify the message xml element was constructed with correct type and recipient
+    expect(xml).toHaveBeenCalledWith(
+        'message',
+        { type: 'chat', to: configurationValid.to },
+        expect.anything(),
+    );
+
+    // Verify the message was actually sent
+    const mockClientInstance = (client as jest.Mock).mock.results[0].value;
+    expect(mockClientInstance.send).toHaveBeenCalled();
 });
