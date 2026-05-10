@@ -23,6 +23,7 @@
         - [Slack](configuration/triggers/slack/)
         - [Smtp](configuration/triggers/smtp/)
         - [Telegram](configuration/triggers/telegram/)
+        - [Xmpp](configuration/triggers/xmpp/)
     - [Watchers](configuration/watchers/)
 - [Api](api/)
 - [Monitoring](monitoring/)

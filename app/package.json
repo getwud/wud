@@ -4,6 +4,7 @@
     "description": "What'up Docker? the app",
     "main": "dist/index.js",
     "scripts": {
+        "postinstall": "patch-package",
         "build": "tsc",
         "start": "nodemon --exec ts-node index.ts | bunyan -L -o short",
         "doc": ".docsify serve ./docs",
@@ -17,6 +18,7 @@
     "license": "MIT",
     "dependencies": {
         "@slack/web-api": "7.12.0",
+        "@xmpp/client": "^0.13.1",
         "aws-sdk": "2.1692.0",
         "axios": "1.13.2",
         "body-parser": "1.20.3",
@@ -79,6 +81,7 @@
         "eslint-plugin-prettier": "5.5.4",
         "jest": "29.7.0",
         "nodemon": "3.1.10",
+        "patch-package": "^8.0.1",
         "prettier": "3.6.2",
         "ts-jest": "^29.4.6",
         "ts-node": "^10.9.2",

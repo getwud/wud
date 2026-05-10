@@ -22,8 +22,9 @@ RUN apk add --no-cache tzdata openssl curl git jq bash
 # Dependencies stage (Build)
 FROM base AS build
 
-# Copy app package.json
+# Copy app package.json and patches (needed by postinstall patch-package)
 COPY app/package* ./
+COPY app/patches ./patches
 
 # Install dependencies (including dev)
 RUN npm ci --include=dev --omit=optional --no-audit --no-fund --no-update-notifier
