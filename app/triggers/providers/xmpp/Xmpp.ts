@@ -1,7 +1,7 @@
 // @ts-nocheck
-import { client, xml } from '@xmpp/client';
 import Trigger from '../Trigger';
 import { Container } from '../../../model/container';
+import { client, xml } from '@xmpp/client';
 
 /**
  * XMPP Trigger implementation

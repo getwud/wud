@@ -1,0 +1,55 @@
+diff --git a/node_modules/@xmpp/sasl/index.js b/node_modules/@xmpp/sasl/index.js
+index 3407742..552d645 100644
+--- a/node_modules/@xmpp/sasl/index.js
++++ b/node_modules/@xmpp/sasl/index.js
+@@ -42,14 +42,17 @@ async function authenticate(SASL, entity, mechname, credentials) {
+ 
+       if (element.name === "challenge") {
+         mech.challenge(decode(element.text()));
+-        const resp = mech.response(creds);
+-        entity.send(
+-          xml(
+-            "response",
+-            { xmlns: NS, mechanism: mech.name },
+-            typeof resp === "string" ? encode(resp) : "",
+-          ),
+-        );
++        // FIX: mech.response() may return a Promise (e.g., SCRAM-SHA-1).
++        // Use Promise.resolve() to handle both sync and async responses.
++        Promise.resolve(mech.response(creds)).then((resp) => {
++          entity.send(
++            xml(
++              "response",
++              { xmlns: NS, mechanism: mech.name },
++              typeof resp === "string" ? encode(resp) : "",
++            ),
++          );
++        }, reject);
+         return;
+       }
+ 
+@@ -65,13 +68,17 @@ async function authenticate(SASL, entity, mechname, credentials) {
+     entity.on("nonza", handler);
+ 
+     if (mech.clientFirst) {
+-      entity.send(
+-        xml(
+-          "auth",
+-          { xmlns: NS, mechanism: mech.name },
+-          encode(mech.response(creds)),
+-        ),
+-      );
++      // FIX: mech.response() may return a Promise (e.g., SCRAM-SHA-1).
++      // Use Promise.resolve() to handle both sync and async responses.
++      Promise.resolve(mech.response(creds)).then((resp) => {
++        entity.send(
++          xml(
++            "auth",
++            { xmlns: NS, mechanism: mech.name },
++            encode(resp),
++          ),
++        );
++      }, reject);
+     }
+   });
+ }
