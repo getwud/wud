@@ -111,6 +111,24 @@ class Ecr extends Registry {
             return undefined;
         }
     }
+    getTagsPage(image: ContainerImage, lastItem: string | undefined = undefined, link: string | undefined = undefined) {
+        const itemsPerPage = 1000;
+        if (link) {
+            const linkUrl = link.match(/<(.+?)>/);
+            if (linkUrl) {
+                return this.callRegistry<RegistryTagsList>({
+                    image,
+                    url: `https://public.ecr.aws${linkUrl[1]}`,
+                    resolveWithFullResponse: true,
+                });
+            }
+        }
+        return this.callRegistry<RegistryTagsList>({
+            image,
+            url: `${image.registry.url}/${image.name}/tags/list?n=${itemsPerPage}`,
+            resolveWithFullResponse: true,
+        });
+    }
 }
 
 export default Ecr;
