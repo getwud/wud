@@ -1,6 +1,6 @@
-// @ts-nocheck
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import Registry from '../../Registry';
+import { ContainerImage } from '../../../model/container';
 
 /**
  * Docker Gitlab integration.
@@ -8,19 +8,18 @@ import Registry from '../../Registry';
 class Gitlab extends Registry {
     /**
      * Get the Gitlab configuration schema.
-     * @returns {*}
      */
     getConfigurationSchema() {
         return this.joi.object().keys({
             url: this.joi.string().uri().default('https://registry.gitlab.com'),
             authurl: this.joi.string().uri().default('https://gitlab.com'),
+            username: this.joi.string().optional().default(''),
             token: this.joi.string().required(),
         });
     }
 
     /**
      * Sanitize sensitive data
-     * @returns {*}
      */
     maskConfiguration() {
         return {
@@ -34,7 +33,6 @@ class Gitlab extends Registry {
     /**
      * Return true if image has no registry url.
      * @param image the image
-     * @returns {boolean}
      */
     match(image) {
         return this.configuration.url.indexOf(image.registry.url) !== -1;
@@ -43,10 +41,9 @@ class Gitlab extends Registry {
     /**
      * Normalize images according to Gitlab characteristics.
      * @param image
-     * @returns {*}
      */
 
-    normalizeImage(image) {
+    normalizeImage(image: ContainerImage) {
         const imageNormalized = image;
         if (!imageNormalized.registry.url.startsWith('https://')) {
             imageNormalized.registry.url = `https://${imageNormalized.registry.url}/v2`;
@@ -56,17 +53,17 @@ class Gitlab extends Registry {
 
     /**
      * Authenticate to Gitlab.
-     * @param image
-     * @param requestOptions
-     * @returns {Promise<*>}
      */
-    async authenticate(image, requestOptions) {
+    async authenticate(
+        image: ContainerImage,
+        requestOptions: AxiosRequestConfig,
+    ) {
         const request = {
             method: 'GET',
             url: `${this.configuration.authurl}/jwt/auth?service=container_registry&scope=repository:${image.name}:pull`,
             headers: {
                 Accept: 'application/json',
-                Authorization: `Basic ${Gitlab.base64Encode('', this.configuration.token)}`,
+                Authorization: `Basic ${Gitlab.base64Encode(this.configuration.username, this.configuration.token)}`,
             },
         };
         const response = await axios(request);
@@ -77,11 +74,10 @@ class Gitlab extends Registry {
 
     /**
      * Return empty username and personal access token value.
-     * @returns {{password: (string|undefined|*), username: string}}
      */
     async getAuthPull() {
         return {
-            username: '',
+            username: this.configuration.username,
             password: this.configuration.token,
         };
     }

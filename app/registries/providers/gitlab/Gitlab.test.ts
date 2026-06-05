@@ -6,6 +6,7 @@ const gitlab = new Gitlab();
 gitlab.configuration = {
     url: 'https://registry.gitlab.com',
     authurl: 'https://gitlab.com',
+    username: '',
     token: 'abcdef',
 };
 
@@ -19,6 +20,7 @@ test('validatedConfiguration should initialize when configuration is valid', asy
     ).toStrictEqual({
         url: 'https://registry.gitlab.com',
         authurl: 'https://gitlab.com',
+        username: '',
         token: 'abcdef',
     });
     expect(
@@ -30,6 +32,18 @@ test('validatedConfiguration should initialize when configuration is valid', asy
     ).toStrictEqual({
         url: 'https://registry.custom.com',
         authurl: 'https://custom.com',
+        username: '',
+        token: 'abcdef',
+    });
+    expect(
+        gitlab.validateConfiguration({
+            username: 'custom-user',
+            token: 'abcdef',
+        }),
+    ).toStrictEqual({
+        url: 'https://registry.gitlab.com',
+        authurl: 'https://gitlab.com',
+        username: 'custom-user',
         token: 'abcdef',
     });
 });
@@ -44,6 +58,7 @@ test('maskConfiguration should mask configuration secrets', async () => {
     expect(gitlab.maskConfiguration()).toEqual({
         url: 'https://registry.gitlab.com',
         authurl: 'https://gitlab.com',
+        username: '',
         token: 'a****f',
     });
 });
@@ -90,6 +105,39 @@ test('authenticate should perform authenticate request', async () => {
     ).resolves.toEqual({ headers: { Authorization: 'Bearer token' } });
 });
 
+test('authenticate should use custom username when configured', async () => {
+    const gitlabCustom = new Gitlab();
+    gitlabCustom.configuration = {
+        url: 'https://registry.gitlab.com',
+        authurl: 'https://gitlab.com',
+        username: 'custom-user',
+        token: 'abcdef',
+    };
+    axios.mockClear();
+    axios.mockImplementation(() => ({
+        data: {
+            token: 'token',
+        },
+    }));
+
+    await expect(
+        gitlabCustom.authenticate(
+            { name: 'test/image' },
+            {
+                headers: {},
+            },
+        ),
+    ).resolves.toEqual({ headers: { Authorization: 'Bearer token' } });
+    expect(axios).toHaveBeenCalledWith({
+        method: 'GET',
+        url: 'https://gitlab.com/jwt/auth?service=container_registry&scope=repository:test/image:pull',
+        headers: {
+            Accept: 'application/json',
+            Authorization: `Basic ${Gitlab.base64Encode('custom-user', 'abcdef')}`,
+        },
+    });
+});
+
 test('normalizeImage should return the proper registry v2 endpoint', async () => {
     expect(
         gitlab.normalizeImage({
@@ -110,5 +158,18 @@ test('getAuthPull should return pam', async () => {
     await expect(gitlab.getAuthPull()).resolves.toEqual({
         username: '',
         password: gitlab.configuration.token,
+    });
+});
+
+test('getAuthPull should return custom username', async () => {
+    const gitlabCustom = new Gitlab();
+    gitlabCustom.configuration = {
+        username: 'custom-user',
+        token: 'abcdef',
+    };
+
+    await expect(gitlabCustom.getAuthPull()).resolves.toEqual({
+        username: 'custom-user',
+        password: 'abcdef',
     });
 });
