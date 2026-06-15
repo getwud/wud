@@ -816,9 +816,7 @@ class Docker extends Watcher {
                         .getImage(container.image.id)
                         .inspect();
                     container.image.digest.value =
-                        image.Config.Image === ''
-                            ? undefined
-                            : image.Config.Image;
+                        image.Config.Image || image.Id;
                 }
             }
 
