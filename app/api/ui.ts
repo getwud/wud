@@ -14,6 +14,7 @@ function serveIndex(res) {
         `<script>window.__WUD_BASE_PATH__='${basePath}'</script><div id="app">`,
     );
     res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Cache-Control', 'no-store');
     res.send(injected);
 }
 
