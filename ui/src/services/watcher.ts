@@ -1,9 +1,11 @@
+import { url } from "./base";
+
 function getWatcherIcon() {
   return "mdi-update";
 }
 
 async function getAllWatchers() {
-  const response = await fetch("/api/watchers", { credentials: "include" });
+  const response = await fetch(url("api/watchers"), { credentials: "include" });
   return response.json();
 }
 

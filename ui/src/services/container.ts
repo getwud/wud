@@ -1,14 +1,16 @@
+import { url } from "./base";
+
 function getContainerIcon() {
   return "mdi-docker";
 }
 
 async function getAllContainers() {
-  const response = await fetch("/api/containers", { credentials: "include" });
+  const response = await fetch(url("api/containers"), { credentials: "include" });
   return response.json();
 }
 
 async function refreshAllContainers() {
-  const response = await fetch(`/api/containers/watch`, {
+  const response = await fetch(url("api/containers/watch"), {
     method: "POST",
     credentials: "include",
   });
@@ -16,7 +18,7 @@ async function refreshAllContainers() {
 }
 
 async function refreshContainer(containerId) {
-  const response = await fetch(`/api/containers/${containerId}/watch`, {
+  const response = await fetch(url(`api/containers/${containerId}/watch`), {
     method: "POST",
     credentials: "include",
   });
@@ -27,17 +29,17 @@ async function refreshContainer(containerId) {
 }
 
 async function deleteContainer(containerId) {
-  return fetch(`/api/containers/${containerId}`, { method: "DELETE", credentials: "include" });
+  return fetch(url(`api/containers/${containerId}`), { method: "DELETE", credentials: "include" });
 }
 
 async function getContainerTriggers(containerId) {
-  const response = await fetch(`/api/containers/${containerId}/triggers`, { credentials: "include" });
+  const response = await fetch(url(`api/containers/${containerId}/triggers`), { credentials: "include" });
   return response.json();
 }
 
 async function runTrigger({ containerId, triggerType, triggerName }) {
   const response = await fetch(
-    `/api/containers/${containerId}/triggers/${triggerType}/${triggerName}`,
+    url(`api/containers/${containerId}/triggers/${triggerType}/${triggerName}`),
     {
       method: "POST",
       credentials: "include",

@@ -8,6 +8,7 @@ import {
   watch,
   defineComponent,
 } from "vue";
+import { url } from "@/services/base";
 import NavigationDrawer from "@/components/NavigationDrawer.vue";
 import AppBar from "@/components/AppBar.vue";
 import SnackBar from "@/components/SnackBar.vue";
@@ -75,7 +76,7 @@ export default defineComponent({
       } else if (!user.value) {
         // Fallback auth check if user not set by router guard
         try {
-          const response = await fetch("/auth/user", {
+          const response = await fetch(url("auth/user"), {
             credentials: "include",
           });
           if (response.ok) {
