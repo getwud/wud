@@ -1,5 +1,7 @@
 // @ts-nocheck
 import TelegramBot from 'node-telegram-bot-api';
+import { SocksProxyAgent } from 'socks-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import Trigger from '../Trigger';
 
 /**
@@ -9,6 +11,45 @@ import Trigger from '../Trigger';
  */
 function escapeMarkdown(text) {
     return text.replace(/([\\_*`|!.[\](){}>+#=~-])/gm, '\\$1');
+}
+
+/**
+ * Build an http(s)/socks proxy agent from a proxy URL.
+ * socks:// | socks5:// | socks5h:// | socks4:// => SocksProxyAgent
+ * http:// | https:// => HttpsProxyAgent
+ * @param {string} proxyUrl the proxy url (e.g. socks5://user:pass@host:1080)
+ * @returns {*} the proxy agent instance
+ */
+function createProxyAgent(proxyUrl) {
+    const { protocol } = new URL(proxyUrl);
+    if (protocol.startsWith('socks')) {
+        return new SocksProxyAgent(proxyUrl);
+    }
+    if (protocol === 'http:' || protocol === 'https:') {
+        return new HttpsProxyAgent(proxyUrl);
+    }
+    throw new Error(`Unsupported proxy protocol (${protocol}) for proxy url`);
+}
+
+/**
+ * Mask the password of a proxy URL, keeping host/port/user readable.
+ * Falls back to a full mask if the value is not a parsable URL.
+ * @param {string} proxyUrl the proxy url
+ * @returns {string|undefined} the masked proxy url
+ */
+function maskProxy(proxyUrl) {
+    if (!proxyUrl) {
+        return undefined;
+    }
+    try {
+        const url = new URL(proxyUrl);
+        if (url.password) {
+            url.password = '***';
+        }
+        return url.toString();
+    } catch {
+        return Telegram.mask(proxyUrl);
+    }
 }
 
 /**
@@ -29,6 +70,7 @@ class Telegram extends Trigger {
                 .valid('Markdown', 'HTML')
                 .insensitive()
                 .default('Markdown'),
+            proxy: this.joi.string().uri().optional(),
         });
     }
 
@@ -41,6 +83,7 @@ class Telegram extends Trigger {
             ...this.configuration,
             bottoken: Telegram.mask(this.configuration.bottoken),
             chatid: Telegram.mask(this.configuration.chatid),
+            proxy: maskProxy(this.configuration.proxy),
         };
     }
 
@@ -49,7 +92,16 @@ class Telegram extends Trigger {
      * @returns {Promise<void>}
      */
     async initTrigger() {
-        this.telegramBot = new TelegramBot(this.configuration.bottoken);
+        const options = {};
+        if (this.configuration.proxy) {
+            options.request = {
+                agent: createProxyAgent(this.configuration.proxy),
+            };
+        }
+        this.telegramBot = new TelegramBot(
+            this.configuration.bottoken,
+            options,
+        );
     }
 
     /*

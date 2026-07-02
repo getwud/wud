@@ -12,6 +12,7 @@ The `telegram` trigger lets you send realtime notifications using [Telegram](htt
 | `WUD_TRIGGER_TELEGRAM_{trigger_name}_CHATID`   | :red_circle:   | The Chat ID   |                                                                                                    |                             |
 | `WUD_TRIGGER_TELEGRAM_{trigger_name}_DISABLETITLE`   |  :white_circle:  | Disable title to have full control over the message formatting   |    `true`, `false`| `false`  |
 | `WUD_TRIGGER_TELEGRAM_{trigger_name}_MESSAGEFORMAT`   | :white_circle: | Send the message as markdown or as html (useful for custom message formatting) | `Markdown`, `HTML`  | `Markdown` |
+| `WUD_TRIGGER_TELEGRAM_{trigger_name}_PROXY`   | :white_circle: | Route Telegram API calls through a dedicated SOCKS5/HTTP proxy (all other WUD traffic stays direct) | `socks5://user:pass@host:1080`, `http://user:pass@host:8118`  |  |
 
 ?> This trigger also supports the [common configuration variables](configuration/triggers/?id=common-trigger-configuration).
 

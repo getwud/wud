@@ -1,6 +1,11 @@
 // @ts-nocheck
 import { ValidationError } from 'joi';
+import TelegramBot from 'node-telegram-bot-api';
+import { SocksProxyAgent } from 'socks-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import Telegram from './Telegram';
+
+jest.mock('node-telegram-bot-api');
 
 const telegram = new Telegram();
 
@@ -57,6 +62,57 @@ test('maskConfiguration should mask sensitive data', async () => {
         disabletitle: false,
         messageformat: 'Markdown',
     });
+});
+
+test('validateConfiguration should accept an optional proxy url', async () => {
+    const validatedConfiguration = telegram.validateConfiguration({
+        ...configurationValid,
+        proxy: 'socks5://user:pass@host:1080',
+    });
+    expect(validatedConfiguration.proxy).toEqual(
+        'socks5://user:pass@host:1080',
+    );
+});
+
+test('validateConfiguration should throw when proxy is not a valid url', async () => {
+    expect(() => {
+        telegram.validateConfiguration({
+            ...configurationValid,
+            proxy: 'not a url',
+        });
+    }).toThrowError(ValidationError);
+});
+
+test('maskConfiguration should mask only the proxy password', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        proxy: 'socks5://user:secret@host:1080',
+    };
+    expect(telegram.maskConfiguration().proxy).toEqual(
+        'socks5://user:***@host:1080',
+    );
+});
+
+test.each([
+    { proxy: 'socks5://user:pass@host:1080', agentType: SocksProxyAgent },
+    { proxy: 'socks://user:pass@host:1080', agentType: SocksProxyAgent },
+    { proxy: 'http://user:pass@host:8118', agentType: HttpsProxyAgent },
+    { proxy: 'https://user:pass@host:8118', agentType: HttpsProxyAgent },
+])(
+    'initTrigger should build a proxy agent for %s',
+    async ({ proxy, agentType }) => {
+        telegram.configuration = { ...configurationValid, proxy };
+        await telegram.initTrigger();
+        const [, options] = TelegramBot.mock.calls.at(-1);
+        expect(options.request.agent).toBeInstanceOf(agentType);
+    },
+);
+
+test('initTrigger should not set a proxy agent when proxy is not configured', async () => {
+    telegram.configuration = { ...configurationValid };
+    await telegram.initTrigger();
+    const [, options] = TelegramBot.mock.calls.at(-1);
+    expect(options).toEqual({});
 });
 
 test('should send message with correct text', async () => {

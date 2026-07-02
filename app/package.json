@@ -31,6 +31,7 @@
         "flat": "5.0.2",
         "getmac": "6.6.0",
         "gotify-client": "0.4.2",
+        "https-proxy-agent": "^7.0.6",
         "jiti": "^2.6.1",
         "joi": "17.13.3",
         "joi-cron-expression": "1.0.1",
@@ -53,6 +54,7 @@
         "semver": "7.7.3",
         "set-value": "4.1.0",
         "snake-case": "3.0.4",
+        "socks-proxy-agent": "^8.0.5",
         "sort-es": "1.7.17",
         "uuid": "11.0.3",
         "yaml": "2.8.1"
