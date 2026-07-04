@@ -217,11 +217,16 @@ class Registry extends Component {
                     responseManifests.mediaType ===
                         'application/vnd.oci.image.manifest.v1+json'
                 ) {
+                    // Single-platform manifest (no list/index) => the reference
+                    // we already fetched it by (tag or digest) *is* the manifest
+                    // identifier. Do not use responseManifests.config.digest here;
+                    // that's the digest of the config blob, not of the manifest,
+                    // and is not a valid value to re-request a manifest with.
                     log.debug(
-                        `Manifest found with [digest=${responseManifests.config.digest}, mediaType=${responseManifests.config.mediaType}]`,
+                        `Manifest found with [reference=${tagOrDigest}, mediaType=${responseManifests.mediaType}]`,
                     );
-                    manifestDigestFound = responseManifests.config.digest;
-                    manifestMediaType = responseManifests.config.mediaType;
+                    manifestDigestFound = tagOrDigest;
+                    manifestMediaType = responseManifests.mediaType;
                 }
             } else if (responseManifests.schemaVersion === 1) {
                 log.debug('Manifests found with schemaVersion = 1');

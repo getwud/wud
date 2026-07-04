@@ -1,5 +1,6 @@
 // @ts-nocheck
 import Docker from './Docker';
+import Registry from '../../../registries/Registry';
 import * as event from '../../../event';
 import * as storeContainer from '../../../store/container';
 import * as registry from '../../../registry';
@@ -698,6 +699,123 @@ describe('Docker Watcher', () => {
 
             expect(mockImage.inspect).toHaveBeenCalled();
             expect(container.image.digest.value).toBe('sha256:legacy123');
+        });
+
+        test('should fall back to the image Id when Config.Image is empty for a legacy v1 manifest', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const container = {
+                image: {
+                    id: 'image123',
+                    registry: { name: 'hub' },
+                    tag: { value: '1.0.0' },
+                    digest: { watch: true, repo: 'sha256:abc123' },
+                },
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['1.0.0']),
+                getImageManifestDigest: jest.fn().mockResolvedValue({
+                    digest: 'sha256:def456',
+                    created: '2023-01-01',
+                    version: 1,
+                }),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const mockLogChild = { error: jest.fn() };
+            const mockImageInspect = {
+                Config: { Image: '' },
+                Id: 'sha256:local123',
+            };
+            mockImage.inspect.mockResolvedValue(mockImageInspect);
+
+            await docker.findNewVersion(container, mockLogChild);
+
+            expect(container.image.digest.value).toBe('sha256:local123');
+        });
+
+        test('should not flag a false digest update for a multi-arch image whose local RepoDigest is a leaf manifest digest (regression for ghcr.io/tricked-dev/kanidm-oauth2-manager)', async () => {
+            // Reproduces the real-world bug: an OCI index with amd64/arm64 entries,
+            // where Docker recorded the arm64 *manifest* digest (not the index
+            // digest) as the container's RepoDigest. Both the "remote" lookup (by
+            // tag) and the "local" lookup (by RepoDigest) must resolve to the same
+            // manifest digest when nothing changed.
+            const arm64ManifestDigest =
+                'sha256:8f52be5801e341d97f65e9d046d24e37ee980558806127f7c2b2f917670b5332';
+            const configDigest =
+                'sha256:c611bc3dc9d42510c69180b6328ebcb3a93cd9c739f79cc2b8ce17322a8baed5';
+
+            const ghcrRegistry = new Registry();
+            ghcrRegistry.getTags = jest.fn().mockResolvedValue(['latest']);
+            ghcrRegistry.callRegistry = jest.fn((options) => {
+                if (options.method === 'head') {
+                    return Promise.resolve({
+                        headers: {
+                            'docker-content-digest': arm64ManifestDigest,
+                        },
+                    });
+                }
+                if (options.url.endsWith('/manifests/latest')) {
+                    return Promise.resolve({
+                        schemaVersion: 2,
+                        mediaType: 'application/vnd.oci.image.index.v1+json',
+                        manifests: [
+                            {
+                                digest: 'sha256:amd64ManifestDigest',
+                                mediaType:
+                                    'application/vnd.oci.image.manifest.v1+json',
+                                platform: {
+                                    architecture: 'amd64',
+                                    os: 'linux',
+                                },
+                            },
+                            {
+                                digest: arm64ManifestDigest,
+                                mediaType:
+                                    'application/vnd.oci.image.manifest.v1+json',
+                                platform: {
+                                    architecture: 'arm64',
+                                    os: 'linux',
+                                },
+                            },
+                        ],
+                    });
+                }
+                if (options.url.endsWith(`/manifests/${arm64ManifestDigest}`)) {
+                    return Promise.resolve({
+                        schemaVersion: 2,
+                        mediaType: 'application/vnd.oci.image.manifest.v1+json',
+                        config: {
+                            digest: configDigest,
+                            mediaType:
+                                'application/vnd.oci.image.config.v1+json',
+                        },
+                    });
+                }
+                throw new Error(`Unexpected request to ${options.url}`);
+            });
+
+            const container = {
+                image: {
+                    id: 'image123',
+                    registry: { name: 'ghcr' },
+                    name: 'tricked-dev/kanidm-oauth2-manager',
+                    tag: { value: 'latest' },
+                    architecture: 'arm64',
+                    os: 'linux',
+                    digest: { watch: true, repo: arm64ManifestDigest },
+                },
+            };
+            registry.getState.mockReturnValue({
+                registry: { ghcr: ghcrRegistry },
+            });
+            const mockLogChild = { error: jest.fn() };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(result.digest).toBe(arm64ManifestDigest);
+            expect(container.image.digest.value).toBe(arm64ManifestDigest);
+            expect(container.image.digest.value).toBe(result.digest);
         });
 
         test('should handle tag candidates with semver', async () => {
