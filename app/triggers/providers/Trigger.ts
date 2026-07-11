@@ -11,6 +11,7 @@ export interface TriggerConfiguration extends ComponentConfiguration {
     simpletitle?: string;
     simplebody?: string;
     batchtitle?: string;
+    includebydefault?: boolean;
 }
 
 export interface ContainerReport {
@@ -269,7 +270,7 @@ class Trigger extends Component {
         triggerInclude: string | undefined,
     ) {
         if (!triggerInclude) {
-            return true;
+            return this.configuration.includebydefault !== false;
         }
         return this.isTriggerIncludedOrExcluded(
             containerResult,
@@ -373,6 +374,7 @@ class Trigger extends Component {
             batchtitle: this.joi
                 .string()
                 .default('${containers.length} updates available'),
+            includebydefault: this.joi.boolean(),
         });
         const schemaValidated =
             schemaWithDefaultOptions.validate(configuration);
