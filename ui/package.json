@@ -21,7 +21,7 @@
     "vuetify": "^3.4.0"
   },
   "devDependencies": {
-    "@babel/core": "7.26.0",
+    "@babel/core": "7.29.6",
     "@babel/eslint-parser": "7.25.9",
     "@babel/preset-env": "^7.20.0",
     "@fontsource/roboto": "5.1.0",
