@@ -165,22 +165,25 @@ test('getImageManifestDigest should return digest for application/vnd.docker.dis
     });
 });
 
-test('getImageManifestDigest should return digest for application/vnd.docker.distribution.manifest.v2+json', async () => {
+test('getImageManifestDigest should return the manifest digest (not the config digest) for a single-platform application/vnd.docker.distribution.manifest.v2+json response', async () => {
     const registryMocked = new Registry();
     registryMocked.log = log;
+    const urlsCalled: string[] = [];
     registryMocked.callRegistry = (options) => {
+        urlsCalled.push(options.url);
         if (
             options.headers.Accept ===
             'application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json'
         ) {
+            // Realistic single-platform manifest: config.mediaType is a *config*
+            // media type, never the manifest's own media type.
             return {
                 schemaVersion: 2,
                 mediaType:
                     'application/vnd.docker.distribution.manifest.v2+json',
                 config: {
-                    digest: 'digest_x',
-                    mediaType:
-                        'application/vnd.docker.distribution.manifest.v2+json',
+                    digest: 'config_digest',
+                    mediaType: 'application/vnd.docker.container.image.v1+json',
                 },
             };
         }
@@ -190,13 +193,13 @@ test('getImageManifestDigest should return digest for application/vnd.docker.dis
         ) {
             return {
                 headers: {
-                    'docker-content-digest': '123456789',
+                    'docker-content-digest': 'manifest_digest',
                 },
             };
         }
         throw new Error('Boom!');
     };
-    expect(
+    await expect(
         registryMocked.getImageManifestDigest({
             name: 'image',
             architecture: 'amd64',
@@ -210,8 +213,68 @@ test('getImageManifestDigest should return digest for application/vnd.docker.dis
         }),
     ).resolves.toStrictEqual({
         version: 2,
-        digest: '123456789',
+        digest: 'manifest_digest',
     });
+    // The confirmation request must be made against the reference we already
+    // fetched the manifest by (the tag here), never against the config digest.
+    expect(urlsCalled).toStrictEqual([
+        'url/image/manifests/tag',
+        'url/image/manifests/tag',
+    ]);
+});
+
+test('getImageManifestDigest should resolve a manifest fetched directly by its own digest to that same digest', async () => {
+    const registryMocked = new Registry();
+    registryMocked.log = log;
+    const urlsCalled: string[] = [];
+    registryMocked.callRegistry = (options) => {
+        urlsCalled.push(options.url);
+        if (
+            options.headers.Accept ===
+            'application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json'
+        ) {
+            return {
+                schemaVersion: 2,
+                mediaType: 'application/vnd.oci.image.manifest.v1+json',
+                config: {
+                    digest: 'config_digest',
+                    mediaType: 'application/vnd.oci.image.config.v1+json',
+                },
+            };
+        }
+        if (
+            options.headers.Accept ===
+            'application/vnd.oci.image.manifest.v1+json'
+        ) {
+            return {
+                headers: {
+                    'docker-content-digest': 'sha256:platformManifestDigest',
+                },
+            };
+        }
+        throw new Error('Boom!');
+    };
+    // This mirrors what Docker.ts does when re-resolving the container's local
+    // RepoDigest: it's already a leaf manifest digest, not a manifest-list digest.
+    await expect(
+        registryMocked.getImageManifestDigest(
+            {
+                name: 'image',
+                architecture: 'arm64',
+                os: 'linux',
+                tag: { value: 'latest' },
+                registry: { url: 'url' },
+            },
+            'sha256:platformManifestDigest',
+        ),
+    ).resolves.toStrictEqual({
+        version: 2,
+        digest: 'sha256:platformManifestDigest',
+    });
+    expect(urlsCalled).toStrictEqual([
+        'url/image/manifests/sha256:platformManifestDigest',
+        'url/image/manifests/sha256:platformManifestDigest',
+    ]);
 });
 
 test('getImageManifestDigest should return digest for application/vnd.docker.container.image.v1+json', async () => {

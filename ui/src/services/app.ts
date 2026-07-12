@@ -1,5 +1,7 @@
+import { url } from "./base";
+
 async function getAppInfos() {
-  const response = await fetch("/api/app", { credentials: "include" });
+  const response = await fetch(url("api/app"), { credentials: "include" });
   return response.json();
 }
 

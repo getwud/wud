@@ -46,7 +46,7 @@ const routes = [
 ];
 
 const router = createRouter({
-  history: createWebHistory(process.env.BASE_URL),
+  history: createWebHistory((window as any).__WUD_BASE_PATH__ || '/'),
   routes,
 });
 

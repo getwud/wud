@@ -20,6 +20,11 @@ class Discord extends Trigger {
                 })
                 .required(),
             botusername: this.joi.string().default('WUD'),
+            avatarurl: this.joi
+                .string()
+                .uri({ scheme: ['https'] })
+                .allow('')
+                .default(''),
             cardcolor: this.joi.number().default(65280),
             cardlabel: this.joi.string().default(''),
         });
@@ -70,6 +75,7 @@ class Discord extends Trigger {
         const uri = this.configuration.url;
         const body = {
             username: this.configuration.botusername,
+            avatar_url: this.configuration.avatarurl,
             embeds: [
                 {
                     title,

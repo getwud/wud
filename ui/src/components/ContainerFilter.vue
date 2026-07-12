@@ -1,7 +1,7 @@
 <template>
   <v-container fluid class="ma-0 mb-3 pa-md-0">
     <v-row dense>
-      <v-col>
+      <v-col cols="12" sm="6" md="3">
         <v-select
           :hide-details="true"
           v-model="watcherSelected"
@@ -13,7 +13,7 @@
           density="compact"
         ></v-select>
       </v-col>
-      <v-col>
+      <v-col cols="12" sm="6" md="3">
         <v-select
           :hide-details="true"
           v-model="registrySelected"
@@ -25,7 +25,7 @@
           density="compact"
         ></v-select>
       </v-col>
-      <v-col>
+      <v-col cols="12" sm="6" md="3">
         <v-select
           :hide-details="true"
           v-model="updateKindSelected"
@@ -38,7 +38,7 @@
         ></v-select>
       </v-col>
 
-      <v-col>
+      <v-col cols="12" sm="6" md="3">
         <v-autocomplete
           label="Group by label"
           :items="groupLabels"
@@ -50,7 +50,7 @@
         >
         </v-autocomplete>
       </v-col>
-      <v-col>
+      <v-col cols="6" sm="6" md="3">
         <v-switch
           class="switch-top"
           label="Update available"
@@ -60,7 +60,7 @@
           density="compact"
         />
       </v-col>
-      <v-col>
+      <v-col cols="6" sm="6" md="3">
         <v-switch
           class="switch-top"
           label="Oldest first"
@@ -70,7 +70,7 @@
           density="compact"
         />
       </v-col>
-      <v-col class="text-right">
+      <v-col cols="12" sm="12" md="6" class="d-flex justify-center justify-md-end">
         <v-btn
           color="secondary"
           @click.stop="refreshAllContainers"
@@ -79,7 +79,6 @@
           Watch now
           <v-icon> mdi-refresh</v-icon>
         </v-btn>
-        <br />
       </v-col>
     </v-row>
   </v-container>

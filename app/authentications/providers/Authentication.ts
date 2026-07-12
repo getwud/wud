@@ -1,5 +1,6 @@
 import Component from '../../registry/Component';
 import { Strategy } from 'passport';
+import { Express } from 'express';
 
 class Authentication extends Component {
     /**
@@ -12,14 +13,14 @@ class Authentication extends Component {
     /**
      * Init Trigger. Can be overridden in trigger implementation class.
      */
-    initAuthentication() {
+    async initAuthentication() {
         // do nothing by default
     }
 
     /**
      * Return passport strategy.
      */
-    getStrategy(): Strategy {
+    getStrategy(_app: Express): Strategy {
         throw new Error('getStrategy must be implemented');
     }
 

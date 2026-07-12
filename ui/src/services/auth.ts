@@ -1,6 +1,7 @@
 /**
  * Authentication service.
  */
+import { url } from "./base";
 
 // Current logged user
 let user = undefined;
@@ -10,7 +11,7 @@ let user = undefined;
  * @returns {Promise<any>}
  */
 async function getStrategies() {
-  const response = await fetch("/auth/strategies", { credentials: "include" });
+  const response = await fetch(url("auth/strategies"), { credentials: "include" });
   return response.json();
 }
 
@@ -20,7 +21,7 @@ async function getStrategies() {
  */
 async function getUser() {
   try {
-    const response = await fetch("/auth/user", {
+    const response = await fetch(url("auth/user"), {
       redirect: "manual",
       credentials: "include",
     });
@@ -45,7 +46,7 @@ async function getUser() {
  */
 async function loginBasic(username, password) {
   const base64 = btoa(`${username}:${password}`);
-  const response = await fetch(`/auth/login`, {
+  const response = await fetch(url("auth/login"), {
     method: "POST",
     credentials: "include",
     headers: {
@@ -66,7 +67,7 @@ async function loginBasic(username, password) {
  * @returns {Promise<*>}
  */
 async function getOidcRedirection(name) {
-  const response = await fetch(`/auth/oidc/${name}/redirect`, { credentials: "include" });
+  const response = await fetch(url(`auth/oidc/${name}/redirect`), { credentials: "include" });
   user = await response.json();
   return user;
 }
@@ -76,7 +77,7 @@ async function getOidcRedirection(name) {
  * @returns {Promise<any>}
  */
 async function logout() {
-  const response = await fetch(`/auth/logout`, {
+  const response = await fetch(url("auth/logout"), {
     method: "POST",
     credentials: "include",
     redirect: "manual",

@@ -1,9 +1,31 @@
 # Changelog
 
-## dev
+## next
+- :star: Add opt-in mode for trigger association
+- :star: Add SOCKS5/HTTP proxy support to Telegram trigger
+- :star: Add runtime subpath proxy support with WUD_SERVER_BASEPATH
+- :star: Add ENV option for watch digest default
+- :star: [MQTT] - Improve trigger
+- :star: [DISCORD] - Add avatar URL support
+- :fire: Fix digest comparison for single-platform manifests resolved from a manifest list
+- :fire: [NTFY] - Fix basic auth
+- :fire: [UI] - Fix container filters on mobile
+- :fire: [ECR] - Use link header for pagination
+- :wrench: Add multi-stage UI build to Dockerfile
+- :wrench: Update OIDC library
+
+## 8.2.2
+- :star: Add public Codeberg registry (codeberg.org) to the list of default supported registries
+- :star: Add public Forgejo registry (code.forgejo.org) to the list of default supported registries
+- :fire: Fix startup errors for some users
+
+## 8.2.1
 - :lock: Migrate backend to typescript
 - :fire: [APPRISE] - Fix bad request error ("Payload lacks minimum requirements")
 - :fire: [DISCORD] - Fix bad request error ("Invalid URL")
+- :fire: [NTFY] - Fix token auth
+- :fire: Fix metrics related errors when Prometheus is disabled
+- :fire: Fix `wud.watch.digest` not respected
 
 ## 8.2.0
 - :star: Add TrueForge Container Registry support (oci.trueforge.org)

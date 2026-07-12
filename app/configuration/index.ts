@@ -2,6 +2,7 @@
 import fs from 'fs';
 import joi from 'joi';
 import setValue from 'set-value';
+import { Request } from 'express';
 
 const VAR_FILE_SUFFIX = '__FILE';
 
@@ -132,6 +133,7 @@ export function getServerConfiguration() {
                 methods: joi.string().default('GET,HEAD,PUT,PATCH,POST,DELETE'),
             })
             .default({}),
+        basepath: joi.string().default('/'),
         feature: joi
             .object({
                 delete: joi.boolean().default(true),
@@ -170,11 +172,11 @@ export function getPrometheusConfiguration() {
     return configurationToValidate.value;
 }
 
-export function getPublicUrl(req) {
+export function getPublicUrl(req: Request) {
     const publicUrl = wudEnvVars.WUD_PUBLIC_URL;
     if (publicUrl) {
         return publicUrl;
     }
     // Try to guess from request
-    return `${req.protocol}://${req.hostname}`;
+    return `${req.protocol}://${req.headers.host ?? req.hostname}`;
 }

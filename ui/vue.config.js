@@ -2,6 +2,7 @@ const { defineConfig } = require("@vue/cli-service");
 const webpack = require("webpack");
 
 module.exports = defineConfig({
+  publicPath: './',
   parallel: false, // Disable parallel build to avoid Thread Loader errors
   devServer: {
     host: '0.0.0.0',

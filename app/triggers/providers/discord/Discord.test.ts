@@ -102,4 +102,130 @@ describe('Discord Trigger', () => {
             },
         });
     });
+
+    test('should validate configuration with avatar URL', async () => {
+        const config = {
+            url: 'https://discord.com/api/webhooks/123/abc',
+            avatarurl: 'https://example.com/avatar.png',
+        };
+
+        expect(() => discord.validateConfiguration(config)).not.toThrow();
+    });
+
+    test('should validate configuration with empty avatar URL', async () => {
+        const config = {
+            url: 'https://discord.com/api/webhooks/123/abc',
+            avatarurl: '',
+        };
+
+        expect(() => discord.validateConfiguration(config)).not.toThrow();
+    });
+
+    test('should validate configuration with no avatar URL', async () => {
+        const config = {
+            url: 'https://discord.com/api/webhooks/123/abc',
+        };
+
+        expect(() => discord.validateConfiguration(config)).not.toThrow();
+    });
+
+    test('should apply default avatar URL when not set', async () => {
+        const config = {
+            url: 'https://discord.com/api/webhooks/123/abc',
+        };
+
+        const validated = discord.validateConfiguration(config);
+        expect(validated.avatarurl).toBe('');
+    });
+
+    test('should reject invalid avatar URL (not HTTPS)', async () => {
+        const config = {
+            url: 'https://discord.com/api/webhooks/123/abc',
+            avatarurl: 'http://example.com/avatar.png',
+        };
+
+        expect(() => discord.validateConfiguration(config)).toThrow();
+    });
+
+    test('should send message with avatar URL', async () => {
+        const { default: axios } = await import('axios');
+        discord.configuration = {
+            url: 'https://discord.com/api/webhooks/123/abc',
+            avatarurl:
+                'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/whats-up-docker.png',
+        };
+
+        await discord.sendMessage('Test Title', 'Test Body');
+        expect(axios).toHaveBeenCalledWith({
+            method: 'POST',
+            url: 'https://discord.com/api/webhooks/123/abc',
+            data: {
+                avatar_url:
+                    'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/whats-up-docker.png',
+                embeds: [
+                    {
+                        title: 'Test Title',
+                        fields: [
+                            {
+                                value: 'Test Body',
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+    });
+
+    test('should send message with empty avatar URL by default', async () => {
+        const { default: axios } = await import('axios');
+        discord.configuration = {
+            url: 'https://discord.com/api/webhooks/123/abc',
+            avatarurl: '',
+        };
+
+        await discord.sendMessage('Test Title', 'Test Body');
+        expect(axios).toHaveBeenCalledWith({
+            method: 'POST',
+            url: 'https://discord.com/api/webhooks/123/abc',
+            data: {
+                avatar_url: '',
+                embeds: [
+                    {
+                        title: 'Test Title',
+                        fields: [
+                            {
+                                value: 'Test Body',
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+    });
+
+    test('should send message without avatar URL in configuration', async () => {
+        const { default: axios } = await import('axios');
+        discord.configuration = {
+            url: 'https://discord.com/api/webhooks/123/abc',
+        };
+
+        await discord.sendMessage('Test Title', 'Test Body');
+        expect(axios).toHaveBeenCalledWith({
+            method: 'POST',
+            url: 'https://discord.com/api/webhooks/123/abc',
+            data: {
+                embeds: [
+                    {
+                        title: 'Test Title',
+                        fields: [
+                            {
+                                value: 'Test Body',
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+    });
+
 });

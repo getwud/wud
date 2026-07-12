@@ -49,6 +49,7 @@ export interface DockerWatcherConfiguration extends ComponentConfiguration {
     watchbydefault: boolean;
     watchall: boolean;
     watchdigest?: any;
+    watchdigestdefault?: boolean;
     watchevents: boolean;
     watchatstart: boolean;
 }
@@ -312,6 +313,7 @@ function isDigestToWatch(
     wudWatchDigestLabelValue: string,
     parsedImage: any,
     isSemver: boolean,
+    watchDigestDefault?: boolean,
 ) {
     const domain = parsedImage.domain;
     const isDockerHub =
@@ -335,6 +337,10 @@ function isDigestToWatch(
 
     if (isSemver) {
         return false;
+    }
+
+    if (watchDigestDefault !== undefined) {
+        return watchDigestDefault;
     }
 
     return !isDockerHub;
@@ -388,6 +394,7 @@ class Docker extends Watcher {
             watchbydefault: this.joi.boolean().default(true),
             watchall: this.joi.boolean().default(false),
             watchdigest: this.joi.any(),
+            watchdigestdefault: this.joi.boolean().optional(),
             watchevents: this.joi.boolean().default(true),
             watchatstart: this.joi.boolean().default(true),
         });
@@ -739,15 +746,22 @@ class Docker extends Watcher {
                 `Error when trying to prune the old containers (${e.message})`,
             );
         }
-        getWatchContainerGauge().set(
-            {
-                type: this.type,
-                name: this.name,
-            },
-            containersToReturn.length,
-        );
+        this.updatePrometheusGauge(containersToReturn);
 
         return containersToReturn;
+    }
+
+    private updatePrometheusGauge(containersToReturn: any[]) {
+        const containerGauge = getWatchContainerGauge();
+        if (containerGauge) {
+            getWatchContainerGauge().set(
+                {
+                    type: this.type,
+                    name: this.name,
+                },
+                containersToReturn.length,
+            );
+        }
     }
 
     /**
@@ -804,14 +818,16 @@ class Docker extends Watcher {
                         );
                     container.image.digest.value = digestV2.digest;
                 } else {
-                    // Legacy v1 image => take Image digest as reference for comparison
+                    // Legacy v1 image => take Image digest as reference for comparison.
+                    // Config.Image is empty on most modern images (deprecated since
+                    // Docker moved to content-addressable image storage), so fall back
+                    // to the local image Id, which is the config digest Docker itself
+                    // uses to identify this image.
                     const image = await this.dockerApi
                         .getImage(container.image.id)
                         .inspect();
                     container.image.digest.value =
-                        image.Config.Image === ''
-                            ? undefined
-                            : image.Config.Image;
+                        image.Config.Image || image.Id;
                 }
             }
 
@@ -902,11 +918,12 @@ class Docker extends Watcher {
             container.Labels[wudWatchDigest],
             parsedImage,
             isSemver,
+            this.configuration.watchdigestdefault,
         );
         if (!isSemver && !watchDigest) {
             this.ensureLogger();
             this.log.warn(
-                "Image is not a semver and digest watching is disabled so wud won't report any update. Please review the configuration to enable digest watching for this container or exclude this container from being watched",
+                `Image ${parsedImage.path}:${tagName} (container "${containerName}", id ${containerId}) is not a semver and digest watching is disabled so wud won't report any update. Set the label \`wud.watch.digest=true\` on this container to enable digest watching, or set \`wud.watch=false\` to exclude it from being watched.`,
             );
         }
         return normalizeContainer({

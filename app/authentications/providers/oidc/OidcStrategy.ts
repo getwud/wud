@@ -1,15 +1,36 @@
-// @ts-nocheck
-import { Strategy } from 'openid-client';
+import { Strategy } from 'passport';
+import * as client from 'openid-client';
+import Logger from 'bunyan';
+import { Request } from 'express';
+
+export interface User {
+    username: string;
+}
+
+interface OidcStrategyOptions {
+    config: client.Configuration | undefined;
+    params: Record<string, string>;
+}
 
 class OidcStrategy extends Strategy {
+    private log: Logger;
+    private verify: (
+        accessToken: string,
+        callback: (err: Error | null, user?: User | false) => void,
+    ) => void;
+
     /**
      * Constructor.
-     * @param options
-     * @param verify
-     * @param log
      */
-    constructor(options, verify, log) {
-        super(options, verify);
+    constructor(
+        options: OidcStrategyOptions,
+        verify: (
+            accessToken: string,
+            callback: (err: Error | null, user?: User | false) => void,
+        ) => void,
+        log: Logger,
+    ) {
+        super();
         this.log = log;
         this.verify = verify;
     }
@@ -18,11 +39,9 @@ class OidcStrategy extends Strategy {
      * Authenticate method.
      * @param req
      */
-    authenticate(req) {
+    authenticate(req: Request) {
         // Already authenticated (thanks to session) => ok
-        this.log.debug('Executing oidc strategy');
         if (req.isAuthenticated()) {
-            this.log.debug('User is already authenticated');
             this.success(req.user);
         } else {
             // Get bearer token if so
@@ -42,7 +61,9 @@ class OidcStrategy extends Strategy {
                 });
                 // Fail if no bearer token
             } else {
-                this.log.debug('No bearer token found in the request');
+                this.log.debug(
+                    `No bearer token found in the request ${req.originalUrl}`,
+                );
                 this.fail(401);
             }
         }

@@ -1,5 +1,8 @@
 // @ts-nocheck
+import axios from 'axios';
 import Gitea from './Gitea';
+
+jest.mock('axios');
 
 const gitea = new Gitea();
 gitea.configuration = {
@@ -129,4 +132,47 @@ test('match should be case insensitive', async () => {
             registry: { url: 'gitea.acme.com' },
         }),
     ).toBeTruthy();
+});
+
+test('should authenticate with credentials', async () => {
+    const { default: axios } = await import('axios');
+    axios.mockResolvedValue({ data: { token: 'auth-token' } });
+
+    gitea.getAuthCredentials = jest.fn().mockReturnValue('base64credentials');
+
+    const image = { name: 'test/image' };
+    const requestOptions = { headers: {} };
+
+    const result = await gitea.authenticate(image, requestOptions);
+
+    expect(axios).toHaveBeenCalledWith({
+        method: 'GET',
+        url: 'https://gitea.acme.com/v2/token?service=container_registry&scope=repository:test/image:pull',
+        headers: {
+            Accept: 'application/json',
+            Authorization: 'Basic base64credentials',
+        },
+    });
+    expect(result.headers.Authorization).toBe('Bearer auth-token');
+});
+
+test('should authenticate without credentials', async () => {
+    const { default: axios } = await import('axios');
+    axios.mockResolvedValue({ data: { token: 'public-token' } });
+
+    gitea.getAuthCredentials = jest.fn().mockReturnValue(null);
+
+    const image = { name: 'test/image' };
+    const requestOptions = { headers: {} };
+
+    const result = await gitea.authenticate(image, requestOptions);
+
+    expect(axios).toHaveBeenCalledWith({
+        method: 'GET',
+        url: 'https://gitea.acme.com/v2/token?service=container_registry&scope=repository:test/image:pull',
+        headers: {
+            Accept: 'application/json',
+        },
+    });
+    expect(result.headers.Authorization).toBe('Bearer public-token');
 });

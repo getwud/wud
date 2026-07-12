@@ -1,13 +1,30 @@
 // @ts-nocheck
-import { Issuer } from 'openid-client';
+import * as client from 'openid-client';
 import OidcStrategy from './OidcStrategy';
 import log from '../../../log';
 
-const { Client } = new Issuer({ issuer: 'issuer' });
-const client = new Client({ client_id: '123456789' });
-const oidcStrategy = new OidcStrategy({ client }, () => {}, log);
+// Mock the openid-client module
+jest.mock('openid-client');
+
+const mockClient = {
+    client_id: '123456789',
+};
+
+const mockConfig = {
+    serverMetadata: jest.fn().mockReturnValue({
+        supportsPKCE: jest.fn().mockReturnValue(true),
+    }),
+};
+
+let oidcStrategy: any;
 
 beforeEach(async () => {
+    jest.resetAllMocks();
+    oidcStrategy = new OidcStrategy(
+        { config: mockConfig, client: mockClient },
+        () => {},
+        log,
+    );
     oidcStrategy.success = jest.fn();
     oidcStrategy.fail = jest.fn();
 });
