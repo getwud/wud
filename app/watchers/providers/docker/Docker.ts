@@ -811,14 +811,16 @@ class Docker extends Watcher {
                         );
                     container.image.digest.value = digestV2.digest;
                 } else {
-                    // Legacy v1 image => take Image digest as reference for comparison
+                    // Legacy v1 image => take Image digest as reference for comparison.
+                    // Config.Image is empty on most modern images (deprecated since
+                    // Docker moved to content-addressable image storage), so fall back
+                    // to the local image Id, which is the config digest Docker itself
+                    // uses to identify this image.
                     const image = await this.dockerApi
                         .getImage(container.image.id)
                         .inspect();
                     container.image.digest.value =
-                        image.Config.Image === ''
-                            ? undefined
-                            : image.Config.Image;
+                        image.Config.Image || image.Id;
                 }
             }
 

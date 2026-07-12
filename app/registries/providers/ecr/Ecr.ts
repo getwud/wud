@@ -1,31 +1,38 @@
-// @ts-nocheck
-import ECR from 'aws-sdk/clients/ecr';
-import maintenanceMode from 'aws-sdk/lib/maintenance_mode_message';
-// @ts-ignore
-maintenanceMode.suppress = true; // Disable aws sdk maintenance mode message at startup
-import axios from 'axios';
+import { ECRClient, GetAuthorizationTokenCommand } from '@aws-sdk/client-ecr';
+import { ContainerImage } from '../../../model/container';
+import axios, { AxiosRequestConfig } from 'axios';
+import joi from 'joi';
 import Registry from '../../Registry';
 
 const ECR_PUBLIC_GALLERY_HOSTNAME = 'public.ecr.aws';
 
+export interface EcrConfiguration {
+    accesskeyid?: string;
+    secretaccesskey?: string;
+    region?: string;
+    accountid?: string;
+    public: boolean;
+}
+
 /**
  * Elastic Container Registry integration.
  */
-class Ecr extends Registry {
-    getConfigurationSchema() {
-        return this.joi.alternatives([
+export class Ecr extends Registry {
+    getConfigurationSchema(): joi.AlternativesSchema | joi.ObjectSchema {
+        return this.joi.alternatives(
             this.joi.string().allow(''),
-            this.joi.object().keys({
+            this.joi.object<EcrConfiguration>().keys({
                 accesskeyid: this.joi.string().required(),
                 secretaccesskey: this.joi.string().required(),
                 region: this.joi.string().required(),
+                accountid: this.joi.string().optional(),
+                public: this.joi.boolean().optional().default(false),
             }),
-        ]);
+        );
     }
 
     /**
      * Sanitize sensitive data
-     * @returns {*}
      */
     maskConfiguration() {
         return {
@@ -39,23 +46,38 @@ class Ecr extends Registry {
     /**
      * Return true if image has not registryUrl.
      * @param image the image
-     * @returns {boolean}
      */
 
-    match(image) {
-        return (
-            /^.*\.dkr\.ecr\..*\.amazonaws\.com$/.test(image.registry.url) ||
+    match(image: ContainerImage) {
+        this.log.debug(`Matching image registry URL: ${image.registry.url}`);
+
+        // Check if the image registry URL matches ECR or ECR Public Gallery
+        if (
+            this.configuration.public &&
             image.registry.url === ECR_PUBLIC_GALLERY_HOSTNAME
-        );
+        ) {
+            return true;
+        }
+
+        // If account ID is provided, check if the image registry URL matches the account ID
+        // Otherwise every ECR registry URL is considered a match
+        if (this.configuration.accountid) {
+            return new RegExp(
+                `^${this.configuration.accountid}\\.dkr\\.ecr\\..*\\.amazonaws\\.com$`,
+            ).test(image.registry.url);
+        } else {
+            return /^.*\.dkr\.ecr\..*\.amazonaws\.com$/.test(
+                image.registry.url,
+            );
+        }
     }
 
     /**
      * Normalize image according to AWS ECR characteristics.
      * @param image
-     * @returns {*}
      */
 
-    normalizeImage(image) {
+    normalizeImage(image: ContainerImage) {
         const imageNormalized = image;
         if (!imageNormalized.registry.url.startsWith('https://')) {
             imageNormalized.registry.url = `https://${imageNormalized.registry.url}/v2`;
@@ -63,14 +85,44 @@ class Ecr extends Registry {
         return imageNormalized;
     }
 
-    async authenticate(image, requestOptions) {
+    private tokenCache?: {
+        token: string;
+        expiresAt: Date;
+    };
+
+    async authenticate(
+        image: ContainerImage,
+        requestOptions: AxiosRequestConfig,
+    ) {
         const requestOptionsWithAuth = requestOptions;
         // Private registry
         if (this.configuration.accesskeyid) {
-            const tokenValue = await this.fetchPrivateEcrAuthToken();
+            if (this.tokenCache && this.tokenCache.expiresAt > new Date()) {
+                requestOptionsWithAuth.headers.Authorization = `Basic ${this.tokenCache.token}`;
+            } else {
+                const ecr = new ECRClient({
+                    credentials: {
+                        accessKeyId: this.configuration.accesskeyid,
+                        secretAccessKey: this.configuration.secretaccesskey,
+                        accountId: image.registry.url.split('.')[0], // Extract account ID from the URL
+                    },
+                    region: this.configuration.region,
+                });
+                const authorizationToken = await ecr.send(
+                    new GetAuthorizationTokenCommand(),
+                );
 
-            requestOptionsWithAuth.headers.Authorization = `Basic ${tokenValue}`;
+                const tokenValue =
+                    authorizationToken.authorizationData[0].authorizationToken;
+                this.tokenCache = {
+                    token: tokenValue!,
+                    expiresAt: new Date(
+                        authorizationToken.authorizationData[0].expiresAt!,
+                    ),
+                };
 
+                requestOptionsWithAuth.headers.Authorization = `Basic ${tokenValue}`;
+            }
             // Public ECR gallery
         } else if (image.registry.url.includes(ECR_PUBLIC_GALLERY_HOSTNAME)) {
             const response = await axios({
@@ -85,31 +137,13 @@ class Ecr extends Registry {
         return requestOptionsWithAuth;
     }
 
-    async fetchPrivateEcrAuthToken() {
-        const ecr = new ECR({
-            credentials: {
-                accessKeyId: this.configuration.accesskeyid,
-                secretAccessKey: this.configuration.secretaccesskey,
-            },
-            region: this.configuration.region,
-        });
-        const authorizationToken = await ecr.getAuthorizationToken().promise();
-        return authorizationToken.authorizationData[0].authorizationToken;
-    }
-
     async getAuthPull() {
-        if (this.configuration.accesskeyid) {
-            const tokenValue = await this.fetchPrivateEcrAuthToken();
-            const auth = Buffer.from(tokenValue, 'base64')
-                .toString()
-                .split(':');
-            return {
-                username: auth[0],
-                password: auth[1],
-            };
-        } else {
-            return undefined;
-        }
+        return this.configuration.accesskeyid
+            ? {
+                  username: this.configuration.accesskeyid,
+                  password: this.configuration.secretaccesskey,
+              }
+            : undefined;
     }
 }
 

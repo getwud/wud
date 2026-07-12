@@ -1,5 +1,8 @@
 # Changelog
 
+## next
+- :star: Add opt-in mode for trigger association
+
 ## 8.2.2
 - :star: Add public Codeberg registry (codeberg.org) to the list of default supported registries
 - :star: Add public Forgejo registry (code.forgejo.org) to the list of default supported registries

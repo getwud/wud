@@ -129,12 +129,13 @@ async function getContainerTriggers(req, res) {
         const associatedTriggers = [];
         allTriggers.forEach((trigger) => {
             const triggerToAssociate = { ...trigger };
-            let associated = true;
+            let associated = trigger.configuration?.includebydefault !== false;
             if (includedTriggers) {
                 const includedTrigger = includedTriggers.find(
                     (tr) => tr.id === trigger.id,
                 );
                 if (includedTrigger) {
+                    associated = true;
                     triggerToAssociate.configuration.threshold =
                         includedTrigger.threshold;
                 } else {
