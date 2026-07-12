@@ -26,6 +26,7 @@ const configurationValid = {
         'Container ${container.name} running with ${container.updateKind.kind} ${container.updateKind.localValue} can be updated to ${container.updateKind.kind} ${container.updateKind.remoteValue}${container.result && container.result.link ? "\\n" + container.result.link : ""}',
 
     batchtitle: '${containers.length} updates available',
+    includebydefault: true,
 };
 
 beforeEach(async () => {
@@ -366,6 +367,46 @@ test('isThresholdReached should return true when there is no semverDiff regardle
             trigger.configuration.threshold,
         ),
     ).toBeTruthy();
+});
+
+test('mustTrigger should include containers without trigger include label by default', async () => {
+    trigger.type = 'smtp';
+    trigger.name = 'gmail';
+    delete trigger.configuration.includebydefault;
+
+    expect(trigger.mustTrigger({})).toBeTruthy();
+});
+
+test('mustTrigger should ignore containers without trigger include label when include by default is disabled', async () => {
+    trigger.type = 'dockercompose';
+    trigger.name = 'local';
+    trigger.configuration.includebydefault = false;
+
+    expect(trigger.mustTrigger({})).toBeFalsy();
+});
+
+test('mustTrigger should include explicitly selected containers when include by default is disabled', async () => {
+    trigger.type = 'dockercompose';
+    trigger.name = 'local';
+    trigger.configuration.includebydefault = false;
+
+    expect(
+        trigger.mustTrigger({
+            triggerInclude: 'dockercompose.local',
+        }),
+    ).toBeTruthy();
+});
+
+test('mustTrigger should still honor trigger exclude when include by default is enabled', async () => {
+    trigger.type = 'dockercompose';
+    trigger.name = 'local';
+    trigger.configuration.includebydefault = true;
+
+    expect(
+        trigger.mustTrigger({
+            triggerExclude: 'dockercompose.local',
+        }),
+    ).toBeFalsy();
 });
 
 test('renderSimpleTitle should replace placeholders when called', async () => {

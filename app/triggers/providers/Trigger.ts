@@ -2,6 +2,7 @@ import Component, { ComponentConfiguration } from '../../registry/Component';
 import * as event from '../../event';
 import { getTriggerCounter } from '../../prometheus/trigger';
 import { fullName, Container } from '../../model/container';
+import { ObjectSchema } from 'joi';
 
 export interface TriggerConfiguration extends ComponentConfiguration {
     auto?: boolean;
@@ -11,6 +12,7 @@ export interface TriggerConfiguration extends ComponentConfiguration {
     simpletitle?: string;
     simplebody?: string;
     batchtitle?: string;
+    includebydefault?: boolean;
 }
 
 export interface ContainerReport {
@@ -269,7 +271,7 @@ class Trigger extends Component {
         triggerInclude: string | undefined,
     ) {
         if (!triggerInclude) {
-            return true;
+            return this.configuration.includebydefault !== false;
         }
         return this.isTriggerIncludedOrExcluded(
             containerResult,
@@ -339,7 +341,7 @@ class Trigger extends Component {
     validateConfiguration(
         configuration: TriggerConfiguration,
     ): TriggerConfiguration {
-        const schema = this.getConfigurationSchema();
+        const schema = this.getConfigurationSchema() as ObjectSchema;
         const schemaWithDefaultOptions = schema.append({
             auto: this.joi.bool().default(true),
             threshold: this.joi
@@ -373,6 +375,7 @@ class Trigger extends Component {
             batchtitle: this.joi
                 .string()
                 .default('${containers.length} updates available'),
+            includebydefault: this.joi.boolean(),
         });
         const schemaValidated =
             schemaWithDefaultOptions.validate(configuration);

@@ -133,6 +133,7 @@ export function getServerConfiguration() {
                 methods: joi.string().default('GET,HEAD,PUT,PATCH,POST,DELETE'),
             })
             .default({}),
+        basepath: joi.string().default('/'),
         feature: joi
             .object({
                 delete: joi.boolean().default(true),

@@ -15,6 +15,7 @@ You can adjust the server configuration with the following environment variables
 | `WUD_SERVER_CORS_ORIGIN`   | :white_circle: | Supported CORS origin                                                        |                                          | `*`                              |
 | `WUD_SERVER_CORS_METHODS`  | :white_circle: | Supported CORS methods                                                       | Comma separated list of valid HTTP verbs | `GET,HEAD,PUT,PATCH,POST,DELETE` |
 | `WUD_SERVER_FEATURE_DELETE`| :white_circle: | If deleting operations are enabled through API & UI                          | `true`, `false`                          | `true`                           |
+| `WUD_SERVER_BASEPATH`      | :white_circle: | Base path when running behind a prefix-stripping reverse proxy (e.g. `/wud/`) | Any valid URL path ending with `/`      | `/`                              |
 
 ### Examples
 
@@ -59,6 +60,36 @@ docker run \
   getwud/wud
 ```
 <!-- tabs:end -->
+
+#### Run behind a reverse proxy subpath
+
+When WUD is served under a subpath (e.g. `https://example.com/wud/`) by a prefix-stripping reverse proxy, set `WUD_SERVER_BASEPATH` to that subpath so the UI and API calls resolve correctly.
+
+<!-- tabs:start -->
+#### **Docker Compose**
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    ...
+    environment:
+      - WUD_SERVER_BASEPATH=/wud/
+```
+#### **Docker**
+```bash
+docker run \
+  -e "WUD_SERVER_BASEPATH=/wud/" \
+  ...
+  getwud/wud
+```
+<!-- tabs:end -->
+
+Example Caddy configuration (prefix-stripping):
+```
+handle_path /wud/* {
+    reverse_proxy localhost:3000
+}
+```
 
 #### Enable HTTPS
 

@@ -1,9 +1,23 @@
 # Common Stage
 FROM node:24-alpine AS base
+WORKDIR /home/node/app
+
+# App dependency stage
+FROM base AS app-dependencies
+COPY app/package* ./
+RUN npm ci --omit=dev --omit=optional --no-audit --no-fund --no-update-notifier
+
+# UI stage - building UI assets
+FROM base AS ui-dependencies
+COPY ./ui ./
+RUN pwd && tree .
+RUN npm ci --no-audit --no-fund --no-update-notifier && npm run build
+
+# Release stage
+FROM base AS release 
 
 LABEL maintainer="fmartinou"
 EXPOSE 3000
-
 ARG WUD_VERSION=unknown
 
 ENV WORKDIR=/home/node/app
@@ -12,46 +26,22 @@ ENV WUD_VERSION=$WUD_VERSION
 
 HEALTHCHECK --interval=30s --timeout=5s CMD if [[ -z ${WUD_SERVER_ENABLED} || ${WUD_SERVER_ENABLED} == 'true' ]]; then curl --fail http://localhost:${WUD_SERVER_PORT:-3000}/health || exit 1; else exit 0; fi;
 
-WORKDIR /home/node/app
-
+# Setup directory structure
 RUN mkdir /store
 
 # Add useful stuff
-RUN apk add --no-cache tzdata openssl curl git jq bash
+# RUN apk add --no-cache tzdata openssl curl git jq bash
+RUN apk add --no-cache tzdata openssl curl bash
 
-# Dependencies stage (Build)
-FROM base AS build
+COPY Docker.entrypoint.sh /usr/bin/entrypoint.sh
+RUN chmod +x /usr/bin/entrypoint.sh
 
-# Copy app package.json
-COPY app/package* ./
-
-# Install dependencies (including dev)
-RUN npm ci --include=dev --omit=optional --no-audit --no-fund --no-update-notifier
+## Copy dependencies and artifacts
+COPY --from=app-dependencies /home/node/app/node_modules ./node_modules
+COPY --from=ui-dependencies /home/node/app/dist/ ./ui
 
 # Copy app source
 COPY app/ ./
 
-# Build
-RUN npm run build
-
-# Remove dev dependencies
-RUN npm prune --omit=dev
-
-# Release stage
-FROM base AS release
-
-# Default entrypoint
-COPY Docker.entrypoint.sh /usr/bin/entrypoint.sh
-RUN chmod +x /usr/bin/entrypoint.sh
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
-CMD ["node", "dist/index.js"]
-
-## Copy node_modules
-COPY --from=build /home/node/app/node_modules ./node_modules
-
-# Copy app (dist)
-COPY --from=build /home/node/app/dist ./dist
-COPY --from=build /home/node/app/package.json ./package.json
-
-# Copy ui
-COPY ui/dist/ ./ui
+CMD ["node", "index"]

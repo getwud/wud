@@ -118,7 +118,7 @@ test('trigger should use basic auth when configured like that', async () => {
         method: 'POST',
 
         url: 'http://xxx.com',
-        auth: { user: 'user', pass: 'pass' },
+        auth: { username: 'user', password: 'pass' },
     });
 });
 

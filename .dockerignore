@@ -20,14 +20,6 @@ jest.config.js
 nodemon.json
 **/.DS_Store
 **/Thumbs.db
-ui/src/
-ui/public/
+
 ui/tests/
 ui/coverage/
-ui/node_modules/
-ui/package*.json
-ui/.eslintrc.js
-ui/babel.config.js
-ui/jest.config.js
-ui/vue.config.js
-ui/.browserslistrc

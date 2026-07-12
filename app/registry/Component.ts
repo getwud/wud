@@ -93,7 +93,7 @@ class Component {
      * Can be overridden by the component implementation class
      * @returns {*}
      */
-    getConfigurationSchema(): joi.ObjectSchema {
+    getConfigurationSchema(): joi.AnySchema {
         return this.joi.object();
     }
 

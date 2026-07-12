@@ -93,8 +93,8 @@ class Ntfy extends Trigger {
             this.configuration.auth.password
         ) {
             options.auth = {
-                user: this.configuration.auth.user,
-                pass: this.configuration.auth.password,
+                username: this.configuration.auth.user,
+                password: this.configuration.auth.password,
             };
         }
         if (this.configuration.auth && this.configuration.auth.token) {
