@@ -32,7 +32,7 @@
     "@typescript-eslint/parser": "^7.18.0",
     "@vue/cli-plugin-babel": "^5.0.9",
     "@vue/cli-plugin-eslint": "^5.0.9",
-    "@vue/cli-plugin-pwa": "^3.12.1",
+    "@vue/cli-plugin-pwa": "^5.0.9",
     "@vue/cli-plugin-router": "5.0.8",
     "@vue/cli-plugin-typescript": "^5.0.9",
     "@vue/cli-service": "5.0.8",
