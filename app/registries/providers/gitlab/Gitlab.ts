@@ -13,6 +13,7 @@ class Gitlab extends Registry {
         return this.joi.object().keys({
             url: this.joi.string().uri().default('https://registry.gitlab.com'),
             authurl: this.joi.string().uri().default('https://gitlab.com'),
+            username: this.joi.string().optional().default(''),
             token: this.joi.string().required(),
         });
     }
@@ -39,7 +40,6 @@ class Gitlab extends Registry {
     /**
      * Normalize images according to Gitlab characteristics.
      */
-
     normalizeImage(image: ContainerImage) {
         const imageNormalized = image;
         if (!imageNormalized.registry.url.startsWith('https://')) {
@@ -60,7 +60,7 @@ class Gitlab extends Registry {
             url: `${this.configuration.authurl}/jwt/auth?service=container_registry&scope=repository:${image.name}:pull`,
             headers: {
                 Accept: 'application/json',
-                Authorization: `Basic ${Gitlab.base64Encode('', this.configuration.token)}`,
+                Authorization: `Basic ${Gitlab.base64Encode(this.configuration.username, this.configuration.token)}`,
             },
         };
         const response = await axios(request);
@@ -74,7 +74,7 @@ class Gitlab extends Registry {
      */
     async getAuthPull() {
         return {
-            username: '',
+            username: this.configuration.username,
             password: this.configuration.token,
         };
     }
