@@ -19,10 +19,10 @@ import Registry from '../registries/Registry';
 import Authentication from '../authentications/providers/Authentication';
 
 export interface RegistryState {
-    trigger: { [key: string]: Trigger };
-    watcher: { [key: string]: Watcher };
-    registry: { [key: string]: Registry };
-    authentication: { [key: string]: Authentication };
+    trigger: Record<string, Trigger>;
+    watcher: Record<string, Watcher>;
+    registry: Record<string, Registry>;
+    authentication: Record<string, Authentication>;
 }
 
 type ComponentKind = keyof RegistryState;

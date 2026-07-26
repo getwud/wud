@@ -34,23 +34,11 @@ test('validatedConfiguration should throw error when configuration is missing', 
 });
 
 test('match should return true when registry url is from trueforge', async () => {
-    expect(
-        trueforge.match({
-            registry: {
-                url: 'oci.trueforge.org',
-            },
-        }),
-    ).toBeTruthy();
+    expect(trueforge.match('oci.trueforge.org')).toBeTruthy();
 });
 
 test('match should return false when registry url is not from trueforge', async () => {
-    expect(
-        trueforge.match({
-            registry: {
-                url: 'wrong.io',
-            },
-        }),
-    ).toBeFalsy();
+    expect(trueforge.match('wrong.io')).toBeFalsy();
 });
 
 test('normalizeImage should return the proper registry v2 endpoint', async () => {

@@ -1,11 +1,13 @@
-// @ts-nocheck
+import { AxiosRequestConfig } from 'axios';
+import { ContainerImage } from '../../../model/container';
 import BaseRegistry from '../../BaseRegistry';
+import { AnySchema } from 'joi';
 
 /**
  * Github Container Registry integration.
  */
 class Ghcr extends BaseRegistry {
-    getConfigurationSchema() {
+    getConfigurationSchema(): AnySchema {
         return this.joi.alternatives([
             this.joi.string().allow(''),
             this.joi.object().keys({
@@ -19,15 +21,18 @@ class Ghcr extends BaseRegistry {
         return this.maskSensitiveFields(['token']);
     }
 
-    match(image) {
-        return this.matchUrlPattern(image, /^.*\.?ghcr.io$/);
+    match(imageUrl: string) {
+        return this.matchUrlPattern(imageUrl, /^.*\.?ghcr.io$/);
     }
 
-    normalizeImage(image) {
+    normalizeImage(image: ContainerImage) {
         return this.normalizeImageUrl(image);
     }
 
-    async authenticate(image, requestOptions) {
+    async authenticate(
+        image: ContainerImage,
+        requestOptions: AxiosRequestConfig,
+    ) {
         const token = Buffer.from(
             this.configuration.token || ':',
             'utf-8',

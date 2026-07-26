@@ -1,4 +1,5 @@
-// @ts-nocheck
+import { AxiosRequestConfig } from 'axios';
+import { ContainerImage } from '../model/container';
 import Registry from './Registry';
 
 /**
@@ -8,7 +9,10 @@ class BaseRegistry extends Registry {
     /**
      * Common URL normalization for registries that need https:// prefix and /v2 suffix
      */
-    normalizeImageUrl(image, registryUrl = null) {
+    normalizeImageUrl(
+        image: ContainerImage,
+        registryUrl: string | null = null,
+    ) {
         const imageNormalized = { ...image };
         const url = registryUrl || image.registry.url;
 
@@ -21,7 +25,10 @@ class BaseRegistry extends Registry {
     /**
      * Common Basic Auth implementation
      */
-    async authenticateBasic(requestOptions, credentials) {
+    async authenticateBasic(
+        requestOptions: AxiosRequestConfig,
+        credentials?: string,
+    ) {
         const requestOptionsWithAuth = { ...requestOptions };
         if (credentials) {
             requestOptionsWithAuth.headers.Authorization = `Basic ${credentials}`;
@@ -32,7 +39,10 @@ class BaseRegistry extends Registry {
     /**
      * Common Bearer token authentication
      */
-    async authenticateBearer(requestOptions, token) {
+    async authenticateBearer(
+        requestOptions: AxiosRequestConfig,
+        token?: string,
+    ) {
         const requestOptionsWithAuth = { ...requestOptions };
         if (token) {
             requestOptionsWithAuth.headers.Authorization = `Bearer ${token}`;
@@ -78,14 +88,14 @@ class BaseRegistry extends Registry {
     /**
      * Common URL pattern matching
      */
-    matchUrlPattern(image, pattern) {
-        return pattern.test(image.registry.url);
+    matchUrlPattern(imageUrl: string, pattern: RegExp) {
+        return pattern.test(imageUrl);
     }
 
     /**
      * Common mask configuration for sensitive fields
      */
-    maskSensitiveFields(fields) {
+    maskSensitiveFields(fields: string[]) {
         const masked = { ...this.configuration };
         fields.forEach((field) => {
             if (masked[field]) {
