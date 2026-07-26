@@ -721,6 +721,7 @@ describe('Docker Watcher', () => {
                     created: '2023-01-01',
                     version: 1,
                 }),
+                shouldWatchDigest: jest.fn(() => true),
             };
             registry.getState.mockReturnValue({
                 registry: { hub: mockRegistry },
