@@ -3,6 +3,9 @@
 ## next
 - :star: Add `WUD_REGISTRY_HUB_PUBLIC_SUPPRESSDIGESTWATCHWARNING` env var
 - :fire: [DOCKER-COMPOSE] - Fix trigger fails to detect containers in compose file
+- :fire: [PROMETHEUS] - Reduce CPU usage
+- :fire: [OIDC] - Fix issues when WUD starts while OIDC provider is temporarily unavailable
+- :fire: [DOCKER] - Fix Docker container update when container is attached to multiple networks
 - :wrench: [TELEGRAM] - Replace deprecated client by direct HTTP API use
 
 ## 8.3.0
