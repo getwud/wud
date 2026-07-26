@@ -6,6 +6,7 @@
   "scripts": {
     "lint": "eslint '**/*.js'",
     "cucumber": "cucumber-js **/*.feature",
+    "test": "npm run test:local",
     "test:local": "dotenvx run -- ../scripts/run-e2e-tests.sh",
     "test:setup": "dotenvx run -- ../scripts/setup-test-containers.sh",
     "test:start-wud": "dotenvx run -- ../scripts/start-wud.sh",

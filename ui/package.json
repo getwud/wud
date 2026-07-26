@@ -7,6 +7,7 @@
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
     "test:unit": "jest --coverage",
+    "test": "npm run test:unit",
     "test:unit:watch": "jest --watch"
   },
   "dependencies": {
