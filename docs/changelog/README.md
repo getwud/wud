@@ -1,6 +1,7 @@
 # Changelog
 
 ## next
+- :star: Add `WUD_REGISTRY_HUB_PUBLIC_SUPPRESSDIGESTWATCHWARNING` env var
 - :fire: [DOCKER-COMPOSE] - Fix trigger fails to detect containers in compose file
 - :wrench: [TELEGRAM] - Replace deprecated client by direct HTTP API use
 
@@ -11,7 +12,7 @@
 - :star: Add ENV option for watch digest default
 - :star: [MQTT] - Improve trigger
 - :star: [DISCORD] - Add avatar URL support
-- :star: [DOCKER-COMPOSE] - Use com.docker.compose.project.config_files label by default
+- :star: ©
 - :fire: Fix digest comparison for single-platform manifests resolved from a manifest list
 - :fire: [NTFY] - Fix basic auth
 - :fire: [UI] - Fix container filters on mobile
