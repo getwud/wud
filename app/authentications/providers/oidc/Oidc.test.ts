@@ -14,6 +14,7 @@ const configurationValid = {
     discovery: 'https://idp/.well-known/openid-configuration',
     redirect: false,
     timeout: 5000,
+    ttl: 60,
     usernameclaim: 'email',
 };
 
@@ -31,6 +32,7 @@ beforeEach(async () => {
     oidc.configuration = configurationValid;
     // Access private config property for testing
     (oidc as any).config = mockConfig;
+    (oidc as any).discoveryCachedAt = Date.now();
 });
 
 test('validateConfiguration should return validated configuration when valid', async () => {
@@ -58,6 +60,7 @@ test('maskConfiguration should mask configuration secrets', async () => {
         discovery: 'https://idp/.well-known/openid-configuration',
         redirect: false,
         timeout: 5000,
+        ttl: 60,
         usernameclaim: 'email',
     });
 });
@@ -71,6 +74,65 @@ test('getStrategyDescription should return strategy description', async () => {
         redirect: false,
         logoutUrl: 'https://idp/logout',
     });
+});
+
+test('initAuthentication should not throw when discovery fails', async () => {
+    (oidc as any).config = undefined;
+    (client.discovery as jest.Mock).mockRejectedValue(
+        new Error('Authority unavailable'),
+    );
+    oidc.log = { debug: jest.fn(), warn: jest.fn() };
+
+    await expect(oidc.initAuthentication()).resolves.toBeUndefined();
+    expect(client.discovery).toHaveBeenCalledTimes(1);
+});
+
+test('getUserFromAccessToken should retry discovery after initial failure', async () => {
+    (oidc as any).config = undefined;
+    (client.discovery as jest.Mock)
+        .mockRejectedValueOnce(new Error('Authority unavailable'))
+        .mockResolvedValueOnce(mockConfig);
+    (client.fetchUserInfo as jest.Mock).mockResolvedValue({
+        email: 'retry@example.com',
+    });
+    oidc.log = { debug: jest.fn(), warn: jest.fn() };
+
+    await oidc.initAuthentication();
+    const user = await oidc.getUserFromAccessToken('token');
+
+    expect(client.discovery).toHaveBeenCalledTimes(2);
+    expect(user).toEqual({ username: 'retry@example.com' });
+});
+
+test('getUserFromAccessToken should rediscover when cache ttl expires', async () => {
+    (oidc as any).config = undefined;
+    (client.discovery as jest.Mock).mockResolvedValue(mockConfig);
+    (client.fetchUserInfo as jest.Mock).mockResolvedValue({
+        email: 'ttl@example.com',
+    });
+
+    await oidc.initAuthentication();
+    (oidc as any).discoveryCachedAt =
+        Date.now() - configurationValid.ttl * 60_000 - 1;
+
+    const user = await oidc.getUserFromAccessToken('token');
+
+    expect(client.discovery).toHaveBeenCalledTimes(2);
+    expect(user).toEqual({ username: 'ttl@example.com' });
+});
+
+test('getUserFromAccessToken should keep discovery cache when ttl is unlimited', async () => {
+    oidc.configuration = { ...configurationValid, ttl: -1 };
+    (oidc as any).cachedConfig = mockConfig;
+    (oidc as any).discoveryCachedAt = 0;
+    (client.fetchUserInfo as jest.Mock).mockResolvedValue({
+        email: 'unlimited@example.com',
+    });
+
+    const user = await oidc.getUserFromAccessToken('token');
+
+    expect(client.discovery).not.toHaveBeenCalled();
+    expect(user).toEqual({ username: 'unlimited@example.com' });
 });
 
 test('verify should return user on valid token', async () => {

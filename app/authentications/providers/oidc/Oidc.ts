@@ -28,6 +28,7 @@ class Oidc extends Authentication {
             clientsecret: this.joi.string().required(),
             redirect: this.joi.boolean().default(false),
             timeout: this.joi.number().greater(500).default(5000),
+            ttl: this.joi.number().min(-1).default(60),
             usernameclaim: this.joi.string().default('email'),
         });
     }
@@ -43,15 +44,17 @@ class Oidc extends Authentication {
         };
     }
 
-    private config: client.Configuration | undefined;
+    private cachedConfig: client.Configuration | undefined;
+    private discoveryCachedAt: number | undefined;
     private logoutUrl: string | undefined;
+    private discoveryPromise: Promise<void> | undefined;
 
-    async initAuthentication() {
+    private async discoverConfiguration() {
         this.log.debug(
             `Discovering configuration from ${this.configuration.discovery}`,
         );
 
-        this.config = await client.discovery(
+        this.cachedConfig = await client.discovery(
             new URL(this.configuration.discovery),
             this.configuration.clientid,
             this.configuration.clientsecret,
@@ -60,12 +63,81 @@ class Oidc extends Authentication {
                 timeout: this.configuration.timeout,
             },
         );
+        this.discoveryCachedAt = Date.now();
 
         try {
-            this.logoutUrl = client.buildEndSessionUrl(this.config).toString();
+            this.logoutUrl = client
+                .buildEndSessionUrl(this.cachedConfig)
+                .toString();
         } catch (e) {
             this.log.warn(` End session url is not supported (${e.message})`);
         }
+    }
+
+    private isDiscoveryCacheValid() {
+        if (!this.cachedConfig || this.discoveryCachedAt === undefined) {
+            return false;
+        }
+
+        if (this.configuration.ttl === -1) {
+            return true;
+        }
+
+        return (
+            Date.now() - this.discoveryCachedAt <
+            this.configuration.ttl * 60_000
+        );
+    }
+
+    private async ensureDiscovered(): Promise<client.Configuration>;
+    private async ensureDiscovered(
+        throwOnError: true,
+    ): Promise<client.Configuration>;
+    private async ensureDiscovered(
+        throwOnError: false,
+    ): Promise<client.Configuration | undefined>;
+    private async ensureDiscovered(
+        throwOnError = true,
+    ): Promise<client.Configuration | undefined> {
+        if (this.isDiscoveryCacheValid()) {
+            return this.cachedConfig;
+        }
+
+        if (this.cachedConfig) {
+            this.log.debug(
+                `OIDC discovery cache expired after ${this.configuration.ttl} minute(s) => refresh configuration`,
+            );
+            this.cachedConfig = undefined;
+            this.discoveryCachedAt = undefined;
+            this.logoutUrl = undefined;
+        }
+
+        if (!this.discoveryPromise) {
+            this.discoveryPromise = this.discoverConfiguration().finally(() => {
+                this.discoveryPromise = undefined;
+            });
+        }
+
+        try {
+            await this.discoveryPromise;
+        } catch (e) {
+            if (throwOnError) {
+                throw e;
+            }
+            this.log.warn(
+                `Unable to discover OIDC authority (${(e as Error).message})`,
+            );
+            return undefined;
+        }
+
+        if (!this.cachedConfig && throwOnError) {
+            throw new Error('OIDC configuration is not available');
+        }
+        return this.cachedConfig;
+    }
+
+    async initAuthentication() {
+        await this.ensureDiscovered(false);
     }
 
     /**
@@ -81,7 +153,7 @@ class Oidc extends Authentication {
         );
         const strategy = new OidcStrategy(
             {
-                config: this.config,
+                config: this.cachedConfig,
                 params: {
                     scope: 'openid email profile',
                 },
@@ -103,6 +175,7 @@ class Oidc extends Authentication {
     }
 
     async redirect(req: Request, res: Response) {
+        const config = await this.ensureDiscovered();
         const codeVerifier = client.randomPKCECodeVerifier();
         const codeChallenge =
             await client.calculatePKCECodeChallenge(codeVerifier);
@@ -121,7 +194,7 @@ class Oidc extends Authentication {
             state,
         };
 
-        const authUrl = client.buildAuthorizationUrl(this.config, parameters);
+        const authUrl = client.buildAuthorizationUrl(config, parameters);
         this.log.debug(`Build redirection url [${authUrl}]`);
         res.json({
             url: authUrl,
@@ -130,6 +203,7 @@ class Oidc extends Authentication {
 
     async callback(req: Request, res: Response) {
         try {
+            const config = await this.ensureDiscovered();
             this.log.debug('Validate callback data');
 
             const oidcChecks = req.session.oidc;
@@ -148,7 +222,7 @@ class Oidc extends Authentication {
             };
 
             const tokenSet = await client.authorizationCodeGrant(
-                this.config,
+                config,
                 currentUrl,
                 check,
             );
@@ -193,8 +267,9 @@ class Oidc extends Authentication {
     }
 
     async getUserFromAccessToken(accessToken: string, claim?: client.IDToken) {
+        const config = await this.ensureDiscovered();
         const userInfo = await client.fetchUserInfo(
-            this.config,
+            config,
             accessToken,
             claim?.sub,
         );
