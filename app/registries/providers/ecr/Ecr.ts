@@ -45,16 +45,15 @@ export class Ecr extends Registry {
 
     /**
      * Return true if image has not registryUrl.
-     * @param image the image
      */
 
-    match(image: ContainerImage) {
-        this.log.debug(`Matching image registry URL: ${image.registry.url}`);
+    match(imageUrl: string) {
+        this.log.debug(`Matching image registry URL: ${imageUrl}`);
 
         // Check if the image registry URL matches ECR or ECR Public Gallery
         if (
             this.configuration.public &&
-            image.registry.url === ECR_PUBLIC_GALLERY_HOSTNAME
+            imageUrl === ECR_PUBLIC_GALLERY_HOSTNAME
         ) {
             return true;
         }
@@ -64,17 +63,14 @@ export class Ecr extends Registry {
         if (this.configuration.accountid) {
             return new RegExp(
                 `^${this.configuration.accountid}\\.dkr\\.ecr\\..*\\.amazonaws\\.com$`,
-            ).test(image.registry.url);
+            ).test(imageUrl);
         } else {
-            return /^.*\.dkr\.ecr\..*\.amazonaws\.com$/.test(
-                image.registry.url,
-            );
+            return /^.*\.dkr\.ecr\..*\.amazonaws\.com$/.test(imageUrl);
         }
     }
 
     /**
      * Normalize image according to AWS ECR characteristics.
-     * @param image
      */
 
     normalizeImage(image: ContainerImage) {

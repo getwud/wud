@@ -1,8 +1,11 @@
-// @ts-nocheck
 import parse from 'parse-docker-image-name';
+import Dockerode from 'dockerode';
 import Trigger from '../Trigger';
 import { getState } from '../../../registry';
-import { fullName } from '../../../model/container';
+import { Container, ContainerImage, fullName } from '../../../model/container';
+import { Docker as DockerWatcher } from '../../../watchers/providers/docker/Docker';
+import Registry from '../../../registries/Registry';
+import Logger from 'bunyan';
 
 /**
  * Replace a Docker container with an updated one.
@@ -10,33 +13,33 @@ import { fullName } from '../../../model/container';
 class Docker extends Trigger {
     /**
      * Get the Trigger configuration schema.
-     * @returns {*}
      */
     getConfigurationSchema() {
         return this.joi.object().keys({
             prune: this.joi.boolean().default(false),
             dryrun: this.joi.boolean().default(false),
             autoremovetimeout: this.joi.number().default(10_000),
+            multinetworkfallback: this.joi.boolean().default(true),
         });
     }
 
     /**
      * Get watcher responsible for the container.
-     * @param container
-     * @returns {*}
      */
 
-    getWatcher(container) {
-        return getState().watcher[`docker.${container.watcher}`];
+    getWatcher(container: Container) {
+        return getState().watcher[
+            `docker.${container.watcher}`
+        ] as DockerWatcher;
     }
 
     /**
      * Get current container.
-     * @param dockerApi
-     * @param container
-     * @returns {Promise<*>}
      */
-    async getCurrentContainer(dockerApi, container) {
+    async getCurrentContainer(
+        dockerApi: Dockerode,
+        container: Container,
+    ): Promise<Dockerode.Container> {
         this.log.debug(`Get container ${container.id}`);
         try {
             return await dockerApi.getContainer(container.id);
@@ -48,10 +51,11 @@ class Docker extends Trigger {
 
     /**
      * Inspect container.
-     * @param container
-     * @returns {Promise<*>}
      */
-    async inspectContainer(container, logContainer) {
+    async inspectContainer(
+        container: Dockerode.Container,
+        logContainer: Logger,
+    ): Promise<Dockerode.ContainerInspectInfo> {
         this.log.debug(`Inspect container ${container.id}`);
         try {
             return await container.inspect();
@@ -65,13 +69,13 @@ class Docker extends Trigger {
 
     /**
      * Prune previous image versions.
-     * @param dockerApi
-     * @param registry
-     * @param container
-     * @param logContainer
-     * @returns {Promise<void>}
      */
-    async pruneImages(dockerApi, registry, container, logContainer) {
+    async pruneImages(
+        dockerApi: Dockerode,
+        registry: Registry,
+        container: Container,
+        logContainer: Logger,
+    ): Promise<void> {
         logContainer.info('Pruning previous tags');
         try {
             // Get all pulled images
@@ -93,7 +97,7 @@ class Docker extends Trigger {
                             value: imageParsed.tag,
                         },
                         name: imageParsed.path,
-                    });
+                    } as ContainerImage);
 
                     // Exclude different registries
                     if (
@@ -128,11 +132,13 @@ class Docker extends Trigger {
                 .map((imageToRemove) => dockerApi.getImage(imageToRemove.Id));
             await Promise.all(
                 imagesToRemove.map((imageToRemove) => {
-                    logContainer.info(`Prune image ${imageToRemove.name}`);
+                    logContainer.info(
+                        `Prune image ${(imageToRemove as any).name || imageToRemove.id}`,
+                    );
                     return imageToRemove.remove();
                 }),
             );
-        } catch (e) {
+        } catch (e: any) {
             logContainer.warn(
                 `Some errors occurred when trying to prune previous tags (${e.message})`,
             );
@@ -141,14 +147,13 @@ class Docker extends Trigger {
 
     /**
      * Pull new image.
-     * @param dockerApi
-     * @param auth
-     * @param newImage
-     * @param logContainer
-     * @returns {Promise<void>}
      */
-
-    async pullImage(dockerApi, auth, newImage, logContainer) {
+    async pullImage(
+        dockerApi: Dockerode,
+        auth: Dockerode.AuthConfig | undefined,
+        newImage: string,
+        logContainer: Logger,
+    ): Promise<void> {
         logContainer.info(`Pull image ${newImage}`);
         try {
             const pullStream = await dockerApi.pull(newImage, {
@@ -159,7 +164,7 @@ class Docker extends Trigger {
                 dockerApi.modem.followProgress(pullStream, res),
             );
             logContainer.info(`Image ${newImage} pulled with success`);
-        } catch (e) {
+        } catch (e: any) {
             logContainer.warn(
                 `Error when pulling image ${newImage} (${e.message})`,
             );
@@ -169,14 +174,13 @@ class Docker extends Trigger {
 
     /**
      * Stop a container.
-     * @param container
-     * @param containerName
-     * @param containerId
-     * @param logContainer
-     * @returns {Promise<void>}
      */
-
-    async stopContainer(container, containerName, containerId, logContainer) {
+    async stopContainer(
+        container: Dockerode.Container,
+        containerName: string,
+        containerId: string,
+        logContainer: Logger,
+    ): Promise<void> {
         logContainer.info(
             `Stop container ${containerName} with id ${containerId}`,
         );
@@ -185,7 +189,7 @@ class Docker extends Trigger {
             logContainer.info(
                 `Container ${containerName} with id ${containerId} stopped with success`,
             );
-        } catch (e) {
+        } catch (e: any) {
             logContainer.warn(
                 `Error when stopping container ${containerName} with id ${containerId}`,
             );
@@ -195,13 +199,13 @@ class Docker extends Trigger {
 
     /**
      * Remove a container.
-     * @param container
-     * @param containerName
-     * @param containerId
-     * @param logContainer
-     * @returns {Promise<void>}
      */
-    async removeContainer(container, containerName, containerId, logContainer) {
+    async removeContainer(
+        container: Dockerode.Container,
+        containerName: string,
+        containerId: string,
+        logContainer: Logger,
+    ): Promise<void> {
         logContainer.info(
             `Remove container ${containerName} with id ${containerId}`,
         );
@@ -210,7 +214,7 @@ class Docker extends Trigger {
             logContainer.info(
                 `Container ${containerName} with id ${containerId} removed with success`,
             );
-        } catch (e) {
+        } catch (e: any) {
             logContainer.warn(
                 `Error when removing container ${containerName} with id ${containerId}`,
             );
@@ -222,11 +226,11 @@ class Docker extends Trigger {
      * Wait for a container to be removed.
      */
     async waitContainerRemoved(
-        container,
-        containerName,
-        containerId,
-        logContainer,
-    ) {
+        container: Dockerode.Container,
+        containerName: string,
+        containerId: string,
+        logContainer: Logger,
+    ): Promise<void> {
         logContainer.info(
             `Wait container ${containerName} with id ${containerId}`,
         );
@@ -240,9 +244,8 @@ class Docker extends Trigger {
             logContainer.info(
                 `Container ${containerName} with id ${containerId} auto-removed successfully`,
             );
-        } catch (e) {
+        } catch (e: any) {
             logContainer.warn(
-                e,
                 `Error while waiting for container ${containerName} with id ${containerId}`,
             );
             throw e;
@@ -251,18 +254,13 @@ class Docker extends Trigger {
 
     /**
      * Create a new container.
-     * @param dockerApi
-     * @param containerToCreate
-     * @param containerName
-     * @param logContainer
-     * @returns {Promise<*>}
      */
     async createContainer(
-        dockerApi,
-        containerToCreate,
-        containerName,
-        logContainer,
-    ) {
+        dockerApi: Dockerode,
+        containerToCreate: Dockerode.ContainerCreateOptions,
+        containerName: string,
+        logContainer: Logger,
+    ): Promise<Dockerode.Container> {
         logContainer.info(`Create container ${containerName}`);
         try {
             const newContainer =
@@ -271,7 +269,7 @@ class Docker extends Trigger {
                 `Container ${containerName} recreated on new image with success`,
             );
             return newContainer;
-        } catch (e) {
+        } catch (e: any) {
             logContainer.warn(
                 `Error when creating container ${containerName} (${e.message})`,
             );
@@ -280,20 +278,201 @@ class Docker extends Trigger {
     }
 
     /**
-     * Start container.
-     * @param container
-     * @param containerName
-     * @param logContainer
-     * @returns {Promise<void>}
+     * Sanitize endpoint config so it can be reused on create/connect calls.
      */
-    async startContainer(container, containerName, logContainer) {
+    sanitizeEndpointConfig(
+        endpointConfig: Dockerode.EndpointSettings | undefined,
+        currentContainerId: string | undefined,
+    ) {
+        if (!endpointConfig) {
+            return {};
+        }
+        const sanitized: Dockerode.EndpointSettings = {};
+
+        if (endpointConfig.IPAMConfig) {
+            sanitized.IPAMConfig = endpointConfig.IPAMConfig;
+        }
+        if (endpointConfig.Links && endpointConfig.Links.length > 0) {
+            sanitized.Links = endpointConfig.Links;
+        }
+        if (endpointConfig.DriverOpts) {
+            sanitized.DriverOpts = endpointConfig.DriverOpts;
+        }
+        if (endpointConfig.MacAddress) {
+            sanitized.MacAddress = endpointConfig.MacAddress;
+        }
+        const linkLocalIPs = (endpointConfig as any).LinkLocalIPs;
+        if (linkLocalIPs && linkLocalIPs.length) {
+            (sanitized as any).LinkLocalIPs = linkLocalIPs;
+        }
+        if (endpointConfig.Aliases && endpointConfig.Aliases.length > 0) {
+            sanitized.Aliases = endpointConfig.Aliases.filter(
+                (alias: string) =>
+                    !(
+                        alias &&
+                        ((currentContainerId &&
+                            currentContainerId.startsWith(alias)) ||
+                            /^[a-f0-9]{12,64}$/i.test(alias))
+                    ),
+            );
+        }
+
+        return sanitized;
+    }
+
+    /**
+     * Build fallback plan for multi-network containers.
+     */
+    buildMultiNetworkFallbackPlan(
+        containerToCreate: Dockerode.ContainerCreateOptions,
+        currentContainerId: string | undefined,
+    ) {
+        const endpointsConfig =
+            containerToCreate?.NetworkingConfig?.EndpointsConfig;
+        if (!endpointsConfig) {
+            return null;
+        }
+        const networkNames = Object.keys(endpointsConfig);
+        if (networkNames.length <= 1) {
+            return null;
+        }
+
+        const sanitizedEndpoints: Record<string, Dockerode.EndpointSettings> =
+            {};
+        networkNames.forEach((networkName) => {
+            sanitizedEndpoints[networkName] = this.sanitizeEndpointConfig(
+                endpointsConfig[networkName],
+                currentContainerId,
+            );
+        });
+
+        const networkMode = containerToCreate?.HostConfig?.NetworkMode;
+        const primaryNetwork = sanitizedEndpoints[networkMode]
+            ? networkMode
+            : networkNames[0];
+
+        return {
+            primaryNetwork,
+            primaryEndpointConfig: sanitizedEndpoints[primaryNetwork],
+            secondaryNetworks: networkNames
+                .filter((networkName) => networkName !== primaryNetwork)
+                .map((networkName) => ({
+                    networkName,
+                    endpointConfig: sanitizedEndpoints[networkName],
+                })),
+        };
+    }
+
+    /**
+     * Create a container and fallback to sequential network attach for daemon/API combinations
+     * that reject multiple endpoints in createContainer.
+     */
+    async createContainerWithMultiNetworkFallback(
+        dockerApi: Dockerode,
+        containerToCreate: Dockerode.ContainerCreateOptions,
+        currentContainerSpec: Dockerode.ContainerInspectInfo,
+        containerName: string,
+        logContainer: Logger,
+    ): Promise<Dockerode.Container> {
+        try {
+            return await this.createContainer(
+                dockerApi,
+                containerToCreate,
+                containerName,
+                logContainer,
+            );
+        } catch (createError: any) {
+            if (
+                this.configuration.multinetworkfallback !== true ||
+                !(
+                    createError instanceof Error &&
+                    createError.message
+                        .toLowerCase()
+                        .includes('cannot be connected to network endpoints')
+                )
+            ) {
+                throw createError;
+            }
+
+            logContainer.info(
+                `create-primary: failed for ${containerName} on multiple networks, trying fallback with sequential network attach...`,
+            );
+            const fallbackPlan = this.buildMultiNetworkFallbackPlan(
+                containerToCreate,
+                currentContainerSpec?.Id,
+            );
+            if (!fallbackPlan) {
+                throw createError;
+            }
+
+            logContainer.warn(
+                `create-primary: retry create for ${containerName} on network ${fallbackPlan.primaryNetwork} after multi-network create failure`,
+            );
+
+            const containerToCreatePrimary = {
+                ...containerToCreate,
+                NetworkingConfig: {
+                    EndpointsConfig: {
+                        [fallbackPlan.primaryNetwork]:
+                            fallbackPlan.primaryEndpointConfig,
+                    },
+                },
+            };
+
+            let newContainer: Dockerode.Container;
+            try {
+                newContainer = await this.createContainer(
+                    dockerApi,
+                    containerToCreatePrimary,
+                    containerName,
+                    logContainer,
+                );
+            } catch (primaryCreateError: any) {
+                logContainer.warn(
+                    `create-primary: failed for ${containerName} (${primaryCreateError.message})`,
+                );
+                throw primaryCreateError;
+            }
+
+            const newContainerIdOrName = newContainer.id || containerName;
+            for (const secondaryNetwork of fallbackPlan.secondaryNetworks) {
+                const { networkName, endpointConfig } = secondaryNetwork;
+                logContainer.info(
+                    `connect-secondary:${networkName}: attach ${containerName}`,
+                );
+                try {
+                    const network = dockerApi.getNetwork(networkName);
+                    await network.connect({
+                        Container: newContainerIdOrName,
+                        EndpointConfig: endpointConfig,
+                    });
+                } catch (connectError: any) {
+                    logContainer.warn(
+                        `connect-secondary:${networkName}: failed for ${containerName} (${connectError.message})`,
+                    );
+                    throw connectError;
+                }
+            }
+
+            return newContainer;
+        }
+    }
+
+    /**
+     * Start container.
+     */
+    async startContainer(
+        container: Dockerode.Container,
+        containerName: string,
+        logContainer: Logger,
+    ): Promise<void> {
         logContainer.info(`Start container ${containerName}`);
         try {
             await container.start();
             logContainer.info(
                 `Container ${containerName} started with success`,
             );
-        } catch (e) {
+        } catch (e: any) {
             logContainer.warn(`Error when starting container ${containerName}`);
             throw e;
         }
@@ -301,18 +480,18 @@ class Docker extends Trigger {
 
     /**
      * Remove an image.
-     * @param dockerApi
-     * @param imageToRemove
-     * @param logContainer
-     * @returns {Promise<void>}
      */
-    async removeImage(dockerApi, imageToRemove, logContainer) {
+    async removeImage(
+        dockerApi: Dockerode,
+        imageToRemove: string,
+        logContainer: Logger,
+    ): Promise<void> {
         logContainer.info(`Remove image ${imageToRemove}`);
         try {
             const image = await dockerApi.getImage(imageToRemove);
             await image.remove();
             logContainer.info(`Image ${imageToRemove} removed with success`);
-        } catch (e) {
+        } catch (e: any) {
             logContainer.warn(`Error when removing image ${imageToRemove}`);
             throw e;
         }
@@ -320,11 +499,11 @@ class Docker extends Trigger {
 
     /**
      * Clone container specs.
-     * @param currentContainer
-     * @param newImage
-     * @returns {*}
      */
-    cloneContainer(currentContainer, newImage) {
+    cloneContainer(
+        currentContainer: Dockerode.ContainerInspectInfo,
+        newImage: string,
+    ): Dockerode.ContainerCreateOptions {
         const containerName = currentContainer.Name.replace('/', '');
         const containerClone = {
             ...currentContainer.Config,
@@ -345,7 +524,8 @@ class Docker extends Trigger {
                     endpointConfig.Aliases.length > 0
                 ) {
                     endpointConfig.Aliases = endpointConfig.Aliases.filter(
-                        (alias) => !currentContainer.Id.startsWith(alias),
+                        (alias: string) =>
+                            !currentContainer.Id.startsWith(alias),
                     );
                 }
             });
@@ -365,10 +545,8 @@ class Docker extends Trigger {
 
     /**
      * Get image full name.
-     * @param registry the registry
-     * @param container the container
      */
-    getNewImageFullName(registry, container) {
+    getNewImageFullName(registry: Registry, container: Container) {
         // Tag to pull/run is
         // either the same (when updateKind is digest)
         // or the new one (when updateKind is tag)
@@ -383,10 +561,8 @@ class Docker extends Trigger {
 
     /**
      * Update the container.
-     * @param container the container
-     * @returns {Promise<void>}
      */
-    async trigger(container) {
+    async trigger(container: Container) {
         // Child logger for the container to process
         const logContainer = this.log.child({ container: fullName(container) });
 
@@ -446,7 +622,6 @@ class Docker extends Trigger {
                 const containerToCreateInspect = this.cloneContainer(
                     currentContainerSpec,
                     newImage,
-                    logContainer,
                 );
 
                 // Stop current container
@@ -479,12 +654,14 @@ class Docker extends Trigger {
                 }
 
                 // Create new container
-                const newContainer = await this.createContainer(
-                    dockerApi,
-                    containerToCreateInspect,
-                    container.name,
-                    logContainer,
-                );
+                const newContainer =
+                    await this.createContainerWithMultiNetworkFallback(
+                        dockerApi,
+                        containerToCreateInspect,
+                        currentContainerSpec,
+                        container.name,
+                        logContainer,
+                    );
 
                 // Start container if it was running
                 if (currentContainerState.Running) {
@@ -519,11 +696,9 @@ class Docker extends Trigger {
 
     /**
      * Update the containers.
-     * @param containers
-     * @returns {Promise<unknown[]>}
      */
-    async triggerBatch(containers) {
-        return Promise.all(
+    async triggerBatch(containers: Container[]) {
+        await Promise.all(
             containers.map((container) => this.trigger(container)),
         );
     }

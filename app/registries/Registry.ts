@@ -4,10 +4,6 @@ import Component from '../registry/Component';
 import { getSummaryTags } from '../prometheus/registry';
 import { ContainerImage } from '../model/container';
 
-export interface RegistryImage extends ContainerImage {
-    // Add any registry specific properties if needed
-}
-
 export interface RegistryManifest {
     digest?: string;
     version?: number;
@@ -52,9 +48,16 @@ export class Registry extends Component {
     }
 
     /**
-     * If this registry is responsible for the image (to be overridden).
+     * Check if the digest label value is to be watched for this registry (to be overridden).
      */
-    match(_image: ContainerImage): boolean {
+    shouldWatchDigest(_wudWatchDigestLabelValue: string, _image: string) {
+        return true;
+    }
+
+    /**
+     * If this registry is responsible for the image url (to be overridden).
+     */
+    match(_imageUrl: string): boolean {
         return false;
     }
 

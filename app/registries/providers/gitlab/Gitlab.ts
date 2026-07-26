@@ -32,17 +32,14 @@ class Gitlab extends Registry {
 
     /**
      * Return true if image has no registry url.
-     * @param image the image
      */
-    match(image) {
-        return this.configuration.url.indexOf(image.registry.url) !== -1;
+    match(imageUrl: string) {
+        return this.configuration.url.indexOf(imageUrl) !== -1;
     }
 
     /**
      * Normalize images according to Gitlab characteristics.
-     * @param image
      */
-
     normalizeImage(image: ContainerImage) {
         const imageNormalized = image;
         if (!imageNormalized.registry.url.startsWith('https://')) {

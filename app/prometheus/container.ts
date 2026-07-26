@@ -1,15 +1,24 @@
-// @ts-nocheck
 import { Gauge, register } from 'prom-client';
 import * as storeContainer from '../store/container';
 import log from '../log';
 import { flatten } from '../model/container';
+import {
+    registerContainerAdded,
+    registerContainerUpdated,
+    registerContainerRemoved,
+} from '../event';
 
 let gaugeContainer;
+let metricsDirty = true;
 
 /**
  * Populate gauge.
  */
 function populateGauge() {
+    if (!metricsDirty) {
+        return;
+    }
+
     gaugeContainer.reset();
     storeContainer.getContainers().forEach((container) => {
         try {
@@ -28,11 +37,11 @@ function populateGauge() {
             log.debug(e);
         }
     });
+    metricsDirty = false;
 }
 
 /**
  * Init Container prometheus gauge.
- * @returns {Gauge<string>}
  */
 export function init() {
     // Replace gauge if init is called more than once
@@ -83,6 +92,16 @@ export function init() {
         ],
     });
     log.debug('Start container metrics interval');
+    metricsDirty = true;
+    registerContainerAdded(() => {
+        metricsDirty = true;
+    });
+    registerContainerUpdated(() => {
+        metricsDirty = true;
+    });
+    registerContainerRemoved(() => {
+        metricsDirty = true;
+    });
     setInterval(populateGauge, 5000);
     populateGauge();
     return gaugeContainer;

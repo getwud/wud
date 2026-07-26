@@ -1,4 +1,4 @@
-// @ts-nocheck
+import { ContainerImage } from '../../../model/container';
 import Custom from './Custom';
 
 const custom = new Custom();
@@ -41,23 +41,11 @@ test('maskConfiguration should mask configuration secrets', async () => {
 });
 
 test('match should return true when registry url is from custom', async () => {
-    expect(
-        custom.match({
-            registry: {
-                url: 'localhost:5000',
-            },
-        }),
-    ).toBeTruthy();
+    expect(custom.match('localhost:5000')).toBeTruthy();
 });
 
 test('match should return false when registry url is not from custom', async () => {
-    expect(
-        custom.match({
-            registry: {
-                url: 'est.notme.io',
-            },
-        }),
-    ).toBeFalsy();
+    expect(custom.match('est.notme.io')).toBeFalsy();
 });
 
 test('normalizeImage should return the proper registry v2 endpoint', async () => {
@@ -67,7 +55,7 @@ test('normalizeImage should return the proper registry v2 endpoint', async () =>
             registry: {
                 url: 'localhost:5000/test/image',
             },
-        }),
+        } as ContainerImage),
     ).toStrictEqual({
         name: 'test/image',
         registry: {

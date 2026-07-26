@@ -25,17 +25,16 @@ import {
     wudTriggerExclude,
 } from './label';
 import * as storeContainer from '../../../store/container';
-import log from '../../../log';
 import {
     validate as validateContainer,
     fullName,
     Container,
-    ContainerImage,
 } from '../../../model/container';
 import * as registry from '../../../registry';
 import { getWatchContainerGauge } from '../../../prometheus/watcher';
 import Watcher from '../../Watcher';
 import { ComponentConfiguration } from '../../../registry/Component';
+import Logger from 'bunyan';
 
 export interface DockerWatcherConfiguration extends ComponentConfiguration {
     socket: string;
@@ -49,7 +48,6 @@ export interface DockerWatcherConfiguration extends ComponentConfiguration {
     watchbydefault: boolean;
     watchall: boolean;
     watchdigest?: any;
-    watchdigestdefault?: boolean;
     watchevents: boolean;
     watchatstart: boolean;
 }
@@ -62,7 +60,6 @@ const DEBOUNCED_WATCH_CRON_MS = 5000;
 
 /**
  * Return all supported registries
- * @returns {*}
  */
 function getRegistries() {
     return registry.getState().registry;
@@ -70,9 +67,6 @@ function getRegistries() {
 
 /**
  * Filter candidate tags (based on tag name).
- * @param container
- * @param tags
- * @returns {*}
  */
 function getTagCandidates(
     container: Container,
@@ -110,7 +104,7 @@ function getTagCandidates(
         }
 
         // If user has not specified custom include regex, default to keep current prefix
-        // Prefix is almost-always standardised around "must stay the same" for tags
+        // Prefix is almost-always standardized around "must stay the same" for tags
         if (!container.includeTags) {
             const currentTag = container.image.tag.value;
             const match = currentTag.match(/^(.*?)(\d+.*)$/);
@@ -191,27 +185,8 @@ function getTagCandidates(
     return filteredTags;
 }
 
-function normalizeContainer(container: Container) {
-    const containerWithNormalizedImage = container;
-    const registryProvider = Object.values(getRegistries()).find((provider) =>
-        provider.match(container.image),
-    );
-    if (!registryProvider) {
-        log.warn(`${fullName(container)} - No Registry Provider found`);
-        containerWithNormalizedImage.image.registry.name = 'unknown';
-    } else {
-        containerWithNormalizedImage.image = registryProvider.normalizeImage(
-            container.image,
-        );
-        containerWithNormalizedImage.image.registry.name =
-            registryProvider.getId();
-    }
-    return validateContainer(containerWithNormalizedImage);
-}
-
 /**
  * Get the Docker Registry by name.
- * @param registryName
  */
 function getRegistry(registryName: string) {
     const registryToReturn = getRegistries()[registryName];
@@ -223,9 +198,6 @@ function getRegistry(registryName: string) {
 
 /**
  * Get old containers to prune.
- * @param newContainers
- * @param containersFromTheStore
- * @returns {*[]|*}
  */
 function getOldContainers(
     newContainers: Container[],
@@ -244,8 +216,6 @@ function getOldContainers(
 
 /**
  * Prune old containers from the store.
- * @param newContainers
- * @param containersFromTheStore
  */
 function pruneOldContainers(
     newContainers: Container[],
@@ -273,8 +243,6 @@ function getContainerName(container: any) {
 
 /**
  * Get image repo digest.
- * @param containerImage
- * @returns {*} digest
  */
 function getRepoDigest(containerImage: any) {
     if (
@@ -292,7 +260,6 @@ function getRepoDigest(containerImage: any) {
  * Return true if container must be watched.
  * @param wudWatchLabelValue the value of the wud.watch label
  * @param watchByDefault true if containers must be watched by default
- * @returns {boolean}
  */
 function isContainerToWatch(
     wudWatchLabelValue: string,
@@ -304,52 +271,9 @@ function isContainerToWatch(
 }
 
 /**
- * Return true if container digest must be watched.
- * @param {string} wudWatchDigestLabelValue - the value of wud.watch.digest label
- * @param {object} parsedImage - object containing at least `domain` property
- * @returns {boolean}
- */
-function isDigestToWatch(
-    wudWatchDigestLabelValue: string,
-    parsedImage: any,
-    isSemver: boolean,
-    watchDigestDefault?: boolean,
-) {
-    const domain = parsedImage.domain;
-    const isDockerHub =
-        !domain ||
-        domain === '' ||
-        domain === 'docker.io' ||
-        domain.endsWith('.docker.io');
-
-    if (
-        wudWatchDigestLabelValue !== undefined &&
-        wudWatchDigestLabelValue !== ''
-    ) {
-        const shouldWatch = wudWatchDigestLabelValue.toLowerCase() === 'true';
-        if (shouldWatch && isDockerHub) {
-            log.warn(
-                `Watching digest for image ${parsedImage.path} with domain ${domain} may result in throttled requests`,
-            );
-        }
-        return shouldWatch;
-    }
-
-    if (isSemver) {
-        return false;
-    }
-
-    if (watchDigestDefault !== undefined) {
-        return watchDigestDefault;
-    }
-
-    return !isDockerHub;
-}
-
-/**
  * Docker Watcher Component.
  */
-class Docker extends Watcher {
+export class Docker extends Watcher {
     public configuration: DockerWatcherConfiguration =
         {} as DockerWatcherConfiguration;
     public dockerApi: Dockerode;
@@ -357,29 +281,7 @@ class Docker extends Watcher {
     public watchCronTimeout: any;
     public watchCronDebounced: any;
     public listenDockerEventsTimeout: any;
-
-    ensureLogger() {
-        if (!this.log) {
-            try {
-                this.log = log.child({
-                    component: `watcher.docker.${this.name || 'default'}`,
-                });
-            } catch (error) {
-                // Fallback to silent logger if log module fails
-                this.log = {
-                    // @ts-ignore Unused implementation
-                    info: () => {},
-                    // @ts-ignore Unused implementation
-                    warn: () => {},
-                    // @ts-ignore Unused implementation
-                    error: () => {},
-                    // @ts-ignore Unused implementation
-                    debug: () => {},
-                    child: () => this.log,
-                };
-            }
-        }
-    }
+    public dockerEventsStream: any;
 
     getConfigurationSchema() {
         return joi.object().keys({
@@ -394,7 +296,6 @@ class Docker extends Watcher {
             watchbydefault: this.joi.boolean().default(true),
             watchall: this.joi.boolean().default(false),
             watchdigest: this.joi.any(),
-            watchdigestdefault: this.joi.boolean().optional(),
             watchevents: this.joi.boolean().default(true),
             watchatstart: this.joi.boolean().default(true),
         });
@@ -404,7 +305,6 @@ class Docker extends Watcher {
      * Init the Watcher.
      */
     async init() {
-        this.ensureLogger();
         this.initWatcher();
         if (this.configuration.watchdigest !== undefined) {
             this.log.warn(
@@ -465,7 +365,6 @@ class Docker extends Watcher {
 
     /**
      * Deregister the component.
-     * @returns {Promise<void>}
      */
     async deregisterComponent() {
         if (this.watchCron) {
@@ -483,10 +382,8 @@ class Docker extends Watcher {
 
     /**
      * Listen and react to docker events.
-     * @return {Promise<void>}
      */
     async listenDockerEvents() {
-        this.ensureLogger();
         if (!this.log || typeof this.log.info !== 'function') {
             return;
         }
@@ -531,11 +428,8 @@ class Docker extends Watcher {
 
     /**
      * Process a docker event.
-     * @param dockerEventChunk
-     * @return {Promise<void>}
      */
     async onDockerEvent(dockerEventChunk: any) {
-        this.ensureLogger();
         let dockerEvent;
         try {
             dockerEvent = JSON.parse(dockerEventChunk.toString());
@@ -583,10 +477,8 @@ class Docker extends Watcher {
 
     /**
      * Watch containers (called by cron scheduled tasks).
-     * @returns {Promise<*[]>}
      */
     async watchFromCron() {
-        this.ensureLogger();
         if (!this.log || typeof this.log.info !== 'function') {
             return [];
         }
@@ -609,7 +501,6 @@ class Docker extends Watcher {
         ).length;
 
         const stats = `${containerReportsCount} containers watched, ${containerErrorsCount} errors, ${containerUpdatesCount} available updates`;
-        this.ensureLogger();
         if (this.log && typeof this.log.info === 'function') {
             this.log.info(`Cron finished (${stats})`);
         }
@@ -618,10 +509,8 @@ class Docker extends Watcher {
 
     /**
      * Watch main method.
-     * @returns {Promise<*[]>}
      */
     async watch() {
-        this.ensureLogger();
         let containers: Container[] = [];
 
         // Dispatch event to notify start watching
@@ -654,11 +543,8 @@ class Docker extends Watcher {
 
     /**
      * Watch a Container.
-     * @param container
-     * @returns {Promise<*>}
      */
     async watchContainer(container: Container) {
-        this.ensureLogger();
         // Child logger for the container to process
         const logContainer = this.log.child({ container: fullName(container) });
         const containerWithResult = container;
@@ -689,10 +575,8 @@ class Docker extends Watcher {
 
     /**
      * Get all containers to watch.
-     * @returns {Promise<unknown[]>}
      */
     async getContainers(): Promise<Container[]> {
-        this.ensureLogger();
         const listContainersOptions: Dockerode.ContainerListOptions = {};
         if (this.configuration.watchall) {
             listContainersOptions.all = true;
@@ -702,13 +586,13 @@ class Docker extends Watcher {
         );
 
         // Filter on containers to watch
-        const filteredContainers = containers.filter((container: any) =>
+        const filteredContainers = containers.filter((container) =>
             isContainerToWatch(
                 container.Labels[wudWatch],
                 this.configuration.watchbydefault,
             ),
         );
-        const containerPromises = filteredContainers.map((container: any) =>
+        const containerPromises = filteredContainers.map((container) =>
             this.addImageDetailsToContainer(
                 container,
                 container.Labels[wudTagInclude],
@@ -721,7 +605,7 @@ class Docker extends Watcher {
                 container.Labels[wudTriggerExclude],
             ).catch((e) => {
                 this.log.warn(
-                    `Failed to fetch image detail for container ${container.Id}: ${e.message}`,
+                    `Failed to fetch image detail for container ${container.Id}: ${e.message} - ${e.stack}`,
                 );
                 return e;
             }),
@@ -768,7 +652,7 @@ class Docker extends Watcher {
      * Find new version for a Container.
      */
 
-    async findNewVersion(container: Container, logContainer: any) {
+    async findNewVersion(container: Container, logContainer: Logger) {
         const registryProvider = getRegistry(container.image.registry.name);
         const result: any = { tag: container.image.tag.value };
         if (!registryProvider) {
@@ -777,6 +661,19 @@ class Docker extends Watcher {
             );
             return result;
         } else {
+            const watchDigest =
+                !container.image.tag.semver &&
+                registryProvider.shouldWatchDigest(
+                    container.labels?.[wudWatchDigest],
+                    container.image.name,
+                );
+
+            if (!container.image.tag.semver && !watchDigest) {
+                this.log.warn(
+                    `Image ${container.image.name} is not a semver and digest watching is disabled so wud won't report any update. Please review the configuration to enable digest watching for this container or exclude this container from being watched`,
+                );
+            }
+
             // Get all available tags
             const tags = await registryProvider.getTags(container.image);
 
@@ -788,7 +685,7 @@ class Docker extends Watcher {
             );
 
             // Must watch digest? => Find local/remote digests on registry
-            if (container.image.digest.watch && container.image.digest.repo) {
+            if (watchDigest && container.image.digest.repo) {
                 // If we have a tag candidate BUT we also watch digest
                 // (case where local=`mongo:8` and remote=`mongo:8.0.0`),
                 // Then get the digest of the tag candidate
@@ -841,14 +738,6 @@ class Docker extends Watcher {
 
     /**
      * Add image detail to Container.
-     * @param container
-     * @param includeTags
-     * @param excludeTags
-     * @param transformTags
-     * @param linkTemplate
-     * @param displayName
-     * @param displayIcon
-     * @returns {Promise<Image>}
      */
     async addImageDetailsToContainer(
         container: any,
@@ -869,7 +758,6 @@ class Docker extends Watcher {
             containerInStore !== undefined &&
             containerInStore.error === undefined
         ) {
-            this.ensureLogger();
             this.log.debug(`Container ${containerInStore.id} already in store`);
             return containerInStore;
         }
@@ -891,7 +779,6 @@ class Docker extends Watcher {
         let imageNameToParse = container.Image;
         if (imageNameToParse.includes('sha256:')) {
             if (!image.RepoTags || image.RepoTags.length === 0) {
-                this.ensureLogger();
                 this.log.warn(
                     `Cannot get a reliable tag for this image [${imageNameToParse}]`,
                 );
@@ -912,21 +799,26 @@ class Docker extends Watcher {
             };
         }
 
+        const registryProvider = Object.values(getRegistries()).find(
+            (registry) => registry.match(parsedImage.domain),
+        );
+
+        if (!registryProvider) {
+            this.log.warn(
+                `${container.Image} - ${parsedImage.domain} - No Registry Provider found`,
+            );
+            return;
+        }
         const parsedTag = parseSemver(transformTag(transformTags, tagName));
         const isSemver = parsedTag !== null && parsedTag !== undefined;
-        const watchDigest = isDigestToWatch(
-            container.Labels[wudWatchDigest],
-            parsedImage,
-            isSemver,
-            this.configuration.watchdigestdefault,
-        );
-        if (!isSemver && !watchDigest) {
-            this.ensureLogger();
-            this.log.warn(
-                `Image ${parsedImage.path}:${tagName} (container "${containerName}", id ${containerId}) is not a semver and digest watching is disabled so wud won't report any update. Set the label \`wud.watch.digest=true\` on this container to enable digest watching, or set \`wud.watch=false\` to exclude it from being watched.`,
+        const watchDigest =
+            !isSemver &&
+            registryProvider.shouldWatchDigest(
+                container.Labels[wudWatchDigest],
+                parsedImage.path,
             );
-        }
-        return normalizeContainer({
+
+        return this.normalizeContainer({
             id: containerId,
             name: containerName,
             status,
@@ -970,11 +862,8 @@ class Docker extends Watcher {
 
     /**
      * Process a Container with result and map to a containerReport.
-     * @param containerWithResult
-     * @return {*}
      */
     mapContainerToContainerReport(containerWithResult: Container) {
-        this.ensureLogger();
         const logContainer = this.log.child({
             container: fullName(containerWithResult),
         });
@@ -1004,6 +893,25 @@ class Docker extends Watcher {
                 containerWithResult.updateAvailable;
         }
         return containerReport;
+    }
+
+    private normalizeContainer(container: Container) {
+        const containerWithNormalizedImage = container;
+        const registryProvider = Object.values(getRegistries()).find(
+            (provider) => provider.match(container.image.registry.url),
+        );
+        if (!registryProvider) {
+            this.log.warn(
+                `${fullName(container)} - No Registry Provider found`,
+            );
+            containerWithNormalizedImage.image.registry.name = 'unknown';
+        } else {
+            containerWithNormalizedImage.image =
+                registryProvider.normalizeImage(container.image);
+            containerWithNormalizedImage.image.registry.name =
+                registryProvider.getId();
+        }
+        return validateContainer(containerWithNormalizedImage);
     }
 }
 

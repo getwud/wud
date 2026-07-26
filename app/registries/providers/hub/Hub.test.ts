@@ -23,14 +23,10 @@ describe('Docker Hub Registry', () => {
     });
 
     test('should match registry', async () => {
-        expect(hub.match({ registry: { url: 'registry-1.docker.io' } })).toBe(
-            true,
-        );
-        expect(hub.match({ registry: { url: 'docker.io' } })).toBe(true);
-        expect(hub.match({ registry: { url: undefined } })).toBe(true);
-        expect(hub.match({ registry: { url: 'other.registry.com' } })).toBe(
-            false,
-        );
+        expect(hub.match('registry-1.docker.io')).toBe(true);
+        expect(hub.match('docker.io')).toBe(true);
+        expect(hub.match(undefined)).toBe(true);
+        expect(hub.match('other.registry.com')).toBe(false);
     });
 
     test('should normalize image name for official images', async () => {
@@ -152,6 +148,69 @@ describe('Docker Hub Registry', () => {
             password: 't******s',
             token: 't*******n',
             auth: 'd**********0',
+        });
+    });
+
+    describe('shouldWatchDigest', () => {
+        test('should return false without label or config', () => {
+            const result = hub.shouldWatchDigest(undefined, 'library/nginx');
+            expect(result).toBe(false);
+        });
+
+        test('should return true when label is true (semver flag handled upstream)', () => {
+            const result = hub.shouldWatchDigest('true', 'library/nginx');
+            expect(result).toBe(true);
+        });
+
+        test('should return false for non-semver without label (throttling protection)', () => {
+            const result = hub.shouldWatchDigest(undefined, 'library/nginx');
+            expect(result).toBe(false);
+        });
+
+        test('should return true when label is true (non-semver)', () => {
+            const result = hub.shouldWatchDigest('true', 'library/nginx');
+            expect(result).toBe(true);
+        });
+
+        test('should return true when watchdigest config is true', async () => {
+            const hubWithWatchDigest = new Hub();
+            await hubWithWatchDigest.register('registry', 'hub', 'test', {
+                watchdigest: true,
+            });
+            const result = hubWithWatchDigest.shouldWatchDigest(
+                undefined,
+                'library/nginx',
+            );
+            expect(result).toBe(true);
+        });
+
+        test('should log warning when watching digest without suppressdigestwatchwarning', async () => {
+            const hubWithWatchDigest = new Hub();
+            await hubWithWatchDigest.register('registry', 'hub', 'test', {
+                watchdigest: true,
+            });
+            const mockWarn = jest.fn();
+            hubWithWatchDigest.log = { warn: mockWarn };
+
+            hubWithWatchDigest.shouldWatchDigest(undefined, 'library/nginx');
+
+            expect(mockWarn).toHaveBeenCalledWith(
+                expect.stringContaining('throttled requests'),
+            );
+        });
+
+        test('should not log warning when suppressdigestwatchwarning is true', async () => {
+            const hubWithWatchDigest = new Hub();
+            await hubWithWatchDigest.register('registry', 'hub', 'test', {
+                watchdigest: true,
+                suppressdigestwatchwarning: true,
+            });
+            const mockWarn = jest.fn();
+            hubWithWatchDigest.log = { warn: mockWarn };
+
+            hubWithWatchDigest.shouldWatchDigest(undefined, 'library/nginx');
+
+            expect(mockWarn).not.toHaveBeenCalled();
         });
     });
 });

@@ -1,4 +1,4 @@
-// @ts-nocheck
+import { ContainerImage } from '../../../model/container';
 import Acr from './Acr';
 
 const acr = new Acr();
@@ -33,23 +33,11 @@ test('maskConfiguration should mask configuration secrets', async () => {
 });
 
 test('match should return true when registry url is from acr', async () => {
-    expect(
-        acr.match({
-            registry: {
-                url: 'test.azurecr.io',
-            },
-        }),
-    ).toBeTruthy();
+    expect(acr.match('test.azurecr.io')).toBeTruthy();
 });
 
 test('match should return false when registry url is not from acr', async () => {
-    expect(
-        acr.match({
-            registry: {
-                url: 'est.notme.io',
-            },
-        }),
-    ).toBeFalsy();
+    expect(acr.match('est.notme.io')).toBeFalsy();
 });
 
 test('normalizeImage should return the proper registry v2 endpoint', async () => {
@@ -59,7 +47,7 @@ test('normalizeImage should return the proper registry v2 endpoint', async () =>
             registry: {
                 url: 'test.azurecr.io/test/image',
             },
-        }),
+        } as ContainerImage),
     ).toStrictEqual({
         name: 'test/image',
         registry: {
