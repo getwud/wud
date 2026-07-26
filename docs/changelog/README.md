@@ -2,6 +2,7 @@
 
 ## next
 - :star: Add `WUD_REGISTRY_HUB_PUBLIC_SUPPRESSDIGESTWATCHWARNING` env var
+- :star: [GITLAB] - Add support for GitLab group access tokens
 - :fire: [DOCKER-COMPOSE] - Fix trigger fails to detect containers in compose file
 - :fire: [PROMETHEUS] - Reduce CPU usage
 - :fire: [OIDC] - Fix issues when WUD starts while OIDC provider is temporarily unavailable

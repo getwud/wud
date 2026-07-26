@@ -136,6 +136,8 @@ test('getUserFromAccessToken should keep discovery cache when ttl is unlimited',
 });
 
 test('verify should return user on valid token', async () => {
+    oidc.configuration = { ...configurationValid, ttl: -1 };
+    (oidc as any).cachedConfig = mockConfig;
     const mockUserInfo = { email: 'test@example.com' };
     (client.fetchUserInfo as jest.Mock).mockResolvedValue(mockUserInfo);
 
@@ -153,11 +155,12 @@ test('verify should return false on invalid token', async () => {
 
     const done = jest.fn();
     await oidc.verify('invalid-token', done);
-
     expect(done).toHaveBeenCalledWith(null, false);
 });
 
 test('getUserFromAccessToken should return user with email', async () => {
+    oidc.configuration = { ...configurationValid, ttl: -1 };
+    (oidc as any).cachedConfig = mockConfig;
     const mockUserInfo = { email: 'user@example.com' };
     (client.fetchUserInfo as jest.Mock).mockResolvedValue(mockUserInfo);
 
@@ -166,6 +169,8 @@ test('getUserFromAccessToken should return user with email', async () => {
 });
 
 test('getUserFromAccessToken should return unknown for missing email', async () => {
+    oidc.configuration = { ...configurationValid, ttl: -1 };
+    (oidc as any).cachedConfig = mockConfig;
     const mockUserInfo = {};
     (client.fetchUserInfo as jest.Mock).mockResolvedValue(mockUserInfo);
 
