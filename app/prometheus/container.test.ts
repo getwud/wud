@@ -1,45 +1,73 @@
 // @ts-nocheck
 jest.mock('../store/container');
 jest.mock('../log');
+jest.mock('../event', () => ({
+    registerContainerAdded: jest.fn(),
+    registerContainerUpdated: jest.fn(),
+    registerContainerRemoved: jest.fn(),
+}));
 
 import * as store from '../store/container';
+import * as event from '../event';
 import * as container from './container';
 import log from '../log';
 
-test('gauge must be populated when containers are in the store', async () => {
-    jest.useFakeTimers();
-    store.getContainers = () => [
-        {
-            id: 'container-123456789',
-            name: 'test',
-            watcher: 'test',
-            image: {
-                id: 'image-123456789',
-                registry: {
-                    name: 'registry',
-                    url: 'https://hub',
-                },
-                name: 'organization/image',
-                tag: {
-                    value: 'version',
-                    semver: false,
-                },
-                digest: {
-                    watch: false,
-                    repo: undefined,
-                },
-                architecture: 'arch',
-                os: 'os',
-                created: '2021-06-12T05:33:38.440Z',
+const sampleContainers = [
+    {
+        id: 'container-123456789',
+        name: 'test',
+        watcher: 'test',
+        image: {
+            id: 'image-123456789',
+            registry: {
+                name: 'registry',
+                url: 'https://hub',
             },
-            result: {
-                tag: 'version',
+            name: 'organization/image',
+            tag: {
+                value: 'version',
+                semver: false,
             },
+            digest: {
+                watch: false,
+                repo: undefined,
+            },
+            architecture: 'arch',
+            os: 'os',
+            created: '2021-06-12T05:33:38.440Z',
         },
-    ];
+        result: {
+            tag: 'version',
+        },
+    },
+];
+
+beforeEach(() => {
+    jest.useFakeTimers();
+    jest.clearAllMocks();
+    store.getContainers = jest.fn(() => sampleContainers);
+});
+
+afterEach(() => {
+    jest.useRealTimers();
+});
+
+test('gauge must be populated on init when containers are in the store', async () => {
+    let onAdded;
+    event.registerContainerAdded.mockImplementation((handler) => {
+        onAdded = handler;
+        return jest.fn();
+    });
+    event.registerContainerUpdated.mockImplementation(() => jest.fn());
+    event.registerContainerRemoved.mockImplementation(() => jest.fn());
+
     const gauge = container.init();
     const spySet = jest.spyOn(gauge, 'set');
-    jest.runOnlyPendingTimers();
+    spySet.mockClear();
+
+    onAdded(sampleContainers[0]);
+    jest.advanceTimersByTime(5000);
+
     expect(spySet).toHaveBeenCalledWith(
         {
             id: 'container-123456789',
@@ -63,12 +91,51 @@ test('gauge must be populated when containers are in the store', async () => {
 });
 
 test("gauge must warn when data don't match expected labels", async () => {
-    store.getContainers = () => [
+    event.registerContainerAdded.mockImplementation(() => jest.fn());
+    event.registerContainerUpdated.mockImplementation(() => jest.fn());
+    event.registerContainerRemoved.mockImplementation(() => jest.fn());
+    store.getContainers = jest.fn(() => [
         {
             extra: 'extra',
         },
-    ];
+    ]);
     const spyLog = jest.spyOn(log, 'warn');
     container.init();
     expect(spyLog).toHaveBeenCalled();
+});
+
+test('interval tick should skip full rebuild when metrics are clean', async () => {
+    event.registerContainerAdded.mockImplementation(() => jest.fn());
+    event.registerContainerUpdated.mockImplementation(() => jest.fn());
+    event.registerContainerRemoved.mockImplementation(() => jest.fn());
+
+    const gauge = container.init();
+    const spyReset = jest.spyOn(gauge, 'reset');
+    const spySet = jest.spyOn(gauge, 'set');
+
+    spyReset.mockClear();
+    spySet.mockClear();
+    jest.advanceTimersByTime(5000);
+
+    expect(spyReset).not.toHaveBeenCalled();
+    expect(spySet).not.toHaveBeenCalled();
+});
+
+test('container event should mark metrics dirty and rebuild on next interval', async () => {
+    let onAdded;
+    event.registerContainerAdded.mockImplementation((handler) => {
+        onAdded = handler;
+        return jest.fn();
+    });
+    event.registerContainerUpdated.mockImplementation(() => jest.fn());
+    event.registerContainerRemoved.mockImplementation(() => jest.fn());
+
+    const gauge = container.init();
+    const spySet = jest.spyOn(gauge, 'set');
+    spySet.mockClear();
+
+    onAdded(sampleContainers[0]);
+    jest.advanceTimersByTime(5000);
+
+    expect(spySet).toHaveBeenCalledTimes(1);
 });
