@@ -4,26 +4,34 @@
   "description": "WUD - e2e",
   "main": "index.js",
   "scripts": {
-    "lint": "eslint '**/*.js'",
-    "cucumber": "cucumber-js **/*.feature",
-    "test": "npm run test:local",
-    "test:local": "dotenvx run -- ../scripts/run-e2e-tests.sh",
-    "test:setup": "dotenvx run -- ../scripts/setup-test-containers.sh",
-    "test:start-wud": "dotenvx run -- ../scripts/start-wud.sh",
+    "lint": "eslint '**/*.ts'",
+    "cucumber": "dotenvx run -f ../.env -- cucumber-js --require-module ts-node/register --require 'features/**/*.ts'",
+    "oracle:selfcheck": "ts-node features/support/oracle_selfcheck.ts",
+    "test": "dotenvx run -f ../.env -- ../scripts/run-e2e-tests.sh",
+    "test:setup": "dotenvx run -f ../.env -- ../scripts/setup-test-containers.sh",
+    "test:start-wud": "dotenvx run -f ../.env -- ../scripts/start-wud.sh",
     "test:cleanup": "../scripts/cleanup-test-containers.sh"
   },
   "author": "fmartinou",
   "repository": "getwud/wud",
   "license": "MIT",
   "dependencies": {
-    "@cucumber/cucumber": "11.1.1",
-    "apickli": "3.0.3"
+    "@cucumber/cucumber": "^11.3.0",
+    "apickli": "3.0.3",
+    "semver": "7.7.3"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.51.4",
+    "@types/node": "^25.1.0",
+    "@types/semver": "^7.7.1",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
     "eslint": "8.57.0",
     "eslint-config-airbnb-base": "15.0.0",
+    "eslint-import-resolver-typescript": "^3.10.1",
     "eslint-plugin-cucumber": "2.0.0",
-    "eslint-plugin-import": "2.30.0"
+    "eslint-plugin-import": "2.30.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   }
 }

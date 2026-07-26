@@ -1,7 +1,16 @@
 {
     "extends": "airbnb-base",
-    "plugins": ["cucumber"],
+    "parser": "@typescript-eslint/parser",
+    "plugins": ["cucumber", "@typescript-eslint"],
+    "settings": {
+        "import/resolver": {
+            "typescript": {}
+        }
+    },
     "rules": {
-        "indent": ["error", 4]
+        "indent": ["error", 4],
+        "import/extensions": ["error", "ignorePackages", { "ts": "never" }],
+        "no-unused-vars": "off",
+        "@typescript-eslint/no-unused-vars": "error"
     }
 }
