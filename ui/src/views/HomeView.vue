@@ -12,6 +12,7 @@
           >
           <br />
           <v-btn
+            class="update-status"
             size="small"
             variant="plain"
             :color="containersToUpdateCount > 0 ? 'warning' : 'success'"
@@ -59,11 +60,29 @@
 
 <script lang="ts" src="./HomeView.ts"></script>
 <style scoped>
+/* height: 100% makes each card fill its column. Since v-row stretches
+   columns to match the tallest one, all four cards end up the same
+   height as whichever card needs the most room. */
 .home-card {
-  height: 160px;
+  height: 100%;
+  min-height: 160px;
 }
 
 .home-icon {
   font-size: 80px;
+}
+
+/* Let the status label wrap instead of overflowing the card.
+   Vuetify sets white-space: nowrap on .v-btn__content and a fixed
+   height on .v-btn, so both have to be relaxed. */
+.update-status {
+  height: auto;
+  min-height: 28px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.update-status :deep(.v-btn__content) {
+  white-space: normal;
 }
 </style>
