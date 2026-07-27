@@ -7,6 +7,7 @@
 - :fire: [PROMETHEUS] - Reduce CPU usage
 - :fire: [OIDC] - Fix issues when WUD starts while OIDC provider is temporarily unavailable
 - :fire: [DOCKER] - Fix Docker container update when container is attached to multiple networks
+- :fire: [UI] - Fix card overflow on home page
 - :wrench: [TELEGRAM] - Replace deprecated client by direct HTTP API use
 
 ## 8.3.0
