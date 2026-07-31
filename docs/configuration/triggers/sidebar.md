@@ -17,6 +17,7 @@
         - [Ifttt](configuration/triggers/ifttt/)
         - [Kafka](configuration/triggers/kafka/)
         - [Mqtt](configuration/triggers/mqtt/)
+        - [Nomad](configuration/triggers/nomad/)
         - [Ntfy](configuration/triggers/ntfy/)
         - [Pushover](configuration/triggers/pushover/)
         - [Rocket.Chat](configuration/triggers/rocketchat/)
