@@ -114,6 +114,40 @@ test('trigger should send the X-Nomad-Token header when a token is configured', 
     );
 });
 
+test('trigger should fall back to parsing the task name from the container name when the label is missing', async () => {
+    axios.post.mockResolvedValue({ data: {} });
+
+    const container = {
+        name: 'audiobookshelf-alloc-123',
+        labels: {
+            'com.hashicorp.nomad.alloc_id': 'alloc-123',
+        },
+    };
+
+    await nomad.trigger(container);
+
+    expect(axios.post).toHaveBeenCalledWith(
+        'http://127.0.0.1:4646/v1/client/allocation/alloc-123/restart',
+        { TaskName: 'audiobookshelf' },
+        { headers: {} },
+    );
+});
+
+test('trigger should refuse to restart implicitly when the task name cannot be determined', async () => {
+    axios.post.mockResolvedValue({ data: {} });
+
+    const container = {
+        name: 'some-unrelated-container-name',
+        labels: {
+            'com.hashicorp.nomad.alloc_id': 'alloc-123',
+        },
+    };
+
+    await nomad.trigger(container);
+
+    expect(axios.post).not.toHaveBeenCalled();
+});
+
 test('trigger should skip containers with no Nomad alloc label', async () => {
     axios.post.mockResolvedValue({ data: {} });
 

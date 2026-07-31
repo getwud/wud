@@ -24,7 +24,14 @@ import { Container, fullName } from '../../../model/container';
  *   - com.hashicorp.nomad.job_name
  *   - com.hashicorp.nomad.job_id
  *   - com.hashicorp.nomad.task_group_name
- * This trigger reads the first two to target the restart.
+ * This trigger reads the first two to target the restart. Not every
+ * Nomad version sets the task_name label (observed missing entirely
+ * on v2.0.4 while alloc_id was present), so as a fallback it also
+ * derives the task name from the container name itself, which Nomad's
+ * Docker driver always builds as "<task_name>-<alloc_id>"
+ * (drivers/docker/driver.go: `fmt.Sprintf("%s-%s", task.Name,
+ * task.AllocID)`) -- stripping the trailing "-<alloc_id>" recovers the
+ * task name reliably without depending on that label existing.
  */
 class Nomad extends Trigger {
     /**
@@ -61,6 +68,23 @@ class Nomad extends Trigger {
     }
 
     /**
+     * Derive the task name for this container, falling back to parsing
+     * it from the container name (Nomad always names containers
+     * "<task_name>-<alloc_id>") when the task_name label is absent.
+     */
+    getTaskName(container: Container, allocId: string): string | undefined {
+        const labeled = container.labels?.[this.configuration.tasklabel];
+        if (labeled) {
+            return labeled;
+        }
+        const suffix = `-${allocId}`;
+        if (container.name && container.name.endsWith(suffix)) {
+            return container.name.slice(0, -suffix.length);
+        }
+        return undefined;
+    }
+
+    /**
      * Restart the Nomad allocation (or a single task within it) backing
      * this container.
      */
@@ -81,9 +105,15 @@ class Nomad extends Trigger {
         if (this.configuration.alltasks) {
             body.AllTasks = true;
         } else {
-            const taskName = container.labels?.[this.configuration.tasklabel];
+            const taskName = this.getTaskName(container, allocId);
             if (taskName) {
                 body.TaskName = taskName;
+            } else {
+                logContainer.warn(
+                    `Could not determine task name for allocation ${allocId} (no ${this.configuration.tasklabel} label and container name did not match "<task>-${allocId}"); ` +
+                        'refusing to restart the whole allocation implicitly -- set alltasks=true if that is what you want',
+                );
+                return;
             }
         }
 

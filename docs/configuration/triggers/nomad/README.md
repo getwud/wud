@@ -10,6 +10,8 @@ Instead, the `nomad` trigger calls [Nomad's own HTTP API](https://developer.hash
 
 Nomad stamps every container it creates with a fixed set of labels (`com.hashicorp.nomad.alloc_id`, `com.hashicorp.nomad.task_name`, ...). This trigger reads those labels to know which allocation/task to restart, so no extra container labeling is required on your end -- it works out of the box against any container Nomad's Docker driver created.
 
+!> Not every Nomad version sets the `com.hashicorp.nomad.task_name` label (observed missing on Nomad v2.0.4 while `alloc_id` was still present). When it's missing, this trigger falls back to parsing the task name out of the container's own name, since Nomad's Docker driver always names containers `<task_name>-<alloc_id>`. If that also fails to resolve a task name, the trigger logs a warning and does **not** restart anything -- it will never silently fall back to restarting every task in the allocation (which could mean restarting a database sidecar you didn't intend to touch). Set `alltasks=true` explicitly if restarting the whole allocation is actually what you want.
+
 ### Variables
 
 | Env var                                       |    Required    | Description                                                   | Supported values             | Default value when missing      |
