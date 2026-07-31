@@ -1,6 +1,6 @@
 # Changelog
 
-## next
+## 8.3.1
 - :star: Add `WUD_REGISTRY_HUB_PUBLIC_SUPPRESSDIGESTWATCHWARNING` env var
 - :star: [GITLAB] - Add support for GitLab group access tokens
 - :fire: [DOCKER-COMPOSE] - Fix trigger fails to detect containers in compose file
