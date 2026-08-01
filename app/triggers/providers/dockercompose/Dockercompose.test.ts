@@ -76,3 +76,51 @@ test('mapCurrentVersionToUpdateVersion should return undefined when no service m
     );
     expect(mapping).toBeUndefined();
 });
+
+test('configured file takes precedence over automatic compose label', () => {
+    dockercompose.configuration = {
+        file: '/some/path/docker-compose.yml',
+        composeFileLabel: 'wud.compose.file',
+    };
+
+    expect(
+        dockercompose.getComposeFileForContainer({
+            labels: {
+                'com.docker.compose.project.config_files':
+                    '/some/path/automatic-compose.yaml',
+            },
+        }),
+    ).toBe('/some/path/docker-compose.yml');
+});
+
+test('per-container WUD label takes precedence over configured file', () => {
+    dockercompose.configuration = {
+        file: '/some/path/docker-compose.yml',
+        composeFileLabel: 'wud.compose.file',
+    };
+
+    expect(
+        dockercompose.getComposeFileForContainer({
+            labels: {
+                'wud.compose.file': '/some/path/label-compose.yml',
+                'com.docker.compose.project.config_files':
+                    '/some/path/automatic-compose.yaml',
+            },
+        }),
+    ).toBe('/some/path/label-compose.yml');
+});
+
+test('automatic compose label is used without explicit configuration', () => {
+    dockercompose.configuration = {
+        composeFileLabel: 'wud.compose.file',
+    };
+
+    expect(
+        dockercompose.getComposeFileForContainer({
+            labels: {
+                'com.docker.compose.project.config_files':
+                    '/some/path/automatic-compose.yaml',
+            },
+        }),
+    ).toBe('/some/path/automatic-compose.yaml');
+});
