@@ -1,4 +1,4 @@
-// @ts-nocheck
+//@ts-nocheck
 import { ValidationError } from 'joi';
 import mqttClient from 'mqtt';
 import log from '../../../log';
@@ -18,6 +18,8 @@ const configurationValid = {
         discovery: false,
         enabled: false,
         prefix: 'homeassistant',
+        deviceid: 'wud',
+        devicename: 'wud',
     },
     tls: {
         clientkey: undefined,
