@@ -1,7 +1,7 @@
-// @ts-nocheck
-import axios from 'axios';
-
+import axios, { AxiosRequestConfig } from 'axios';
 import Trigger from '../Trigger';
+import { ComponentConfiguration } from '../../../registry/Component';
+import { Container } from '../../../model/container';
 
 /**
  * HTTP Trigger implementation
@@ -9,7 +9,6 @@ import Trigger from '../Trigger';
 class Http extends Trigger {
     /**
      * Get the Trigger configuration schema.
-     * @returns {*}
      */
     getConfigurationSchema() {
         return this.joi.object().keys({
@@ -38,27 +37,33 @@ class Http extends Trigger {
         });
     }
 
+    maskConfiguration(): ComponentConfiguration {
+        return {
+            ...this.configuration,
+            auth: {
+                ...this.configuration.auth,
+                password: Http.mask(this.configuration.auth?.password),
+                bearer: Http.mask(this.configuration.auth?.bearer),
+            },
+        };
+    }
+
     /**
      * Send an HTTP Request with new image version details.
-     *
-     * @param container the container
-     * @returns {Promise<void>}
      */
-    async trigger(container) {
+    async trigger(container: Container) {
         return this.sendHttpRequest(container);
     }
 
     /**
      * Send an HTTP Request with new image versions details.
-     * @param containers
-     * @returns {Promise<*>}
      */
-    async triggerBatch(containers) {
+    async triggerBatch(containers: Container[]) {
         return this.sendHttpRequest(containers);
     }
 
-    async sendHttpRequest(body) {
-        const options = {
+    async sendHttpRequest(body: Container | Container[]) {
+        const options: AxiosRequestConfig = {
             method: this.configuration.method,
             url: this.configuration.url,
         };
@@ -83,7 +88,7 @@ class Http extends Trigger {
             const proxyUrl = new URL(this.configuration.proxy);
             options.proxy = {
                 host: proxyUrl.hostname,
-                port: proxyUrl.port,
+                port: Number.parseInt(proxyUrl.port),
             };
         }
         const response = await axios(options);
