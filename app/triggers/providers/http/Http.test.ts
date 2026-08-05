@@ -36,6 +36,28 @@ describe('HTTP Trigger', () => {
         expect(() => http.validateConfiguration(config)).toThrow();
     });
 
+    test('should mask auth password and bearer token', async () => {
+        http.configuration = {
+            url: 'https://example.com/webhook',
+            method: 'POST',
+            auth: {
+                type: 'BASIC',
+                user: 'user',
+                password: 'pass',
+                bearer: 'token',
+            },
+        };
+
+        expect(http.maskConfiguration()).toEqual({
+            ...http.configuration,
+            auth: {
+                ...http.configuration.auth,
+                password: 'p**s',
+                bearer: 't***n',
+            },
+        });
+    });
+
     test('should trigger with container', async () => {
         const { default: axios } = await import('axios');
         axios.mockResolvedValue({ data: {} });
@@ -135,7 +157,7 @@ describe('HTTP Trigger', () => {
             method: 'POST',
             url: 'https://example.com/webhook',
             data: container,
-            proxy: { host: 'proxy', port: '8080' },
+            proxy: { host: 'proxy', port: 8080 },
         });
     });
 });
