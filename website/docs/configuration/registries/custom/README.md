@@ -50,6 +50,13 @@ import TabItem from '@theme/TabItem';
     supported="Base64-encoded username:password (mutually exclusive with LOGIN/PASSWORD)">
     Direct Base64-encoded `username:password` string
   </ConfigOption>
+
+  <ConfigOption name="WUD_REGISTRY_CUSTOM_{registry_name}_TOKEN"
+    type="string"
+    required={false}
+    supported="Bearer token (mutually exclusive with LOGIN/PASSWORD and AUTH)">
+    Access token sent as `Authorization: Bearer &lt;token&gt;`
+  </ConfigOption>
 </ConfigList>
 
 ---
@@ -80,6 +87,20 @@ docker run \
 
 </TabItem>
 </Tabs>
+
+### Bearer Token Authentication
+
+Use `TOKEN` when the registry accepts a bearer token directly. Do not combine it
+with `LOGIN`, `PASSWORD`, or `AUTH`.
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    environment:
+      - WUD_REGISTRY_CUSTOM_LOCAL_URL=https://registry.example.com
+      - WUD_REGISTRY_CUSTOM_LOCAL_TOKEN=personal-access-token
+```
 
 ### Authenticated Private Registry
 

@@ -29,6 +29,19 @@ test('validatedConfiguration should require a URL with concurrency', async () =>
     }).toThrow('"url" is required');
 });
 
+test('validatedConfiguration should initialize with a bearer token', async () => {
+    expect(
+        custom.validateConfiguration({
+            url: 'http://localhost:5000',
+            token: 'personal-access-token',
+        }),
+    ).toStrictEqual({
+        url: 'http://localhost:5000',
+        token: 'personal-access-token',
+        concurrency: 2,
+    });
+});
+
 test('validatedConfiguration should throw error when auth is not base64', async () => {
     expect(() => {
         custom.validateConfiguration({
@@ -43,6 +56,17 @@ test('maskConfiguration should mask configuration secrets', async () => {
         auth: undefined,
         login: 'login',
         password: 'p******d',
+        url: 'http://localhost:5000',
+    });
+});
+
+test('maskConfiguration should mask bearer tokens', async () => {
+    custom.configuration = {
+        url: 'http://localhost:5000',
+        token: 'personal-access-token',
+    };
+    expect(custom.maskConfiguration()).toEqual({
+        token: 'p*******************n',
         url: 'http://localhost:5000',
     });
 });
@@ -72,9 +96,26 @@ test('normalizeImage should return the proper registry v2 endpoint', async () =>
 });
 
 test('authenticate should add basic auth', async () => {
+    custom.configuration = {
+        login: 'login',
+        password: 'password',
+        url: 'http://localhost:5000',
+    };
     expect(custom.authenticate(undefined, { headers: {} })).resolves.toEqual({
         headers: {
             Authorization: 'Basic bG9naW46cGFzc3dvcmQ=',
+        },
+    });
+});
+
+test('authenticate should add bearer auth for a token', async () => {
+    custom.configuration = {
+        token: 'personal-access-token',
+        url: 'http://localhost:5000',
+    };
+    expect(custom.authenticate(undefined, { headers: {} })).resolves.toEqual({
+        headers: {
+            Authorization: 'Bearer personal-access-token',
         },
     });
 });
@@ -84,9 +125,9 @@ test('getAuthCredentials should return base64 creds when set in configuration', 
     expect(custom.getAuthCredentials()).toEqual('dXNlcm5hbWU6cGFzc3dvcmQ=');
 });
 
-test('getAuthCredentials should return base64 creds when login/token set in configuration', async () => {
+test('getAuthCredentials should return base64 creds when login/password set in configuration', async () => {
     custom.configuration.login = 'username';
-    custom.configuration.token = 'password';
+    custom.configuration.password = 'password';
     expect(custom.getAuthCredentials()).toEqual('dXNlcm5hbWU6cGFzc3dvcmQ=');
 });
 

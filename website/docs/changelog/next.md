@@ -16,6 +16,7 @@ description: Unreleased changes and upcoming features in What's Up Docker (WUD).
 - 🚀 [UI] Add demo mode with mock services for static deployment
 - 🚀 [REGISTRY] Enable anonymous access by default for Gitlab public registry
 - 🚀 [REGISTRY] Enable anonymous access by default for LSCR and TrueForge public registries
+- 🚀 [REGISTRY] Support direct bearer-token authentication for custom registries
 
 - 🐛 [WATCHER] Fix docker watcher crashing on startup when `watchdigestdefault` is configured by restoring the property and passing it to registries (fixes #1150)
 - 🐛 [REGISTRY] Fix Gitlab registry provider ignoring configuration defaults (fixes Gitlab registry integration)
