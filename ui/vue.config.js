@@ -27,6 +27,11 @@ module.exports = defineConfig({
       short_name: "WUD",
       background_color: "#00355E",
     },
+    workboxOptions: {
+      // index.html is generated dynamically per-request (basepath injection),
+      // so it must never be served from the service worker's precache.
+      exclude: [/index\.html$/],
+    },
   },
 
   chainWebpack: config => {

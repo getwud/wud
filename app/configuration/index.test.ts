@@ -96,6 +96,44 @@ test('getServerConfiguration should return configured api (new vars)', async () 
     });
 });
 
+test('getPublicUrl should return request origin when no basepath is configured', async () => {
+    delete configuration.wudEnvVars.WUD_PUBLIC_URL;
+    delete configuration.wudEnvVars.WUD_SERVER_BASEPATH;
+    const req = {
+        protocol: 'https',
+        headers: { host: 'wud.example.com' },
+    };
+    expect(configuration.getPublicUrl(req)).toStrictEqual(
+        'https://wud.example.com',
+    );
+});
+
+test('getPublicUrl should append basepath when configured', async () => {
+    delete configuration.wudEnvVars.WUD_PUBLIC_URL;
+    configuration.wudEnvVars.WUD_SERVER_BASEPATH = '/wud';
+    const req = {
+        protocol: 'https',
+        headers: { host: 'wud.example.com' },
+    };
+    expect(configuration.getPublicUrl(req)).toStrictEqual(
+        'https://wud.example.com/wud',
+    );
+});
+
+test('getPublicUrl should append basepath to WUD_PUBLIC_URL when both are configured', async () => {
+    configuration.wudEnvVars.WUD_PUBLIC_URL = 'https://wud.example.com/';
+    configuration.wudEnvVars.WUD_SERVER_BASEPATH = '/wud';
+    const req = {
+        protocol: 'https',
+        headers: { host: 'wud.example.com' },
+    };
+    expect(configuration.getPublicUrl(req)).toStrictEqual(
+        'https://wud.example.com/wud',
+    );
+    delete configuration.wudEnvVars.WUD_PUBLIC_URL;
+    delete configuration.wudEnvVars.WUD_SERVER_BASEPATH;
+});
+
 test('replaceSecrets must read secret in file', async () => {
     const vars = {
         WUD_SERVER_X__FILE: `${__dirname}/secret.txt`,
