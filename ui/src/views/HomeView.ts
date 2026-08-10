@@ -43,9 +43,11 @@ export default defineComponent({
           (container: any) => container.updateAvailable,
         ).length;
       });
-    } catch (e) {
-      next(() => {
-        console.log(e);
+    } catch (e: any) {
+      next((vm: any) => {
+        if (vm.eventBus) {
+          vm.eventBus.emit("notify", `Error when loading dashboard data (${e.message})`, "error");
+        }
       });
     }
   },

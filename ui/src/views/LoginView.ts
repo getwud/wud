@@ -87,8 +87,6 @@ export default defineComponent({
             `Error when trying to get the authentication strategies (${e.message})`,
             "error",
           );
-        } else {
-          console.error(`Error when trying to get the authentication strategies (${e.message})`);
         }
       });
     }
