@@ -36,6 +36,50 @@ describe('HTTP Trigger', () => {
         expect(() => http.validateConfiguration(config)).toThrow();
     });
 
+    test('should mask sensitive configuration data', async () => {
+        http.configuration = {
+            url: 'https://example.com/hooks/http-url-canary',
+            auth: {
+                type: 'BEARER',
+                user: 'http-user-canary',
+                password: 'http-password-canary',
+                bearer: 'http-bearer-canary',
+            },
+            proxy: 'https://http-proxy-canary@example.com:8080',
+        };
+
+        const masked = http.maskConfiguration();
+
+        expect(masked).toEqual({
+            url: Http.mask(http.configuration.url),
+            auth: {
+                type: 'BEARER',
+                user: Http.mask(http.configuration.auth.user),
+                password: Http.mask(http.configuration.auth.password),
+                bearer: Http.mask(http.configuration.auth.bearer),
+            },
+            proxy: Http.mask(http.configuration.proxy),
+        });
+        const serialized = JSON.stringify(masked);
+        expect(serialized).not.toContain('http-url-canary');
+        expect(serialized).not.toContain('http-user-canary');
+        expect(serialized).not.toContain('http-password-canary');
+        expect(serialized).not.toContain('http-bearer-canary');
+        expect(serialized).not.toContain('http-proxy-canary');
+    });
+
+    test('should mask configuration without optional authentication', async () => {
+        http.configuration = {
+            url: 'https://example.com/hooks/secret',
+        };
+
+        expect(http.maskConfiguration()).toEqual({
+            url: Http.mask(http.configuration.url),
+            auth: undefined,
+            proxy: undefined,
+        });
+    });
+
     test('should trigger with container', async () => {
         const { default: axios } = await import('axios');
         axios.mockResolvedValue({ data: {} });
