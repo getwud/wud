@@ -596,7 +596,7 @@ describe('Docker Watcher', () => {
             const container = {
                 image: {
                     registry: { name: 'hub' },
-                    tag: { value: '1.0.0' },
+                    tag: { value: '1.0.0', semver: true },
                     digest: { watch: false },
                 },
             };
@@ -804,7 +804,7 @@ describe('Docker Watcher', () => {
                     id: 'image123',
                     registry: { name: 'ghcr' },
                     name: 'tricked-dev/kanidm-oauth2-manager',
-                    tag: { value: 'latest' },
+                    tag: { value: 'latest', semver: false },
                     architecture: 'arm64',
                     os: 'linux',
                     digest: { watch: true, repo: arm64ManifestDigest },
@@ -817,6 +817,7 @@ describe('Docker Watcher', () => {
 
             const result = await docker.findNewVersion(container, mockLogChild);
 
+            expect(ghcrRegistry.getTags).not.toHaveBeenCalled();
             expect(result.digest).toBe(arm64ManifestDigest);
             expect(container.image.digest.value).toBe(arm64ManifestDigest);
             expect(container.image.digest.value).toBe(result.digest);
