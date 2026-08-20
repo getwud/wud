@@ -482,24 +482,38 @@ describe('Docker Watcher', () => {
             expect(event.emitContainerReport).toHaveBeenCalled();
         });
 
-        test('should handle container processing error', async () => {
-            const container = { id: 'test123', name: 'test' };
+        test('should preserve previous result across errors and replace it on recovery', async () => {
+            const previousResult = { tag: '2.0.0' };
+            const container = {
+                id: 'test123',
+                name: 'test',
+                result: previousResult,
+            };
             const mockLogChild = { warn: jest.fn(), debug: jest.fn() };
             const mockLog = { child: jest.fn().mockReturnValue(mockLogChild) };
             docker.log = mockLog;
             docker.findNewVersion = jest
                 .fn()
-                .mockRejectedValue(new Error('Registry error'));
+                .mockRejectedValueOnce(new Error('Registry error'))
+                .mockRejectedValueOnce(new Error('Registry error'))
+                .mockResolvedValueOnce({ tag: '3.0.0' });
             docker.mapContainerToContainerReport = jest
                 .fn()
                 .mockReturnValue({ container, changed: false });
 
             await docker.watchContainer(container);
-
-            expect(mockLogChild.warn).toHaveBeenCalledWith(
-                expect.stringContaining('Registry error'),
-            );
+            expect(container.result).toBe(previousResult);
             expect(container.error).toEqual({ message: 'Registry error' });
+
+            await docker.watchContainer(container);
+            expect(container.result).toBe(previousResult);
+            expect(container.error).toEqual({ message: 'Registry error' });
+
+            await docker.watchContainer(container);
+
+            expect(mockLogChild.warn).toHaveBeenCalledTimes(2);
+            expect(container.result).toEqual({ tag: '3.0.0' });
+            expect(container.error).toBeUndefined();
         });
     });
 
@@ -892,11 +906,15 @@ describe('Docker Watcher', () => {
     });
 
     describe('Container Details', () => {
-        test('should return existing container from store', async () => {
+        test('should return existing errored container from store', async () => {
             await docker.register('watcher', 'docker', 'test', {});
             const mockLog = { debug: jest.fn() };
             docker.log = mockLog;
-            const existingContainer = { id: '123', error: undefined };
+            const existingContainer = {
+                id: '123',
+                result: { tag: '2.0.0' },
+                error: { message: 'Registry error' },
+            };
             storeContainer.getContainer.mockReturnValue(existingContainer);
 
             const result = await docker.addImageDetailsToContainer({
@@ -904,6 +922,7 @@ describe('Docker Watcher', () => {
             });
 
             expect(result).toBe(existingContainer);
+            expect(mockDockerApi.getImage).not.toHaveBeenCalled();
         });
 
         test('should add image details to new container', async () => {

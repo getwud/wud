@@ -549,8 +549,7 @@ export class Docker extends Watcher {
         const logContainer = this.log.child({ container: fullName(container) });
         const containerWithResult = container;
 
-        // Reset previous results if so
-        delete containerWithResult.result;
+        // Reset previous error if so
         delete containerWithResult.error;
         logContainer.debug('Start watching');
 
@@ -754,10 +753,7 @@ export class Docker extends Watcher {
 
         // Is container already in store? just return it :)
         const containerInStore = storeContainer.getContainer(containerId);
-        if (
-            containerInStore !== undefined &&
-            containerInStore.error === undefined
-        ) {
+        if (containerInStore !== undefined) {
             this.log.debug(`Container ${containerInStore.id} already in store`);
             return containerInStore;
         }
