@@ -482,38 +482,123 @@ describe('Docker Watcher', () => {
             expect(event.emitContainerReport).toHaveBeenCalled();
         });
 
-        test('should preserve previous result across errors and replace it on recovery', async () => {
+        test('should persist the previous result across errors and replace it on recovery', async () => {
             const previousResult = { tag: '2.0.0' };
-            const container = {
+            let persistedContainer = {
                 id: 'test123',
                 name: 'test',
+                status: 'running',
+                watcher: 'docker.test',
+                image: {
+                    id: 'image123',
+                    registry: { name: 'ghcr.old', url: 'ghcr.io' },
+                    name: 'library/nginx',
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
                 result: previousResult,
             };
             const mockLogChild = { warn: jest.fn(), debug: jest.fn() };
-            const mockLog = { child: jest.fn().mockReturnValue(mockLogChild) };
+            const mockLog = {
+                child: jest.fn().mockReturnValue(mockLogChild),
+                debug: jest.fn(),
+            };
+            await docker.register('watcher', 'docker', 'test', {});
             docker.log = mockLog;
+
+            const asModel = (container) => ({
+                ...container,
+                result: container.result && { ...container.result },
+                error: container.error && { ...container.error },
+                updateAvailable:
+                    container.result?.tag !== container.image.tag.value,
+                resultChanged: (otherContainer) =>
+                    container.result?.tag !== otherContainer?.result?.tag,
+            });
+            storeContainer.getContainer.mockImplementation(() =>
+                asModel(persistedContainer),
+            );
+            storeContainer.updateContainer.mockImplementation((container) => {
+                persistedContainer = asModel(container);
+                return asModel(persistedContainer);
+            });
+
+            mockImage.inspect.mockResolvedValue({
+                Id: 'image123',
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+                RepoDigests: ['ghcr.io/library/nginx@sha256:abc123'],
+            });
+            mockParse.mockReturnValue({
+                domain: 'ghcr.io',
+                path: 'library/nginx',
+                tag: '1.0.0',
+            });
+            const mockRegistry = {
+                normalizeImage: jest.fn((image) => image),
+                getId: () => 'ghcr.new',
+                match: () => true,
+                shouldWatchDigest: jest.fn(() => false),
+            };
+            registry.getState.mockReturnValue({
+                registry: { ghcr: mockRegistry },
+            });
+            docker.normalizeContainer = jest.fn((container) =>
+                asModel({
+                    ...container,
+                    image: {
+                        ...container.image,
+                        registry: {
+                            ...container.image.registry,
+                            name: mockRegistry.getId(),
+                        },
+                    },
+                }),
+            );
             docker.findNewVersion = jest
                 .fn()
                 .mockRejectedValueOnce(new Error('Registry error'))
                 .mockRejectedValueOnce(new Error('Registry error'))
                 .mockResolvedValueOnce({ tag: '3.0.0' });
-            docker.mapContainerToContainerReport = jest
-                .fn()
-                .mockReturnValue({ container, changed: false });
 
-            await docker.watchContainer(container);
-            expect(container.result).toBe(previousResult);
-            expect(container.error).toEqual({ message: 'Registry error' });
+            const runningContainer = {
+                Id: 'test123',
+                Image: 'ghcr.io/library/nginx:1.0.0',
+                Names: ['/test'],
+                State: 'running',
+                Labels: {},
+            };
+            const scan = async () => {
+                const container =
+                    await docker.addImageDetailsToContainer(runningContainer);
+                return docker.watchContainer(container);
+            };
 
-            await docker.watchContainer(container);
-            expect(container.result).toBe(previousResult);
-            expect(container.error).toEqual({ message: 'Registry error' });
+            const firstReport = await scan();
+            expect(firstReport.container.result).toEqual(previousResult);
+            expect(firstReport.container.error).toEqual({
+                message: 'Registry error',
+            });
+            expect(firstReport.changed).toBe(false);
 
-            await docker.watchContainer(container);
+            const secondReport = await scan();
+            expect(secondReport.container.result).toEqual(previousResult);
+            expect(secondReport.container.error).toEqual({
+                message: 'Registry error',
+            });
+            expect(secondReport.container.image.registry.name).toBe('ghcr.new');
+            expect(secondReport.changed).toBe(false);
+
+            const recoveredReport = await scan();
 
             expect(mockLogChild.warn).toHaveBeenCalledTimes(2);
-            expect(container.result).toEqual({ tag: '3.0.0' });
-            expect(container.error).toBeUndefined();
+            expect(mockImage.inspect).toHaveBeenCalledTimes(2);
+            expect(recoveredReport.container.result).toEqual({ tag: '3.0.0' });
+            expect(recoveredReport.container.error).toBeUndefined();
+            expect(recoveredReport.changed).toBe(true);
         });
     });
 
@@ -906,14 +991,14 @@ describe('Docker Watcher', () => {
     });
 
     describe('Container Details', () => {
-        test('should return existing errored container from store', async () => {
+        test('should return existing successful container from store', async () => {
             await docker.register('watcher', 'docker', 'test', {});
             const mockLog = { debug: jest.fn() };
             docker.log = mockLog;
             const existingContainer = {
                 id: '123',
                 result: { tag: '2.0.0' },
-                error: { message: 'Registry error' },
+                error: undefined,
             };
             storeContainer.getContainer.mockReturnValue(existingContainer);
 

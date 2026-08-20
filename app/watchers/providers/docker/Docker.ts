@@ -753,7 +753,10 @@ export class Docker extends Watcher {
 
         // Is container already in store? just return it :)
         const containerInStore = storeContainer.getContainer(containerId);
-        if (containerInStore !== undefined) {
+        if (
+            containerInStore !== undefined &&
+            containerInStore.error === undefined
+        ) {
             this.log.debug(`Container ${containerInStore.id} already in store`);
             return containerInStore;
         }
@@ -848,7 +851,7 @@ export class Docker extends Watcher {
                 created,
             },
             labels: container.Labels,
-            result: {
+            result: containerInStore?.result ?? {
                 tag: tagName,
             },
             updateAvailable: false,
