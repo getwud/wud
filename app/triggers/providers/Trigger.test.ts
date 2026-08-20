@@ -105,6 +105,15 @@ const handleContainerReportTestCases = [
         updateAvailable: false,
         semverDiff: 'major',
     },
+    {
+        shouldTrigger: false,
+        threshold: 'all',
+        once: false,
+        changed: false,
+        updateAvailable: true,
+        semverDiff: 'major',
+        error: { message: 'Registry error' },
+    },
 ];
 
 test.each(handleContainerReportTestCases)(
@@ -127,6 +136,7 @@ test.each(handleContainerReportTestCases)(
                     kind: 'tag',
                     semverDiff: item.semverDiff,
                 },
+                ...(item.error && { error: item.error }),
             },
         });
         if (item.shouldTrigger) {
@@ -205,6 +215,15 @@ const handleContainerReportsTestCases = [
         updateAvailable: false,
         semverDiff: 'major',
     },
+    {
+        shouldTrigger: false,
+        threshold: 'all',
+        once: false,
+        changed: false,
+        updateAvailable: true,
+        semverDiff: 'major',
+        error: { message: 'Registry error' },
+    },
 ];
 
 test.each(handleContainerReportsTestCases)(
@@ -228,6 +247,7 @@ test.each(handleContainerReportsTestCases)(
                         kind: 'tag',
                         semverDiff: item.semverDiff,
                     },
+                    ...(item.error && { error: item.error }),
                 },
             },
         ]);

@@ -162,6 +162,7 @@ class Trigger extends Component {
         // Filter on changed containers with update available and passing trigger threshold
         if (
             (containerReport.changed || !this.configuration.once) &&
+            containerReport.container.error === undefined &&
             containerReport.container.updateAvailable
         ) {
             const logContainer =
@@ -221,6 +222,7 @@ class Trigger extends Component {
                 )
                 .filter(
                     (containerReport) =>
+                        containerReport.container.error === undefined &&
                         containerReport.container.updateAvailable,
                 )
                 .filter((containerReport) =>
