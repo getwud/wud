@@ -2,6 +2,7 @@
 
 ## next
 - :star: Skip tag listing for non-semver images
+- :fire: Fix login redirect issues when WUD exposed under a subpatch
 
 ## 8.3.1
 - :star: Add `WUD_REGISTRY_HUB_PUBLIC_SUPPRESSDIGESTWATCHWARNING` env var
