@@ -1,19 +1,22 @@
-# Quay
+# Quay (Red Hat Quay)
+
 ![logo](quay.png)
 
-The `quay` registry lets you configure [QUAY](https://quay.io/) integration.
+The `quay` registry module lets you authenticate against [Quay.io](https://quay.io/) and self-hosted Red Hat Quay registries.
+
+?> Public Quay images work out of the box without authentication. Configure this module to access private repositories.
 
 ### Variables
 
-| Env var                                       | Required       | Description    | Supported values | Default value when missing |
-| --------------------------------------------- |:--------------:| -------------- | ---------------- | -------------------------- | 
-| `WUD_REGISTRY_QUAY_{REGISTRY_NAME}_NAMESPACE` | :white_circle: | Quay namespace |                  |                            |
-| `WUD_REGISTRY_QUAY_{REGISTRY_NAME}_ACCOUNT`   | :white_circle: | Quay account   |                  |                            |
-| `WUD_REGISTRY_QUAY_{REGISTRY_NAME}_TOKEN`     | :white_circle: | Quay token     |                  |                            |
+| Env var                                       | Required       | Description                                  | Supported values | Default value when missing |
+| --------------------------------------------- |:--------------:| -------------------------------------------- | ---------------- | -------------------------- | 
+| `WUD_REGISTRY_QUAY_{registry_name}_NAMESPACE` | :white_circle: | Quay organization or user namespace          | String           |                            |
+| `WUD_REGISTRY_QUAY_{registry_name}_ACCOUNT`   | :white_circle: | Quay robot account name                      | String           |                            |
+| `WUD_REGISTRY_QUAY_{registry_name}_TOKEN`     | :white_circle: | Quay robot account token                     | String           |                            |
 
 ### Examples
 
-#### Configure to access private images
+#### Authenticate to access private images
 
 <!-- tabs:start -->
 #### **Docker Compose**
@@ -24,14 +27,14 @@ services:
     ...
     environment:
       - WUD_REGISTRY_QUAY_PRIVATE_NAMESPACE=mynamespace
-      - WUD_REGISTRY_QUAY_PRIVATE_ACCOUNT=myaccount
-      - WUD_REGISTRY_QUAY_PRIVATE_TOKEN=BA8JI3Y2BWQDH849RYT3YD5J0J6CYEORYTQMMJK364B4P88VPTJIAI704L0BBP8D6CYE4P88V 
+      - WUD_REGISTRY_QUAY_PRIVATE_ACCOUNT=myrobotaccount
+      - WUD_REGISTRY_QUAY_PRIVATE_TOKEN=BA8JI3Y2BWQDH849RYT3YD5J0J6CYEORYTQMMJK364B4P88VPTJIAI704L0BBP8D6CYE4P88V
 ```
 #### **Docker**
 ```bash
 docker run \
   -e WUD_REGISTRY_QUAY_PRIVATE_NAMESPACE="mynamespace" \
-  -e WUD_REGISTRY_QUAY_PRIVATE_ACCOUNT="myaccount" \
+  -e WUD_REGISTRY_QUAY_PRIVATE_ACCOUNT="myrobotaccount" \
   -e WUD_REGISTRY_QUAY_PRIVATE_TOKEN="BA8JI3Y2BWQDH849RYT3YD5J0J6CYEORYTQMMJK364B4P88VPTJIAI704L0BBP8D6CYE4P88V" \
   ...
   getwud/wud
@@ -39,13 +42,17 @@ docker run \
 <!-- tabs:end -->
 
 ### How to create a Quay.io robot account
-#### Go to your Quay.io settings and open the Robot Accounts tab
 
-#### Click on `Create Robot Account`
-Choose a name & create it
+#### 1. Open your Quay.io Organization or User settings and select "Robot Accounts"
+
+#### 2. Click "Create Robot Account"
+Choose a name and grant read permissions to the appropriate repositories.
 ![image](quay_01.png)
 
-#### Copy the part before the `+` sign and set it as the `namespace` env var
-#### Copy the part after  the `+` sign and set it as the `account` env var
-#### Copy the token value and set it as the `token` env var
+#### 3. Retrieve credentials and configure WUD
+Robot accounts follow the format `<namespace>+<account>`.
+- Set the portion before the `+` as `WUD_REGISTRY_QUAY_{registry_name}_NAMESPACE`
+- Set the portion after the `+` as `WUD_REGISTRY_QUAY_{registry_name}_ACCOUNT`
+- Set the generated token as `WUD_REGISTRY_QUAY_{registry_name}_TOKEN`
 ![image](quay_02.png)
+

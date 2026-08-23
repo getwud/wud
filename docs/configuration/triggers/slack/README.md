@@ -2,19 +2,19 @@
 
 ![logo](slack.png)
 
-The `slack` trigger lets you post image update notifications to a Slack channel.
+The `slack` trigger lets you post container update notifications to a Slack channel.
 
 ### Variables
 
-| Env var                                    | Required     | Description                      | Supported values | Default value when missing |
-| ------------------------------------------ |:------------:| -------------------------------- | ---------------- | -------------------------- |
-| `WUD_TRIGGER_SLACK_{trigger_name}_TOKEN`   | :red_circle: | The Oauth Token of the Slack app |                  |                            |
-| `WUD_TRIGGER_SLACK_{trigger_name}_CHANNEL` | :red_circle: | The name of the channel to post  |                  |                            |
-| `WUD_TRIGGER_SLACK_{trigger_name}_DISABLETITLE` | :white_circle: | Disable title to have full control over the message formatting | `true`, `false`| `false` |
+| Env var                                         | Required       | Description                                                               | Supported values | Default value when missing |
+| ----------------------------------------------- |:--------------:| ------------------------------------------------------------------------- | ---------------- | -------------------------- |
+| `WUD_TRIGGER_SLACK_{trigger_name}_TOKEN`        | :red_circle:   | Slack Bot / User OAuth token (e.g., `xoxb-...` or `xoxp-...`)             | String           |                            |
+| `WUD_TRIGGER_SLACK_{trigger_name}_CHANNEL`      | :red_circle:   | Target Slack channel name (without `#`) or channel ID                     | String           |                            |
+| `WUD_TRIGGER_SLACK_{trigger_name}_DISABLETITLE` | :white_circle: | Disable the default title heading to allow full custom message formatting | `true`, `false`  | `false`                    |
 
-!> The Slack channel must already exist on the workspace (the trigger won't automatically create it)
+!> The Slack channel must already exist on your workspace; WUD will not create it automatically.
 
-?> This trigger also supports the [common configuration variables](configuration/triggers/?id=common-trigger-configuration).
+?> This trigger also supports [common trigger configuration options](configuration/triggers/?id=common-trigger-configuration).
 
 ### Examples
 
@@ -27,17 +27,18 @@ services:
     image: getwud/wud
     ...
     environment:
-        - WUD_TRIGGER_SLACK_TEST_TOKEN=xoxp-743817063446-xxx
-        - WUD_TRIGGER_SLACK_TEST_CHANNEL=wud
+      - WUD_TRIGGER_SLACK_LOCAL_TOKEN=xoxb-123456789-abcdef
+      - WUD_TRIGGER_SLACK_LOCAL_CHANNEL=wud-notifications
 ```
 
 #### **Docker**
 
 ```bash
 docker run \
-    -e WUD_TRIGGER_SLACK_TEST_TOKEN="xoxp-743817063446-xxx" \
-    -e WUD_TRIGGER_SLACK_TEST_CHANNEL="wud" \
+  -e WUD_TRIGGER_SLACK_LOCAL_TOKEN="xoxb-123456789-abcdef" \
+  -e WUD_TRIGGER_SLACK_LOCAL_CHANNEL="wud-notifications" \
   ...
   getwud/wud
 ```
 <!-- tabs:end -->
+

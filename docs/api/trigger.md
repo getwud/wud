@@ -1,10 +1,10 @@
 # Trigger API
-This API allows to query the state of the triggers.
+This API allows you to query the state of configured triggers and test-run them.
 
-?> [Need to add a new Trigger?](/configuration/triggers/)
+?> [Need to configure triggers?](configuration/triggers/)
 
-## Get all Triggers
-This operation lets you get all the configured triggers.
+## Get all triggers
+This endpoint returns all configured triggers.
 
 ```bash
 curl http://wud:3000/api/triggers
@@ -26,8 +26,8 @@ curl http://wud:3000/api/triggers
 ]
 ```
 
-## Get a Trigger by id
-This operation lets you get a specific Trigger.
+## Get a trigger by ID
+This endpoint retrieves a specific trigger by its ID.
 
 ```bash
 curl http://wud:3000/api/triggers/smtp/gmail
@@ -47,10 +47,10 @@ curl http://wud:3000/api/triggers/smtp/gmail
 }
 ```
 
-## Running a trigger
-This operation lets you run a specific Trigger with simulated data.
+## Run a trigger
+This endpoint executes a specific trigger with simulated container update data.
 
 ```bash
 export CONTAINER='{"id":"123456789","name":"container_test","watcher":"watcher_test","updateKind":{"kind":"tag","semverDiff":"patch","localValue":"1.2.3","remoteValue":"1.2.4","result":{"link":"https://my-container/release-notes/"}}}'
-curl -X POST -H "Content-Type: application/json" -d $CONTAINER http://wud:3000/api/triggers/smtp/gmail
+curl -X POST -H "Content-Type: application/json" -d "$CONTAINER" http://wud:3000/api/triggers/smtp/gmail
 ```

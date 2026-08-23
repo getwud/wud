@@ -1,47 +1,46 @@
 # Triggers
 
-Triggers are responsible for performing actions when a new container version is found.
+Triggers perform automated actions (such as sending notifications or executing updates) whenever a new container version is discovered.
   
-Triggers are enabled using environment variables.
+Triggers are configured using environment variables following this naming pattern:
 
 ```bash
-WUD_TRIGGER_{{ trigger_type }}_{{trigger_name }}_{{ trigger_configuration_item }}=XXX
+WUD_TRIGGER_{trigger_type}_{trigger_name}_{configuration_item}=value
 ```
 
-!> Multiple triggers of the same type can be configured (for example multiple Smtp addresses).  
-You just need to give them different names.
+!> You can configure multiple triggers of the same type (for example, multiple SMTP destinations). Simply assign each one a distinct trigger name.
 
-?> See the _Triggers_ subsection to discover which triggers are implemented and how to use them.
+?> Check the individual trigger pages in the sidebar to see configuration details and examples for each supported service.
 
-### Common trigger configuration
-All implemented triggers, in addition to their specific configuration, also support the following common configuration variables.
+### Common Trigger Configuration
+In addition to provider-specific settings, all triggers support the following common configuration variables:
 
 | Env var                                                 |    Required    | Description                                                                                   | Supported values                                                                                                        | Default value when missing                                                                                                                                                                          |
 |---------------------------------------------------------|:--------------:|-----------------------------------------------------------------------------------------------|----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `WUD_TRIGGER_{trigger_type}_{trigger_name}_AUTO`        | :white_circle: | `true` to automatically execute the trigger. `false` to manually execute it (from UI, API...) | `true`, `false`                              | `true`                                                                                                                                                                                                                                                                         |
-| `WUD_TRIGGER_{trigger_type}_{trigger_name}_BATCHTITLE`  | :white_circle: | The template to use to render the title of the notification (batch mode)                      | String template with placeholders `${count}` | `${containers.length} updates available`                                                                                                                                                                                                                                       |
-| `WUD_TRIGGER_{trigger_type}_{trigger_name}_INCLUDEBYDEFAULT` | :white_circle: | `true` to associate the trigger with containers that do not define `wud.trigger.include`. `false` to require explicit inclusion with `wud.trigger.include` | `true`, `false` | `true` |
-| `WUD_TRIGGER_{trigger_type}_{trigger_name}_MODE`        | :white_circle: | Trigger for each container update or trigger once with all available updates as a list        | `simple`, `batch`                            | `simple`                                                                                                                                                                                                                                                                       |
-| `WUD_TRIGGER_{trigger_type}_{trigger_name}_ONCE`        | :white_circle: | Run trigger once (do not repeat previous results)                                             | `true`, `false`                              | `true`                                                                                                                                                                                                                                                                         |
-| `WUD_TRIGGER_{trigger_type}_{trigger_name}_SIMPLEBODY`  | :white_circle: | The template to use to render the body of the notification                                    | JS string template with vars `container`     | `Container ${container.name} running with ${container.updateKind.kind} ${container.updateKind.localValue} can be updated to ${container.updateKind.kind} ${container.updateKind.remoteValue}${container.result && container.result.link ? "\\n" + container.result.link : ""}` |
-| `WUD_TRIGGER_{trigger_type}_{trigger_name}_SIMPLETITLE` | :white_circle: | The template to use to render the title of the notification (simple mode)                     | JS string template with vars `${containers}` | `New ${container.updateKind.kind} found for container ${container.name}`                                                                                                                                                                                                       |
-| `WUD_TRIGGER_{trigger_type}_{trigger_name}_THRESHOLD`   | :white_circle: | The threshold to reach to run the trigger                                                     | `all`, `major`, `major-only`, `minor`, `minor-only`, `patch`             | `all`                                                                                                                                                                                                                                                                          |
+| `WUD_TRIGGER_{trigger_type}_{trigger_name}_AUTO`        | :white_circle: | Whether to execute the trigger automatically (`false` requires manual execution via UI or API) | `true`, `false`                              | `true`                                                                                                                                                                                                                                                                         |
+| `WUD_TRIGGER_{trigger_type}_{trigger_name}_BATCHTITLE`  | :white_circle: | Template used to render the notification title in batch mode                                  | String template with `${count}` placeholder  | `${containers.length} updates available`                                                                                                                                                                                                                                       |
+| `WUD_TRIGGER_{trigger_type}_{trigger_name}_INCLUDEBYDEFAULT` | :white_circle: | Associate trigger with all containers by default (`false` makes it opt-in via `wud.trigger.include`) | `true`, `false` | `true` |
+| `WUD_TRIGGER_{trigger_type}_{trigger_name}_MODE`        | :white_circle: | Execution mode: trigger individually per container or batch all available updates into a single notification | `simple`, `batch`                            | `simple`                                                                                                                                                                                                                                                                       |
+| `WUD_TRIGGER_{trigger_type}_{trigger_name}_ONCE`        | :white_circle: | Execute trigger only once per detected update (prevents duplicate alerts on consecutive runs)  | `true`, `false`                              | `true`                                                                                                                                                                                                                                                                         |
+| `WUD_TRIGGER_{trigger_type}_{trigger_name}_SIMPLEBODY`  | :white_circle: | Template used to render the notification body in simple mode                                  | JS string template with `container` object   | `Container ${container.name} running with ${container.updateKind.kind} ${container.updateKind.localValue} can be updated to ${container.updateKind.kind} ${container.updateKind.remoteValue}${container.result && container.result.link ? "\\n" + container.result.link : ""}` |
+| `WUD_TRIGGER_{trigger_type}_{trigger_name}_SIMPLETITLE` | :white_circle: | Template used to render the notification title in simple mode                                 | JS string template with `container` object   | `New ${container.updateKind.kind} found for container ${container.name}`                                                                                                                                                                                                       |
+| `WUD_TRIGGER_{trigger_type}_{trigger_name}_THRESHOLD`   | :white_circle: | Minimum semver version bump required to fire the trigger                                      | `all`, `major`, `major-only`, `minor`, `minor-only`, `patch` | `all`                                                                                                                                                                                                                                                                          |
 
-?> Threshold `all` means that the trigger will run regardless of the nature of the change
+?> Threshold `all`: Executes the trigger for all update types (including digests).
 
-?> Threshold `major` means that the trigger will run only if this is a `major`, `minor` or `patch` semver change 
+?> Threshold `major`: Executes the trigger for `major`, `minor`, or `patch` semver updates.
 
-?> Threshold `major-only` means that the trigger will run only if this is a `major` semver change
+?> Threshold `major-only`: Executes the trigger only for `major` semver updates.
 
-?> Threshold `minor` means that the trigger will run only if this is a `minor` or `patch` semver change
+?> Threshold `minor`: Executes the trigger for `minor` or `patch` semver updates.
 
-?> Threshold `minor-only` means that the trigger will run only if this is a `minor` semver change
+?> Threshold `minor-only`: Executes the trigger only for `minor` semver updates.
 
-?> Threshold `patch` means that the trigger will run only if this is a `patch` semver change
+?> Threshold `patch`: Executes the trigger only for `patch` semver updates.
 
-?> `WUD_TRIGGER_{trigger_type}_{trigger_name}_ONCE=false` can be useful when `WUD_TRIGGER_{trigger_type}_{trigger_name}_MODE=batch` to get a report with all pending updates.
+?> Setting `ONCE=false` combined with `MODE=batch` is useful for generating periodic summary digests of all available pending updates.
 
-?> `WUD_TRIGGER_{trigger_type}_{trigger_name}_INCLUDEBYDEFAULT=false` makes a trigger opt-in: the trigger will only be associated with containers explicitly listing it in `wud.trigger.include`.
+?> Setting `INCLUDEBYDEFAULT=false` creates an opt-in trigger that only fires for containers explicitly listing it in their `wud.trigger.include` label.
 
 ### Examples
 
@@ -54,14 +53,15 @@ services:
     ...
     environment:
       - WUD_TRIGGER_SMTP_GMAIL_SIMPLETITLE=Container $${container.name} can be updated
-      - WUD_TRIGGER_SMTP_GMAIL_SIMPLEBODY=Container $${name} can be updated from $${local.substring(0, 15)} to $${remote.substring(0, 15)}
+      - WUD_TRIGGER_SMTP_GMAIL_SIMPLEBODY=Container $${container.name} can be updated from $${container.updateKind.localValue} to $${container.updateKind.remoteValue}
 ```
 #### **Docker**
 ```bash
 docker run \
   -e 'WUD_TRIGGER_SMTP_GMAIL_SIMPLETITLE=Container ${container.name} can be updated' \
-  -e 'WUD_TRIGGER_SMTP_GMAIL_SIMPLEBODY=Container ${name} can be updated from ${local.substring(0, 15)} to ${remote.substring(0, 15)}'
+  -e 'WUD_TRIGGER_SMTP_GMAIL_SIMPLEBODY=Container ${container.name} can be updated from ${container.updateKind.localValue} to ${container.updateKind.remoteValue}' \
   ...
   getwud/wud
 ```
 <!-- tabs:end -->
+

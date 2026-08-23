@@ -1,4 +1,5 @@
 # Apprise
+
 ![logo](apprise.png)
 
 The `apprise` trigger lets you send container update notifications via the [Apprise API](https://github.com/caronc/apprise-api).
@@ -7,16 +8,16 @@ The `apprise` trigger lets you send container update notifications via the [Appr
 
 | Env var                                     |    Required    | Description                                                             | Supported values                                                                                                           | Default value when missing |
 |---------------------------------------------|:--------------:|-------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------|----------------------------| 
-| `WUD_TRIGGER_APPRISE_{trigger_name}_URL`    | :red_circle:   | The Base URL of the Apprise API                                         |                                                                                                                            |                            |
-| `WUD_TRIGGER_APPRISE_{trigger_name}_URLS`   | :white_circle: | The comma separated list of Apprise service urls                        | [See the list of the supported Apprise notification URLs](https://github.com/caronc/apprise#popular-notification-services) |                            |
-| `WUD_TRIGGER_APPRISE_{trigger_name}_CONFIG` | :white_circle: | The name of an Apprise yaml configuration                               | [See Apprise persistent configuration documentation](https://github.com/caronc/apprise/wiki/config_yaml)                   |                            |
-| `WUD_TRIGGER_APPRISE_{trigger_name}_TAG`    | :white_circle: | The optional tags(s) to expand when using an Apprise yaml configuration | [See Apprise persistent configuration documentation](https://github.com/caronc/apprise/wiki/config_yaml)                   |                            |
+| `WUD_TRIGGER_APPRISE_{trigger_name}_URL`    | :red_circle:   | Base URL of the Apprise API server                                      | Valid HTTP/HTTPS URL                                                                                                       |                            |
+| `WUD_TRIGGER_APPRISE_{trigger_name}_URLS`   | :white_circle: | Comma-separated list of Apprise service notification URLs               | [Supported Apprise notification URLs](https://github.com/caronc/apprise#popular-notification-services)                     |                            |
+| `WUD_TRIGGER_APPRISE_{trigger_name}_CONFIG` | :white_circle: | Name of an Apprise YAML configuration file                              | [Apprise persistent configuration documentation](https://github.com/caronc/apprise/wiki/config_yaml)                      |                            |
+| `WUD_TRIGGER_APPRISE_{trigger_name}_TAG`    | :white_circle: | Optional tag(s) to match when using an Apprise YAML configuration       | [Apprise persistent configuration documentation](https://github.com/caronc/apprise/wiki/config_yaml)                      |                            |
 
-?> This trigger also supports the [common configuration variables](configuration/triggers/?id=common-trigger-configuration).
+?> This trigger also supports [common trigger configuration options](configuration/triggers/?id=common-trigger-configuration).
 
 ### Examples
 
-#### Send a Mail & an SMS
+#### Send an email and an SMS
 
 <!-- tabs:start -->
 #### **Docker Compose**
@@ -41,13 +42,15 @@ docker run \
 
 #### Use a persistent YAML configuration
 
-Declare a YAML Apprise configuration ([see here](https://github.com/caronc/apprise/wiki/config_yaml)) ; let's call it `wud.yml` for example.
+Declare an Apprise YAML configuration ([see docs](https://github.com/caronc/apprise/wiki/config_yaml)), such as `wud.yml`:
+
 ```yaml
 # wud.yml example
 urls:
   - tgram://{bot_token}/{chat_id}:
     - tag: devops
 ```
+
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
@@ -57,24 +60,24 @@ services:
     ...
     environment:
       - WUD_TRIGGER_APPRISE_LOCAL_URL=http://apprise:8000
-      - WUD_TRIGGER_APPRISE_LOCAL_CONFIG=wud # the name of the yaml config file
-      - WUD_TRIGGER_APPRISE_LOCAL_TAG=devops # the tags to use with the config (optional)
+      - WUD_TRIGGER_APPRISE_LOCAL_CONFIG=wud # name of the YAML config file
+      - WUD_TRIGGER_APPRISE_LOCAL_TAG=devops # tag filter for the config (optional)
 ```
 #### **Docker**
 ```bash
 docker run \
   -e WUD_TRIGGER_APPRISE_LOCAL_URL="http://apprise:8000" \
   -e WUD_TRIGGER_APPRISE_LOCAL_CONFIG="wud" \
-  -e WUD_TRIGGER_APPRISE_LOCAL_TAG="devops" \  
+  -e WUD_TRIGGER_APPRISE_LOCAL_TAG="devops" \
   ...
   getwud/wud
 ```
 <!-- tabs:end -->
 
-### How to run the Apprise API?
-Just run the official [Apprise Docker image](https://hub.docker.com/r/caronc/apprise).
+### How to run the Apprise API server
+Run the official [Apprise Docker image](https://hub.docker.com/r/caronc/apprise).
 
-For more information, check out the [official Apprise API documentation](https://github.com/caronc/apprise-api). 
+For more details, see the [official Apprise API documentation](https://github.com/caronc/apprise-api).
 
 <!-- tabs:start -->
 #### **Docker Compose**

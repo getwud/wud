@@ -1,14 +1,15 @@
 # Authentication
   
-WUD allows `Anonymous` access by default.
+WUD allows anonymous access by default.
 
-You can enable 1 or multiple authentication strategies using `WUD_AUTH_*` env vars.
+You can enable one or more authentication strategies using `WUD_AUTH_*` environment variables.
 
-!> Please pay attention that all API routes & all UI views will be authenticated.
+!> Note that when enabled, all API routes and UI views require authentication.
 
 Currently, the following strategies are supported:
 
-?> [**Basic**](configuration/authentications/basic/)
+?> [**Basic Authentication**](configuration/authentications/basic/)
 
-?> [**Openid Connect**](configuration/authentications/oidc/)
+?> [**OpenID Connect (OIDC)**](configuration/authentications/oidc/)
+
 

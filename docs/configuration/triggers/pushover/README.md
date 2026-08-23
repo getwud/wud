@@ -1,29 +1,29 @@
 # Pushover
+
 ![logo](pushover.png)
 
-The `pushover` trigger lets you send realtime notifications to your devices (Android, iPhone...) using the [Pushover Service](https://pushover.net/).
+The `pushover` trigger lets you send real-time container update notifications to mobile devices and desktops using the [Pushover](https://pushover.net/) push notification service.
 
 ### Variables
 
 | Env var                                        | Required       | Description                                                          | Supported values                                                                                   | Default value when missing  |
 |------------------------------------------------|:--------------:|----------------------------------------------------------------------| -------------------------------------------------------------------------------------------------- |-----------------------------| 
-| `WUD_TRIGGER_PUSHOVER_{trigger_name}_DEVICE`   | :white_circle: | Optional device(s) to notify                                         | Coma separated list of devices (e.g. dev1,dev2) ([see here](https://pushover.net/api#identifiers)) |                             |
-| `WUD_TRIGGER_PUSHOVER_{trigger_name}_EXPIRE`   | :white_circle: | Optional notification expire in seconds (only when priority=2)       | [see here](https://pushover.net/api#priority)                                                      |                             |
-| `WUD_TRIGGER_PUSHOVER_{trigger_name}_HTML`     | :white_circle: | Allow HTML formatting in message body (supported in Pushover 2.3+)   | [see here](https://pushover.net/api#html)                                                          | `0`                         |
-| `WUD_TRIGGER_PUSHOVER_{trigger_name}_PRIORITY` | :white_circle: | The notification priority                                            | [see here](https://pushover.net/api#priority)                                                      | `0`                         |
-| `WUD_TRIGGER_PUSHOVER_{trigger_name}_RETRY`    | :white_circle: | Optional notification retry in seconds (only when priority=2)        | [see here](https://pushover.net/api#priority)                                                      |                             |
-| `WUD_TRIGGER_PUSHOVER_{trigger_name}_SOUND`    | :white_circle: | The notification sound                                               | [see here](https://pushover.net/api#sounds)                                                        | `pushover`                  |
-| `WUD_TRIGGER_PUSHOVER_{trigger_name}_TOKEN`    | :red_circle:   | The API token                                                        |                                                                                                    |                             |
-| `WUD_TRIGGER_PUSHOVER_{trigger_name}_TTL`      | :white_circle: | Optional message time to live (in seconds)                           | [see here](https://pushover.net/api#ttl)                                                           |                             |
-| `WUD_TRIGGER_PUSHOVER_{trigger_name}_USER`     | :red_circle:   | The User key                                                         |                                                                                                    |                             |
+| `WUD_TRIGGER_PUSHOVER_{trigger_name}_USER`     | :red_circle:   | Pushover User Key (or Group Key)                                     | String                                                                                             |                             |
+| `WUD_TRIGGER_PUSHOVER_{trigger_name}_TOKEN`    | :red_circle:   | Pushover Application API token                                       | String                                                                                             |                             |
+| `WUD_TRIGGER_PUSHOVER_{trigger_name}_DEVICE`   | :white_circle: | Target device name(s) (comma-separated, e.g., `dev1,dev2`)           | [Pushover device identifiers](https://pushover.net/api#identifiers)                                |                             |
+| `WUD_TRIGGER_PUSHOVER_{trigger_name}_PRIORITY` | :white_circle: | Notification priority level (`-2` to `2`)                            | [Pushover message priority](https://pushover.net/api#priority)                                      | `0`                         |
+| `WUD_TRIGGER_PUSHOVER_{trigger_name}_RETRY`    | :white_circle: | Notification retry interval in seconds (only when priority=`2`)      | Integer (minimum 30) [see docs](https://pushover.net/api#priority)                                 |                             |
+| `WUD_TRIGGER_PUSHOVER_{trigger_name}_EXPIRE`   | :white_circle: | Notification expiration time in seconds (only when priority=`2`)     | Integer (up to 86400) [see docs](https://pushover.net/api#priority)                                |                             |
+| `WUD_TRIGGER_PUSHOVER_{trigger_name}_SOUND`    | :white_circle: | Notification sound                                                   | [Supported Pushover sounds](https://pushover.net/api#sounds)                                       | `pushover`                  |
+| `WUD_TRIGGER_PUSHOVER_{trigger_name}_HTML`     | :white_circle: | Allow HTML formatting in message body                                | `1` (true), `0` (false) [see docs](https://pushover.net/api#html)                                  | `0`                         |
+| `WUD_TRIGGER_PUSHOVER_{trigger_name}_TTL`      | :white_circle: | Message Time to Live in seconds                                      | [Pushover TTL docs](https://pushover.net/api#ttl)                                                  |                             |
 
-
-?> This trigger also supports the [common configuration variables](configuration/triggers/?id=common-trigger-configuration).
+?> This trigger also supports [common trigger configuration options](configuration/triggers/?id=common-trigger-configuration).
 
 ### Examples
 
-#### Configuration
-##### Minimal
+#### Minimal configuration
+
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
@@ -32,21 +32,22 @@ services:
     image: getwud/wud
     ...
     environment:
-      - WUD_TRIGGER_PUSHOVER_1_TOKEN=*****************************
-      - WUD_TRIGGER_PUSHOVER_1_USER=******************************
+      - WUD_TRIGGER_PUSHOVER_1_USER=your_user_key
+      - WUD_TRIGGER_PUSHOVER_1_TOKEN=your_app_token
 ```
 
 #### **Docker**
 ```bash
 docker run \
-  -e WUD_TRIGGER_PUSHOVER_1_TOKEN="*****************************" \
-  -e WUD_TRIGGER_PUSHOVER_1_USER="******************************" \
+  -e WUD_TRIGGER_PUSHOVER_1_USER="your_user_key" \
+  -e WUD_TRIGGER_PUSHOVER_1_TOKEN="your_app_token" \
   ...
   getwud/wud
 ```
 <!-- tabs:end -->
 
-##### Full
+#### Advanced configuration (Emergency priority)
+
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
@@ -55,40 +56,42 @@ services:
     image: getwud/wud
     ...
     environment:
-        - WUD_TRIGGER_PUSHOVER_1_TOKEN=*****************************
-        - WUD_TRIGGER_PUSHOVER_1_USER=******************************
-        - WUD_TRIGGER_PUSHOVER_1_DEVICE=myIphone,mySamsung
-        - WUD_TRIGGER_PUSHOVER_1_SOUND=cosmic
-        - WUD_TRIGGER_PUSHOVER_1_PRIORITY=2
-        - WUD_TRIGGER_PUSHOVER_1_EXPIRE=600
-        - WUD_TRIGGER_PUSHOVER_1_RETRY=60
+      - WUD_TRIGGER_PUSHOVER_1_USER=your_user_key
+      - WUD_TRIGGER_PUSHOVER_1_TOKEN=your_app_token
+      - WUD_TRIGGER_PUSHOVER_1_DEVICE=myIphone,mySamsung
+      - WUD_TRIGGER_PUSHOVER_1_SOUND=cosmic
+      - WUD_TRIGGER_PUSHOVER_1_PRIORITY=2
+      - WUD_TRIGGER_PUSHOVER_1_EXPIRE=600
+      - WUD_TRIGGER_PUSHOVER_1_RETRY=60
 ```
 
 #### **Docker**
 ```bash
 docker run \
-    -e WUD_TRIGGER_PUSHOVER_1_TOKEN="*****************************" \
-    -e WUD_TRIGGER_PUSHOVER_1_USER="******************************" \
-    -e WUD_TRIGGER_PUSHOVER_1_DEVICE="myIphone,mySamsung" \
-    -e WUD_TRIGGER_PUSHOVER_1_SOUND="cosmic" \
-    -e WUD_TRIGGER_PUSHOVER_1_PRIORITY="2" \
-    -e WUD_TRIGGER_PUSHOVER_1_EXPIRE="600" \
-    -e WUD_TRIGGER_PUSHOVER_1_RETRY="60" \
+  -e WUD_TRIGGER_PUSHOVER_1_USER="your_user_key" \
+  -e WUD_TRIGGER_PUSHOVER_1_TOKEN="your_app_token" \
+  -e WUD_TRIGGER_PUSHOVER_1_DEVICE="myIphone,mySamsung" \
+  -e WUD_TRIGGER_PUSHOVER_1_SOUND="cosmic" \
+  -e WUD_TRIGGER_PUSHOVER_1_PRIORITY="2" \
+  -e WUD_TRIGGER_PUSHOVER_1_EXPIRE="600" \
+  -e WUD_TRIGGER_PUSHOVER_1_RETRY="60" \
   ...
   getwud/wud
 ```
 <!-- tabs:end -->
 
-### How to get the User key
-[Click here](https://pushover.net/settings)
+### How to get your Pushover credentials
 
-The key is printed under the section `Reset User Key`.
+#### 1. Copy your User Key
+Log in to your [Pushover Account Dashboard](https://pushover.net/). Your **User Key** is displayed in the top right corner.
 
-### How to get an API token
-#### Register a new application
-[Click here](https://pushover.net/apps/build)
+#### 2. Create an Application API Token
+Create a new application in the [Pushover Application Registration page](https://pushover.net/apps/build).
 
 ![image](pushover_register.png)
 
-#### Copy the API token
+#### 3. Copy the API Token
+Copy the generated API token from your newly created application.
+
 ![image](pushover_api_token.png)
+

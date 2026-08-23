@@ -1,21 +1,21 @@
-# GHCR (Gitlab Container Registry)
+# GitLab Container Registry
 
 ![logo](gitlab.png)
 
-The `gitlab` registry lets you configure [GITLAB](https://docs.gitlab.com/ee/user/packages/container_registry/) integration.
+The `gitlab` registry module lets you authenticate against the [GitLab Container Registry](https://docs.gitlab.com/ee/user/packages/container_registry/) (both gitlab.com and self-hosted instances).
 
 ### Variables
 
 | Env var                                        |    Required    | Description                                         | Supported values | Default value when missing  |
 | ---------------------------------------------- | :------------: | --------------------------------------------------- | ---------------- | --------------------------- |
-| `WUD_REGISTRY_GITLAB_{REGISTRY_NAME}_AUTHURL`  |  :red_circle:  | Gitlab Authentication base url                      |                  | https://gitlab.com          |
-| `WUD_REGISTRY_GITLAB_{REGISTRY_NAME}_TOKEN`    |  :red_circle:  | Gitlab Personal Access Token                        |                  |                             |
-| `WUD_REGISTRY_GITLAB_{REGISTRY_NAME}_USERNAME` | :white_circle: | Username to be used when using a group access token |                  |                             |
-| `WUD_REGISTRY_GITLAB_{REGISTRY_NAME}_URL`      |  :red_circle:  | Gitlab Registry base url                            |                  | https://registry.gitlab.com |
+| `WUD_REGISTRY_GITLAB_{registry_name}_AUTHURL`  | :white_circle: | GitLab authentication base URL                      | Valid URL        | `https://gitlab.com`        |
+| `WUD_REGISTRY_GITLAB_{registry_name}_TOKEN`    |  :red_circle:  | GitLab Personal Access Token or Deploy Token        | String           |                             |
+| `WUD_REGISTRY_GITLAB_{registry_name}_USERNAME` | :white_circle: | Username (required when using a Group Access Token or Deploy Token) | String |                             |
+| `WUD_REGISTRY_GITLAB_{registry_name}_URL`      | :white_circle: | GitLab Registry base URL                            | Valid URL        | `https://registry.gitlab.com` |
 
 ### Examples
 
-#### Configure to access images from gitlab.com
+#### Authenticate with gitlab.com
 
 <!-- tabs:start -->
 
@@ -27,21 +27,21 @@ services:
     image: getwud/wud
     ...
     environment:
-      - WUD_REGISTRY_GITLAB_PUBLIC_TOKEN=xxxxx
+      - WUD_REGISTRY_GITLAB_PUBLIC_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx
 ```
 
 #### **Docker**
 
 ```bash
 docker run \
-  -e WUD_REGISTRY_GITLAB_PUBLIC_TOKEN="xxxxx" \
+  -e WUD_REGISTRY_GITLAB_PUBLIC_TOKEN="glpat-xxxxxxxxxxxxxxxxxxxx" \
   ...
   getwud/wud
 ```
 
 <!-- tabs:end -->
 
-#### Configure to access images from self hosted gitlab instance
+#### Authenticate with a self-hosted GitLab instance
 
 <!-- tabs:start -->
 
@@ -53,35 +53,33 @@ services:
     image: getwud/wud
     ...
     environment:
-      - WUD_REGISTRY_GITLAB_PRIVATE_URL=https://registry.mygitlab.acme.com
-      - WUD_REGISTRY_GITLAB_PRIVATE_AUTHURL=https://mygitlab.acme.com
-      - WUD_REGISTRY_GITLAB_PRIVATE_TOKEN=xxxxx
+      - WUD_REGISTRY_GITLAB_PRIVATE_URL=https://registry.gitlab.example.com
+      - WUD_REGISTRY_GITLAB_PRIVATE_AUTHURL=https://gitlab.example.com
+      - WUD_REGISTRY_GITLAB_PRIVATE_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx
 ```
 
 #### **Docker**
 
 ```bash
 docker run \
-  -e WUD_REGISTRY_GITLAB_PRIVATE_URL="https://registry.mygitlab.acme.com"
-  -e WUD_REGISTRY_GITLAB_PRIVATE_AUTHURL="https://mygitlab.acme.com"
-  -e WUD_REGISTRY_GITLAB_PRIVATE_TOKEN="xxxxx" \
+  -e WUD_REGISTRY_GITLAB_PRIVATE_URL="https://registry.gitlab.example.com" \
+  -e WUD_REGISTRY_GITLAB_PRIVATE_AUTHURL="https://gitlab.example.com" \
+  -e WUD_REGISTRY_GITLAB_PRIVATE_TOKEN="glpat-xxxxxxxxxxxxxxxxxxxx" \
   ...
   getwud/wud
 ```
 
 <!-- tabs:end -->
 
-### How to create a Gitlab Personal Access Token
+### How to create a GitLab Personal Access Token
 
-#### Go to your Gitlab settings and open the Personal Access Token page
+#### 1. Open your GitLab Personal Access Tokens page
+Navigate to [GitLab Personal Access Tokens](https://gitlab.com/-/profile/personal_access_tokens).
 
-[Click here](https://gitlab.com/-/profile/personal_access_tokens)
-
-#### Enter the details of the token to be created
-
-Choose an expiration time & appropriate scopes (`read_registry` is only needed for wud) and generate.
+#### 2. Create the token
+Set an expiration date and select the `read_registry` scope (the only scope required by WUD).
 ![image](gitlab_01.png)
 
-#### Copy the token & use it as the WUD_REGISTRY_GITLAB_TOKEN value
-
+#### 3. Copy the token and configure WUD
 ![image](gitlab_02.png)
+

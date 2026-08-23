@@ -5,56 +5,54 @@
 
 ## WUD <small>(aka ***What's up Docker?***)</small>
 
-Keep your containers up-to-date!
+Keep your containers up to date!
 
 #### Overview
 
-`WATCHERS` scan Docker hosts to discover containers to watch
+`WATCHERS` scan Docker hosts to discover containers to monitor.
 
-`REGISTRIES` query remote Docker registries to find update candidates
+`REGISTRIES` query remote Docker registries to find candidate updates.
 
-`TRIGGERS` perform actions when updates are available
+`TRIGGERS` execute actions when updates are available.
 
 ![image](assets/wud-arch.png)
 
 ## Supported triggers
 
-Many triggers are supported.
+A wide range of triggers are supported:
 
-Some are intended to notify (mail, notification...).
+- **Notifications**: Send alerts via email, mobile push notifications, chat services, and more.
+- **Container updates**: Automatically update containers (Docker, Docker Compose, Nomad...).
+- **Custom automation**: Trigger arbitrary actions via scripts, HTTP webhooks, message queues (MQTT, Kafka), and more.
 
-Some are intended to update the containers (docker-compose...).
-
-Some are intended to do whatever you want (script, webhook, messaging...).
-
-?> [See here the full trigger list](configuration/triggers/)
+?> [View the full list of supported triggers](configuration/triggers/)
 
 ## Supported registries
 
-Many registries are supported.
+Many container registries are supported out of the box:
 
 - [**Azure Container Registry**](https://azure.microsoft.com/services/container-registry)
 - [**AWS Elastic Container Registry**](https://aws.amazon.com/ecr)
 - [**Google Container Registry**](https://cloud.google.com/container-registry)
-- [**Github Container Registry**](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-docker-registry)
-- [**Docker Hub (public & private repositories)**](http://hub.docker.com)
+- [**GitHub Container Registry**](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-docker-registry)
+- [**Docker Hub (public & private repositories)**](https://hub.docker.com)
 - ...
 
-?> [See here the full registry list](configuration/registries/)
+?> [View the full list of supported registries](configuration/registries/)
 
-?> [Self hosted registries are also supported](configuration/registries/custom/)
+?> [Self-hosted registries are also supported](configuration/registries/custom/)
 
 ## UI / API
 
-A Web UI allows to get container insights and to manually run the triggers.
+A web UI provides container insights and allows you to manually run triggers.
 
 ![image](assets/ui.png)
 
-## Integration
+## Integrations
 
-`WUD` is meant to play nicely with your favorite tools.
+`WUD` is designed to integrate seamlessly with your favorite tools:
 
-- [**Home-Assistant**](https://www.home-assistant.io/)
+- [**Home Assistant**](https://www.home-assistant.io/)
 - [**Prometheus**](https://prometheus.io/)
 - [**Grafana**](https://grafana.com/)
 - [**Authelia**](https://www.authelia.com/)
@@ -64,8 +62,8 @@ A Web UI allows to get container insights and to manually run the triggers.
 > [**Follow the quick start guide!**](quickstart/)
 
 ## Contact & Support
-- Create a [GitHub issue](https://github.com/getwud/wud/issues) for bug reports, feature requests, or questions
-- Add a [:star: on GitHub](https://github.com/getwud/wud) or [Buy me coffee](https://www.buymeacoffee.com/61rUNMm)&nbsp;to support the project!
+- Create a [GitHub issue](https://github.com/getwud/wud/issues) for bug reports, feature requests, or questions.
+- Star the project [:star: on GitHub](https://github.com/getwud/wud) or [Buy me a coffee](https://www.buymeacoffee.com/61rUNMm)&nbsp;to support ongoing development!
 
 ## License
 This project is licensed under the [MIT license](https://github.com/getwud/wud/blob/main/LICENSE).

@@ -1,18 +1,23 @@
-# CODEBERG
+# Codeberg Container Registry
+
 ![logo](codeberg.png)
 
-The `codeberg` registry lets you configure [Codeberg](https://codeberg.org/) integration.
+The `codeberg` registry module lets you authenticate against the [Codeberg Container Registry](https://codeberg.org/).
+
+?> Public Codeberg repositories work out of the box without authentication. Configure this module to access private repositories or increase API rate limits.
 
 ### Variables
 
-| Env var                                  |    Required    | Description                                | Supported values                                                         | Default value when missing |
-|------------------------------------------|:--------------:|--------------------------------------------|--------------------------------------------------------------------------|----------------------------| 
-| `WUD_REGISTRY_CODEBERG_PRIVATE_LOGIN`    | :red_circle:   | Codeberg username                          | WUD_REGISTRY_CODEBERG_PUBLIC_PASSWORD must be defined when login defined |                            |
-| `WUD_REGISTRY_CODEBERG_PRIVATE_PASSWORD` | :red_circle:   | Codeberg password or personal access token | WUD_REGISTRY_CODEBERG_PUBLIC_LOGIN must be defined when passowrd defined |                            |
-| `WUD_REGISTRY_CODEBERG_PRIVATE_AUTH`     | :white_circle: | A valid Codeberg base64 auth string        | WUD_REGISTRY_CODEBERG_PUBLIC_LOGIN/TOKEN must not be defined             |                            |
+| Env var                                           | Required       | Description                                | Supported values                                                         | Default value when missing |
+| ------------------------------------------------- |:--------------:| ------------------------------------------ | ------------------------------------------------------------------------ | -------------------------- | 
+| `WUD_REGISTRY_CODEBERG_{registry_name}_LOGIN`    | :red_circle:   | Codeberg username                          | Required when password/token is provided                                 |                            |
+| `WUD_REGISTRY_CODEBERG_{registry_name}_PASSWORD` | :red_circle:   | Codeberg password or personal access token | Required when username is provided                                       |                            |
+| `WUD_REGISTRY_CODEBERG_{registry_name}_AUTH`     | :white_circle: | Base64-encoded `username:password` string  | Mutually exclusive with `LOGIN`/`PASSWORD`                               |                            |
+
 ### Examples
 
-#### Configure
+#### Authenticate with credentials
+
 <!-- tabs:start -->
 #### **Docker Compose**
 ```yaml
@@ -22,14 +27,15 @@ services:
     ...
     environment:
       - WUD_REGISTRY_CODEBERG_PRIVATE_LOGIN=john
-      - WUD_REGISTRY_CODEBERG_PRIVATE_PASSWORD=doe
+      - WUD_REGISTRY_CODEBERG_PRIVATE_PASSWORD=secret-token
 ```
 #### **Docker**
 ```bash
 docker run \
   -e "WUD_REGISTRY_CODEBERG_PRIVATE_LOGIN=john" \
-  -e "WUD_REGISTRY_CODEBERG_PRIVATE_PASSWORD=doe" \
+  -e "WUD_REGISTRY_CODEBERG_PRIVATE_PASSWORD=secret-token" \
   ...
   getwud/wud
 ```
 <!-- tabs:end -->
+

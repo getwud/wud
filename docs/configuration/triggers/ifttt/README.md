@@ -1,28 +1,29 @@
-# Ifttt
+# IFTTT
+
 ![logo](ifttt.png)
 
-The `ifttt` trigger lets you send container update notifications to Ifttt via the [Maker Webhook applet](https://ifttt.com/maker_webhooks/).
+The `ifttt` trigger lets you send container update notifications to IFTTT via the [Maker Webhooks service](https://ifttt.com/maker_webhooks/).
 
 ### Variables
 
 | Env var                                  | Required       | Description     | Supported values | Default value when missing |
 | ---------------------------------------- |:--------------:| --------------- | ---------------- | -------------------------- | 
-| `WUD_TRIGGER_IFTTT_{trigger_name}_KEY`   | :red_circle:   | The Webhook key |                  |                            |
-| `WUD_TRIGGER_IFTTT_{trigger_name}_EVENT` | :white_circle: | The event name  |                  | `wud-image`.               |
+| `WUD_TRIGGER_IFTTT_{trigger_name}_KEY`   | :red_circle:   | IFTTT Webhook API key | String      |                            |
+| `WUD_TRIGGER_IFTTT_{trigger_name}_EVENT` | :white_circle: | IFTTT Webhook event name | String   | `wud-image`                |
 
-?> This trigger also supports the [common configuration variables](configuration/triggers/?id=common-trigger-configuration).
+?> This trigger also supports [common trigger configuration options](configuration/triggers/?id=common-trigger-configuration).
 
-### Ifttt ingredients
-On Webhook call, Ifttt captures the following ingredients:
-- eventName
-- occuredAt
-- value1 (the image which can be updated)
-- value2 (the new version)
-- value3 (the image notification JSON message)
+### IFTTT Ingredients
+When triggering the webhook, WUD provides the following ingredients to IFTTT:
+- `EventName`: Event name (e.g., `wud-image` or `wud-container`)
+- `OccurredAt`: Timestamp of the event
+- `Value1`: Monitored container image / name
+- `Value2`: New tag / version available
+- `Value3`: Full container JSON payload
 
 ### Examples
 
-#### Configuration
+#### Basic Configuration
 
 <!-- tabs:start -->
 #### **Docker Compose**
@@ -32,54 +33,51 @@ services:
     image: getwud/wud
     ...
     environment:
-      - WUD_TRIGGER_IFTTT_PROD_KEY=*******************************************
+      - WUD_TRIGGER_IFTTT_PROD_KEY=your_ifttt_webhook_key
 ```
 
 #### **Docker**
 ```bash
 docker run \
-  -e WUD_TRIGGER_IFTTT_PROD_KEY="*******************************************" \
+  -e WUD_TRIGGER_IFTTT_PROD_KEY="your_ifttt_webhook_key" \
   ...
   getwud/wud
 ```
 <!-- tabs:end -->
 
-#### Ifttt captured ingredients
-- EventName: `wud-container`
-- OccuredAt: `August 30, 2019 at 06:51PM`
-- Value1: `homeassistant`
-- Value2: `2021.6.5`
-- Value3: `{"id":"31a61a8305ef1fc9a71fa4f20a68d7ec88b28e32303bbc4a5f192e851165b816","name":"homeassistant","watcher":"local","includeTags":"^\\d+\\.\\d+.\\d+$","image":{"id":"sha256:d4a6fafb7d4da37495e5c9be3242590be24a87d7edcc4f79761098889c54fca6","registry":{"url":"123456789.dkr.ecr.eu-west-1.amazonaws.com"},"name":"test","tag":{"value":"2021.6.4","semver":true},"digest":{"watch":false,"repo":"sha256:ca0edc3fb0b4647963629bdfccbb3ccfa352184b45a9b4145832000c2878dd72"},"architecture":"amd64","os":"linux","created":"2021-06-12T05:33:38.440Z"},"result":{"tag":"2021.6.5"},"updateAvailable":true}`
+#### Example of Captured IFTTT Ingredients
+- **EventName**: `wud-container`
+- **OccurredAt**: `August 30, 2024 at 06:51PM`
+- **Value1**: `homeassistant`
+- **Value2**: `2024.6.5`
+- **Value3**: `{"id":"31a61a8305ef1fc9a71fa4f20a68d7ec88b28e32303bbc4a5f192e851165b816","name":"homeassistant","watcher":"local","image":{"name":"homeassistant/home-assistant","tag":{"value":"2024.6.4"}},"result":{"tag":"2024.6.5"},"updateAvailable":true}`
 
-### How to find the IFTTT key
-#### Open the Webhook channel & Connect
-[Click here](https://ifttt.com/maker_webhooks)
+### How to obtain your IFTTT Webhook Key
 
-And click on `Connect`
+#### 1. Open the Webhooks service and connect
+Navigate to [IFTTT Maker Webhooks](https://ifttt.com/maker_webhooks) and click **Connect**.
 ![image](ifttt_connect.jpg)
 
-#### Get the key from the settings
-[Click here](https://ifttt.com/maker_webhooks/settings)
-
-And copy the key from the URL
+#### 2. Copy your key from the settings
+Open [Webhooks Settings](https://ifttt.com/maker_webhooks/settings) and copy the key from the URL.
 ![image](ifttt_key.png)
 
-### How to create an IFTTT receipt
-#### Create a new receipt & add a "this" trigger
-[Click here to create a new receipt](https://ifttt.com/create)
+### How to create an IFTTT Applet
 
+#### 1. Create a new Applet and add an "If This" trigger
+Navigate to [IFTTT Applet Creator](https://ifttt.com/create).
 ![image](ifttt_add_this.png)
 
-#### Add the Webhook service
+#### 2. Search for the "Webhooks" service
 ![image](ifttt_search_webhook.png)
 
-#### Select the 'Receive a web request' trigger
+#### 3. Select the "Receive a web request" trigger
 ![image](ifttt_request_trigger.png)
 
-#### Enter the trigger event name (wud-container by default)
+#### 4. Enter the event name (e.g., `wud-image`)
 ![image](ifttt_event.png)
 
-#### Define the 'then that' action
+#### 5. Define the "Then That" action
+Select any action service (e.g., Send an email, Push notification, Smart home action).
 ![image](ifttt_then_that.png)
 
-It's up to you :) Send an email...

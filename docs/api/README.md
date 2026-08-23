@@ -1,8 +1,9 @@
 # REST API
 
-You can access _**WUD**_ state using the HTTP REST API. \
-(see API details below)
+You can query and manage _**WUD**_ state using the HTTP REST API.
 
-By default, the API is enabled and exposed on port `3000`.
+By default, the API is enabled and served on port `3000`.
 
-You can override this behaviour [using environment variables](/configuration/server/).
+You can customize this behavior [using server configuration options](configuration/server/).
+
+

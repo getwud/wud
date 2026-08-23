@@ -1,8 +1,8 @@
-# Openid Connect Authentication
+# OpenID Connect (OIDC) Authentication
 
 ![logo](oidc.png)
 
-The `oidc` authentication lets you protect WUD access using the [Openid Connect standard](https://openid.net/).
+The `oidc` authentication module lets you protect WUD access using the [OpenID Connect standard](https://openid.net/).
 
 ### Variables
 
@@ -10,22 +10,21 @@ The `oidc` authentication lets you protect WUD access using the [Openid Connect 
 | ----------------------------------------- | :------------: | ---------------------------------------------------------------------- | ---------------- | -------------------------- |
 | `WUD_AUTH_OIDC_{auth_name}_CLIENTID`      |  :red_circle:  | Client ID                                                              |                  |                            |
 | `WUD_AUTH_OIDC_{auth_name}_CLIENTSECRET`  |  :red_circle:  | Client Secret                                                          |                  |                            |
-| `WUD_AUTH_OIDC_{auth_name}_DISCOVERY`     |  :red_circle:  | Oidc discovery URL                                                     |                  |                            |
-| `WUD_AUTH_OIDC_{auth_name}_REDIRECT`      | :white_circle: | Skip internal login page & automatically redirect to the OIDC provider | `true`, `false`  | `false`                    |
+| `WUD_AUTH_OIDC_{auth_name}_DISCOVERY`     |  :red_circle:  | OpenID Connect discovery URL                                           |                  |                            |
+| `WUD_AUTH_OIDC_{auth_name}_REDIRECT`      | :white_circle: | Skip internal login page and automatically redirect to the OIDC provider | `true`, `false`  | `false`                    |
 | `WUD_AUTH_OIDC_{auth_name}_TIMEOUT`       | :white_circle: | Timeout (in ms) when calling the OIDC provider                         | Minimum is 500   | `5000`                     |
-| `WUD_AUTH_OIDC_{auth_name}_TTL`           | :white_circle: | Cache TTL (in minutes) for OIDC discovery metadata; use `-1` for unlimited validity | `-1` or minimum is 0 | `60` (1 hour)              |
-| `WUD_AUTH_OIDC_{auth_name}_USERNAMECLAIM` | :white_circle: | The user claim to use as the username                                  |                  | `email`                    |
+| `WUD_AUTH_OIDC_{auth_name}_TTL`           | :white_circle: | Cache TTL (in minutes) for OIDC discovery metadata; use `-1` for unlimited validity | `-1` or minimum 0 | `60` (1 hour)              |
+| `WUD_AUTH_OIDC_{auth_name}_USERNAMECLAIM` | :white_circle: | User claim to use as the username                                      | String           | `email`                    |
 
-?> The callback URL (to configure in the IDP is built as `${wud_public_url}/auth/oidc/${auth_name}/cb`
+?> The callback URL to configure in your IdP is formatted as: `${wud_public_url}/auth/oidc/${auth_name}/cb`
 
-!> WUD tries its best to determine the public address to forge redirections on its own. \
-If it fails (irregular reverse proxy configuration...), you can enforce the value using the env var `WUD_PUBLIC_URL`
+!> WUD automatically attempts to determine its public address for redirect URLs. If this fails due to a complex reverse proxy setup, you can explicitly specify the base URL using the `WUD_PUBLIC_URL` environment variable.
 
-### How to integrate with&nbsp;[Authelia](https://www.authelia.com)
+### How to integrate with [Authelia](https://www.authelia.com)
 
 ![logo](authelia.png)
 
-#### Configure an Openid Client for WUD in Authelia configuration.yml ([see official authelia documentation](https://www.authelia.com/docs/configuration/identity-providers/oidc.html))
+#### Configure an OpenID Client for WUD in Authelia `configuration.yml` ([see official Authelia documentation](https://www.authelia.com/docs/configuration/identity-providers/oidc.html))
 
 ```yaml
 identity_providers:
@@ -99,7 +98,7 @@ docker run \
 
 ![image](authelia_01.png)
 
-### How to integrate with&nbsp;[Auth0](http://auth0.com)
+### How to integrate with [Auth0](https://auth0.com)
 
 ![logo](auth0.png)
 
@@ -141,15 +140,15 @@ docker run \
 
 ![image](auth0_01.png)
 
-### How to integrate with&nbsp;[Authentik](https://goauthentik.io/)
+### How to integrate with [Authentik](https://goauthentik.io/)
 
 ![logo](authentik.png)
 
-#### On Authentik, create a provider with type `Oauth2/OpenID` (or configure an existing one)
+#### In Authentik, create a provider of type `OAuth2/OpenID` (or configure an existing one)
 
 ![image](authentik_00.png)
 
-#### Important values:
+#### Important settings:
 
 - Client Type: `Confidential`
 - Client ID: `<generated value>`
@@ -157,7 +156,7 @@ docker run \
 - Redirect URIs/Origins: `https://<your_wud_public_domain>/auth/oidc/authentik/cb`
 - Scopes: `email`, `openid`, `profile`
 
-#### On Authentik, create an application associated to the previously created provider
+#### In Authentik, create an application associated with the provider
 
 ![image](authentik_01.png)
 
@@ -186,9 +185,10 @@ docker run \
   -e WUD_AUTH_OIDC_AUTHENTIK_CLIENTID="<paste the Client ID from authentik wud_oidc provider>" \
   -e WUD_AUTH_OIDC_AUTHENTIK_CLIENTSECRET="<paste the Client Secret from authentik wud_oidc provider>" \
   -e WUD_AUTH_OIDC_AUTHENTIK_DISCOVERY="<authentik_url>/application/o/<authentik_application_name>/.well-known/openid-configuration" \
-  -e WUD_AUTH_OIDC_AUTHENTIK_REDIRECT=true # optional (to skip internal login page) \
+  -e WUD_AUTH_OIDC_AUTHENTIK_REDIRECT=true \
   ...
   getwud/wud
 ```
 
 <!-- tabs:end -->
+

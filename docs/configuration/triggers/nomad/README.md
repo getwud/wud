@@ -1,35 +1,36 @@
 # Nomad
+
 ![logo](nomad.png)
 
-The `nomad` trigger lets you update containers that are managed by [HashiCorp Nomad](https://www.nomadproject.io/) without fighting Nomad for ownership of the container.
+The `nomad` trigger lets you update containers managed by [HashiCorp Nomad](https://www.nomadproject.io/) cleanly through the Nomad API without conflicting with Nomad's container lifecycle supervision.
 
-Nomad supervises the containers it creates (service registration, health checks, template-rendered secrets, restart policy). The `docker` and `dockercompose` triggers work by stopping, removing and recreating the container directly through the Docker API -- when the container is Nomad-managed, Nomad notices its container disappeared and reconciles independently, which fights whatever the trigger just created and can leave the replacement running without its Nomad-managed configuration.
+Nomad supervises the containers it creates (handling service registration, health checks, template-rendered secrets, and restart policies). Standard `docker` and `dockercompose` triggers work by removing and recreating containers directly via the Docker API; however, when a container is Nomad-managed, Nomad detects the missing container and reconciles independently, conflicting with external updates.
 
-Instead, the `nomad` trigger calls [Nomad's own HTTP API](https://developer.hashicorp.com/nomad/api-docs/allocations#restart-allocation) to restart the allocation (or a single task within it), letting Nomad's Docker driver handle the actual image pull and container recreation the same way it would for any other restart. The allocation stays under Nomad's normal supervision throughout.
+Instead, the `nomad` trigger calls [Nomad's HTTP API](https://developer.hashicorp.com/nomad/api-docs/allocations#restart-allocation) to restart the allocation (or a specific task within it), allowing Nomad's Docker driver to handle the image pull and container recreation natively while preserving normal supervision.
 
-?> For this to actually pick up a new image, the target task must have `force_pull = true` set in its Nomad job spec -- otherwise Nomad's Docker driver reuses whatever image is already cached locally, same as a manual restart would.
+?> For Nomad to pull the new image on restart, the target task must have `force_pull = true` set in its Nomad job specification; otherwise, the Docker driver will reuse the cached local image.
 
-Nomad stamps every container it creates with a fixed set of labels (`com.hashicorp.nomad.alloc_id`, `com.hashicorp.nomad.task_name`, ...). This trigger reads those labels to know which allocation/task to restart, so no extra container labeling is required on your end -- it works out of the box against any container Nomad's Docker driver created.
+Nomad labels every container it creates with metadata (`com.hashicorp.nomad.alloc_id`, `com.hashicorp.nomad.task_name`, etc.). This trigger reads these labels to identify the allocation and task to restart, requiring no additional labeling on your part.
 
-!> Not every Nomad version sets the `com.hashicorp.nomad.task_name` label (observed missing on Nomad v2.0.4 while `alloc_id` was still present). When it's missing, this trigger falls back to parsing the task name out of the container's own name, since Nomad's Docker driver always names containers `<task_name>-<alloc_id>`. If that also fails to resolve a task name, the trigger logs a warning and does **not** restart anything -- it will never silently fall back to restarting every task in the allocation (which could mean restarting a database sidecar you didn't intend to touch). Set `alltasks=true` explicitly if restarting the whole allocation is actually what you want.
+!> If `com.hashicorp.nomad.task_name` is missing (as in some older Nomad releases), the trigger falls back to extracting the task name from the container name (`<task_name>-<alloc_id>`). If task resolution fails, the trigger logs a warning and skips execution without restarting other tasks in the allocation. Set `alltasks=true` only if you explicitly want to restart all tasks in the allocation.
 
 ### Variables
 
 | Env var                                       |    Required    | Description                                                   | Supported values             | Default value when missing      |
 | --------------------------------------------- | :------------: | ------------------------------------------------------------- | ---------------------------- | ------------------------------- |
-| `WUD_TRIGGER_NOMAD_{trigger_name}_ADDRESS`    | :white_circle: | The base URL of the Nomad HTTP API                            | Valid http or https endpoint | `http://127.0.0.1:4646`         |
-| `WUD_TRIGGER_NOMAD_{trigger_name}_TOKEN`      | :white_circle: | ACL token sent as `X-Nomad-Token`, if ACLs are enabled        |                              |                                 |
-| `WUD_TRIGGER_NOMAD_{trigger_name}_ALLOCLABEL` | :white_circle: | Container label holding the Nomad allocation ID               |                              | `com.hashicorp.nomad.alloc_id`  |
-| `WUD_TRIGGER_NOMAD_{trigger_name}_TASKLABEL`  | :white_circle: | Container label holding the Nomad task name                   |                              | `com.hashicorp.nomad.task_name` |
-| `WUD_TRIGGER_NOMAD_{trigger_name}_ALLTASKS`   | :white_circle: | Restart every task in the allocation instead of just this one | `true`, `false`              | `false`                         |
+| `WUD_TRIGGER_NOMAD_{trigger_name}_ADDRESS`    | :white_circle: | Base URL of the Nomad HTTP API                                | Valid HTTP/HTTPS URL         | `http://127.0.0.1:4646`         |
+| `WUD_TRIGGER_NOMAD_{trigger_name}_TOKEN`      | :white_circle: | Nomad Secret ID / ACL token (sent via `X-Nomad-Token`)        | String                       |                                 |
+| `WUD_TRIGGER_NOMAD_{trigger_name}_ALLOCLABEL` | :white_circle: | Container label containing the Nomad allocation ID            | String                       | `com.hashicorp.nomad.alloc_id`  |
+| `WUD_TRIGGER_NOMAD_{trigger_name}_TASKLABEL`  | :white_circle: | Container label containing the Nomad task name                | String                       | `com.hashicorp.nomad.task_name` |
+| `WUD_TRIGGER_NOMAD_{trigger_name}_ALLTASKS`   | :white_circle: | Restart all tasks in the allocation instead of only the target task | `true`, `false`        | `false`                         |
 
-?> This trigger also supports the [common configuration variables](configuration/triggers/?id=common-trigger-configuration).
+?> This trigger also supports [common trigger configuration options](configuration/triggers/?id=common-trigger-configuration).
 
-!> Containers with no `com.hashicorp.nomad.alloc_id` label are not managed by Nomad's Docker driver -- the trigger logs a warning and skips them rather than guessing.
+!> Containers without a `com.hashicorp.nomad.alloc_id` label are not managed by Nomad and will be skipped.
 
 ### Examples
 
-#### Restart the task backing an update-available container
+#### Restart the task backing an updated container
 
 <!-- tabs:start -->
 
@@ -55,7 +56,7 @@ docker run \
 
 <!-- tabs:end -->
 
-#### Restart against an ACL-enabled Nomad cluster
+#### Restart tasks in an ACL-enabled Nomad cluster
 
 <!-- tabs:start -->
 
@@ -82,3 +83,4 @@ docker run \
 ```
 
 <!-- tabs:end -->
+

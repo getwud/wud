@@ -1,27 +1,28 @@
 # Gotify
+
 ![logo](gotify.png)
 
 The `gotify` trigger lets you send container update notifications via [Gotify](https://gotify.net/).
 
 ### Variables
 
-| Env var                                      |    Required    | Description                 | Supported values                            | Default value when missing |
-|----------------------------------------------|:--------------:|-----------------------------|---------------------------------------------|----------------------------| 
-| `WUD_TRIGGER_GOTIFY_{trigger_name}_PRIORITY` | :white_circle: | The Gotify message priority | Integer greater or equal than `0`           |                            |
-| `WUD_TRIGGER_GOTIFY_{trigger_name}_TOKEN`    | :red_circle:   | The Gotify app token url    | A valid gotify app token                    |                            |
-| `WUD_TRIGGER_GOTIFY_{trigger_name}_URL`      | :red_circle:   | The Gotify server url       | The `http` or `https` gotify server address |                            |
+| Env var                                      |    Required    | Description                               | Supported values                            | Default value when missing |
+|----------------------------------------------|:--------------:|-------------------------------------------|---------------------------------------------|----------------------------| 
+| `WUD_TRIGGER_GOTIFY_{trigger_name}_PRIORITY` | :white_circle: | Gotify message priority                   | Integer >= `0`                              | `5`                        |
+| `WUD_TRIGGER_GOTIFY_{trigger_name}_TOKEN`    | :red_circle:   | Gotify application token                  | Valid Gotify app token                      |                            |
+| `WUD_TRIGGER_GOTIFY_{trigger_name}_URL`      | :red_circle:   | Gotify server base URL                    | Valid HTTP/HTTPS URL                        |                            |
 
-?> This trigger also supports the [common configuration variables](configuration/triggers/?id=common-trigger-configuration).
+?> This trigger also supports [common trigger configuration options](configuration/triggers/?id=common-trigger-configuration).
 
 ### Examples
 
-#### Create an app on Gotify
+#### 1. Create an application in Gotify
 ![image](gotify_01.png)
 
-#### Get the Gotify app token
+#### 2. Copy the application token
 ![image](gotify_02.png)
 
-#### Configure the trigger
+#### 3. Configure WUD
 
 <!-- tabs:start -->
 #### **Docker Compose**
@@ -43,3 +44,4 @@ docker run \
   getwud/wud
 ```
 <!-- tabs:end -->
+

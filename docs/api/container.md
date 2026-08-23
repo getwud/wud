@@ -1,8 +1,8 @@
 # Container API
-This API allows to query the state of the watched containers.
+This API allows you to query the state of watched containers.
 
 ## Get all containers
-This operation lets you get all the watched cainers.
+This endpoint returns all watched containers.
 
 ```bash
 curl http://wud:3000/api/containers
@@ -39,8 +39,8 @@ curl http://wud:3000/api/containers
 ]
 ```
 
-## Watch all Containers
-This operation triggers a manual watch on all containers.
+## Check all containers
+This endpoint triggers an immediate update check across all containers.
 
 ```bash
 curl -X POST http://wud:3000/api/containers/watch
@@ -75,9 +75,9 @@ curl -X POST http://wud:3000/api/containers/watch
 }]
 ```
 
-## Get a Container by id
+## Get a container by ID
 
-This operation lets you get a container by id.
+This endpoint retrieves a specific container by its ID.
 
 ```bash
 curl http://wud:3000/api/containers/31a61a8305ef1fc9a71fa4f20a68d7ec88b28e32303bbc4a5f192e851165b816
@@ -112,9 +112,9 @@ curl http://wud:3000/api/containers/31a61a8305ef1fc9a71fa4f20a68d7ec88b28e32303b
 }
 ```
 
-## Get all triggers associated to the container
+## Get all triggers associated with the container
 
-This operation lets you get the list of the containers associated to the container.
+This endpoint returns the list of triggers associated with the container.
 
 ```bash
 curl http://wud:3000/api/containers/31a61a8305ef1fc9a71fa4f20a68d7ec88b28e32303bbc4a5f192e851165b816/triggers
@@ -131,15 +131,15 @@ curl http://wud:3000/api/containers/31a61a8305ef1fc9a71fa4f20a68d7ec88b28e32303b
       "mode": "simple",
       "once": true,
       "simpletitle": "New ${kind} found for container ${name}",
-      "simplebody": "Container ${container.name} running with ${container.updateKind.kind} ${container.updateKind.localValue} can be updated to ${container.updateKind.kind} ${container.updateKind.remoteValue}${container.result && container.result.link ? "\\n" + container.result.link : ""}",
-      "batchtitle": "${containers.length} updates available",
+      "simplebody": "Container ${container.name} running with ${container.updateKind.kind} ${container.updateKind.localValue} can be updated to ${container.updateKind.kind} ${container.updateKind.remoteValue}${container.result && container.result.link ? \"\\n\" + container.result.link : \"\"}",
+      "batchtitle": "${containers.length} updates available"
     }
   }
 ]
 ```
 
-## Watch a Container
-This operation triggers a manual watch on a container.
+## Check a specific container
+This endpoint triggers an immediate update check for a specific container.
 
 ```bash
 curl -X POST http://wud:3000/api/containers/ca0edc3fb0b4647963629bdfccbb3ccfa352184b45a9b4145832000c2878dd72/watch
@@ -176,14 +176,14 @@ curl -X POST http://wud:3000/api/containers/ca0edc3fb0b4647963629bdfccbb3ccfa352
 
 ## Run a trigger on the container
 
-This operation lets you manually run a trigger on the container.
+This endpoint manually executes a specific trigger for a container.
 
 ```bash
 curl -X POST http://wud:3000/api/containers/31a61a8305ef1fc9a71fa4f20a68d7ec88b28e32303bbc4a5f192e851165b816/triggers/ntfy/one
 ```
 
-## Delete a Container
-This operation lets you delete a container by id.
+## Delete a container
+This endpoint deletes a container from the store by its ID.
 
 ```bash
 curl -X DELETE http://wud:3000/api/containers/ca0edc3fb0b4647963629bdfccbb3ccfa352184b45a9b4145832000c2878dd72

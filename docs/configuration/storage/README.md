@@ -1,6 +1,6 @@
 # Storage
   
-If you want the state to persist after the container removal, you need to mount  ```/store``` as a volume.
+To persist WUD state across container restarts and removals, mount `/store` as a persistent volume.
 
 ### Examples 
 
@@ -17,8 +17,9 @@ services:
 #### **Docker**
 ```bash
 docker run \
-  -v /path-on-my-host:/store
+  -v /path-on-my-host:/store \
   ...
   getwud/wud
 ```
 <!-- tabs:end -->
+

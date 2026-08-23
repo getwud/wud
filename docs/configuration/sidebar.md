@@ -9,7 +9,8 @@
     - [Timezone](configuration/timezone/)
     - [Triggers](configuration/triggers/)
     - [Watchers](configuration/watchers/)
-- [Api](api/)
+- [API](api/)
 - [Monitoring](monitoring/)
 - [FAQ](faq/)
 - [Changelog](changelog/)
+
