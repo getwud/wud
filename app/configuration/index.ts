@@ -174,9 +174,12 @@ export function getPrometheusConfiguration() {
 
 export function getPublicUrl(req: Request) {
     const publicUrl = wudEnvVars.WUD_PUBLIC_URL;
-    if (publicUrl) {
-        return publicUrl;
+    // Try to guess from request if not explicitly configured
+    const origin =
+        publicUrl ?? `${req.protocol}://${req.headers.host ?? req.hostname}`;
+    const basepath = getServerConfiguration().basepath;
+    if (basepath === '/') {
+        return origin.replace(/\/$/, '');
     }
-    // Try to guess from request
-    return `${req.protocol}://${req.headers.host ?? req.hostname}`;
+    return `${origin.replace(/\/$/, '')}${basepath}`;
 }

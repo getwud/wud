@@ -85,8 +85,8 @@ export default defineComponent({
               onAuthenticated(currentUser);
             }
           }
-        } catch (e) {
-          console.log("Fallback auth check failed:", e);
+        } catch {
+          // Ignore: user remains unauthenticated
         }
       }
     });
