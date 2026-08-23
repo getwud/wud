@@ -1,13 +1,12 @@
-// @ts-nocheck
 import fs from 'fs/promises';
-import mqtt from 'mqtt';
-import Trigger from '../Trigger';
+import mqtt, { IClientOptions, MqttClient } from 'mqtt';
+import Trigger, { TriggerConfiguration } from '../Trigger';
 import Hass from './Hass';
 import {
     registerContainerAdded,
     registerContainerUpdated,
 } from '../../../event';
-import { flatten } from '../../../model/container';
+import { Container, flatten } from '../../../model/container';
 
 const containerDefaultTopic = 'wud/container';
 const hassDefaultPrefix = 'homeassistant';
@@ -21,6 +20,27 @@ const hassDefaultPrefix = 'homeassistant';
 function getContainerTopic({ baseTopic, container }) {
     const containerName = container.name.replace(/\./g, '-');
     return `${baseTopic}/${container.watcher}/${containerName}`;
+}
+
+export interface MqqtConfiguration extends TriggerConfiguration {
+    url: string;
+    topic: string;
+    clientid: string;
+    user: string;
+    password: string;
+    hass: {
+        enabled: boolean;
+        prefix: string;
+        discovery: boolean;
+        deviceid: string;
+        devicename: string;
+    };
+    tls: {
+        clientkey: string;
+        clientcert: string;
+        cachain: string;
+        rejectunauthorized: boolean;
+    };
 }
 
 /**
@@ -53,11 +73,15 @@ class Mqtt extends Trigger {
                         is: true,
                         then: this.joi.boolean().default(true),
                     }),
+                    deviceid: this.joi.string().default('wud'),
+                    devicename: this.joi.string().default('wud'),
                 })
                 .default({
                     enabled: false,
                     prefix: hassDefaultPrefix,
                     discovery: false,
+                    deviceid: 'wud',
+                    devicename: 'wud',
                 }),
             tls: this.joi
                 .object({
@@ -75,6 +99,8 @@ class Mqtt extends Trigger {
         });
     }
 
+    declare configuration: MqqtConfiguration;
+
     /**
      * Sanitize sensitive data
      * @returns {*}
@@ -90,6 +116,9 @@ class Mqtt extends Trigger {
         };
     }
 
+    private hass: Hass;
+    private client: MqttClient;
+
     async initTrigger() {
         // Enforce simple mode
         this.configuration.mode = 'simple';
@@ -102,7 +131,7 @@ class Mqtt extends Trigger {
         }
 
         // Set MQTT connection options and create client
-        const options = {
+        const options: IClientOptions = {
             clientId: this.configuration.clientid,
         };
         if (this.configuration.user) {
@@ -150,7 +179,7 @@ class Mqtt extends Trigger {
             );
         });
 
-        this.client.on('error', (error) => {
+        this.client.on('error', (error: mqtt.ErrorWithReasonCode) => {
             this.log.debug(`MQTT client error ${error.code}`);
         });
 
@@ -171,16 +200,15 @@ class Mqtt extends Trigger {
      * Send an MQTT message with new image version details.
      *
      * @param container the container
-     * @returns {Promise}
      */
-    async trigger(container) {
+    async trigger(container: Container) {
         const containerTopic = getContainerTopic({
             baseTopic: this.configuration.topic,
             container,
         });
 
         this.log.debug(`Publish container result to ${containerTopic}`);
-        return this.client.publish(
+        this.client.publish(
             containerTopic,
             JSON.stringify(flatten(container)),
             {
@@ -191,7 +219,6 @@ class Mqtt extends Trigger {
 
     /**
      * Mqtt trigger does not support batch mode.
-     * @returns {Promise<void>}
      */
 
     async triggerBatch() {
@@ -200,14 +227,12 @@ class Mqtt extends Trigger {
 
     /**
      * Deregister the component
-     * @returns {Promise<void>}
      */
-
     async deregisterComponent(): Promise<void> {
         if (this.hass) {
             this.hass.updateConnectionStatusSensor(false);
         }
-        return this.client.end(true);
+        this.client.end(true);
     }
 }
 

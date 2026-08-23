@@ -15,6 +15,8 @@ The `mqtt` trigger lets you send container update notifications to an MQTT broke
 | `WUD_TRIGGER_MQTT_{trigger_name}_HASS_ENABLED`           | :white_circle: | Enable [Home-assistant](https://www.home-assistant.io/) integration and deliver additional topics   | `true`, `false`                     | `false`                    |
 | `WUD_TRIGGER_MQTT_{trigger_name}_HASS_DISCOVERY`         | :white_circle: | Enable [Home-assistant](https://www.home-assistant.io/) integration including discovery             | `true`, `false`                     | `false`                    |
 | `WUD_TRIGGER_MQTT_{trigger_name}_HASS_PREFIX`            | :white_circle: | Base topic for hass entity discovery                                                                |                                     | `homeassistant`            |
+| `WUD_TRIGGER_MQTT_{trigger_name}_HASS_DEVICEID`           | :white_circle: | The Home Assistant device identifier                                                               |                                     | `wud`                      |
+| `WUD_TRIGGER_MQTT_{trigger_name}_HASS_DEVICENAME`         | :white_circle: | The Home Assistant device name                                                                     |                                     | `wud`                      |
 | `WUD_TRIGGER_MQTT_{trigger_name}_TLS_CACHAIN`            | :white_circle: | The path to the file containing the server CA chain (when TLS with a private Certificate Authority) | Any valid file path                 |                            |
 | `WUD_TRIGGER_MQTT_{trigger_name}_TLS_CLIENTCERT`         | :white_circle: | The path to the file containing the client public certificate (when TLS mutual authzentication)     | Any valid file path                 |                            |
 | `WUD_TRIGGER_MQTT_{trigger_name}_TLS_CLIENTKEY`          | :white_circle: | The path to the file containing the client private key (when TLS mutual authzentication)            | Any valid file path                 |                            |
@@ -135,6 +137,9 @@ docker run \
 ![logo](hass.png)
 
 WUD can be easily integrated into [Home-Assistant](https://www.home-assistant.io/) using [MQTT Discovery](https://www.home-assistant.io/docs/mqtt/discovery/).
+
+By default, WUD registers itself as the Home Assistant device `wud`. Use `HASS_DEVICEID` and
+`HASS_DEVICENAME` to customize the device identifier and display name.
 
 <!-- tabs:start -->
 #### **Docker Compose**

@@ -41,6 +41,8 @@ beforeEach(async () => {
             hass: {
                 discovery: true,
                 prefix: 'homeassistant',
+                devicename: 'wud',
+                deviceid: 'wud',
             },
         },
         log,
@@ -79,6 +81,41 @@ test('publishDiscoveryMessage must publish a discovery message expected by HA', 
         }),
         { retain: true },
     );
+});
+
+test('publishDiscoveryMessage must use the configured device id and name', async () => {
+    const configuredHass = new Hass({
+        configuration: {
+            topic: 'topic',
+            hass: {
+                discovery: true,
+                prefix: 'homeassistant',
+                deviceid: 'custom-device-id',
+                devicename: 'Custom Device Name',
+            },
+        },
+        log,
+    });
+    await configuredHass.init(mqttClientMock);
+
+    await configuredHass.publishDiscoveryMessage({
+        discoveryTopic: 'my/discovery',
+        stateTopic: 'my/state',
+        kind: 'sensor',
+        name: 'My state',
+    });
+
+    const discoveryPayload = JSON.parse(
+        mqttClientMock.publish.mock.calls[0][1],
+    );
+    expect(discoveryPayload.device).toEqual({
+        identifiers: ['custom-device-id'],
+        manufacturer: 'wud',
+        model: 'custom-device-id',
+        name: 'Custom Device Name',
+        sw_version: 'unknown',
+    });
+    configuredHass.deregister();
 });
 
 test('addContainerSensor must publish sensor discovery message expected by HA', async () => {
