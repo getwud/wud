@@ -1,4 +1,5 @@
 # Nomad
+![logo](nomad.png)
 
 The `nomad` trigger lets you update containers that are managed by [HashiCorp Nomad](https://www.nomadproject.io/) without fighting Nomad for ownership of the container.
 

@@ -63,7 +63,7 @@ class Nomad extends Trigger {
         const config = configuration || this.configuration;
         return {
             ...config,
-            token: config.token ? '_****_' : undefined,
+            token: Nomad.mask(config.token),
         };
     }
 

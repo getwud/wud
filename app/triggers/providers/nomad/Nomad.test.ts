@@ -49,7 +49,7 @@ test('maskConfiguration should hide the token', () => {
         ...configurationValid,
         token: 'super-secret',
     });
-    expect(masked.token).toEqual('_****_');
+    expect(masked.token).toEqual('s**********t');
 });
 
 test('trigger should restart the allocation using the alloc/task labels', async () => {
