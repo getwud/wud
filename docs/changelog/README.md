@@ -4,6 +4,7 @@
 - :star: Skip tag listing for non-semver images
 - :star: [MQTT] - Add customizable HASS deviceid and devicename
 - :fire: Fix login redirect issues when WUD exposed under a subpatch
+- :fire: [HTTP] - Mask HTTM auth password and bearer values
 
 ## 8.3.1
 - :star: Add `WUD_REGISTRY_HUB_PUBLIC_SUPPRESSDIGESTWATCHWARNING` env var
