@@ -549,8 +549,7 @@ export class Docker extends Watcher {
         const logContainer = this.log.child({ container: fullName(container) });
         const containerWithResult = container;
 
-        // Reset previous results if so
-        delete containerWithResult.result;
+        // Reset previous error if so
         delete containerWithResult.error;
         logContainer.debug('Start watching');
 
@@ -854,7 +853,7 @@ export class Docker extends Watcher {
                 created,
             },
             labels: container.Labels,
-            result: {
+            result: containerInStore?.result ?? {
                 tag: tagName,
             },
             updateAvailable: false,
