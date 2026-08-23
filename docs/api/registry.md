@@ -1,10 +1,12 @@
 # Registry API
-This API allows to query the state of the registries.
 
-?> [Need to add a new Registry?](/configuration/registries/)
+This API allows you to query the state of configured registries.
 
-## Get all Registries
-This operation lets you get all the configured registries.
+?> [Need to configure registries?](configuration/registries/)
+
+## Get all registries
+
+This endpoint returns all configured registries.
 
 ```bash
 curl http://wud:3000/api/registries
@@ -31,8 +33,9 @@ curl http://wud:3000/api/registries
 ]
 ```
 
-## Get a Registry by id
-This operation lets you get a specific Registry.
+## Get a registry by ID
+
+This endpoint retrieves a specific registry by its ID.
 
 ```bash
 curl http://wud:3000/api/registries/hub/private
@@ -46,4 +49,3 @@ curl http://wud:3000/api/registries/hub/private
     }
 }
 ```
-

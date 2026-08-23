@@ -2,50 +2,49 @@
 
 ![logo](docker.png)
 
-Watchers are responsible for scanning Docker containers.
+Watchers are responsible for discovering and scanning Docker containers.
 
-The `docker` watcher lets you configure the Docker hosts you want to watch.
+The `docker` watcher lets you configure the local or remote Docker hosts you want to monitor.
 
 ## Variables
 
-| Env var                                                |    Required    | Description                                                                                                      | Supported values                               | Default value when missing |
-| ------------------------------------------------------ | :------------: | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | -------------------------- |
-| `WUD_WATCHER_{watcher_name}_CAFILE`                    | :white_circle: | CA pem file path (only for TLS connection)                                                                       |                                                |                            |
-| `WUD_WATCHER_{watcher_name}_CERTFILE`                  | :white_circle: | Certificate pem file path (only for TLS connection)                                                              |                                                |                            |
-| `WUD_WATCHER_{watcher_name}_CRON`                      | :white_circle: | Scheduling options                                                                                               | [Valid CRON expression](https://crontab.guru/) | `0 * * * *` (every hour)   |
-| `WUD_WATCHER_{watcher_name}_HOST`                      | :white_circle: | Docker hostname or ip of the host to watch                                                                       |                                                |                            |
-| `WUD_WATCHER_{watcher_name}_JITTER`                    | :white_circle: | Jitter in ms applied to the CRON to better distribute the load on the registries (on the Hub at the first place) | > 0                                            | `60000` (1 minute)         |
-| `WUD_WATCHER_{watcher_name}_KEYFILE`                   | :white_circle: | Key pem file path (only for TLS connection)                                                                      |                                                |                            |
-| `WUD_WATCHER_{watcher_name}_PORT`                      | :white_circle: | Docker port of the host to watch                                                                                 |                                                | `2375`                     |
-| `WUD_WATCHER_{watcher_name}_SOCKET`                    | :white_circle: | Docker socket to watch                                                                                           | Valid unix socket                              | `/var/run/docker.sock`     |
-| `WUD_WATCHER_{watcher_name}_WATCHALL`                  | :white_circle: | If WUD must monitor all containers instead of just running ones                                                  | `true`, `false`                                | `false`                    |
-| `WUD_WATCHER_{watcher_name}_WATCHATSTART` (deprecated) | :white_circle: | If WUD must check for image updates during startup                                                               | `true`, `false`                                | `true` if store is empy    |
-| `WUD_WATCHER_{watcher_name}_WATCHBYDEFAULT`            | :white_circle: | If WUD must monitor all containers by default                                                                    | `true`, `false`                                | `true`                     |
-| `WUD_WATCHER_{watcher_name}_WATCHEVENTS`               | :white_circle: | If WUD must monitor docker events                                                                                | `true`, `false`                                | `true`                     |
+| Env var                                                |    Required    | Description                                                                                                            | Supported values                               | Default value when missing |
+| ------------------------------------------------------ | :------------: | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | -------------------------- |
+| `WUD_WATCHER_{watcher_name}_CAFILE`                    | :white_circle: | Path to CA certificate PEM file (for TLS connection only)                                                              | File path                                      |                            |
+| `WUD_WATCHER_{watcher_name}_CERTFILE`                  | :white_circle: | Path to client certificate PEM file (for TLS connection only)                                                          | File path                                      |                            |
+| `WUD_WATCHER_{watcher_name}_CRON`                      | :white_circle: | CRON schedule for automatic checks                                                                                     | [Valid CRON expression](https://crontab.guru/) | `0 * * * *` (every hour)   |
+| `WUD_WATCHER_{watcher_name}_HOST`                      | :white_circle: | Docker daemon hostname or IP address to monitor                                                                        | Hostname or IP                                 |                            |
+| `WUD_WATCHER_{watcher_name}_JITTER`                    | :white_circle: | Random jitter in milliseconds applied to the CRON schedule to distribute load across registries (primarily Docker Hub) | > 0                                            | `60000` (1 minute)         |
+| `WUD_WATCHER_{watcher_name}_KEYFILE`                   | :white_circle: | Path to client private key PEM file (for TLS connection only)                                                          | File path                                      |                            |
+| `WUD_WATCHER_{watcher_name}_PORT`                      | :white_circle: | Docker daemon TCP port to connect to                                                                                   | Port number                                    | `2375`                     |
+| `WUD_WATCHER_{watcher_name}_SOCKET`                    | :white_circle: | Docker UNIX socket path to monitor                                                                                     | Valid UNIX socket path                         | `/var/run/docker.sock`     |
+| `WUD_WATCHER_{watcher_name}_WATCHALL`                  | :white_circle: | Whether WUD should monitor all containers instead of only running ones                                                 | `true`, `false`                                | `false`                    |
+| `WUD_WATCHER_{watcher_name}_WATCHATSTART` (deprecated) | :white_circle: | Whether WUD should check for image updates during startup                                                              | `true`, `false`                                | `true` if store is empty   |
+| `WUD_WATCHER_{watcher_name}_WATCHBYDEFAULT`            | :white_circle: | Whether WUD should monitor all discovered containers by default                                                        | `true`, `false`                                | `true`                     |
+| `WUD_WATCHER_{watcher_name}_WATCHEVENTS`               | :white_circle: | Whether WUD should listen for Docker daemon events in real-time                                                        | `true`, `false`                                | `true`                     |
 
-?> If no watcher is configured, a default one named `local` will be automatically created (reading the Docker socket).
+?> If no watcher is configured, a default watcher named `local` is automatically created (monitoring `/var/run/docker.sock`).
 
-?> Multiple watchers can be configured (if you have multiple Docker hosts to watch).  
-You just need to give them different names.
+?> You can configure multiple watchers if you have multiple Docker hosts to monitor. Simply give each watcher a distinct name.
 
 !> Socket configuration and host/port configuration are mutually exclusive.
 
-!> If socket configuration is used, don't forget to mount the Docker socket on your WUD container.
+!> When using socket configuration, ensure that `/var/run/docker.sock` is mounted into the WUD container.
 
-!> If host/port configuration is used, don't forget to enable the Docker remote API. \
+!> When using host/port configuration, make sure the Docker remote API is enabled on the target host. \
 [See dockerd documentation](https://docs.docker.com/engine/reference/commandline/dockerd/#description)
 
-!> If the Docker remote API is secured with TLS, don't forget to mount and configure the TLS certificates. \
+!> If the Docker remote API is secured with TLS, ensure you mount and configure the TLS certificates. \
 [See dockerd documentation](https://docs.docker.com/engine/security/protect-access/#use-tls-https-to-protect-the-docker-daemon-socket)
 
-!> Watching image digests causes an extensive usage of _Docker Registry Pull API_ which is restricted by [**Quotas on the Docker Hub**](https://docs.docker.com/docker-hub/download-rate-limit/). \
-By default, WUD enables it only for **non semver** image tags. \
-You can tune this behavior per container using the `wud.watch.digest` label. \
-If you face [quota related errors](https://docs.docker.com/docker-hub/download-rate-limit/#how-do-i-know-my-pull-requests-are-being-limited), consider slowing down the watcher rate by adjusting the `WUD_WATCHER_{watcher_name}_CRON` variable.
+!> Watching image digests makes heavy use of the _Docker Registry Pull API_, which is subject to [**rate limits on Docker Hub**](https://docs.docker.com/docker-hub/download-rate-limit/). \
+By default, WUD enables digest watching only for **non-semver** image tags. \
+You can customize this behavior per container using the `wud.watch.digest` label. \
+If you encounter [rate limit errors](https://docs.docker.com/docker-hub/download-rate-limit/#how-do-i-know-my-pull-requests-are-being-limited), consider reducing check frequency by adjusting the `WUD_WATCHER_{watcher_name}_CRON` variable.
 
 ## Variable examples
 
-### Watch the local docker host every day at 1am
+### Watch the local Docker host every day at 1:00 AM
 
 <!-- tabs:start -->
 
@@ -57,21 +56,21 @@ services:
     image: getwud/wud
     ...
     environment:
-        - WUD_WATCHER_LOCAL_CRON=0 1 * * *
+      - WUD_WATCHER_LOCAL_CRON=0 1 * * *
 ```
 
 #### **Docker**
 
 ```bash
 docker run \
-    -e WUD_WATCHER_LOCAL_CRON="0 1 * * *" \
+  -e WUD_WATCHER_LOCAL_CRON="0 1 * * *" \
   ...
   getwud/wud
 ```
 
 <!-- tabs:end -->
 
-### Watch all containers regardless of their status (created, paused, exited, restarting, running...)
+### Watch all containers regardless of status (created, paused, exited, restarting, running...)
 
 <!-- tabs:start -->
 
@@ -83,21 +82,21 @@ services:
     image: getwud/wud
     ...
     environment:
-        - WUD_WATCHER_LOCAL_WATCHALL=true
+      - WUD_WATCHER_LOCAL_WATCHALL=true
 ```
 
 #### **Docker**
 
 ```bash
 docker run \
-    -e WUD_WATCHER_LOCAL_WATCHALL="true" \
+  -e WUD_WATCHER_LOCAL_WATCHALL="true" \
   ...
   getwud/wud
 ```
 
 <!-- tabs:end -->
 
-### Watch a remote docker host via TCP on 2375
+### Watch a remote Docker host via TCP on port 2375
 
 <!-- tabs:start -->
 
@@ -109,21 +108,21 @@ services:
     image: getwud/wud
     ...
     environment:
-        - WUD_WATCHER_MYREMOTEHOST_HOST=myremotehost
+      - WUD_WATCHER_MYREMOTEHOST_HOST=myremotehost
 ```
 
 #### **Docker**
 
 ```bash
 docker run \
-    -e WUD_WATCHER_MYREMOTEHOST_HOST="myremotehost" \
+  -e WUD_WATCHER_MYREMOTEHOST_HOST="myremotehost" \
   ...
   getwud/wud
 ```
 
 <!-- tabs:end -->
 
-### Watch a remote docker host via TCP with TLS enabled on 2376
+### Watch a remote Docker host via TCP with TLS on port 2376
 
 <!-- tabs:start -->
 
@@ -135,38 +134,38 @@ services:
     image: getwud/wud
     ...
     environment:
-        - WUD_WATCHER_MYREMOTEHOST_HOST=myremotehost
-        - WUD_WATCHER_MYREMOTEHOST_PORT=2376
-        - WUD_WATCHER_MYREMOTEHOST_CAFILE=/certs/ca.pem
-        - WUD_WATCHER_MYREMOTEHOST_CERTFILE=/certs/cert.pem
-        - WUD_WATCHER_MYREMOTEHOST_KEYFILE=/certs/key.pem
+      - WUD_WATCHER_MYREMOTEHOST_HOST=myremotehost
+      - WUD_WATCHER_MYREMOTEHOST_PORT=2376
+      - WUD_WATCHER_MYREMOTEHOST_CAFILE=/certs/ca.pem
+      - WUD_WATCHER_MYREMOTEHOST_CERTFILE=/certs/cert.pem
+      - WUD_WATCHER_MYREMOTEHOST_KEYFILE=/certs/key.pem
     volumes:
-        - /my-host/my-certs/ca.pem:/certs/ca.pem:ro
-        - /my-host/my-certs/ca.pem:/certs/cert.pem:ro
-        - /my-host/my-certs/ca.pem:/certs/key.pem:ro
+      - /my-host/my-certs/ca.pem:/certs/ca.pem:ro
+      - /my-host/my-certs/cert.pem:/certs/cert.pem:ro
+      - /my-host/my-certs/key.pem:/certs/key.pem:ro
 ```
 
 #### **Docker**
 
 ```bash
 docker run \
-    -e WUD_WATCHER_MYREMOTEHOST_HOST="myremotehost" \
-    -e WUD_WATCHER_MYREMOTEHOST_PORT="2376" \
-    -e WUD_WATCHER_MYREMOTEHOST_CAFILE="/certs/ca.pem" \
-    -e WUD_WATCHER_MYREMOTEHOST_CERTFILE="/certs/cert.pem" \
-    -e WUD_WATCHER_MYREMOTEHOST_KEYFILE="/certs/key.pem" \
-    -v /my-host/my-certs/ca.pem:/certs/ca.pem:ro \
-    -v /my-host/my-certs/ca.pem:/certs/cert.pem:ro \
-    -v /my-host/my-certs/ca.pem:/certs/key.pem:ro \
+  -e WUD_WATCHER_MYREMOTEHOST_HOST="myremotehost" \
+  -e WUD_WATCHER_MYREMOTEHOST_PORT="2376" \
+  -e WUD_WATCHER_MYREMOTEHOST_CAFILE="/certs/ca.pem" \
+  -e WUD_WATCHER_MYREMOTEHOST_CERTFILE="/certs/cert.pem" \
+  -e WUD_WATCHER_MYREMOTEHOST_KEYFILE="/certs/key.pem" \
+  -v /my-host/my-certs/ca.pem:/certs/ca.pem:ro \
+  -v /my-host/my-certs/cert.pem:/certs/cert.pem:ro \
+  -v /my-host/my-certs/key.pem:/certs/key.pem:ro \
   ...
   getwud/wud
 ```
 
 <!-- tabs:end -->
 
-!> Don't forget to mount the certificates into the container!
+!> Remember to mount the certificate files into the container.
 
-### Watch 1 local Docker host and 2 remote docker hosts at the same time
+### Watch one local Docker host and two remote Docker hosts simultaneously
 
 <!-- tabs:start -->
 
@@ -178,18 +177,18 @@ services:
     image: getwud/wud
     ...
     environment:
-        -  WUD_WATCHER_LOCAL_SOCKET=/var/run/docker.sock
-        -  WUD_WATCHER_MYREMOTEHOST1_HOST=myremotehost1
-        -  WUD_WATCHER_MYREMOTEHOST2_HOST=myremotehost2
+      - WUD_WATCHER_LOCAL_SOCKET=/var/run/docker.sock
+      - WUD_WATCHER_MYREMOTEHOST1_HOST=myremotehost1
+      - WUD_WATCHER_MYREMOTEHOST2_HOST=myremotehost2
 ```
 
 #### **Docker**
 
 ```bash
 docker run \
-    -e  WUD_WATCHER_LOCAL_SOCKET="/var/run/docker.sock" \
-    -e  WUD_WATCHER_MYREMOTEHOST1_HOST="myremotehost1" \
-    -e  WUD_WATCHER_MYREMOTEHOST2_HOST="myremotehost2" \
+  -e WUD_WATCHER_LOCAL_SOCKET="/var/run/docker.sock" \
+  -e WUD_WATCHER_MYREMOTEHOST1_HOST="myremotehost1" \
+  -e WUD_WATCHER_MYREMOTEHOST2_HOST="myremotehost2" \
   ...
   getwud/wud
 ```
@@ -198,26 +197,26 @@ docker run \
 
 ## Labels
 
-To fine-tune the behaviour of WUD _per container_, you can add labels on them.
+To fine-tune WUD behavior on a _per-container_ basis, you can add labels to your containers.
 
-| Label                 |    Required    | Description                                        | Supported values                                                                                                                                                            | Default value when missing                                                            |
-| --------------------- | :------------: | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `wud.display.icon`    | :white_circle: | Custom display icon for the container              | Valid [Material Design Icon](https://materialdesignicons.com/), [Fontawesome Icon](https://fontawesome.com/) or [Simple icon](https://simpleicons.org/) (see details below) | `mdi:docker`                                                                          |
-| `wud.display.name`    | :white_circle: | Custom display name for the container              | Valid String                                                                                                                                                                | Container name                                                                        |
-| `wud.link.template`   | :white_circle: | Browsable link associated to the container version | JS string template with vars `${container}`, `${original}`, `${transformed}`, `${major}`, `${minor}`, `${patch}`, `${prerelease}`                                           |                                                                                       |
-| `wud.tag.exclude`     | :white_circle: | Regex to exclude specific tags                     | Valid JavaScript Regex                                                                                                                                                      |                                                                                       |
-| `wud.tag.include`     | :white_circle: | Regex to include specific tags only                | Valid JavaScript Regex                                                                                                                                                      |                                                                                       |
-| `wud.tag.transform`   | :white_circle: | Transform function to apply to the tag             | `$valid_regex => $valid_string_with_placeholders` (see below)                                                                                                               |                                                                                       |
-| `wud.trigger.exclude` | :white_circle: | Optional list of triggers to exclude               | `$trigger_1_id,$trigger_2_id:$threshold`                                                                                                                                    |                                                                                       |
-| `wud.trigger.include` | :white_circle: | Optional list of triggers to include               | `$trigger_1_id,$trigger_2_id:$threshold`                                                                                                                                    |                                                                                       |
-| `wud.watch.digest`    | :white_circle: | Watch this container digest                        | Valid Boolean                                                                                                                                                               | `false`                                                                               |
-| `wud.watch`           | :white_circle: | Watch this container                               | Valid Boolean                                                                                                                                                               | `true` when `WUD_WATCHER_{watcher_name}_WATCHBYDEFAULT` is `true` (`false` otherwise) |
+| Label                 |    Required    | Description                                                  | Supported values                                                                                                                                                             | Default value when missing                                                            |
+| --------------------- | :------------: | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `wud.display.icon`    | :white_circle: | Custom display icon for the container                        | Valid [Material Design Icon](https://materialdesignicons.com/), [Font Awesome Icon](https://fontawesome.com/) or [Simple Icon](https://simpleicons.org/) (see details below) | `mdi:docker`                                                                          |
+| `wud.display.name`    | :white_circle: | Custom display name for the container                        | Any string                                                                                                                                                                   | Container name                                                                        |
+| `wud.link.template`   | :white_circle: | Browsable URL template associated with the container version | JS string template with variables `${container}`, `${original}`, `${transformed}`, `${major}`, `${minor}`, `${patch}`, `${prerelease}`                                       |                                                                                       |
+| `wud.tag.exclude`     | :white_circle: | Regular expression matching tags to exclude                  | Valid JavaScript RegExp                                                                                                                                                      |                                                                                       |
+| `wud.tag.include`     | :white_circle: | Regular expression matching tags to include                  | Valid JavaScript RegExp                                                                                                                                                      |                                                                                       |
+| `wud.tag.transform`   | :white_circle: | Transform rule to apply to the tag before analysis           | `$valid_regex => $valid_string_with_placeholders` (see details below)                                                                                                        |                                                                                       |
+| `wud.trigger.exclude` | :white_circle: | Optional list of triggers to exclude                         | `$trigger_1_id,$trigger_2_id:$threshold`                                                                                                                                     |                                                                                       |
+| `wud.trigger.include` | :white_circle: | Optional list of triggers to include                         | `$trigger_1_id,$trigger_2_id:$threshold`                                                                                                                                     |                                                                                       |
+| `wud.watch.digest`    | :white_circle: | Track digest changes for this container                      | Boolean (`true`, `false`)                                                                                                                                                    | `false`                                                                               |
+| `wud.watch`           | :white_circle: | Enable or disable monitoring for this container              | Boolean (`true`, `false`)                                                                                                                                                    | `true` when `WUD_WATCHER_{watcher_name}_WATCHBYDEFAULT` is `true` (`false` otherwise) |
 
 ## Label examples
 
-### Include specific containers to watch
+### Monitor only specific containers (opt-in)
 
-Configure WUD to disable WATCHBYDEFAULT feature.
+Configure WUD with `WATCHBYDEFAULT=false`:
 
 <!-- tabs:start -->
 
@@ -236,14 +235,14 @@ services:
 
 ```bash
 docker run \
-    -e WUD_WATCHER_LOCAL_WATCHBYDEFAULT="false" \
+  -e WUD_WATCHER_LOCAL_WATCHBYDEFAULT="false" \
   ...
   getwud/wud
 ```
 
 <!-- tabs:end -->
 
-Then add the `wud.watch=true` label on the containers you want to watch.
+Then add the `wud.watch=true` label to the containers you wish to monitor:
 
 <!-- tabs:start -->
 
@@ -266,11 +265,11 @@ docker run -d --name mariadb --label wud.watch=true mariadb:10.4.5
 
 <!-- tabs:end -->
 
-### Exclude specific containers to watch
+### Exclude specific containers from being monitored
 
-Ensure `WUD_WATCHER_{watcher_name}_WATCHBYDEFAULT` is true (default value).
+Ensure `WUD_WATCHER_{watcher_name}_WATCHBYDEFAULT` is set to `true` (the default).
 
-Then add the `wud.watch=false` label on the containers you want to exclude from being watched.
+Then add the `wud.watch=false` label to containers you wish to exclude:
 
 <!-- tabs:start -->
 
@@ -293,11 +292,11 @@ docker run -d --name mariadb --label wud.watch=false mariadb:10.4.5
 
 <!-- tabs:end -->
 
-### Include only 3 digits semver tags
+### Include only 3-part semver tags
 
-You can filter (by inclusion or exclusion) which versions can be candidates for update.
+You can filter which tags are considered valid candidates for updates by specifying inclusion or exclusion regex patterns.
 
-For example, you can indicate that you want to watch x.y.z versions only
+For example, to monitor only standard `x.y.z` semver tags:
 
 <!-- tabs:start -->
 
@@ -319,18 +318,18 @@ docker run -d --name mariadb --label 'wud.tag.include=^\d+\.\d+\.\d+$' mariadb:1
 
 <!-- tabs:end -->
 
-### Transform the tags before performing the analysis
+### Transform tags before performing version analysis
 
-In certain cases, tag values are so badly formatted that the resolution algorithm cannot find any valid update candidates or, worst, find bad positive matches.
+In certain cases, image tags include metadata suffixes (such as commit hashes or build numbers) that prevent the semver resolution algorithm from matching valid update candidates or that cause false positives.
 
-For example, you can encounter such an issue if you need to deal with tags looking like `1.0.0-99-7b368146`, `1.0.0-273-21d7efa6`...  
-By default, WUD will report bad positive matches because of the `sha-1` part at the end of the tag value (`-7b368146`...).  
-That's a shame because `1.0.0-99` and `1.0.0-273` would have been valid semver values (`$major.$minor.$patch-$prerelease`).
+For example, consider tags formatted like `1.0.0-99-7b368146` or `1.0.0-273-21d7efa6`.  
+By default, the trailing SHA-1 hash (`-7b368146`) interferes with comparison, even though `1.0.0-99` and `1.0.0-273` represent valid semver values (`$major.$minor.$patch-$prerelease`).
 
-You can get around this issue by providing a function that keeps only the part you are interested in.
+You can normalize tags before analysis by defining a transform rule that extracts only the desired version portion.
 
-How does it work?  
-The transform function must follow the following syntax:
+#### How it works
+
+The transform rule must use the following syntax:
 
 ```
 $valid_regex_with_capturing_groups => $valid_string_with_placeholders
@@ -342,11 +341,11 @@ For example:
 ^(\d+\.\d+\.\d+-\d+)-.*$ => $1
 ```
 
-The capturing groups are accessible with the syntax `$1`, `$2`, `$3`....
+Capturing groups are referenced using `$1`, `$2`, `$3`, etc.
 
-!> The first capturing group is accessible as `$1`!
+!> The first capturing group is referenced as `$1`.
 
-For example, you can indicate that you want to watch x.y.z versions only
+Example configuration:
 
 <!-- tabs:start -->
 
@@ -365,17 +364,17 @@ services:
 
 ```bash
 docker run -d --name searx \
---label 'wud.tag.include=^\d+\.\d+\.\d+-\d+-.*$' \
---label 'wud.tag.transform=^(\d+\.\d+\.\d+-\d+)-.*$ => $1' \
-searx/searx:1.0.0-269-7b368146
+  --label 'wud.tag.include=^\d+\.\d+\.\d+-\d+-.*$' \
+  --label 'wud.tag.transform=^(\d+\.\d+\.\d+-\d+)-.*$ => $1' \
+  searx/searx:1.0.0-269-7b368146
 ```
 
 <!-- tabs:end -->
 
 ### Enable digest watching
 
-Additionally to semver tag tracking, you can also track if the digest associated to the local tag has been updated.  
-It can be convenient to monitor image tags known to be overridden (`latest`, `10`, `10.6`...)
+In addition to semver tag tracking, you can also track whether the image digest associated with the local tag has changed on the registry.  
+This is particularly useful for tracking mutable tags like `latest`, `10`, or `10.6`.
 
 <!-- tabs:start -->
 
@@ -398,21 +397,21 @@ docker run -d --name mariadb --label 'wud.tag.include=^\d+$' --label wud.watch.d
 
 <!-- tabs:end -->
 
-### Associate a link to the container version
+### Associate a link with the container version
 
-You can associate a browsable link to the container version using a templated string.
-For example, if you want to associate a mariadb version to a changelog (e.g. https://mariadb.com/kb/en/mariadb-1064-changelog),
+You can generate a browsable link for each container version using a template string.
+For example, to link a MariaDB container version directly to its release notes (e.g., `https://mariadb.com/kb/en/mariadb-1064-changelog`):
 
-you would specify a template like `https://mariadb.com/kb/en/mariadb-${major}${minor}${patch}-changelog`
+Specify a template such as: `https://mariadb.com/kb/en/mariadb-${major}${minor}${patch}-changelog`
 
-The available variables are:
+The available template variables are:
 
-- `${original}` the original unparsed tag
-- `${transformed}` the original unparsed tag transformed with the optional `wud.tag.transform` label option
-- `${major}` the major version (if tag value is semver)
-- `${minor}` the minor version (if tag value is semver)
-- `${patch}` the patch version (if tag value is semver)
-- `${prerelease}` the prerelease version (if tag value is semver)
+- `${original}`: The original unparsed tag
+- `${transformed}`: The tag after applying the optional `wud.tag.transform` rule
+- `${major}`: The major version number (for semver tags)
+- `${minor}`: The minor version number (for semver tags)
+- `${patch}`: The patch version number (for semver tags)
+- `${prerelease}`: The prerelease identifier (for semver tags)
 
 <!-- tabs:start -->
 
@@ -429,26 +428,26 @@ services:
 #### **Docker**
 
 ```bash
-docker run -d --name mariadb --label 'wud.link.template=https://mariadb.com/kb/en/mariadb-${major}${minor}${patch}-changelog' mariadb:10
+docker run -d --name mariadb --label 'wud.link.template=https://mariadb.com/kb/en/mariadb-${major}${minor}${patch}-changelog' mariadb:10.6.4
 ```
 
 <!-- tabs:end -->
 
-### Customize the name and the icon to display
+### Customize container display name and icon
 
-You can customize the name & the icon of a container (displayed in the UI, in Home-Assistant...)
+You can customize the name and icon used for a container in the UI and integrations (e.g., Home Assistant).
 
 Icons must be prefixed with:
 
-- `fab:` or `fab-` for [Fontawesome brand icons](https://fontawesome.com/) (`fab:github`, `fab-mailchimp`...)
-- `far:` or `far-` for [Fontawesome regular icons](https://fontawesome.com/) (`far:heart`, `far-house`...)
-- `fas:` or `fas-` for [Fontawesome solid icons](https://fontawesome.com/) (`fas:heart`, `fas-house`...)
+- `fab:` or `fab-` for [Font Awesome Brands](https://fontawesome.com/) (`fab:github`, `fab-mailchimp`...)
+- `far:` or `far-` for [Font Awesome Regular](https://fontawesome.com/) (`far:heart`, `far-house`...)
+- `fas:` or `fas-` for [Font Awesome Solid](https://fontawesome.com/) (`fas:heart`, `fas-house`...)
 - `hl:` or `hl-` for [Homarr Labs icons](https://dashboardicons.com/) (`hl:plex`, `hl-authelia`...)
-- `mdi:` or `mdi-` for [Material Design icons](https://materialdesignicons.com/) (`mdi:database`, `mdi-server`...)
-- `sh:` or `sh-` for [Selfh.st](https://selfh.st/icons/) (`sh:authentik`, `sh-authelia-light`...) (only works for logo available as `png`)
-- `si:` or `si-` for [Simple icons](https://simpleicons.org/) (`si:mysql`, `si-plex`...)
+- `mdi:` or `mdi-` for [Material Design Icons](https://materialdesignicons.com/) (`mdi:database`, `mdi-server`...)
+- `sh:` or `sh-` for [Selfh.st icons](https://selfh.st/icons/) (`sh:authentik`, `sh-authelia-light`...) (PNG icons only)
+- `si:` or `si-` for [Simple Icons](https://simpleicons.org/) (`si:mysql`, `si-plex`...)
 
-?> If you want to display Fontawesome icons or Simple icons in Home-Assistant, you need to install first the [HASS-fontawesome](https://github.com/thomasloven/hass-fontawesome) and the [HASS-simpleicons](https://github.com/vigonotion/hass-simpleicons) components.
+?> To display Font Awesome or Simple Icons in Home Assistant, install the [HASS-fontawesome](https://github.com/thomasloven/hass-fontawesome) and [HASS-simpleicons](https://github.com/vigonotion/hass-simpleicons) custom integrations first.
 
 <!-- tabs:start -->
 
@@ -471,11 +470,11 @@ docker run -d --name mariadb --label 'wud.display.name=Maria DB' --label 'wud.di
 
 <!-- tabs:end -->
 
-### Assign different triggers to containers
+### Assign specific triggers to containers
 
-You can assign different triggers and thresholds on a per container basis.
+You can assign specific triggers and notification thresholds on a per-container basis.
 
-#### Example send a mail notification for all updates but auto-update only if minor or patch
+#### Example: Send an email for all updates, but auto-update only on minor or patch versions
 
 <!-- tabs:start -->
 
@@ -497,12 +496,12 @@ docker run -d --name my_important_service --label 'wud.trigger.include=smtp.gmai
 
 <!-- tabs:end -->
 
-?> `wud.trigger.include=smtp.gmail` is a shorthand for `wud.trigger.include=smtp.gmail:all`
+?> `wud.trigger.include=smtp.gmail` is shorthand for `wud.trigger.include=smtp.gmail:all`.
 
-?> Threshold `all` means that the trigger will run regardless of the nature of the change
+?> Threshold `all`: Executes the trigger for all detected updates.
 
-?> Threshold `major` means that the trigger will run only if this is a `major`, `minor` or `patch` semver change
+?> Threshold `major`: Executes the trigger for `major`, `minor`, or `patch` semver updates.
 
-?> Threshold `minor` means that the trigger will run only if this is a `minor` or `patch` semver change
+?> Threshold `minor`: Executes the trigger only for `minor` or `patch` semver updates.
 
-?> Threshold `patch` means that the trigger will run only if this is a `patch` semver change
+?> Threshold `patch`: Executes the trigger only for `patch` semver updates.

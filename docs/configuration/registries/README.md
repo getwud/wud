@@ -1,36 +1,26 @@
 # Registries
 
-WUD supports most registries:
+WUD supports a wide range of container registries:
 
 - [**ACR** (Azure Container Registry)](configuration/registries/acr/)
-
-- [**CUSTOM** (Self-hosted Registry)](configuration/registries/custom/)
-
+- [**Codeberg** (Codeberg Container Registry)](configuration/registries/codeberg/)
+- [**CUSTOM** (Self-hosted Docker Registry)](configuration/registries/custom/)
 - [**ECR** (Amazon Elastic Container Registry)](configuration/registries/ecr/)
-
-- [**FORGEJO** (Forgejo Container Registry)](configuration/registries/forgejo/)
-
+- [**Forgejo** (Forgejo Container Registry)](configuration/registries/forgejo/)
 - [**GCR** (Google Container Registry)](configuration/registries/gcr/)
-
-- [**GHCR** (Github Container Registry)](configuration/registries/ghcr/)
-
-- [**GITEA** (Gitea Container Registry)](configuration/registries/gitea/)
-
-- [**GITLAB (Gitlab Container Registry)**](configuration/registries/gitlab/)
-
+- [**GHCR** (GitHub Container Registry)](configuration/registries/ghcr/)
+- [**Gitea** (Gitea Container Registry)](configuration/registries/gitea/)
+- [**GitLab** (GitLab Container Registry)](configuration/registries/gitlab/)
 - [**HUB** (Docker Hub)](configuration/registries/hub/)
-
 - [**LSCR** (LinuxServer Container Registry)](configuration/registries/lscr/)
-
+- [**Quay** (Red Hat Quay)](configuration/registries/quay/)
 - [**TrueForge** (TrueForge OCI Registry)](configuration/registries/trueforge/)
 
-- [**Quay**](configuration/registries/quay/)
-
-?> By default, without any further configuration, WUD is handling _out-of-the-box_ public images hosted on \
-CODEBERG (codeberg.org)
-ECR (public.ecr.aws) \
-FORGEJO (code.forgejo.org)
-GCR \
-GHCR \
-HUB \
-QUAY
+?> By default, without any additional configuration, WUD supports public images hosted on: \
+\- Codeberg (`codeberg.org`) \
+\- ECR Public (`public.ecr.aws`) \
+\- Forgejo (`code.forgejo.org`) \
+\- Google Container Registry (GCR) \
+\- GitHub Container Registry (GHCR) \
+\- Docker Hub \
+\- Quay (`quay.io`)

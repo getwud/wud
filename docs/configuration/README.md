@@ -1,68 +1,69 @@
 # Configuration
-WUD is relying on **Environment Variables** and **[Docker labels](https://docs.docker.com/config/labels-custom-metadata/)** to configure all the components.
 
-Please find below the documentation for each of them:
-> [**Authentication**](/configuration/authentications/)
+WUD relies on **environment variables** and **[Docker labels](https://docs.docker.com/config/labels-custom-metadata/)** to configure all of its components.
 
-> [**Logs**](/configuration/logs/)
+Explore the documentation for each component below:
 
-> [**Registries**](/configuration/registries/)
+> [**Authentication**](configuration/authentications/)
 
-> [**Server**](/configuration/server/)
+> [**Logs**](configuration/logs/)
 
-> [**Storage**](/configuration/storage/)
+> [**Registries**](configuration/registries/)
 
-> [**Timezone**](/configuration/timezone/)
+> [**Server**](configuration/server/)
 
-> [**Triggers**](/configuration/triggers/)
+> [**Storage**](configuration/storage/)
 
-> [**watchers**](/configuration/watchers/)
+> [**Timezone**](configuration/timezone/)
+
+> [**Triggers**](configuration/triggers/)
+
+> [**Watchers**](configuration/watchers/)
 
 ## Complete example
 
 ```yaml
 services:
-
-  # Valid semver following by os name
+  # Valid semver followed by OS name
   vaultwarden:
     image: vaultwarden/server:1.22.1-alpine
     container_name: bitwarden
     labels:
       - 'wud.tag.include=^\d+\.\d+\.\d+-alpine$$'
-      - 'wud.link.template=https://github.com/dani-garcia/vaultwarden/releases/tag/$${major}.$${minor}.$${patch}'
+      - "wud.link.template=https://github.com/dani-garcia/vaultwarden/releases/tag/$${major}.$${minor}.$${patch}"
 
-  # Valid semver following by an build number (linux server style)
+  # Valid semver followed by a build number (LinuxServer style)
   duplicati:
     image: linuxserver/duplicati:v2.0.6.3-2.0.6.3_beta_2021-06-17-ls104
     container_name: duplicati
     labels:
       - 'wud.tag.include=^v\d+\.\d+\.\d+\.\d+-\d+\.\d+\.\d+\.\d+.*$$'
 
-  # Valid calver
+  # Valid CalVer (calendar versioning)
   homeassistant:
     image: homeassistant/home-assistant:2021.7.1
     container_name: homeassistant
     labels:
       - 'wud.tag.include=^\d+\.\d+\.\d+$$'
-      - 'wud.link.template=https://github.com/home-assistant/core/releases/tag/$${major}.$${minor}.$${patch}'
+      - "wud.link.template=https://github.com/home-assistant/core/releases/tag/$${major}.$${minor}.$${patch}"
 
-  # Valid semver with a leading v
+  # Valid semver with a leading 'v'
   pihole:
     image: pihole/pihole:v5.8.1
     container_name: pihole
     labels:
       - 'wud.tag.include=^v\d+\.\d+\.\d+$$'
-      - 'wud.link.template=https://github.com/pi-hole/FTL/releases/tag/v$${major}.$${minor}.$${patch}'
+      - "wud.link.template=https://github.com/pi-hole/FTL/releases/tag/v$${major}.$${minor}.$${patch}"
 
   # Mutable tag (latest) with digest tracking
   pyload:
     image: writl/pyload:latest
     container_name: pyload
     labels:
-      - 'wud.tag.include=latest'
-      - 'wud.watch.digest=true'
+      - "wud.tag.include=latest"
+      - "wud.watch.digest=true"
 
-  # Wud self tracking :)
+  # WUD self-tracking
   whatsupdocker:
     image: getwud/wud:5.1.0
     container_name: wud
@@ -74,24 +75,26 @@ services:
       interval: 10s
       timeout: 10s
       retries: 3
-      start_period: 10s       
+      start_period: 10s
     labels:
       - 'wud.tag.include=^\d+\.\d+\.\d+$$'
-      - 'wud.link.template=https://github.com/getwud/wud/releases/tag/$${major}.$${minor}.$${patch}'
+      - "wud.link.template=https://github.com/getwud/wud/releases/tag/$${major}.$${minor}.$${patch}"
 ```
 
 ## Secret management
-!> If you don't want to expose your secret values as environment variables, you can externalize them in external files and reference them by suffixing the original env var name with `__FILE`.
 
-For example, instead of providing the Basic auth details as
+!> If you prefer not to expose sensitive values directly in environment variables, you can store them in files and reference those files by appending `__FILE` to the environment variable name.
+
+For example, instead of providing the Basic auth hash directly:
+
 ```
 WUD_AUTH_BASIC_JOHN_HASH=$$apr1$$aefKbZEa$$ZSA5Y3zv9vDQOxr283NGx/
 ```
 
-You can create an external file with the appropriate permissions (let's say `/tmp/john_hash`) containing the secret value (`$$apr1$$aefKbZEa$$ZSA5Y3zv9vDQOxr283NGx/`).
-Then you need to reference this file by using the following env var
+You can save the secret value (`$$apr1$$aefKbZEa$$ZSA5Y3zv9vDQOxr283NGx/`) to a file with appropriate permissions (such as `/tmp/john_hash`), and reference it using:
+
 ```
 WUD_AUTH_BASIC_JOHN_HASH__FILE=/tmp/john_hash
 ```
 
-?> This feature can be used for any WUD env var (no restrictions).
+?> This feature can be used with any WUD environment variable (no exceptions).

@@ -1,8 +1,10 @@
 # Store API
-This API allows to query the configuration of the Store.
 
-## Get Store configuration
-This operation lets you get the state of the Store.
+This API allows you to query the storage configuration.
+
+## Get store configuration
+
+This endpoint returns the configuration and state of the internal store.
 
 ```bash
 curl http://wud:3000/api/store

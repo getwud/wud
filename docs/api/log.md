@@ -1,8 +1,10 @@
 # Log API
-This API allows to get the configuration of the logger.
 
-## Get Log configuration
-This operation lets you get the state of the Logger.
+This API allows you to retrieve the logger configuration.
+
+## Get log configuration
+
+This endpoint returns the current configuration and level of the logger.
 
 ```bash
 curl http://wud:3000/api/log

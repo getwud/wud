@@ -1,48 +1,52 @@
 # Command
+
 ![logo](command.png)
 
-The `command` trigger lets you run arbitrary commands upon container update notifications.
+The `command` trigger lets you run arbitrary shell commands or scripts upon container update notifications.
 
 ### Variables
 
-| Env var                                      |    Required    | Description                 | Supported values                            | Default value when missing |
-|----------------------------------------------|:--------------:|-----------------------------|---------------------------------------------|----------------------------| 
-| `WUD_TRIGGER_COMMAND_{trigger_name}_CMD`     | :red_circle:   | The command to run          |                                             |                            |
-| `WUD_TRIGGER_COMMAND_{trigger_name}_SHELL`   | :red_circle:   | The shell to use            | Any valid installed shell path              | `/bin/sh`                  |
-| `WUD_TRIGGER_COMMAND_{trigger_name}_TIMEOUT` | :red_circle:   | The command timeout (in ms) | Any positive integer (`0` means no timeout) | `60000`                    |
+| Env var                                      |    Required    | Description                       | Supported values                      | Default value when missing |
+| -------------------------------------------- | :------------: | --------------------------------- | ------------------------------------- | -------------------------- |
+| `WUD_TRIGGER_COMMAND_{trigger_name}_CMD`     |  :red_circle:  | The shell command to run          | String                                |                            |
+| `WUD_TRIGGER_COMMAND_{trigger_name}_SHELL`   | :white_circle: | Shell binary path to use          | Valid installed shell path            | `/bin/sh`                  |
+| `WUD_TRIGGER_COMMAND_{trigger_name}_TIMEOUT` | :white_circle: | Command execution timeout (in ms) | Positive integer (`0` for no timeout) | `60000` (1 minute)         |
 
-?> This trigger also supports the [common configuration variables](configuration/triggers/?id=common-trigger-configuration).
+?> This trigger also supports [common trigger configuration options](configuration/triggers/?id=common-trigger-configuration).
 
-?> Update informations are passed as environment variables (see below).
+?> Update information is passed to the command process as environment variables (see below).
 
 ### Environment variables passed to the executed command
-#### In simple mode (execution per container to update)
-- display_icon
-- display_name
-- id
-- image_architecture
-- image_created
-- image_digest_repo
-- image_digest_watch
-- image_id
-- image_name
-- image_os
-- image_registry_name
-- image_registry_url
-- image_tag_semver
-- image_tag_value
-- name
-- result_tag
-- status
-- update_available
-- update_kind_kind
-- update_kind_local_value
-- update_kind_remote_value
-- update_kind_semver_diff
-- watcher
 
-##### Example
-```
+#### In simple mode (one execution per container update)
+
+- `display_icon`
+- `display_name`
+- `id`
+- `image_architecture`
+- `image_created`
+- `image_digest_repo`
+- `image_digest_watch`
+- `image_id`
+- `image_name`
+- `image_os`
+- `image_registry_name`
+- `image_registry_url`
+- `image_tag_semver`
+- `image_tag_value`
+- `name`
+- `result_tag`
+- `status`
+- `update_available`
+- `update_kind_kind`
+- `update_kind_local_value`
+- `update_kind_remote_value`
+- `update_kind_semver_diff`
+- `watcher`
+
+##### Example environment values
+
+```bash
 display_icon='mdi:docker'
 display_name='test-nginx-1'
 id='94f9f845de0fc4f8ad17c0ee1aaeaf495669de229edf41cdcd14d2af7157e47e'
@@ -68,55 +72,67 @@ update_kind_semver_diff='major'
 watcher='local'
 ```
 
-?> In addition, a `container_json` environment variable is passed containing the full `container` entity as a JSON string.
+?> In addition, a `container_json` environment variable is passed containing the full container entity serialized as a JSON string.
 
-#### In batch mode (execution for a batch of containers to update)
+#### In batch mode (one execution for a batch of container updates)
 
-?> A `containers_json` environment variable is passed containing the array of all the containers to update as a JSON string.
+?> A `containers_json` environment variable is passed containing the JSON array of all update objects.
 
 ### Examples
 
-#### Running an arbitrary command
+#### Running an inline shell command
 
 <!-- tabs:start -->
+
 #### **Docker Compose**
+
 ```yaml
 services:
   whatsupdocker:
     image: getwud/wud
     ...
     environment:
-      - WUD_TRIGGER_COMMAND_LOCAL_CMD=echo $${display_name} can be updated to $${update_kind_remote_value}
+      - WUD_TRIGGER_COMMAND_LOCAL_CMD=echo "$${display_name} can be updated to $${update_kind_remote_value}"
 ```
+
 #### **Docker**
+
 ```bash
 docker run \
-  -e WUD_TRIGGER_COMMAND_LOCAL_CMD=echo ${display_name} can be updated to ${update_kind_remote_value} \
+  -e 'WUD_TRIGGER_COMMAND_LOCAL_CMD=echo "${display_name} can be updated to ${update_kind_remote_value}"' \
   ...
   getwud/wud
 ```
+
 <!-- tabs:end -->
 
-#### Running a custom bash script
+#### Running a mounted Bash script
 
 <!-- tabs:start -->
+
 #### **Docker Compose**
+
 ```yaml
 services:
   whatsupdocker:
     image: getwud/wud
     ...
     environment:
-      - WUD_TRIGGER_COMMAND_LOCAL_CMD=bash -c /wud/trigger.sh
+      - WUD_TRIGGER_COMMAND_LOCAL_CMD=/wud/trigger.sh
+      - WUD_TRIGGER_COMMAND_LOCAL_SHELL=/bin/bash
     volumes:
-      - ${PWD}/wud/trigger.sh:/wud/trigger.sh
+      - ${PWD}/wud/trigger.sh:/wud/trigger.sh:ro
 ```
+
 #### **Docker**
+
 ```bash
 docker run \
-  -e WUD_TRIGGER_COMMAND_LOCAL_CMD=WUD_TRIGGER_COMMAND_LOCAL_CMD=bash -c /wud/trigger.sh \
-  -v ${PWD}/wud/trigger.sh:/wud/trigger.sh
+  -e WUD_TRIGGER_COMMAND_LOCAL_CMD="/wud/trigger.sh" \
+  -e WUD_TRIGGER_COMMAND_LOCAL_SHELL="/bin/bash" \
+  -v ${PWD}/wud/trigger.sh:/wud/trigger.sh:ro \
   ...
   getwud/wud
 ```
+
 <!-- tabs:end -->

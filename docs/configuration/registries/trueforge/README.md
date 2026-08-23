@@ -1,4 +1,5 @@
 # TrueForge (TrueForge OCI Registry)
+
 ![logo](trueforge.png)
 
-The [TrueForge](https://trueforge.org/) registry lets you configure integration for [ContainerForge](https://trueforge.org/truetech/containerforge/)-project containers.
+The `trueforge` registry module provides integration for the [TrueForge OCI Registry](https://trueforge.org/) and containers maintained by the [ContainerForge](https://trueforge.org/truetech/containerforge/) project.
