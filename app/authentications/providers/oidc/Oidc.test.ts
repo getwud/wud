@@ -177,3 +177,35 @@ test('getUserFromAccessToken should return unknown for missing email', async () 
     const user = await oidc.getUserFromAccessToken('token');
     expect(user).toEqual({ username: 'unknown' });
 });
+
+test('getUserFromAccessToken should skip the subject check when called without a claim (bearer token path)', async () => {
+    oidc.configuration = { ...configurationValid, ttl: -1 };
+    (oidc as any).cachedConfig = mockConfig;
+    (client.fetchUserInfo as jest.Mock).mockResolvedValue({
+        email: 'bearer@example.com',
+    });
+
+    await oidc.getUserFromAccessToken('token');
+
+    expect(client.fetchUserInfo).toHaveBeenCalledWith(
+        mockConfig,
+        'token',
+        client.skipSubjectCheck,
+    );
+});
+
+test('getUserFromAccessToken should check the subject when called with a claim (authorization code path)', async () => {
+    oidc.configuration = { ...configurationValid, ttl: -1 };
+    (oidc as any).cachedConfig = mockConfig;
+    (client.fetchUserInfo as jest.Mock).mockResolvedValue({
+        email: 'code@example.com',
+    });
+
+    await oidc.getUserFromAccessToken('token', { sub: 'abc' } as any);
+
+    expect(client.fetchUserInfo).toHaveBeenCalledWith(
+        mockConfig,
+        'token',
+        'abc',
+    );
+});

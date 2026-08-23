@@ -271,7 +271,7 @@ class Oidc extends Authentication {
         const userInfo = await client.fetchUserInfo(
             config,
             accessToken,
-            claim?.sub,
+            claim?.sub ?? client.skipSubjectCheck,
         );
 
         // check the usernameclaim, if it doesn't exist, try to use the email and log a warning
