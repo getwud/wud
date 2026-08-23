@@ -67,6 +67,9 @@ jobs:
     name: E2E Tests
     needs: [lint, unit-test]
     runs-on: ubuntu-latest
+    env:
+      GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
+      GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js ${{ env.NODE_VERSION }}
