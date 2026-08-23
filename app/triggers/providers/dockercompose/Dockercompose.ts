@@ -79,7 +79,12 @@ class Dockercompose extends Docker {
                 : path.resolve(labelValue);
         }
 
-        // Check if container has automatic compose file label
+        // Prefer an explicitly configured trigger-level compose file
+        if (this.configuration.file) {
+            return this.configuration.file;
+        }
+        
+        // Fall back to Docker Compose's automatically generated label
         if (
             container.labels &&
             container.labels['com.docker.compose.project.config_files']
@@ -87,8 +92,7 @@ class Dockercompose extends Docker {
             return container.labels['com.docker.compose.project.config_files'];
         }
 
-        // Fall back to default configuration file
-        return this.configuration.file || null;
+        return null;
     }
 
     /**
