@@ -65,6 +65,7 @@ jobs:
 
   e2e-test:
     name: E2E Tests
+    needs: [lint, unit-test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
