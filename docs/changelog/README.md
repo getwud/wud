@@ -7,6 +7,7 @@
 - :fire: Fix login redirect issues when WUD exposed under a subpatch
 - :fire: [HTTP] - Mask HTTM auth password and bearer values
 - :fire: Preserve update results across registry errors
+- :fire: [DOCKER-COMPOSE] - Prefer trigger-level configuration over automatic labels
 
 ## 8.3.1
 - :star: Add `WUD_REGISTRY_HUB_PUBLIC_SUPPRESSDIGESTWATCHWARNING` env var
