@@ -2,6 +2,7 @@
 
 ## next
 - :star: Skip tag listing for non-semver images
+- :star: [MQTT] - Add customizable HASS deviceid and devicename
 - :fire: Fix login redirect issues when WUD exposed under a subpatch
 
 ## 8.3.1
