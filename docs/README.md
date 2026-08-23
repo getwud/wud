@@ -3,7 +3,7 @@
 ![Docker pulls](https://img.shields.io/docker/pulls/getwud/wud)
 ![License](https://img.shields.io/github/license/getwud/wud)
 
-## WUD <small>(aka ***What's up Docker?***)</small>
+## WUD <small>(aka _**What's up Docker?**_)</small>
 
 Keep your containers up to date!
 
@@ -59,11 +59,14 @@ A web UI provides container insights and allows you to manually run triggers.
 - ...
 
 ## Ready to go?
+
 > [**Follow the quick start guide!**](quickstart/)
 
 ## Contact & Support
+
 - Create a [GitHub issue](https://github.com/getwud/wud/issues) for bug reports, feature requests, or questions.
 - Star the project [:star: on GitHub](https://github.com/getwud/wud) or [Buy me a coffee](https://www.buymeacoffee.com/61rUNMm)&nbsp;to support ongoing development!
 
 ## License
+
 This project is licensed under the [MIT license](https://github.com/getwud/wud/blob/main/LICENSE).

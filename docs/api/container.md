@@ -1,7 +1,9 @@
 # Container API
+
 This API allows you to query the state of watched containers.
 
 ## Get all containers
+
 This endpoint returns all watched containers.
 
 ```bash
@@ -40,6 +42,7 @@ curl http://wud:3000/api/containers
 ```
 
 ## Check all containers
+
 This endpoint triggers an immediate update check across all containers.
 
 ```bash
@@ -139,6 +142,7 @@ curl http://wud:3000/api/containers/31a61a8305ef1fc9a71fa4f20a68d7ec88b28e32303b
 ```
 
 ## Check a specific container
+
 This endpoint triggers an immediate update check for a specific container.
 
 ```bash
@@ -183,6 +187,7 @@ curl -X POST http://wud:3000/api/containers/31a61a8305ef1fc9a71fa4f20a68d7ec88b2
 ```
 
 ## Delete a container
+
 This endpoint deletes a container from the store by its ID.
 
 ```bash

@@ -1,6 +1,7 @@
 # Changelog
 
 ## next
+
 - :star: Skip tag listing for non-semver images
 - :star: [MQTT] - Add customizable Home Assistant device ID and device name
 - :star: [NOMAD] - Add Nomad trigger
@@ -10,6 +11,7 @@
 - :fire: [DOCKER-COMPOSE] - Prefer trigger-level configuration over automatic labels
 
 ## 8.3.1
+
 - :star: Add `WUD_REGISTRY_HUB_PUBLIC_SUPPRESSDIGESTWATCHWARNING` env var
 - :star: [GITLAB] - Add support for GitLab group access tokens
 - :fire: [DOCKER-COMPOSE] - Fix trigger failing to detect containers in compose file
@@ -20,6 +22,7 @@
 - :wrench: [TELEGRAM] - Replace deprecated client with direct HTTP API calls
 
 ## 8.3.0
+
 - :star: Add opt-in mode for trigger association
 - :star: Add SOCKS5/HTTP proxy support to Telegram trigger
 - :star: Add runtime subpath proxy support with `WUD_SERVER_BASEPATH`
@@ -38,11 +41,13 @@
 - :wrench: Add Playwright e2e tests
 
 ## 8.2.2
+
 - :star: Add public Codeberg registry (`codeberg.org`) to default supported registries
 - :star: Add public Forgejo registry (`code.forgejo.org`) to default supported registries
 - :fire: Fix startup errors for some users
 
 ## 8.2.1
+
 - :wrench: Migrate backend to TypeScript
 - :fire: [APPRISE] - Fix bad request error ("Payload lacks minimum requirements")
 - :fire: [DISCORD] - Fix bad request error ("Invalid URL")
@@ -51,6 +56,7 @@
 - :fire: Fix `wud.watch.digest` not being respected
 
 ## 8.2.0
+
 - :star: Add TrueForge Container Registry support (`oci.trueforge.org`)
 - :star: Add Codeberg registry support
 - :star: Allow disabling Prometheus metrics
@@ -69,9 +75,11 @@
 - :fire: Ignore `sig` tags
 
 ## 8.1.1
+
 - :fire: [TELEGRAM] - Fix Markdown character escaping
 
 ## 8.1.0
+
 - :star: Add 60s default jitter to Docker watcher to prevent load spikes on Docker Hub
 - :star: Add support for custom TLDs in SMTP trigger
 - :star: Add title configuration to `telegram` and `slack` triggers
@@ -80,12 +88,14 @@
 - :fire: Fix `prerelease` variable in link templates
 
 ## 8.0.1
+
 - :star: Force watcher to check on startup only if store is empty ([#570](https://github.com/getwud/wud/issues/570))
 - :fire: Fix default healthcheck when HTTP server is disabled ([#562](https://github.com/getwud/wud/issues/556))
 - :fire: Fix missing Prometheus label ([#562](https://github.com/getwud/wud/issues/562))
 - :fire: [DOCKER-COMPOSE] - Fix manual update ([#546](https://github.com/getwud/wud/issues/546))
 
 ## 8.0.0
+
 - :star: [COMMAND] - Add support for [Command](configuration/triggers/command/) trigger
 - :star: [DOCKER] - Add default healthcheck to the `wud` Docker image
 - :star: [PUSHOVER] - Add support for optional message TTL
@@ -103,20 +113,24 @@ Registry configuration has changed; please update [your environment variables](c
 Internal IDs have changed; your [existing state](configuration/storage/) will be reset.
 
 ## 7.2.0
+
 - :star: [TRIGGER] - Add support for associating specific triggers with specific containers
 - :star: [UI] - General UX improvements
 - :star: [UI/API] - Add support for manually running triggers to help with testing
 
 ## 7.1.1
+
 - :fire: [NTFY] - Fix Basic/Bearer authentication
 
 ## 7.1.0
+
 - :star: [GOTIFY] - Add support for [Gotify](configuration/triggers/gotify/) trigger
 - :star: [NTFY] - Add support for [ntfy](configuration/triggers/ntfy/) trigger
 - :star: [PUSHOVER] - Add support for HTML templating
 - :fire: [UI] - Fix container list sorting
 
 ## 7.0.0
+
 - :star: [UI] - Add support for [Selfh.st](https://selfh.st/icons/) icons
 - :star: [Docker watcher] - Add `watchatstart` option to disable automatic check during startup
 
@@ -126,6 +140,7 @@ GitHub repository: [https://github.com/getwud/wud](https://github.com/getwud/wud
 Docker image: [https://hub.docker.com/r/getwud/wud](https://hub.docker.com/r/getwud/wud)
 
 ## 6.6.1
+
 - :star: [API/UI] - Add option to allow/disallow delete operations (`WUD_SERVER_FEATURE_DELETE`)
 - :star: [Apprise] - Add support for [Apprise persistent YAML configuration](https://github.com/caronc/apprise/wiki/config_yaml)
 - :star: [DISCORD] - Add [Discord trigger](configuration/triggers/discord/)
@@ -155,6 +170,7 @@ Existing Home Assistant entities must be manually cleaned up. \
 Remember to update your Home Assistant automations and dashboards accordingly.
 
 ## 5.22.1
+
 - :star: [Docker / Docker-compose trigger] - Add dry-run mode (pull new images only)
 - :star: [Docker watcher] - Add ability to listen for Docker daemon events
 - :star: [ECR] - Add support for `public.ecr.aws` gallery
@@ -213,6 +229,7 @@ The data model, API, and some integrations have changed. \
 Please review the documentation before upgrading to evaluate any impacts on your setup.
 
 ## 4.1.2
+
 - :star: Add container name support
 - :star: Add text log format (text by default instead of JSON)
 - :star: Add option to monitor all containers (not just running ones)
@@ -221,6 +238,7 @@ Please review the documentation before upgrading to evaluate any impacts on your
 - :star: Log current WUD version at startup
 
 ## 3.5.0
+
 - :star: Add [Home Assistant](https://www.home-assistant.io/) MQTT integration
 - :star: Add Prometheus metrics and health check endpoint
 - :star: Add Pushover trigger
@@ -230,6 +248,7 @@ Please review the documentation before upgrading to evaluate any impacts on your
 - :star: Update all dependencies
 
 ## 2.3.1
+
 - :star: Add REST API
 - :star: Add support for Docker Hub private repositories
 - :star: Add web UI
@@ -237,5 +256,5 @@ Please review the documentation before upgrading to evaluate any impacts on your
 - :star: Upgrade to Node.js 14
 
 ## 1.0.0
-- :star: Initial release!
 
+- :star: Initial release!

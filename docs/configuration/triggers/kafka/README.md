@@ -6,14 +6,14 @@ The `kafka` trigger lets you publish container update notification records to an
 
 ### Variables
 
-| Env var                                                    | Required       | Description                                                      | Supported values                         | Default value when missing |
-| ---------------------------------------------------------- |:--------------:| ---------------------------------------------------------------- | ---------------------------------------- | -------------------------- | 
-| `WUD_TRIGGER_KAFKA_{trigger_name}_BROKERS`                 | :red_circle:   | Comma-separated list of Kafka broker endpoints (`host:port`)     | String                                   |                            |
-| `WUD_TRIGGER_KAFKA_{trigger_name}_SSL`                     | :white_circle: | Enable TLS/SSL connection                                        | `true`, `false`                          | `false`                    |
-| `WUD_TRIGGER_KAFKA_{trigger_name}_TOPIC`                   | :white_circle: | Kafka topic name to publish records to                           | String                                   | `wud-container`            |
-| `WUD_TRIGGER_KAFKA_{trigger_name}_AUTHENTICATION_TYPE`     | :white_circle: | SASL authentication mechanism                                    | `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512` | `PLAIN`                  |
-| `WUD_TRIGGER_KAFKA_{trigger_name}_AUTHENTICATION_USER`     | :white_circle: | SASL username (required when authentication is enabled)          | String                                   |                            |
-| `WUD_TRIGGER_KAFKA_{trigger_name}_AUTHENTICATION_PASSWORD` | :white_circle: | SASL password (required when authentication is enabled)          | String                                   |                            |
+| Env var                                                    |    Required    | Description                                                  | Supported values                          | Default value when missing |
+| ---------------------------------------------------------- | :------------: | ------------------------------------------------------------ | ----------------------------------------- | -------------------------- |
+| `WUD_TRIGGER_KAFKA_{trigger_name}_BROKERS`                 |  :red_circle:  | Comma-separated list of Kafka broker endpoints (`host:port`) | String                                    |                            |
+| `WUD_TRIGGER_KAFKA_{trigger_name}_SSL`                     | :white_circle: | Enable TLS/SSL connection                                    | `true`, `false`                           | `false`                    |
+| `WUD_TRIGGER_KAFKA_{trigger_name}_TOPIC`                   | :white_circle: | Kafka topic name to publish records to                       | String                                    | `wud-container`            |
+| `WUD_TRIGGER_KAFKA_{trigger_name}_AUTHENTICATION_TYPE`     | :white_circle: | SASL authentication mechanism                                | `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512` | `PLAIN`                    |
+| `WUD_TRIGGER_KAFKA_{trigger_name}_AUTHENTICATION_USER`     | :white_circle: | SASL username (required when authentication is enabled)      | String                                    |                            |
+| `WUD_TRIGGER_KAFKA_{trigger_name}_AUTHENTICATION_PASSWORD` | :white_circle: | SASL password (required when authentication is enabled)      | String                                    |                            |
 
 !> The Kafka topic must already exist on the broker; WUD will not create it automatically.
 
@@ -24,7 +24,9 @@ The `kafka` trigger lets you publish container update notification records to an
 #### Publish messages to a [CloudKarafka](https://www.cloudkarafka.com/) broker
 
 <!-- tabs:start -->
+
 #### **Docker Compose**
+
 ```yaml
 services:
   whatsupdocker:
@@ -40,6 +42,7 @@ services:
 ```
 
 #### **Docker**
+
 ```bash
 docker run \
   -e WUD_TRIGGER_KAFKA_KARAFKA_BROKERS="ark-01.srvs.cloudkafka.com:9094,ark-02.srvs.cloudkafka.com:9094,ark-03.srvs.cloudkafka.com:9094" \
@@ -51,9 +54,11 @@ docker run \
   ...
   getwud/wud
 ```
+
 <!-- tabs:end -->
 
 #### Example published JSON record
+
 ```json
 {
   "id": "31a61a8305ef1fc9a71fa4f20a68d7ec88b28e32303bbc4a5f192e851165b816",

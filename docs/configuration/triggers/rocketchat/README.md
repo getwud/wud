@@ -6,17 +6,17 @@ The `rocketchat` trigger lets you post container update notifications to a Rocke
 
 ### Variables
 
-| Env var                                              |    Required    | Description                                                                                                                                                        | Supported values                                                                             | Default value when missing |
-|------------------------------------------------------|:--------------:|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|----------------------------|
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_URL`          |  :red_circle:  | Rocket.Chat workspace URL (e.g., `https://chat.example.com`)                                                                                                       | Valid HTTP/HTTPS URL                                                                         |                            |
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_USER_ID`      |  :red_circle:  | User ID of the account sending notifications (found when generating a Personal Access Token)                                                                       | String                                                                                       |                            |
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_AUTH_TOKEN`   |  :red_circle:  | Personal Access Token (PAT) of the sending account                                                                                                                 | String                                                                                       |                            |
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_CHANNEL`      |  :red_circle:  | Destination channel or user                                                                                                                                        | Channel ID (`6561ce603d237c33797650d7`), channel name (`#example`), or username (`@example`) |                            |
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_ALIAS`        | :white_circle: | Custom sender display name (requires `message-impersonate` permission, typically on the `bot` role)                                                                 | String                                                                                       |                            |
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_AVATAR`       | :white_circle: | Custom sender avatar image URL (requires `message-impersonate` permission)                                                                                         | Valid HTTP/HTTPS image URL                                                                   |                            |
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_EMOJI`        | :white_circle: | Custom sender avatar emoji (e.g., `:whale:`)                                                                                                                       | Emoji shortcode                                                                              |                            |
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_PARSE_URLS`   | :white_circle: | Generate link previews when the message contains URLs                                                                                                              | `true`, `false`                                                                              | `true`                     |
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_DISABLETITLE` | :white_circle: | Disable the default title heading to allow full custom message formatting                                                                                         | `true`, `false`                                                                              | `false`                    |
+| Env var                                              |    Required    | Description                                                                                         | Supported values                                                                             | Default value when missing |
+| ---------------------------------------------------- | :------------: | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | -------------------------- |
+| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_URL`          |  :red_circle:  | Rocket.Chat workspace URL (e.g., `https://chat.example.com`)                                        | Valid HTTP/HTTPS URL                                                                         |                            |
+| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_USER_ID`      |  :red_circle:  | User ID of the account sending notifications (found when generating a Personal Access Token)        | String                                                                                       |                            |
+| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_AUTH_TOKEN`   |  :red_circle:  | Personal Access Token (PAT) of the sending account                                                  | String                                                                                       |                            |
+| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_CHANNEL`      |  :red_circle:  | Destination channel or user                                                                         | Channel ID (`6561ce603d237c33797650d7`), channel name (`#example`), or username (`@example`) |                            |
+| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_ALIAS`        | :white_circle: | Custom sender display name (requires `message-impersonate` permission, typically on the `bot` role) | String                                                                                       |                            |
+| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_AVATAR`       | :white_circle: | Custom sender avatar image URL (requires `message-impersonate` permission)                          | Valid HTTP/HTTPS image URL                                                                   |                            |
+| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_EMOJI`        | :white_circle: | Custom sender avatar emoji (e.g., `:whale:`)                                                        | Emoji shortcode                                                                              |                            |
+| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_PARSE_URLS`   | :white_circle: | Generate link previews when the message contains URLs                                               | `true`, `false`                                                                              | `true`                     |
+| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_DISABLETITLE` | :white_circle: | Disable the default title heading to allow full custom message formatting                           | `true`, `false`                                                                              | `false`                    |
 
 !> The destination Rocket.Chat channel must already exist on the workspace; WUD will not create it automatically.
 
@@ -27,6 +27,7 @@ The `rocketchat` trigger lets you post container update notifications to a Rocke
 ### Examples
 
 <!-- tabs:start -->
+
 #### **Docker Compose**
 
 ```yaml
@@ -52,6 +53,7 @@ docker run \
   ...
   getwud/wud
 ```
+
 <!-- tabs:end -->
 
 ### How to obtain User ID and Personal Access Token
@@ -62,4 +64,3 @@ docker run \
 4. Enter a name for the token, check **Ignore Two-Factor Authentication**, and click **Add**.
 5. Confirm your password or 2FA code.
 6. Copy both the generated **User ID** and **Token** values.
-

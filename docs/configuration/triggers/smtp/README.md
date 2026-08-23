@@ -4,19 +4,19 @@ The `smtp` trigger lets you send container update notifications via email using 
 
 ### Variables
 
-| Env var                                             | Required       | Description                                | Supported values              | Default value when missing |
-| --------------------------------------------------- |:--------------:|:------------------------------------------ | ----------------------------- | -------------------------- |
-| `WUD_TRIGGER_SMTP_{trigger_name}_HOST`              | :red_circle:   | SMTP server hostname or IP address         | Valid hostname or IP address  |                            |
-| `WUD_TRIGGER_SMTP_{trigger_name}_PORT`              | :red_circle:   | SMTP server port                           | Valid port number (e.g. `465`, `587`) |                     |
-| `WUD_TRIGGER_SMTP_{trigger_name}_FROM_ADDRESS`      | :red_circle:   | Sender email address (`From`)              | Valid email address           |                            |
-| `WUD_TRIGGER_SMTP_{trigger_name}_FROM` (deprecated) | :white_circle: | Sender email address (legacy alias)        | Valid email address           |                            |
-| `WUD_TRIGGER_SMTP_{trigger_name}_FROM_NAME`         | :white_circle: | Sender display name                        | String                        |                            |
-| `WUD_TRIGGER_SMTP_{trigger_name}_TO`                | :red_circle:   | Recipient email address (`To`)             | Valid email address           |                            |
-| `WUD_TRIGGER_SMTP_{trigger_name}_USER`              | :white_circle: | SMTP authentication username               | String                        |                            |
-| `WUD_TRIGGER_SMTP_{trigger_name}_PASS`              | :white_circle: | SMTP authentication password               | String                        |                            |
-| `WUD_TRIGGER_SMTP_{trigger_name}_TLS_ENABLED`       | :white_circle: | Enable TLS/SSL connection                  | `true`, `false`               | `false`                    |
-| `WUD_TRIGGER_SMTP_{trigger_name}_TLS_VERIFY`        | :white_circle: | Verify server TLS certificate              | `true`, `false`               | `true`                     |
-| `WUD_TRIGGER_SMTP_{trigger_name}_ALLOWCUSTOMTLD`    | :white_circle: | Allow non-standard/custom TLDs in email addresses | `true`, `false`        | `false`                    |
+| Env var                                             |    Required    | Description                                       | Supported values                      | Default value when missing |
+| --------------------------------------------------- | :------------: | :------------------------------------------------ | ------------------------------------- | -------------------------- |
+| `WUD_TRIGGER_SMTP_{trigger_name}_HOST`              |  :red_circle:  | SMTP server hostname or IP address                | Valid hostname or IP address          |                            |
+| `WUD_TRIGGER_SMTP_{trigger_name}_PORT`              |  :red_circle:  | SMTP server port                                  | Valid port number (e.g. `465`, `587`) |                            |
+| `WUD_TRIGGER_SMTP_{trigger_name}_FROM_ADDRESS`      |  :red_circle:  | Sender email address (`From`)                     | Valid email address                   |                            |
+| `WUD_TRIGGER_SMTP_{trigger_name}_FROM` (deprecated) | :white_circle: | Sender email address (legacy alias)               | Valid email address                   |                            |
+| `WUD_TRIGGER_SMTP_{trigger_name}_FROM_NAME`         | :white_circle: | Sender display name                               | String                                |                            |
+| `WUD_TRIGGER_SMTP_{trigger_name}_TO`                |  :red_circle:  | Recipient email address (`To`)                    | Valid email address                   |                            |
+| `WUD_TRIGGER_SMTP_{trigger_name}_USER`              | :white_circle: | SMTP authentication username                      | String                                |                            |
+| `WUD_TRIGGER_SMTP_{trigger_name}_PASS`              | :white_circle: | SMTP authentication password                      | String                                |                            |
+| `WUD_TRIGGER_SMTP_{trigger_name}_TLS_ENABLED`       | :white_circle: | Enable TLS/SSL connection                         | `true`, `false`                       | `false`                    |
+| `WUD_TRIGGER_SMTP_{trigger_name}_TLS_VERIFY`        | :white_circle: | Verify server TLS certificate                     | `true`, `false`                       | `true`                     |
+| `WUD_TRIGGER_SMTP_{trigger_name}_ALLOWCUSTOMTLD`    | :white_circle: | Allow non-standard/custom TLDs in email addresses | `true`, `false`                       | `false`                    |
 
 ?> This trigger also supports [common trigger configuration options](configuration/triggers/?id=common-trigger-configuration).
 
@@ -25,6 +25,7 @@ The `smtp` trigger lets you send container update notifications via email using 
 #### Send email notifications via Gmail
 
 <!-- tabs:start -->
+
 #### **Docker Compose**
 
 ```yaml
@@ -58,7 +59,7 @@ docker run \
   ...
   getwud/wud
 ```
+
 <!-- tabs:end -->
 
 !> When using Gmail, create and use a dedicated App Password ([see Google App Passwords documentation](https://security.google.com/settings/security/apppasswords)).
-

@@ -6,15 +6,15 @@ The `oidc` authentication module lets you protect WUD access using the [OpenID C
 
 ### Variables
 
-| Env var                                   |    Required    | Description                                                            | Supported values | Default value when missing |
-| ----------------------------------------- | :------------: | ---------------------------------------------------------------------- | ---------------- | -------------------------- |
-| `WUD_AUTH_OIDC_{auth_name}_CLIENTID`      |  :red_circle:  | Client ID                                                              |                  |                            |
-| `WUD_AUTH_OIDC_{auth_name}_CLIENTSECRET`  |  :red_circle:  | Client Secret                                                          |                  |                            |
-| `WUD_AUTH_OIDC_{auth_name}_DISCOVERY`     |  :red_circle:  | OpenID Connect discovery URL                                           |                  |                            |
-| `WUD_AUTH_OIDC_{auth_name}_REDIRECT`      | :white_circle: | Skip internal login page and automatically redirect to the OIDC provider | `true`, `false`  | `false`                    |
-| `WUD_AUTH_OIDC_{auth_name}_TIMEOUT`       | :white_circle: | Timeout (in ms) when calling the OIDC provider                         | Minimum is 500   | `5000`                     |
+| Env var                                   |    Required    | Description                                                                         | Supported values  | Default value when missing |
+| ----------------------------------------- | :------------: | ----------------------------------------------------------------------------------- | ----------------- | -------------------------- |
+| `WUD_AUTH_OIDC_{auth_name}_CLIENTID`      |  :red_circle:  | Client ID                                                                           |                   |                            |
+| `WUD_AUTH_OIDC_{auth_name}_CLIENTSECRET`  |  :red_circle:  | Client Secret                                                                       |                   |                            |
+| `WUD_AUTH_OIDC_{auth_name}_DISCOVERY`     |  :red_circle:  | OpenID Connect discovery URL                                                        |                   |                            |
+| `WUD_AUTH_OIDC_{auth_name}_REDIRECT`      | :white_circle: | Skip internal login page and automatically redirect to the OIDC provider            | `true`, `false`   | `false`                    |
+| `WUD_AUTH_OIDC_{auth_name}_TIMEOUT`       | :white_circle: | Timeout (in ms) when calling the OIDC provider                                      | Minimum is 500    | `5000`                     |
 | `WUD_AUTH_OIDC_{auth_name}_TTL`           | :white_circle: | Cache TTL (in minutes) for OIDC discovery metadata; use `-1` for unlimited validity | `-1` or minimum 0 | `60` (1 hour)              |
-| `WUD_AUTH_OIDC_{auth_name}_USERNAMECLAIM` | :white_circle: | User claim to use as the username                                      | String           | `email`                    |
+| `WUD_AUTH_OIDC_{auth_name}_USERNAMECLAIM` | :white_circle: | User claim to use as the username                                                   | String            | `email`                    |
 
 ?> The callback URL to configure in your IdP is formatted as: `${wud_public_url}/auth/oidc/${auth_name}/cb`
 
@@ -191,4 +191,3 @@ docker run \
 ```
 
 <!-- tabs:end -->
-

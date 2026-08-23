@@ -6,13 +6,13 @@ The `ecr` registry module lets you authenticate against [Amazon Elastic Containe
 
 ### Variables
 
-| Env var                                            |    Required    | Description                                                                  | Supported values                                                                                  | Default value when missing |
-| -------------------------------------------------- | :------------: | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------- |
-| `WUD_REGISTRY_ECR_{registry_name}_REGION`          |  :red_circle:  | AWS Region Code                                                              | [AWS Region list](https://docs.aws.amazon.com/general/latest/gr/rande.html#regional-endpoints)    |                            |
-| `WUD_REGISTRY_ECR_{registry_name}_ACCESSKEYID`     |  :red_circle:  | AWS Access Key ID                                                            | [AWS Credentials](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html)          |                            |
-| `WUD_REGISTRY_ECR_{registry_name}_SECRETACCESSKEY` |  :red_circle:  | AWS Secret Access Key                                                        | [AWS Credentials](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html)          |                            |
-| `WUD_REGISTRY_ECR_{registry_name}_ACCOUNTID`       | :white_circle: | AWS Account ID (used to filter when multiple accounts are configured)        | Numeric string                                                                                    | Derived from image name    |
-| `WUD_REGISTRY_ECR_{registry_name}_PUBLIC`          | :white_circle: | Whether the registry is an ECR Public gallery                                | `true`, `false`                                                                                   | `false`                    |
+| Env var                                            |    Required    | Description                                                           | Supported values                                                                               | Default value when missing |
+| -------------------------------------------------- | :------------: | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | -------------------------- |
+| `WUD_REGISTRY_ECR_{registry_name}_REGION`          |  :red_circle:  | AWS Region Code                                                       | [AWS Region list](https://docs.aws.amazon.com/general/latest/gr/rande.html#regional-endpoints) |                            |
+| `WUD_REGISTRY_ECR_{registry_name}_ACCESSKEYID`     |  :red_circle:  | AWS Access Key ID                                                     | [AWS Credentials](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html)       |                            |
+| `WUD_REGISTRY_ECR_{registry_name}_SECRETACCESSKEY` |  :red_circle:  | AWS Secret Access Key                                                 | [AWS Credentials](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html)       |                            |
+| `WUD_REGISTRY_ECR_{registry_name}_ACCOUNTID`       | :white_circle: | AWS Account ID (used to filter when multiple accounts are configured) | Numeric string                                                                                 | Derived from image name    |
+| `WUD_REGISTRY_ECR_{registry_name}_PUBLIC`          | :white_circle: | Whether the registry is an ECR Public gallery                         | `true`, `false`                                                                                | `false`                    |
 
 !> Ensure the `AmazonEC2ContainerRegistryReadOnly` policy (or equivalent permissions) is attached to the IAM user.
 
@@ -61,4 +61,3 @@ docker run \
 #### 3. Generate an Access Key ID and Secret Access Key, then configure WUD with them
 
 ![image](ecr_03.png)
-

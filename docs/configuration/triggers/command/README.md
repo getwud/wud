@@ -6,10 +6,10 @@ The `command` trigger lets you run arbitrary shell commands or scripts upon cont
 
 ### Variables
 
-| Env var                                      |    Required    | Description                 | Supported values                            | Default value when missing |
-|----------------------------------------------|:--------------:|-----------------------------|---------------------------------------------|----------------------------| 
-| `WUD_TRIGGER_COMMAND_{trigger_name}_CMD`     | :red_circle:   | The shell command to run    | String                                      |                            |
-| `WUD_TRIGGER_COMMAND_{trigger_name}_SHELL`   | :white_circle: | Shell binary path to use    | Valid installed shell path                  | `/bin/sh`                  |
+| Env var                                      |    Required    | Description                       | Supported values                      | Default value when missing |
+| -------------------------------------------- | :------------: | --------------------------------- | ------------------------------------- | -------------------------- |
+| `WUD_TRIGGER_COMMAND_{trigger_name}_CMD`     |  :red_circle:  | The shell command to run          | String                                |                            |
+| `WUD_TRIGGER_COMMAND_{trigger_name}_SHELL`   | :white_circle: | Shell binary path to use          | Valid installed shell path            | `/bin/sh`                  |
 | `WUD_TRIGGER_COMMAND_{trigger_name}_TIMEOUT` | :white_circle: | Command execution timeout (in ms) | Positive integer (`0` for no timeout) | `60000` (1 minute)         |
 
 ?> This trigger also supports [common trigger configuration options](configuration/triggers/?id=common-trigger-configuration).
@@ -19,6 +19,7 @@ The `command` trigger lets you run arbitrary shell commands or scripts upon cont
 ### Environment variables passed to the executed command
 
 #### In simple mode (one execution per container update)
+
 - `display_icon`
 - `display_name`
 - `id`
@@ -44,6 +45,7 @@ The `command` trigger lets you run arbitrary shell commands or scripts upon cont
 - `watcher`
 
 ##### Example environment values
+
 ```bash
 display_icon='mdi:docker'
 display_name='test-nginx-1'
@@ -81,7 +83,9 @@ watcher='local'
 #### Running an inline shell command
 
 <!-- tabs:start -->
+
 #### **Docker Compose**
+
 ```yaml
 services:
   whatsupdocker:
@@ -90,19 +94,24 @@ services:
     environment:
       - WUD_TRIGGER_COMMAND_LOCAL_CMD=echo "$${display_name} can be updated to $${update_kind_remote_value}"
 ```
+
 #### **Docker**
+
 ```bash
 docker run \
   -e 'WUD_TRIGGER_COMMAND_LOCAL_CMD=echo "${display_name} can be updated to ${update_kind_remote_value}"' \
   ...
   getwud/wud
 ```
+
 <!-- tabs:end -->
 
 #### Running a mounted Bash script
 
 <!-- tabs:start -->
+
 #### **Docker Compose**
+
 ```yaml
 services:
   whatsupdocker:
@@ -114,7 +123,9 @@ services:
     volumes:
       - ${PWD}/wud/trigger.sh:/wud/trigger.sh:ro
 ```
+
 #### **Docker**
+
 ```bash
 docker run \
   -e WUD_TRIGGER_COMMAND_LOCAL_CMD="/wud/trigger.sh" \
@@ -123,5 +134,5 @@ docker run \
   ...
   getwud/wud
 ```
-<!-- tabs:end -->
 
+<!-- tabs:end -->

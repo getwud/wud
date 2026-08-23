@@ -1,9 +1,11 @@
 # Watcher API
+
 This API allows you to query the state of configured watchers.
 
 ?> [Need to configure watchers?](configuration/watchers/)
 
 ## Get all watchers
+
 This endpoint returns all configured watchers.
 
 ```bash
@@ -25,6 +27,7 @@ curl http://wud:3000/api/watchers
 ```
 
 ## Get a watcher by ID
+
 This endpoint retrieves a specific watcher by its ID.
 
 ```bash
@@ -42,5 +45,3 @@ curl http://wud:3000/api/watchers/docker/local
    }
 }
 ```
-
-

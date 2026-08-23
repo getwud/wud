@@ -1,9 +1,11 @@
 # Trigger API
+
 This API allows you to query the state of configured triggers and test-run them.
 
 ?> [Need to configure triggers?](configuration/triggers/)
 
 ## Get all triggers
+
 This endpoint returns all configured triggers.
 
 ```bash
@@ -27,6 +29,7 @@ curl http://wud:3000/api/triggers
 ```
 
 ## Get a trigger by ID
+
 This endpoint retrieves a specific trigger by its ID.
 
 ```bash
@@ -48,6 +51,7 @@ curl http://wud:3000/api/triggers/smtp/gmail
 ```
 
 ## Run a trigger
+
 This endpoint executes a specific trigger with simulated container update data.
 
 ```bash

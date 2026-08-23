@@ -8,17 +8,19 @@ The `gcr` registry module lets you authenticate against [Google Container Regist
 
 ### Variables
 
-| Env var                                        |    Required    | Description                                                       | Supported values                                                                                                     | Default value when missing |
-| ---------------------------------------------- |:--------------:|-------------------------------------------------------------------| -------------------------------------------------------------------------------------------------------------------- | -------------------------- | 
-| `WUD_REGISTRY_GCR_{registry_name}_CLIENTEMAIL` | :white_circle: | Service Account client email (required for private images)        | See [Service Account credentials](https://cloud.google.com/container-registry/docs/advanced-authentication#json-key) |                            |
-| `WUD_REGISTRY_GCR_{registry_name}_PRIVATEKEY`  | :white_circle: | Service Account private key (required for private images)         | See [Service Account credentials](https://cloud.google.com/container-registry/docs/advanced-authentication#json-key) |                            |
+| Env var                                        |    Required    | Description                                                | Supported values                                                                                                     | Default value when missing |
+| ---------------------------------------------- | :------------: | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `WUD_REGISTRY_GCR_{registry_name}_CLIENTEMAIL` | :white_circle: | Service Account client email (required for private images) | See [Service Account credentials](https://cloud.google.com/container-registry/docs/advanced-authentication#json-key) |                            |
+| `WUD_REGISTRY_GCR_{registry_name}_PRIVATEKEY`  | :white_circle: | Service Account private key (required for private images)  | See [Service Account credentials](https://cloud.google.com/container-registry/docs/advanced-authentication#json-key) |                            |
 
 ### Examples
 
 #### Authenticate with a Google Service Account
 
 <!-- tabs:start -->
+
 #### **Docker Compose**
+
 ```yaml
 services:
   whatsupdocker:
@@ -28,7 +30,9 @@ services:
       - WUD_REGISTRY_GCR_PRIVATE_CLIENTEMAIL=johndoe@mysuperproject.iam.gserviceaccount.com
       - WUD_REGISTRY_GCR_PRIVATE_PRIVATEKEY=-----BEGIN PRIVATE KEY-----\nxxxxxxxxxxx\n-----END PRIVATE KEY-----\n
 ```
+
 #### **Docker**
+
 ```bash
 docker run \
   -e WUD_REGISTRY_GCR_PRIVATE_CLIENTEMAIL="johndoe@mysuperproject.iam.gserviceaccount.com" \
@@ -36,27 +40,33 @@ docker run \
   ...
   getwud/wud
 ```
+
 <!-- tabs:end -->
 
 ### How to create a Service Account on Google Cloud Platform
 
 #### 1. Open the [Google Cloud Service Accounts Console](https://console.cloud.google.com/iam-admin/serviceaccounts)
+
 ![image](gcr_01.png)
 
 #### 2. Create a new Service Account
+
 ![image](gcr_02.png)
 
 #### 3. Assign the Container Registry Service Agent or Artifact Registry Reader role
+
 ![image](gcr_03.png)
 
 #### 4. Save the Service Account
+
 ![image](gcr_04.png)
 
 #### 5. Create a new JSON key for the Service Account
+
 ![image](gcr_05.png)
 
 #### 6. Download and store the JSON key file securely
+
 ![image](gcr_06.png)
 
 #### 7. Open the JSON file, copy `client_email` and `private_key`, and configure WUD with them
-

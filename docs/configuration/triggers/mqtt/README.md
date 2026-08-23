@@ -6,22 +6,22 @@ The `mqtt` trigger lets you publish container update notifications to an MQTT br
 
 ### Variables
 
-| Env var                                                  | Required       | Description                                                                                         | Supported values                    | Default value when missing |
-|----------------------------------------------------------|:--------------:|-----------------------------------------------------------------------------------------------------|-------------------------------------|----------------------------| 
-| `WUD_TRIGGER_MQTT_{trigger_name}_URL`                    | :red_circle:   | URL of the MQTT broker                                                                              | Valid `mqtt`, `mqtts`, `tcp`, `ws`, `wss` URL |            |
-| `WUD_TRIGGER_MQTT_{trigger_name}_USER`                   | :white_circle: | MQTT broker username                                                                                | String                              |                            |
-| `WUD_TRIGGER_MQTT_{trigger_name}_PASSWORD`               | :white_circle: | MQTT broker password                                                                                | String                              |                            |
-| `WUD_TRIGGER_MQTT_{trigger_name}_CLIENTID`               | :white_circle: | MQTT client ID to use                                                                               | String                              | `wud_$random`              |
-| `WUD_TRIGGER_MQTT_{trigger_name}_TOPIC`                  | :white_circle: | Base topic to which updates are published                                                           | String                              | `wud/container`            |
-| `WUD_TRIGGER_MQTT_{trigger_name}_HASS_ENABLED`           | :white_circle: | Enable [Home Assistant](https://www.home-assistant.io/) integration and publish state updates       | `true`, `false`                     | `false`                    |
-| `WUD_TRIGGER_MQTT_{trigger_name}_HASS_DISCOVERY`         | :white_circle: | Enable [Home Assistant](https://www.home-assistant.io/) MQTT Auto-Discovery                         | `true`, `false`                     | `false`                    |
-| `WUD_TRIGGER_MQTT_{trigger_name}_HASS_PREFIX`            | :white_circle: | Discovery prefix topic for Home Assistant                                                           | String                              | `homeassistant`            |
-| `WUD_TRIGGER_MQTT_{trigger_name}_HASS_DEVICEID`           | :white_circle: | Device identifier in Home Assistant                                                                | String                              | `wud`                      |
-| `WUD_TRIGGER_MQTT_{trigger_name}_HASS_DEVICENAME`         | :white_circle: | Device display name in Home Assistant                                                               | String                              | `wud`                      |
-| `WUD_TRIGGER_MQTT_{trigger_name}_TLS_CACHAIN`            | :white_circle: | Path to CA certificate chain PEM file (when using a private Certificate Authority)                  | File path                           |                            |
-| `WUD_TRIGGER_MQTT_{trigger_name}_TLS_CLIENTCERT`         | :white_circle: | Path to client certificate PEM file (when using mutual TLS authentication)                          | File path                           |                            |
-| `WUD_TRIGGER_MQTT_{trigger_name}_TLS_CLIENTKEY`          | :white_circle: | Path to client private key PEM file (when using mutual TLS authentication)                          | File path                           |                            |
-| `WUD_TRIGGER_MQTT_{trigger_name}_TLS_REJECTUNAUTHORIZED` | :white_circle: | Whether to reject untrusted server certificates                                                     | `true`, `false`                     | `true`                     |
+| Env var                                                  |    Required    | Description                                                                                   | Supported values                              | Default value when missing |
+| -------------------------------------------------------- | :------------: | --------------------------------------------------------------------------------------------- | --------------------------------------------- | -------------------------- |
+| `WUD_TRIGGER_MQTT_{trigger_name}_URL`                    |  :red_circle:  | URL of the MQTT broker                                                                        | Valid `mqtt`, `mqtts`, `tcp`, `ws`, `wss` URL |                            |
+| `WUD_TRIGGER_MQTT_{trigger_name}_USER`                   | :white_circle: | MQTT broker username                                                                          | String                                        |                            |
+| `WUD_TRIGGER_MQTT_{trigger_name}_PASSWORD`               | :white_circle: | MQTT broker password                                                                          | String                                        |                            |
+| `WUD_TRIGGER_MQTT_{trigger_name}_CLIENTID`               | :white_circle: | MQTT client ID to use                                                                         | String                                        | `wud_$random`              |
+| `WUD_TRIGGER_MQTT_{trigger_name}_TOPIC`                  | :white_circle: | Base topic to which updates are published                                                     | String                                        | `wud/container`            |
+| `WUD_TRIGGER_MQTT_{trigger_name}_HASS_ENABLED`           | :white_circle: | Enable [Home Assistant](https://www.home-assistant.io/) integration and publish state updates | `true`, `false`                               | `false`                    |
+| `WUD_TRIGGER_MQTT_{trigger_name}_HASS_DISCOVERY`         | :white_circle: | Enable [Home Assistant](https://www.home-assistant.io/) MQTT Auto-Discovery                   | `true`, `false`                               | `false`                    |
+| `WUD_TRIGGER_MQTT_{trigger_name}_HASS_PREFIX`            | :white_circle: | Discovery prefix topic for Home Assistant                                                     | String                                        | `homeassistant`            |
+| `WUD_TRIGGER_MQTT_{trigger_name}_HASS_DEVICEID`          | :white_circle: | Device identifier in Home Assistant                                                           | String                                        | `wud`                      |
+| `WUD_TRIGGER_MQTT_{trigger_name}_HASS_DEVICENAME`        | :white_circle: | Device display name in Home Assistant                                                         | String                                        | `wud`                      |
+| `WUD_TRIGGER_MQTT_{trigger_name}_TLS_CACHAIN`            | :white_circle: | Path to CA certificate chain PEM file (when using a private Certificate Authority)            | File path                                     |                            |
+| `WUD_TRIGGER_MQTT_{trigger_name}_TLS_CLIENTCERT`         | :white_circle: | Path to client certificate PEM file (when using mutual TLS authentication)                    | File path                                     |                            |
+| `WUD_TRIGGER_MQTT_{trigger_name}_TLS_CLIENTKEY`          | :white_circle: | Path to client private key PEM file (when using mutual TLS authentication)                    | File path                                     |                            |
+| `WUD_TRIGGER_MQTT_{trigger_name}_TLS_REJECTUNAUTHORIZED` | :white_circle: | Whether to reject untrusted server certificates                                               | `true`, `false`                               | `true`                     |
 
 ?> This trigger supports [common trigger configuration options](configuration/triggers/?id=common-trigger-configuration) and runs in `simple` mode only.
 
@@ -33,7 +33,9 @@ The `mqtt` trigger lets you publish container update notifications to an MQTT br
 #### Publish to a local Mosquitto broker
 
 <!-- tabs:start -->
+
 #### **Docker Compose**
+
 ```yaml
 services:
   whatsupdocker:
@@ -44,18 +46,22 @@ services:
 ```
 
 #### **Docker**
+
 ```bash
 docker run \
   -e WUD_TRIGGER_MQTT_MOSQUITTO_URL="mqtt://localhost:1883" \
   ...
   getwud/wud
 ```
+
 <!-- tabs:end -->
 
 #### Publish with mutual TLS (mTLS)
 
 <!-- tabs:start -->
+
 #### **Docker Compose**
+
 ```yaml
 services:
   whatsupdocker:
@@ -73,6 +79,7 @@ services:
 ```
 
 #### **Docker**
+
 ```bash
 docker run \
   -e WUD_TRIGGER_MQTT_MOSQUITTO_URL="mqtts://localhost:8883" \
@@ -85,12 +92,15 @@ docker run \
   ...
   getwud/wud
 ```
+
 <!-- tabs:end -->
 
 #### Publish to Maqiatto broker
 
 <!-- tabs:start -->
+
 #### **Docker Compose**
+
 ```yaml
 services:
   whatsupdocker:
@@ -104,6 +114,7 @@ services:
 ```
 
 #### **Docker**
+
 ```bash
 docker run \
   -e WUD_TRIGGER_MQTT_MAQIATTO_URL="tcp://maqiatto.com:1883" \
@@ -113,9 +124,11 @@ docker run \
   ...
   getwud/wud
 ```
+
 <!-- tabs:end -->
 
 #### Example published MQTT message
+
 ```json
 {
   "id": "31a61a8305ef1fc9a71fa4f20a68d7ec88b28e32303bbc4a5f192e851165b816",
@@ -146,7 +159,9 @@ WUD integrates seamlessly into [Home Assistant](https://www.home-assistant.io/) 
 By default, WUD registers itself as the Home Assistant device `wud`. Use `HASS_DEVICEID` and `HASS_DEVICENAME` to customize the device identifier and display name.
 
 <!-- tabs:start -->
+
 #### **Docker Compose**
+
 ```yaml
 services:
   whatsupdocker:
@@ -159,6 +174,7 @@ services:
 ```
 
 #### **Docker**
+
 ```bash
 docker run \
   -e WUD_TRIGGER_MQTT_MOSQUITTO_URL="mqtt://localhost:1883" \
@@ -167,27 +183,32 @@ docker run \
   ...
   getwud/wud
 ```
+
 <!-- tabs:end -->
 
 #### 1. Confirm MQTT integration in Home Assistant
+
 ![image](hass_01.png)
 
 #### 2. WUD device automatically appears in Home Assistant device registry
+
 ![image](hass_02.png)
 
 #### 3. Binary sensors are automatically created per Docker container
+
 ![image](hass_03.png)
 
 Entities are [binary sensors](https://www.home-assistant.io/integrations/binary_sensor/) whose state turns `on` when an update is available.
 
 #### 4. Container attributes exposed
+
 ![image](hass_04.png)
 
 Entities expose complete container details as state attributes:
+
 - Current version
 - New version
 - Registry
 - Architecture
 - OS
 - Created date
-

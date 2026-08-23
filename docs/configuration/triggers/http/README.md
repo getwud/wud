@@ -4,15 +4,15 @@ The `http` trigger lets you send container update webhook notifications to custo
 
 ### Variables
 
-| Env var                                         |    Required    | Description                                       | Supported values             | Default value when missing |
-|-------------------------------------------------|:--------------:|---------------------------------------------------|------------------------------|----------------------------| 
-| `WUD_TRIGGER_HTTP_{trigger_name}_URL`           |  :red_circle:  | Target webhook URL                                | Valid HTTP or HTTPS endpoint |                            |
-| `WUD_TRIGGER_HTTP_{trigger_name}_METHOD`        | :white_circle: | HTTP request method                               | `GET`, `POST`                | `POST`                     |
-| `WUD_TRIGGER_HTTP_{trigger_name}_AUTH_TYPE`     | :white_circle: | Authentication type                               | `BASIC`, `BEARER`            | `BASIC`                    |
-| `WUD_TRIGGER_HTTP_{trigger_name}_AUTH_USER`     | :white_circle: | Username for Basic authentication                 | String                       |                            |
-| `WUD_TRIGGER_HTTP_{trigger_name}_AUTH_PASSWORD` | :white_circle: | Password for Basic authentication                 | String                       |                            |
-| `WUD_TRIGGER_HTTP_{trigger_name}_AUTH_BEARER`   | :white_circle: | Bearer token for Bearer authentication            | String                       |                            |
-| `WUD_TRIGGER_HTTP_{trigger_name}_PROXY`         | :white_circle: | HTTP/HTTPS proxy URL                              | Valid proxy URL              |                            |
+| Env var                                         |    Required    | Description                            | Supported values             | Default value when missing |
+| ----------------------------------------------- | :------------: | -------------------------------------- | ---------------------------- | -------------------------- |
+| `WUD_TRIGGER_HTTP_{trigger_name}_URL`           |  :red_circle:  | Target webhook URL                     | Valid HTTP or HTTPS endpoint |                            |
+| `WUD_TRIGGER_HTTP_{trigger_name}_METHOD`        | :white_circle: | HTTP request method                    | `GET`, `POST`                | `POST`                     |
+| `WUD_TRIGGER_HTTP_{trigger_name}_AUTH_TYPE`     | :white_circle: | Authentication type                    | `BASIC`, `BEARER`            | `BASIC`                    |
+| `WUD_TRIGGER_HTTP_{trigger_name}_AUTH_USER`     | :white_circle: | Username for Basic authentication      | String                       |                            |
+| `WUD_TRIGGER_HTTP_{trigger_name}_AUTH_PASSWORD` | :white_circle: | Password for Basic authentication      | String                       |                            |
+| `WUD_TRIGGER_HTTP_{trigger_name}_AUTH_BEARER`   | :white_circle: | Bearer token for Bearer authentication | String                       |                            |
+| `WUD_TRIGGER_HTTP_{trigger_name}_PROXY`         | :white_circle: | HTTP/HTTPS proxy URL                   | Valid proxy URL              |                            |
 
 ?> This trigger also supports [common trigger configuration options](configuration/triggers/?id=common-trigger-configuration).
 
@@ -21,7 +21,9 @@ The `http` trigger lets you send container update webhook notifications to custo
 #### Send an HTTP POST webhook
 
 <!-- tabs:start -->
+
 #### **Docker Compose**
+
 ```yaml
 services:
   whatsupdocker:
@@ -30,16 +32,20 @@ services:
     environment:
       - WUD_TRIGGER_HTTP_MYREMOTEHOST_URL=https://my-remote-host/new-version
 ```
+
 #### **Docker**
+
 ```bash
 docker run \
   -e WUD_TRIGGER_HTTP_MYREMOTEHOST_URL="https://my-remote-host/new-version" \
   ...
   getwud/wud
 ```
+
 <!-- tabs:end -->
 
 #### Example POST payload (JSON)
+
 ```json
 {
   "id": "31a61a8305ef1fc9a71fa4f20a68d7ec88b28e32303bbc4a5f192e851165b816",
@@ -70,4 +76,3 @@ docker run \
   "updateAvailable": true
 }
 ```
-

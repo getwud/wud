@@ -6,10 +6,10 @@ The `slack` trigger lets you post container update notifications to a Slack chan
 
 ### Variables
 
-| Env var                                         | Required       | Description                                                               | Supported values | Default value when missing |
-| ----------------------------------------------- |:--------------:| ------------------------------------------------------------------------- | ---------------- | -------------------------- |
-| `WUD_TRIGGER_SLACK_{trigger_name}_TOKEN`        | :red_circle:   | Slack Bot / User OAuth token (e.g., `xoxb-...` or `xoxp-...`)             | String           |                            |
-| `WUD_TRIGGER_SLACK_{trigger_name}_CHANNEL`      | :red_circle:   | Target Slack channel name (without `#`) or channel ID                     | String           |                            |
+| Env var                                         |    Required    | Description                                                               | Supported values | Default value when missing |
+| ----------------------------------------------- | :------------: | ------------------------------------------------------------------------- | ---------------- | -------------------------- |
+| `WUD_TRIGGER_SLACK_{trigger_name}_TOKEN`        |  :red_circle:  | Slack Bot / User OAuth token (e.g., `xoxb-...` or `xoxp-...`)             | String           |                            |
+| `WUD_TRIGGER_SLACK_{trigger_name}_CHANNEL`      |  :red_circle:  | Target Slack channel name (without `#`) or channel ID                     | String           |                            |
 | `WUD_TRIGGER_SLACK_{trigger_name}_DISABLETITLE` | :white_circle: | Disable the default title heading to allow full custom message formatting | `true`, `false`  | `false`                    |
 
 !> The Slack channel must already exist on your workspace; WUD will not create it automatically.
@@ -19,6 +19,7 @@ The `slack` trigger lets you post container update notifications to a Slack chan
 ### Examples
 
 <!-- tabs:start -->
+
 #### **Docker Compose**
 
 ```yaml
@@ -40,5 +41,5 @@ docker run \
   ...
   getwud/wud
 ```
-<!-- tabs:end -->
 
+<!-- tabs:end -->

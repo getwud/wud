@@ -24,4 +24,3 @@ WUD supports a wide range of container registries:
 \- GitHub Container Registry (GHCR) \
 \- Docker Hub \
 \- Quay (`quay.io`)
-

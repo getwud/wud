@@ -8,17 +8,19 @@ The `ghcr` registry module lets you authenticate against the [GitHub Container R
 
 ### Variables
 
-| Env var                                      | Required       | Description     | Supported values                         | Default value when missing |
-| -------------------------------------------- |:--------------:| --------------- | ---------------------------------------- | -------------------------- | 
-| `WUD_REGISTRY_GHCR_{registry_name}_USERNAME` | :white_circle: | GitHub username | String                                   |                            |
-| `WUD_REGISTRY_GHCR_{registry_name}_TOKEN`    | :white_circle: | GitHub Personal Access Token | Valid GitHub PAT            |                            |
+| Env var                                      |    Required    | Description                  | Supported values | Default value when missing |
+| -------------------------------------------- | :------------: | ---------------------------- | ---------------- | -------------------------- |
+| `WUD_REGISTRY_GHCR_{registry_name}_USERNAME` | :white_circle: | GitHub username              | String           |                            |
+| `WUD_REGISTRY_GHCR_{registry_name}_TOKEN`    | :white_circle: | GitHub Personal Access Token | Valid GitHub PAT |                            |
 
 ### Examples
 
 #### Authenticate to access private images
 
 <!-- tabs:start -->
+
 #### **Docker Compose**
+
 ```yaml
 services:
   whatsupdocker:
@@ -28,7 +30,9 @@ services:
       - WUD_REGISTRY_GHCR_PRIVATE_USERNAME=johndoe
       - WUD_REGISTRY_GHCR_PRIVATE_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
 ```
+
 #### **Docker**
+
 ```bash
 docker run \
   -e WUD_REGISTRY_GHCR_PRIVATE_USERNAME="johndoe" \
@@ -36,17 +40,20 @@ docker run \
   ...
   getwud/wud
 ```
+
 <!-- tabs:end -->
 
 ### How to create a GitHub Personal Access Token
 
 #### 1. Open your GitHub Personal Access Tokens settings
+
 Navigate to [GitHub Token Settings](https://github.com/settings/tokens).
 
 #### 2. Click "Generate new token (classic)"
+
 Set an expiration date and select the `read:packages` scope (the only scope required by WUD).
 ![image](ghcr_01.png)
 
 #### 3. Copy the token and configure WUD
-![image](ghcr_02.png)
 
+![image](ghcr_02.png)

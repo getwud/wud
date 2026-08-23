@@ -14,14 +14,14 @@ Supported authentication methods:
 
 ### Variables
 
-| Env var                                              |    Required    | Description                                                                           | Supported values                                        | Default value when missing |
-| ---------------------------------------------------- | :------------: | ------------------------------------------------------------------------------------- | ------------------------------------------------------- | -------------------------- |
-| `WUD_REGISTRY_HUB_PUBLIC_LOGIN`                      | :white_circle: | Docker Hub username                                                                   | Required when password/token is provided                |                            |
-| `WUD_REGISTRY_HUB_PUBLIC_PASSWORD`                   | :white_circle: | Docker Hub Personal Access Token or password                                          | Required when username is provided                      |                            |
-| `WUD_REGISTRY_HUB_PUBLIC_TOKEN`                      | :white_circle: | Docker Hub token (deprecated; use `WUD_REGISTRY_HUB_PUBLIC_PASSWORD`)                 | Required when username is provided                      |                            |
-| `WUD_REGISTRY_HUB_PUBLIC_AUTH`                       | :white_circle: | Base64-encoded `username:password` string                                             | Mutually exclusive with `LOGIN`/`PASSWORD`              |                            |
-| `WUD_REGISTRY_HUB_PUBLIC_WATCHDIGEST`                | :white_circle: | Globally track image digests on Docker Hub                                            | `true`, `false`                                         | `false`                    |
-| `WUD_REGISTRY_HUB_PUBLIC_SUPPRESSDIGESTWATCHWARNING` | :white_circle: | Suppress warning logs when digest watching without credentials                        | `true`, `false`                                         | `false`                    |
+| Env var                                              |    Required    | Description                                                           | Supported values                           | Default value when missing |
+| ---------------------------------------------------- | :------------: | --------------------------------------------------------------------- | ------------------------------------------ | -------------------------- |
+| `WUD_REGISTRY_HUB_PUBLIC_LOGIN`                      | :white_circle: | Docker Hub username                                                   | Required when password/token is provided   |                            |
+| `WUD_REGISTRY_HUB_PUBLIC_PASSWORD`                   | :white_circle: | Docker Hub Personal Access Token or password                          | Required when username is provided         |                            |
+| `WUD_REGISTRY_HUB_PUBLIC_TOKEN`                      | :white_circle: | Docker Hub token (deprecated; use `WUD_REGISTRY_HUB_PUBLIC_PASSWORD`) | Required when username is provided         |                            |
+| `WUD_REGISTRY_HUB_PUBLIC_AUTH`                       | :white_circle: | Base64-encoded `username:password` string                             | Mutually exclusive with `LOGIN`/`PASSWORD` |                            |
+| `WUD_REGISTRY_HUB_PUBLIC_WATCHDIGEST`                | :white_circle: | Globally track image digests on Docker Hub                            | `true`, `false`                            | `false`                    |
+| `WUD_REGISTRY_HUB_PUBLIC_SUPPRESSDIGESTWATCHWARNING` | :white_circle: | Suppress warning logs when digest watching without credentials        | `true`, `false`                            | `false`                    |
 
 ### Examples
 
@@ -75,6 +75,7 @@ docker run \
 Concatenate `$username:$token` and [encode with Base64](https://www.base64encode.org/).
 
 For example:
+
 - Username: `johndoe`
 - Token: `2c1bd872-efb6-4f3a-81aa-724518a0a592`
 - String to encode: `johndoe:2c1bd872-efb6-4f3a-81aa-724518a0a592`
@@ -180,4 +181,3 @@ When digest watching is enabled (`WUD_REGISTRY_HUB_PUBLIC_WATCHDIGEST=true`), WU
    ```
 
 ?> If you encounter rate limit errors, check your usage on [Docker Hub](https://hub.docker.com/usage/pulls).
-

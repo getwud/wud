@@ -5,11 +5,13 @@
 WUD exposes an endpoint to check service health.
 
 ### Endpoint
+
 The health check endpoint is available at [/health](http://localhost:3000/health).
 
 If the application is healthy, the HTTP status code returned is `200` (or `500` if unhealthy).
 
 ### Example
+
 ```json
 {
   "uptime": 123
@@ -32,25 +34,26 @@ services:
       start_period: 10s
 ```
 
-
 ## Prometheus metrics
+
 ![logo](prometheus.png)
 
 WUD exposes various metrics that [Prometheus](https://prometheus.io/) can scrape.
 
 ### Configuration
 
-| Env var                  | Required       | Description                        | Supported values | Default value when missing |
-| ------------------------ | :------------: | ---------------------------------- | ---------------- | -------------------------- |
+| Env var                  |    Required    | Description                          | Supported values | Default value when missing |
+| ------------------------ | :------------: | ------------------------------------ | ---------------- | -------------------------- |
 | `WUD_PROMETHEUS_ENABLED` | :white_circle: | Whether to expose Prometheus metrics | `true`, `false`  | `true`                     |
 
 ### Endpoint
-Metrics are exposed at [/metrics](http://localhost:3000/metrics).
 
+Metrics are exposed at [/metrics](http://localhost:3000/metrics).
 
 ### Metrics
 
 #### WUD specific metrics
+
 ```bash
 
 # HELP wud_containers The watched containers
@@ -84,6 +87,7 @@ wud_watcher_total{type="docker",name="local"} 6
 ```
 
 #### Standard process metrics
+
 ```bash
 # HELP process_cpu_user_seconds_total Total user CPU time spent in seconds.
 # TYPE process_cpu_user_seconds_total counter
@@ -123,6 +127,7 @@ process_max_fds 1048576
 ```
 
 #### Standard Node.js metrics
+
 ```bash
 # HELP nodejs_eventloop_lag_seconds Lag of event loop in seconds.
 # TYPE nodejs_eventloop_lag_seconds gauge
@@ -264,6 +269,7 @@ nodejs_gc_duration_seconds_count{kind="weakcb"} 1
 ```
 
 ## Grafana
+
 ![logo](grafana.png)
 
 You can use [Grafana](https://grafana.com/) to visualize charts and dashboards based on WUD Prometheus metrics.
@@ -276,6 +282,7 @@ You can import it into any Grafana instance by selecting an existing Prometheus 
 An interactive preview of the dashboard is available [here](https://theforge.grafana.net/dashboard/snapshot/FskV8Lgi41VwD6jnSPnJxzLzz6B42QZF).
 
 ### Watched containers
+
 You can also display WUD-monitored containers in Grafana.
 
 #### Example: Displaying the container table
@@ -288,4 +295,3 @@ sum by(image_registry_url, image_name, image_os, image_architecture, image_tag_v
 # Or display only containers with updates available:
 sum by(image_registry_url, image_name, image_os, image_architecture, image_tag_value, result_tag) (wud_containers{update_available="true"})
 ```
-

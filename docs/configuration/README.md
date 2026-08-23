@@ -1,7 +1,9 @@
 # Configuration
+
 WUD relies on **environment variables** and **[Docker labels](https://docs.docker.com/config/labels-custom-metadata/)** to configure all of its components.
 
 Explore the documentation for each component below:
+
 > [**Authentication**](configuration/authentications/)
 
 > [**Logs**](configuration/logs/)
@@ -22,14 +24,13 @@ Explore the documentation for each component below:
 
 ```yaml
 services:
-
   # Valid semver followed by OS name
   vaultwarden:
     image: vaultwarden/server:1.22.1-alpine
     container_name: bitwarden
     labels:
       - 'wud.tag.include=^\d+\.\d+\.\d+-alpine$$'
-      - 'wud.link.template=https://github.com/dani-garcia/vaultwarden/releases/tag/$${major}.$${minor}.$${patch}'
+      - "wud.link.template=https://github.com/dani-garcia/vaultwarden/releases/tag/$${major}.$${minor}.$${patch}"
 
   # Valid semver followed by a build number (LinuxServer style)
   duplicati:
@@ -44,7 +45,7 @@ services:
     container_name: homeassistant
     labels:
       - 'wud.tag.include=^\d+\.\d+\.\d+$$'
-      - 'wud.link.template=https://github.com/home-assistant/core/releases/tag/$${major}.$${minor}.$${patch}'
+      - "wud.link.template=https://github.com/home-assistant/core/releases/tag/$${major}.$${minor}.$${patch}"
 
   # Valid semver with a leading 'v'
   pihole:
@@ -52,15 +53,15 @@ services:
     container_name: pihole
     labels:
       - 'wud.tag.include=^v\d+\.\d+\.\d+$$'
-      - 'wud.link.template=https://github.com/pi-hole/FTL/releases/tag/v$${major}.$${minor}.$${patch}'
+      - "wud.link.template=https://github.com/pi-hole/FTL/releases/tag/v$${major}.$${minor}.$${patch}"
 
   # Mutable tag (latest) with digest tracking
   pyload:
     image: writl/pyload:latest
     container_name: pyload
     labels:
-      - 'wud.tag.include=latest'
-      - 'wud.watch.digest=true'
+      - "wud.tag.include=latest"
+      - "wud.watch.digest=true"
 
   # WUD self-tracking
   whatsupdocker:
@@ -74,21 +75,24 @@ services:
       interval: 10s
       timeout: 10s
       retries: 3
-      start_period: 10s       
+      start_period: 10s
     labels:
       - 'wud.tag.include=^\d+\.\d+\.\d+$$'
-      - 'wud.link.template=https://github.com/getwud/wud/releases/tag/$${major}.$${minor}.$${patch}'
+      - "wud.link.template=https://github.com/getwud/wud/releases/tag/$${major}.$${minor}.$${patch}"
 ```
 
 ## Secret management
+
 !> If you prefer not to expose sensitive values directly in environment variables, you can store them in files and reference those files by appending `__FILE` to the environment variable name.
 
 For example, instead of providing the Basic auth hash directly:
+
 ```
 WUD_AUTH_BASIC_JOHN_HASH=$$apr1$$aefKbZEa$$ZSA5Y3zv9vDQOxr283NGx/
 ```
 
 You can save the secret value (`$$apr1$$aefKbZEa$$ZSA5Y3zv9vDQOxr283NGx/`) to a file with appropriate permissions (such as `/tmp/john_hash`), and reference it using:
+
 ```
 WUD_AUTH_BASIC_JOHN_HASH__FILE=/tmp/john_hash
 ```

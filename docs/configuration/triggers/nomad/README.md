@@ -16,13 +16,13 @@ Nomad labels every container it creates with metadata (`com.hashicorp.nomad.allo
 
 ### Variables
 
-| Env var                                       |    Required    | Description                                                   | Supported values             | Default value when missing      |
-| --------------------------------------------- | :------------: | ------------------------------------------------------------- | ---------------------------- | ------------------------------- |
-| `WUD_TRIGGER_NOMAD_{trigger_name}_ADDRESS`    | :white_circle: | Base URL of the Nomad HTTP API                                | Valid HTTP/HTTPS URL         | `http://127.0.0.1:4646`         |
-| `WUD_TRIGGER_NOMAD_{trigger_name}_TOKEN`      | :white_circle: | Nomad Secret ID / ACL token (sent via `X-Nomad-Token`)        | String                       |                                 |
-| `WUD_TRIGGER_NOMAD_{trigger_name}_ALLOCLABEL` | :white_circle: | Container label containing the Nomad allocation ID            | String                       | `com.hashicorp.nomad.alloc_id`  |
-| `WUD_TRIGGER_NOMAD_{trigger_name}_TASKLABEL`  | :white_circle: | Container label containing the Nomad task name                | String                       | `com.hashicorp.nomad.task_name` |
-| `WUD_TRIGGER_NOMAD_{trigger_name}_ALLTASKS`   | :white_circle: | Restart all tasks in the allocation instead of only the target task | `true`, `false`        | `false`                         |
+| Env var                                       |    Required    | Description                                                         | Supported values     | Default value when missing      |
+| --------------------------------------------- | :------------: | ------------------------------------------------------------------- | -------------------- | ------------------------------- |
+| `WUD_TRIGGER_NOMAD_{trigger_name}_ADDRESS`    | :white_circle: | Base URL of the Nomad HTTP API                                      | Valid HTTP/HTTPS URL | `http://127.0.0.1:4646`         |
+| `WUD_TRIGGER_NOMAD_{trigger_name}_TOKEN`      | :white_circle: | Nomad Secret ID / ACL token (sent via `X-Nomad-Token`)              | String               |                                 |
+| `WUD_TRIGGER_NOMAD_{trigger_name}_ALLOCLABEL` | :white_circle: | Container label containing the Nomad allocation ID                  | String               | `com.hashicorp.nomad.alloc_id`  |
+| `WUD_TRIGGER_NOMAD_{trigger_name}_TASKLABEL`  | :white_circle: | Container label containing the Nomad task name                      | String               | `com.hashicorp.nomad.task_name` |
+| `WUD_TRIGGER_NOMAD_{trigger_name}_ALLTASKS`   | :white_circle: | Restart all tasks in the allocation instead of only the target task | `true`, `false`      | `false`                         |
 
 ?> This trigger also supports [common trigger configuration options](configuration/triggers/?id=common-trigger-configuration).
 
@@ -83,4 +83,3 @@ docker run \
 ```
 
 <!-- tabs:end -->
-
