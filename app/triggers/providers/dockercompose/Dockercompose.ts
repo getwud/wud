@@ -83,7 +83,7 @@ class Dockercompose extends Docker {
         if (this.configuration.file) {
             return this.configuration.file;
         }
-        
+
         // Fall back to Docker Compose's automatically generated label
         if (
             container.labels &&
