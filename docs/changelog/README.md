@@ -5,6 +5,7 @@
 - :star: Skip tag listing for non-semver images
 - :star: [MQTT] - Add customizable Home Assistant device ID and device name
 - :star: [NOMAD] - Add Nomad trigger
+- :lock: Migrate from Travis-CI to Github Actions
 - :fire: Fix login redirect issues when WUD is exposed under a subpath
 - :fire: [HTTP] - Mask HTTP auth password and bearer token values
 - :fire: Preserve update results across registry errors
