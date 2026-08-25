@@ -1,0 +1,177 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/**
+ * Global CSS for WUD (What's up Docker?) Documentation & Portal.
+ * Bundles Infima with custom design tokens for a sleek, modern, premium aesthetic.
+ */
+
+:root {
+  /* WUD Brand Primary Color: #00355E */
+  --ifm-color-primary: #00355e;
+  --ifm-color-primary-dark: #003055;
+  --ifm-color-primary-darker: #002d50;
+  --ifm-color-primary-darkest: #002542;
+  --ifm-color-primary-light: #003a67;
+  --ifm-color-primary-lighter: #003d6c;
+  --ifm-color-primary-lightest: #00457a;
+  --ifm-color-primary-contrast-background: #edf5fa;
+  --ifm-color-primary-contrast-foreground: #002542;
+
+  /* Typography */
+  --ifm-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --ifm-heading-font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --ifm-heading-font-weight: 700;
+  --ifm-line-height-base: 1.65;
+
+  /* Layout & Accents */
+  --ifm-code-font-size: 90%;
+  --ifm-code-border-radius: 6px;
+  --ifm-global-radius: 10px;
+  --ifm-button-border-radius: 8px;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 53, 94, 0.08);
+
+  /* Custom WUD Tokens */
+  --wud-accent-cyan: #0284c7;
+  --wud-accent-glow: rgba(0, 53, 94, 0.15);
+  --wud-glass-bg: rgba(255, 255, 255, 0.75);
+  --wud-glass-border: rgba(0, 53, 94, 0.12);
+  --wud-glass-shadow: 0 8px 32px 0 rgba(0, 53, 94, 0.08);
+  --wud-card-hover-border: rgba(0, 53, 94, 0.35);
+}
+
+/* Premium Dark Mode */
+[data-theme='dark'] {
+  /* Complementary vibrant cyan-blue for high contrast & elegance on dark backgrounds */
+  --ifm-color-primary: #38bdf8;
+  --ifm-color-primary-dark: #1ea7e6;
+  --ifm-color-primary-darker: #139ad9;
+  --ifm-color-primary-darkest: #0e7490;
+  --ifm-color-primary-light: #5ecaf9;
+  --ifm-color-primary-lighter: #70d1fa;
+  --ifm-color-primary-lightest: #a5e3fc;
+  --ifm-color-primary-contrast-background: #082f49;
+  --ifm-color-primary-contrast-foreground: #e0f2fe;
+
+  /* Sleek Dark Background Palette */
+  --ifm-background-color: #0a0e17;
+  --ifm-background-surface-color: #0f172a;
+  --ifm-card-background-color: #111c33;
+  --ifm-navbar-background-color: rgba(10, 14, 23, 0.85);
+  --ifm-footer-background-color: #06090f;
+
+  /* Code & Syntax */
+  --docusaurus-highlighted-code-line-bg: rgba(56, 189, 248, 0.15);
+
+  /* Dark Glassmorphism & Accents */
+  --wud-accent-cyan: #38bdf8;
+  --wud-accent-glow: rgba(56, 189, 248, 0.22);
+  --wud-glass-bg: rgba(17, 28, 51, 0.65);
+  --wud-glass-border: rgba(56, 189, 248, 0.18);
+  --wud-glass-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
+  --wud-card-hover-border: rgba(56, 189, 248, 0.5);
+}
+
+/* Smooth Navbar with Backdrop Blur */
+.navbar {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--wud-glass-border);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.navbar__brand {
+  font-family: var(--ifm-heading-font-family);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.navbar__title {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+/* Subtle micro-animations for interactive elements */
+.navbar__item,
+.button,
+.card,
+.menu__link {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.button:hover {
+  transform: translateY(-2px);
+}
+
+.button:active {
+  transform: translateY(0);
+}
+
+/* Glassmorphism Card Style */
+.wud-glass-card {
+  background: var(--wud-glass-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--wud-glass-border);
+  box-shadow: var(--wud-glass-shadow);
+  border-radius: 16px;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.3s ease,
+              box-shadow 0.3s ease;
+}
+
+.wud-glass-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--wud-card-hover-border);
+  box-shadow: 0 16px 40px 0 var(--wud-accent-glow);
+}
+
+/* Search Box Enhancements */
+.navbar__search-input {
+  border-radius: 9999px !important;
+  font-family: var(--ifm-font-family-base) !important;
+  font-size: 0.875rem !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-theme='dark'] .navbar__search-input {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme='dark'] .navbar__search-input:focus {
+  background-color: rgba(255, 255, 255, 0.14) !important;
+  border-color: var(--ifm-color-primary) !important;
+  box-shadow: 0 0 0 2px var(--wud-accent-glow) !important;
+}
+
+/* Footer Styling */
+.footer {
+  border-top: 1px solid var(--wud-glass-border);
+}
+
+.footer__title {
+  font-family: var(--ifm-heading-font-family);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.35);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}
+
