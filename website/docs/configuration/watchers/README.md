@@ -43,19 +43,20 @@ When using socket configuration, ensure that `/var/run/docker.sock` is mounted i
 :::
 
 :::warning
-When using host/port configuration, make sure the Docker remote API is enabled on the target host. \
+When using host/port configuration, make sure the Docker remote API is enabled on the target host.
 [See dockerd documentation](https://docs.docker.com/engine/reference/commandline/dockerd/#description)
 :::
 
 :::warning
-If the Docker remote API is secured with TLS, ensure you mount and configure the TLS certificates. \
+If the Docker remote API is secured with TLS, ensure you mount and configure the TLS certificates.
 [See dockerd documentation](https://docs.docker.com/engine/security/protect-access/#use-tls-https-to-protect-the-docker-daemon-socket)
 :::
 
 :::warning
-Watching image digests makes heavy use of the _Docker Registry Pull API_, which is subject to [**rate limits on Docker Hub**](https://docs.docker.com/docker-hub/download-rate-limit/). \
-By default, WUD enables digest watching only for **non-semver** image tags. \
-You can customize this behavior per container using the `wud.watch.digest` label. \
+Watching image digests makes heavy use of the _Docker Registry Pull API_, which is subject to [**rate limits on Docker Hub**](https://docs.docker.com/docker-hub/download-rate-limit/).
+
+By default, WUD enables digest watching only for **non-semver** image tags.
+You can customize this behavior per container using the `wud.watch.digest` label.
 If you encounter [rate limit errors](https://docs.docker.com/docker-hub/download-rate-limit/#how-do-i-know-my-pull-requests-are-being-limited), consider reducing check frequency by adjusting the `WUD_WATCHER_{watcher_name}_CRON` variable.
 :::
 

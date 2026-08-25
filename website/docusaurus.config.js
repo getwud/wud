@@ -158,6 +158,17 @@ const config = {
       prism: {
         theme: prismThemes.github,
         darkTheme: prismThemes.dracula,
+        additionalLanguages: [
+          'bash',
+          'docker',
+          'yaml',
+          'json',
+          'powershell',
+          'ini',
+          'promql',
+          'diff',
+          'markdown',
+        ],
       },
     }),
 };

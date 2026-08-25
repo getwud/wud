@@ -110,8 +110,9 @@
 - :wrench: Upgrade to Node.js 23
 
 :::warning
-**Breaking changes!** \
-Registry configuration has changed; please update [your environment variables](configuration/registries/). \
+**Breaking changes!**
+
+Registry configuration has changed; please update [your environment variables](configuration/registries/).
 Internal IDs have changed; your [existing state](configuration/storage/) will be reset.
 :::
 
@@ -138,10 +139,11 @@ Internal IDs have changed; your [existing state](configuration/storage/) will be
 - :star: [Docker watcher] - Add `watchatstart` option to disable automatic check during startup
 
 :::warning
-**Breaking changes!** \
-**WUD** has moved to its own organization! \
-GitHub repository: [https://github.com/getwud/wud](https://github.com/getwud/wud) \
-Docker image: [https://hub.docker.com/r/getwud/wud](https://hub.docker.com/r/getwud/wud)
+**Breaking changes!**
+
+**WUD** has moved to its own organization!
+- GitHub repository: [https://github.com/getwud/wud](https://github.com/getwud/wud)
+- Docker image: [https://hub.docker.com/r/getwud/wud](https://hub.docker.com/r/getwud/wud)
 :::
 
 ## 6.6.1
@@ -170,9 +172,10 @@ Docker image: [https://hub.docker.com/r/getwud/wud](https://hub.docker.com/r/get
 - :star: Upgrade to Node.js 18
 
 :::warning
-**Breaking changes!** \
-Home Assistant sensors are now created as `update` sensors instead of `binary` sensors. \
-Existing Home Assistant entities must be manually cleaned up. \
+**Breaking changes!**
+
+Home Assistant sensors are now created as `update` sensors instead of `binary` sensors.
+Existing Home Assistant entities must be manually cleaned up.
 Remember to update your Home Assistant automations and dashboards accordingly.
 :::
 
@@ -231,9 +234,10 @@ Remember to update your Home Assistant automations and dashboards accordingly.
 - :star: Watch individual containers instead of images
 
 :::warning
-**Breaking changes!** \
-WUD is now **container-centric** instead of image-centric. \
-The data model, API, and some integrations have changed. \
+**Breaking changes!**
+
+WUD is now **container-centric** instead of image-centric.
+The data model, API, and some integrations have changed.
 Please review the documentation before upgrading to evaluate any impacts on your setup.
 :::
 

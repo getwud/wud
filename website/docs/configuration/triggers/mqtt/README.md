@@ -31,7 +31,7 @@ This trigger supports [common trigger configuration options](../README.md#common
 :::
 
 :::info
-Want to customize the entity name and icon in Home Assistant? \
+Want to customize the entity name and icon in Home Assistant?
 [Use the `wud.display.name` and `wud.display.icon` labels](../../watchers/README.md#labels).
 :::
 

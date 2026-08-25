@@ -35,9 +35,10 @@ docker run -d --name wud \
 </Tabs>
 
 :::info
-Note that WUD is available on multiple container registries: \
-\- Docker Hub: `getwud/wud` \
-\- GitHub Container Registry: `ghcr.io/getwud/wud`
+Note that WUD is available on multiple container registries:
+
+- Docker Hub: `getwud/wud`
+- GitHub Container Registry: `ghcr.io/getwud/wud`
 :::
 
 ## Open the UI
@@ -47,19 +48,19 @@ Note that WUD is available on multiple container registries: \
 ## Add your first trigger
 
 :::info
-Everything running smoothly? \
+Everything running smoothly?
 It's time to [**configure your triggers**](configuration/triggers/)!
 :::
 
 ## Going deeper...
 
 :::info
-Need to fine-tune how WUD monitors your containers? \
+Need to fine-tune how WUD monitors your containers?
 Check out the [**watcher documentation**](configuration/watchers/)!
 :::
 
 :::info
-Need to integrate other registries (ECR, GCR, GitLab...)? \
+Need to integrate other registries (ECR, GCR, GitLab...)?
 Check out the [**registry documentation**](configuration/registries/).
 :::
 

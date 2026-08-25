@@ -9,11 +9,9 @@ Keep your containers up to date!
 
 #### Overview
 
-`WATCHERS` scan Docker hosts to discover containers to monitor.
-
-`REGISTRIES` query remote Docker registries to find candidate updates.
-
-`TRIGGERS` execute actions when updates are available.
+- <i className="mdi mdi-update" /> **WATCHERS** scan Docker hosts to discover containers to monitor.
+- <i className="mdi mdi-database-search" /> **REGISTRIES** query remote Docker registries to find candidate updates.
+- <i className="mdi mdi-bell-ring" /> **TRIGGERS** execute actions when updates are available.
 
 ![image](assets/wud-arch.png)
 

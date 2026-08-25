@@ -4,21 +4,14 @@ WUD relies on **environment variables** and **[Docker labels](https://docs.docke
 
 Explore the documentation for each component below:
 
-> [**Authentication**](configuration/authentications/)
-
-> [**Logs**](configuration/logs/)
-
-> [**Registries**](configuration/registries/)
-
-> [**Server**](configuration/server/)
-
-> [**Storage**](configuration/storage/)
-
-> [**Timezone**](configuration/timezone/)
-
-> [**Triggers**](configuration/triggers/)
-
-> [**Watchers**](configuration/watchers/)
+- <i className="mdi mdi-lock" /> [**Authentication**](configuration/authentications/)
+- <i className="mdi mdi-bug" /> [**Logs**](configuration/logs/)
+- <i className="mdi mdi-database-search" /> [**Registries**](configuration/registries/)
+- <i className="mdi mdi-connection" /> [**Server**](configuration/server/)
+- <i className="mdi mdi-content-save" /> [**Storage**](configuration/storage/)
+- <i className="mdi mdi-clock-outline" /> [**Timezone**](configuration/timezone/)
+- <i className="mdi mdi-bell-ring" /> [**Triggers**](configuration/triggers/)
+- <i className="mdi mdi-update" /> [**Watchers**](configuration/watchers/)
 
 ## Complete example
 

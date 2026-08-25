@@ -17,12 +17,13 @@ WUD supports a wide range of container registries:
 - [**TrueForge** (TrueForge OCI Registry)](configuration/registries/trueforge/)
 
 :::info
-By default, without any additional configuration, WUD supports public images hosted on: \
-\- Codeberg (`codeberg.org`) \
-\- ECR Public (`public.ecr.aws`) \
-\- Forgejo (`code.forgejo.org`) \
-\- Google Container Registry (GCR) \
-\- GitHub Container Registry (GHCR) \
-\- Docker Hub \
-\- Quay (`quay.io`)
+By default, without any additional configuration, WUD supports public images hosted on:
+
+- Codeberg (`codeberg.org`)
+- ECR Public (`public.ecr.aws`)
+- Forgejo (`code.forgejo.org`)
+- Google Container Registry (GCR)
+- GitHub Container Registry (GHCR)
+- Docker Hub
+- Quay (`quay.io`)
 :::

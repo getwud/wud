@@ -13,18 +13,15 @@ The `basic` authentication module lets you protect WUD access using the [HTTP Ba
 | `WUD_AUTH_BASIC_{auth_name}_HASH` | :red_circle: | htpasswd-compliant password hash | [See htpasswd documentation](https://httpd.apache.org/docs/current/programs/htpasswd.html) |                            |
 
 :::warning
-Password hashes typically contain `$` characters; make sure to escape or quote them appropriately: \
-\
-:::
+Password hashes typically contain `$` characters; make sure to escape or quote them appropriately:
 
-- Use **double `$$`** in Docker Compose files ([see variable substitution](https://docs.docker.com/compose/compose-file/compose-file-v3/#variable-substitution)): \
-  `WUD_AUTH_BASIC_JOHN_HASH: $$apr1$$aefKbZEa$$ZSA5Y3zv9vDQOxr283NGx/` \
-  \
-- Use **single quotes** in shell commands: \
-  `WUD_AUTH_BASIC_JOHN_HASH='$apr1$aefKbZEa$ZSA5Y3zv9vDQOxr283NGx/'` \
-  \
-- Or **escape `\$`** with backslashes in double-quoted strings: \
+- Use **double `$$`** in Docker Compose files ([see variable substitution](https://docs.docker.com/compose/compose-file/compose-file-v3/#variable-substitution)):
+  `WUD_AUTH_BASIC_JOHN_HASH: $$apr1$$aefKbZEa$$ZSA5Y3zv9vDQOxr283NGx/`
+- Use **single quotes** in shell commands:
+  `WUD_AUTH_BASIC_JOHN_HASH='$apr1$aefKbZEa$ZSA5Y3zv9vDQOxr283NGx/'`
+- Or **escape `\$`** with backslashes in double-quoted strings:
   `WUD_AUTH_BASIC_JOHN_HASH="\$apr1\$aefKbZEa\$ZSA5Y3zv9vDQOxr283NGx/"`
+:::
 
 :::warning
 **Known limitation:** Passwords containing colon characters (`:`) are not supported due to a limitation in the underlying `passport-http` library. Authentication will fail if your password contains a colon. Use passwords without colons until this is resolved.
