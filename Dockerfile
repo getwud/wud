@@ -1,12 +1,5 @@
-# Common stage
-FROM node:24-alpine AS base
-WORKDIR /home/node/app
-
-# Install runtime packages used by release stage
-RUN apk add --no-cache tzdata openssl curl bash
-
 # App build stage
-FROM base AS app-build
+FROM --platform=$BUILDPLATFORM node:24-alpine AS app-build
 WORKDIR /home/node/app
 COPY app/package*.json ./
 RUN npm ci --include=dev --omit=optional --no-audit --no-fund --no-update-notifier
@@ -15,7 +8,7 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 # UI build stage
-FROM base AS ui-build
+FROM --platform=$BUILDPLATFORM node:24-alpine AS ui-build
 WORKDIR /home/node/ui
 COPY ui/package*.json ./
 RUN npm ci --include=dev --omit=optional --no-audit --no-fund --no-update-notifier
