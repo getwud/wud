@@ -2,7 +2,6 @@
 
 set -e
 
-export DOCKER_BUILDKIT=0
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
