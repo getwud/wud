@@ -35,6 +35,7 @@ description: Unreleased changes and upcoming features in What's Up Docker (WUD).
 - 🐛 Fix login redirect issues when WUD is exposed under a subpath
 - 🐛 `HTTP` Mask HTTP auth password and bearer token values
 - 🐛 Preserve update results across registry errors
+- 🐛 `REGISTRIES` Bound concurrent registry requests and retry transient HTTP 429 responses
 - 🐛 `DOCKER-COMPOSE` Prefer trigger-level configuration over automatic labels
 - 🐛 `UI` Fix dynamic chunk loading failure (`ChunkLoadError`) when navigating between nested configuration routes
 - ⚠️ `UI` Deprecate Homarr icon prefix (`hl:`, `hl-`) in favor of `selfhst:` (automatically mapped with a deprecation warning)

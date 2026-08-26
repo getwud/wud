@@ -39,6 +39,15 @@ Public packages work out of the box with zero configuration. Configure this modu
     supported="Valid GitHub Personal Access Token (`ghp_...` or classic)">
     GitHub Personal Access Token (PAT)
   </ConfigOption>
+
+  <ConfigOption
+    name="WUD_REGISTRY_GHCR_{registry_name}_CONCURRENCY"
+    required={false}
+    type="integer"
+    defaultValue="2"
+    supported="Any integer greater than or equal to 1">
+    Maximum number of active requests for this GHCR configuration.
+  </ConfigOption>
 </ConfigList>
 
 ---
@@ -57,6 +66,7 @@ services:
     environment:
       - WUD_REGISTRY_GHCR_LOCAL_USERNAME=johndoe
       - WUD_REGISTRY_GHCR_LOCAL_TOKEN=ghp_1234567890abcdefghijklmnopqrstuvwxyz
+      - WUD_REGISTRY_GHCR_LOCAL_CONCURRENCY=2
 ```
 
 </TabItem>
@@ -66,11 +76,24 @@ services:
 docker run \
   -e WUD_REGISTRY_GHCR_LOCAL_USERNAME="johndoe" \
   -e WUD_REGISTRY_GHCR_LOCAL_TOKEN="ghp_1234567890abcdefghijklmnopqrstuvwxyz" \
+  -e WUD_REGISTRY_GHCR_LOCAL_CONCURRENCY=2 \
   getwud/wud
 ```
 
 </TabItem>
 </Tabs>
+
+### Limit Anonymous GHCR Requests
+
+An anonymous registry configuration can set only the concurrency limit:
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    environment:
+      - WUD_REGISTRY_GHCR_PUBLIC_CONCURRENCY=1
+```
 
 ---
 
