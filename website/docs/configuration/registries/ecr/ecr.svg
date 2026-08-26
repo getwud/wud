@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- AWS Orange Circle -->
+  <circle cx="32" cy="32" r="28" fill="#F58536" stroke="#232F3E" stroke-width="2.5"/>
+  
+  <!-- Crane Hook Assembly -->
+  <circle cx="32" cy="13" r="4.5" fill="#FFFFFF" stroke="#232F3E" stroke-width="2"/>
+  <circle cx="32" cy="13" r="1.8" fill="#232F3E"/>
+  <path d="M30 17.5h4v7h-4z" fill="#FFFFFF" stroke="#232F3E" stroke-width="2" stroke-linejoin="round"/>
+  
+  <circle cx="32" cy="27" r="3.5" fill="#FFFFFF" stroke="#232F3E" stroke-width="2"/>
+  <circle cx="32" cy="27" r="1.2" fill="#232F3E"/>
+  
+  <!-- Crane Arms -->
+  <path d="M30 28.5L20 34l-5 4.5h3.5l4-3.5 7.5-4z" fill="#FFFFFF" stroke="#232F3E" stroke-width="1.8" stroke-linejoin="round"/>
+  <path d="M34 28.5L44 34l5 4.5h-3.5l-4-3.5-7.5-4z" fill="#FFFFFF" stroke="#232F3E" stroke-width="1.8" stroke-linejoin="round"/>
+  
+  <!-- Container Box -->
+  <rect x="20" y="38" width="24" height="15" rx="1.5" fill="#384252" stroke="#232F3E" stroke-width="2"/>
+  
+  <!-- Container Corrugation Lines -->
+  <line x1="23.5" y1="40" x2="23.5" y2="51" stroke="#F58536" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="27" y1="40" x2="27" y2="51" stroke="#F58536" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="30.5" y1="40" x2="30.5" y2="51" stroke="#F58536" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="34" y1="40" x2="34" y2="51" stroke="#F58536" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="37.5" y1="40" x2="37.5" y2="51" stroke="#F58536" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="41" y1="40" x2="41" y2="51" stroke="#F58536" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

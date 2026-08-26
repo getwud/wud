@@ -1,21 +1,47 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # GitLab Container Registry
 
-![logo](gitlab.png)
+![logo](gitlab.svg)
 
 The `gitlab` registry module lets you authenticate against the [GitLab Container Registry](https://docs.gitlab.com/ee/user/packages/container_registry/) (both gitlab.com and self-hosted instances).
 
 ### Variables
 
-| Env var                                        |    Required    | Description                                                         | Supported values | Default value when missing    |
-| ---------------------------------------------- | :------------: | ------------------------------------------------------------------- | ---------------- | ----------------------------- |
-| `WUD_REGISTRY_GITLAB_{registry_name}_AUTHURL`  | :white_circle: | GitLab authentication base URL                                      | Valid URL        | `https://gitlab.com`          |
-| `WUD_REGISTRY_GITLAB_{registry_name}_TOKEN`    |  :red_circle:  | GitLab Personal Access Token or Deploy Token                        | String           |                               |
-| `WUD_REGISTRY_GITLAB_{registry_name}_USERNAME` | :white_circle: | Username (required when using a Group Access Token or Deploy Token) | String           |                               |
-| `WUD_REGISTRY_GITLAB_{registry_name}_URL`      | :white_circle: | GitLab Registry base URL                                            | Valid URL        | `https://registry.gitlab.com` |
+<ConfigList>
+  <ConfigOption name="WUD_REGISTRY_GITLAB_{registry_name}_TOKEN"
+    required={true}
+    type="email">
+    GitLab Personal Access Token or Deploy Token
+  </ConfigOption>
 
+  <ConfigOption
+    name="WUD_REGISTRY_GITLAB_{registry_name}_AUTHURL"
+    required={false}
+    type="url"
+    defaultValue="https://gitlab.com"
+    supported="Valid URL">
+    GitLab authentication base URL
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_REGISTRY_GITLAB_{registry_name}_URL"
+    required={false}
+    type="url"
+    defaultValue="https://registry.gitlab.com"
+    supported="Valid URL">
+    GitLab Registry base URL
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_REGISTRY_GITLAB_{registry_name}_USERNAME"
+    required={false}
+    type="string">
+    Username (required when using a Group Access Token or Deploy Token)
+  </ConfigOption>
+</ConfigList>
 ### Examples
 
 #### Authenticate with gitlab.com

@@ -1,22 +1,38 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Slack
 
-![logo](slack.png)
+![logo](slack.svg)
 
 The `slack` trigger lets you post container update notifications to a Slack channel.
 
 ### Variables
 
-| Env var                                         |    Required    | Description                                                               | Supported values | Default value when missing |
-| ----------------------------------------------- | :------------: | ------------------------------------------------------------------------- | ---------------- | -------------------------- |
-| `WUD_TRIGGER_SLACK_{trigger_name}_TOKEN`        |  :red_circle:  | Slack Bot / User OAuth token (e.g., `xoxb-...` or `xoxp-...`)             | String           |                            |
-| `WUD_TRIGGER_SLACK_{trigger_name}_CHANNEL`      |  :red_circle:  | Target Slack channel name (without `#`) or channel ID                     | String           |                            |
-| `WUD_TRIGGER_SLACK_{trigger_name}_DISABLETITLE` | :white_circle: | Disable the default title heading to allow full custom message formatting | `true`, `false`  | `false`                    |
+<ConfigList>
+  <ConfigOption
+    name="WUD_TRIGGER_SLACK_{trigger_name}_CHANNEL"
+    required={true}
+    type="string">
+    Target Slack channel name (without `#`) or channel ID
+  </ConfigOption>
 
-:::warning
-The Slack channel must already exist on your workspace; WUD will not create it automatically.
+  <ConfigOption name="WUD_TRIGGER_SLACK_{trigger_name}_TOKEN"
+    required={true}
+    type="email">
+    Slack Bot / User OAuth token (e.g., `xoxb-...` or `xoxp-...`)
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_SLACK_{trigger_name}_DISABLETITLE"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    Disable the default title heading to allow full custom message formatting
+  </ConfigOption>
+</ConfigList>
+:::warning[The Slack channel must already exist on your workspace; WUD will not create it automatically.]
 :::
 
 :::info

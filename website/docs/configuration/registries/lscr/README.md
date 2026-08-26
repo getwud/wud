@@ -1,23 +1,33 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # LSCR (LinuxServer.io Container Registry)
 
-![logo](linuxserver.png)
+![logo](linuxserver.svg)
 
 The `lscr` registry module lets you authenticate against the [LinuxServer.io Container Registry](https://fleet.linuxserver.io/) (`lscr.io`), which is hosted on GitHub Container Registry.
 
-:::info
-Public LSCR images work out of the box without authentication. Configure this module to authenticate with GitHub credentials if needed.
+:::info[Public LSCR images work out of the box without authentication. Configure this module to authenticate with GitHub credentials if needed.]
 :::
 
 ### Variables
 
-| Env var                                      |   Required   | Description                  | Supported values | Default value when missing |
-| -------------------------------------------- | :----------: | ---------------------------- | ---------------- | -------------------------- |
-| `WUD_REGISTRY_LSCR_{registry_name}_USERNAME` | :red_circle: | GitHub username              | String           |                            |
-| `WUD_REGISTRY_LSCR_{registry_name}_TOKEN`    | :red_circle: | GitHub Personal Access Token | Valid GitHub PAT |                            |
+<ConfigList>
+  <ConfigOption name="WUD_REGISTRY_LSCR_{registry_name}_TOKEN"
+    type="email"
+    required={true}
+    supported="Valid GitHub PAT">
+    GitHub Personal Access Token
+  </ConfigOption>
 
+  <ConfigOption
+    name="WUD_REGISTRY_LSCR_{registry_name}_USERNAME"
+    required={true}
+    type="string">
+    GitHub username
+  </ConfigOption>
+</ConfigList>
 ### Examples
 
 #### Authenticate with GitHub credentials

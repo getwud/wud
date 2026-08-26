@@ -1,24 +1,39 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Quay (Red Hat Quay)
 
-![logo](quay.png)
+![logo](quay.svg)
 
 The `quay` registry module lets you authenticate against [Quay.io](https://quay.io/) and self-hosted Red Hat Quay registries.
 
-:::info
-Public Quay images work out of the box without authentication. Configure this module to access private repositories.
+:::info[Public Quay images work out of the box without authentication. Configure this module to access private repositories.]
 :::
 
 ### Variables
 
-| Env var                                       |    Required    | Description                         | Supported values | Default value when missing |
-| --------------------------------------------- | :------------: | ----------------------------------- | ---------------- | -------------------------- |
-| `WUD_REGISTRY_QUAY_{registry_name}_NAMESPACE` | :white_circle: | Quay organization or user namespace | String           |                            |
-| `WUD_REGISTRY_QUAY_{registry_name}_ACCOUNT`   | :white_circle: | Quay robot account name             | String           |                            |
-| `WUD_REGISTRY_QUAY_{registry_name}_TOKEN`     | :white_circle: | Quay robot account token            | String           |                            |
+<ConfigList>
+  <ConfigOption
+    name="WUD_REGISTRY_QUAY_{registry_name}_ACCOUNT"
+    required={false}
+    type="string">
+    Quay robot account name
+  </ConfigOption>
 
+  <ConfigOption
+    name="WUD_REGISTRY_QUAY_{registry_name}_NAMESPACE"
+    required={false}
+    type="string">
+    Quay organization or user namespace
+  </ConfigOption>
+
+  <ConfigOption name="WUD_REGISTRY_QUAY_{registry_name}_TOKEN"
+    required={false}
+    type="email">
+    Quay robot account token
+  </ConfigOption>
+</ConfigList>
 ### Examples
 
 #### Authenticate to access private images

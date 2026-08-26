@@ -1,3 +1,4 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
@@ -7,19 +8,87 @@ You can adjust the HTTP server configuration with the following environment vari
 
 ### Variables
 
-| Env var                     |    Required    | Description                                                                    | Supported values                         | Default value when missing       |
-| --------------------------- | :------------: | ------------------------------------------------------------------------------ | ---------------------------------------- | -------------------------------- |
-| `WUD_SERVER_ENABLED`        | :white_circle: | Whether to expose the HTTP server and REST API                                 | `true`, `false`                          | `true`                           |
-| `WUD_SERVER_PORT`           | :white_circle: | HTTP listening port                                                            | `0` to `65535`                           | `3000`                           |
-| `WUD_SERVER_TLS_ENABLED`    | :white_circle: | Enable HTTPS/TLS                                                               | `true`, `false`                          | `false`                          |
-| `WUD_SERVER_TLS_KEY`        | :white_circle: | Path to TLS server private key file (required when TLS is enabled)             | File path                                |                                  |
-| `WUD_SERVER_TLS_CERT`       | :white_circle: | Path to TLS server certificate file (required when TLS is enabled)             | File path                                |                                  |
-| `WUD_SERVER_CORS_ENABLED`   | :white_circle: | Enable [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) requests | `true`, `false`                          | `false`                          |
-| `WUD_SERVER_CORS_ORIGIN`    | :white_circle: | Allowed CORS origins                                                           | String                                   | `*`                              |
-| `WUD_SERVER_CORS_METHODS`   | :white_circle: | Allowed CORS HTTP methods                                                      | Comma-separated list of valid HTTP verbs | `GET,HEAD,PUT,PATCH,POST,DELETE` |
-| `WUD_SERVER_FEATURE_DELETE` | :white_circle: | Whether delete operations are permitted via the API and UI                     | `true`, `false`                          | `true`                           |
-| `WUD_SERVER_BASEPATH`       | :white_circle: | Base path when running behind a prefix-stripping reverse proxy (e.g., `/wud/`) | Valid URL path ending with `/`           | `/`                              |
+<ConfigList>
+  <ConfigOption
+    name="WUD_SERVER_BASEPATH"
+    required={false}
+    type="url"
+    defaultValue="/"
+    supported="Valid URL path ending with `/`">
+    Base path when running behind a prefix-stripping reverse proxy (e.g., `/wud/`)
+  </ConfigOption>
 
+  <ConfigOption
+    name="WUD_SERVER_CORS_ENABLED"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    Enable [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) requests
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_SERVER_CORS_METHODS"
+    required={false}
+    type="url"
+    defaultValue="GET,HEAD,PUT,PATCH,POST,DELETE"
+    supported="Comma-separated list of valid HTTP verbs">
+    Allowed CORS HTTP methods
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_SERVER_CORS_ORIGIN"
+    required={false}
+    type="string"
+    defaultValue="*">
+    Allowed CORS origins
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_SERVER_ENABLED"
+    required={false}
+    type="boolean"
+    defaultValue="true">
+    Whether to expose the HTTP server and REST API
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_SERVER_FEATURE_DELETE"
+    required={false}
+    type="boolean"
+    defaultValue="true">
+    Whether delete operations are permitted via the API and UI
+  </ConfigOption>
+
+  <ConfigOption name="WUD_SERVER_PORT"
+    type="integer"
+    required={false}
+    defaultValue="3000"
+    supported="`0` to `65535`">
+    HTTP listening port
+  </ConfigOption>
+
+  <ConfigOption name="WUD_SERVER_TLS_CERT"
+    type="path"
+    required={false}
+    supported="File path">
+    Path to TLS server certificate file (required when TLS is enabled)
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_SERVER_TLS_ENABLED"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    Enable HTTPS/TLS
+  </ConfigOption>
+
+  <ConfigOption name="WUD_SERVER_TLS_KEY"
+    type="path"
+    required={false}
+    supported="File path">
+    Path to TLS server private key file (required when TLS is enabled)
+  </ConfigOption>
+</ConfigList>
 ### Examples
 
 #### Disable HTTP server

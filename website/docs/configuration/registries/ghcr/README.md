@@ -1,23 +1,33 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # GHCR (GitHub Container Registry)
 
-![logo](github.png)
+![logo](github.svg)
 
 The `ghcr` registry module lets you authenticate against the [GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-docker-registry).
 
-:::info
-Public GHCR images work out of the box without authentication. Configure this module to access private repositories or avoid rate limits.
+:::info[Public GHCR images work out of the box without authentication. Configure this module to access private repositories or avoid rate limits.]
 :::
 
 ### Variables
 
-| Env var                                      |    Required    | Description                  | Supported values | Default value when missing |
-| -------------------------------------------- | :------------: | ---------------------------- | ---------------- | -------------------------- |
-| `WUD_REGISTRY_GHCR_{registry_name}_USERNAME` | :white_circle: | GitHub username              | String           |                            |
-| `WUD_REGISTRY_GHCR_{registry_name}_TOKEN`    | :white_circle: | GitHub Personal Access Token | Valid GitHub PAT |                            |
+<ConfigList>
+  <ConfigOption name="WUD_REGISTRY_GHCR_{registry_name}_TOKEN"
+    type="email"
+    required={false}
+    supported="Valid GitHub PAT">
+    GitHub Personal Access Token
+  </ConfigOption>
 
+  <ConfigOption
+    name="WUD_REGISTRY_GHCR_{registry_name}_USERNAME"
+    required={false}
+    type="string">
+    GitHub username
+  </ConfigOption>
+</ConfigList>
 ### Examples
 
 #### Authenticate to access private images

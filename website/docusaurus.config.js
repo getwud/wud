@@ -4,7 +4,7 @@
 // There are various equivalent ways to declare your Docusaurus config.
 // See: https://docusaurus.io/docs/api/docusaurus-config
 
-import {themes as prismThemes} from 'prism-react-renderer';
+import { themes as prismThemes } from 'prism-react-renderer';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -55,7 +55,12 @@ const config = {
     ],
   ],
 
+  markdown: {
+    mermaid: true,
+  },
+
   themes: [
+    '@docusaurus/theme-mermaid',
     [
       require.resolve('@easyops-cn/docusaurus-search-local'),
       /** @type {import("@easyops-cn/docusaurus-search-local").PluginOptions} */
@@ -74,11 +79,12 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
-      // Replace with your project's social card
-      image: 'img/docusaurus-social-card.jpg',
+      // WUD social share card image
+      image: 'img/wud-logo-512.png',
       colorMode: {
         defaultMode: 'dark',
-        respectPrefersColorScheme: true,
+        disableSwitch: false,
+        respectPrefersColorScheme: false,
       },
       navbar: {
         title: 'WUD',
@@ -91,7 +97,42 @@ const config = {
             type: 'docSidebar',
             sidebarId: 'docsSidebar',
             position: 'left',
-            label: 'Documentation',
+            label: 'Getting Started',
+          },
+          {
+            type: 'docSidebar',
+            sidebarId: 'watchersSidebar',
+            position: 'left',
+            label: 'Watchers',
+          },
+          {
+            type: 'docSidebar',
+            sidebarId: 'registriesSidebar',
+            position: 'left',
+            label: 'Registries',
+          },
+          {
+            type: 'docSidebar',
+            sidebarId: 'triggersSidebar',
+            position: 'left',
+            label: 'Triggers',
+          },
+          {
+            type: 'docSidebar',
+            sidebarId: 'adminSidebar',
+            position: 'left',
+            label: 'Administration',
+          },
+          {
+            type: 'docSidebar',
+            sidebarId: 'apiSidebar',
+            position: 'left',
+            label: 'API',
+          },
+          {
+            to: '/docs/changelog',
+            label: 'Changelog',
+            position: 'left',
           },
           {
             href: 'https://github.com/getwud/wud',
@@ -153,7 +194,7 @@ const config = {
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} WUD (What's up Docker?). Built with Docusaurus.`,
+        copyright: `Copyright © ${new Date().getFullYear()} WUD (What's up Docker?).`,
       },
       prism: {
         theme: prismThemes.github,

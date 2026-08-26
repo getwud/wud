@@ -1,24 +1,58 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # ECR (Amazon Elastic Container Registry)
 
-![logo](ecr.png)
+![logo](ecr.svg)
 
 The `ecr` registry module lets you authenticate against [Amazon Elastic Container Registry (ECR)](https://aws.amazon.com/ecr/).
 
 ### Variables
 
-| Env var                                            |    Required    | Description                                                           | Supported values                                                                               | Default value when missing |
-| -------------------------------------------------- | :------------: | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | -------------------------- |
-| `WUD_REGISTRY_ECR_{registry_name}_REGION`          |  :red_circle:  | AWS Region Code                                                       | [AWS Region list](https://docs.aws.amazon.com/general/latest/gr/rande.html#regional-endpoints) |                            |
-| `WUD_REGISTRY_ECR_{registry_name}_ACCESSKEYID`     |  :red_circle:  | AWS Access Key ID                                                     | [AWS Credentials](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html)       |                            |
-| `WUD_REGISTRY_ECR_{registry_name}_SECRETACCESSKEY` |  :red_circle:  | AWS Secret Access Key                                                 | [AWS Credentials](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html)       |                            |
-| `WUD_REGISTRY_ECR_{registry_name}_ACCOUNTID`       | :white_circle: | AWS Account ID (used to filter when multiple accounts are configured) | Numeric string                                                                                 | Derived from image name    |
-| `WUD_REGISTRY_ECR_{registry_name}_PUBLIC`          | :white_circle: | Whether the registry is an ECR Public gallery                         | `true`, `false`                                                                                | `false`                    |
+<ConfigList>
+  <ConfigOption
+    name="WUD_REGISTRY_ECR_{registry_name}_ACCESSKEYID"
+    required={true}
+    type="url"
+    supported="[AWS Credentials](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html)">
+    AWS Access Key ID
+  </ConfigOption>
 
-:::warning
-Ensure the `AmazonEC2ContainerRegistryReadOnly` policy (or equivalent permissions) is attached to the IAM user.
+  <ConfigOption
+    name="WUD_REGISTRY_ECR_{registry_name}_REGION"
+    required={true}
+    type="url"
+    supported="[AWS Region list](https://docs.aws.amazon.com/general/latest/gr/rande.html#regional-endpoints)">
+    AWS Region Code
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_REGISTRY_ECR_{registry_name}_SECRETACCESSKEY"
+    required={true}
+    type="url"
+    supported="[AWS Credentials](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html)">
+    AWS Secret Access Key
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_REGISTRY_ECR_{registry_name}_ACCOUNTID"
+    required={false}
+    type="string"
+    defaultValue="Derived from image name"
+    supported="Numeric string">
+    AWS Account ID (used to filter when multiple accounts are configured)
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_REGISTRY_ECR_{registry_name}_PUBLIC"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    Whether the registry is an ECR Public gallery
+  </ConfigOption>
+</ConfigList>
+:::warning[Ensure the `AmazonEC2ContainerRegistryReadOnly` policy (or equivalent permissions) is attached to the IAM user.]
 :::
 
 ### Examples

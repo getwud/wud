@@ -1,0 +1,99 @@
+.registryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0 2.5rem;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 53, 94, 0.12);
+  background: var(--ifm-card-background-color, #ffffff);
+  box-shadow: 0 2px 8px rgba(0, 53, 94, 0.04);
+  padding: 1.25rem;
+  text-decoration: none !important;
+  color: inherit !important;
+  transition: all 0.2s ease-in-out;
+}
+
+[data-theme='dark'] .card {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.card:hover {
+  border-color: var(--ifm-color-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 53, 94, 0.1);
+}
+
+[data-theme='dark'] .card:hover {
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.1);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.title {
+  font-family: var(--ifm-heading-font-family);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ifm-color-primary);
+  margin: 0;
+}
+
+[data-theme='dark'] .title {
+  color: #38bdf8;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.badgeDefault {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+[data-theme='dark'] .badgeDefault {
+  background: rgba(52, 211, 153, 0.12);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.3);
+}
+
+.badgeSetup {
+  background: rgba(100, 116, 139, 0.08);
+  color: var(--ifm-color-emphasis-700);
+  border: 1px solid rgba(100, 116, 139, 0.2);
+}
+
+[data-theme='dark'] .badgeSetup {
+  background: rgba(148, 163, 184, 0.1);
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.description {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 0;
+  flex-grow: 1;
+}

@@ -1,25 +1,61 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Kafka
 
-![logo](kafka.png)
+![logo](kafka.svg)
 
 The `kafka` trigger lets you publish container update notification records to an Apache Kafka topic.
 
 ### Variables
 
-| Env var                                                    |    Required    | Description                                                  | Supported values                          | Default value when missing |
-| ---------------------------------------------------------- | :------------: | ------------------------------------------------------------ | ----------------------------------------- | -------------------------- |
-| `WUD_TRIGGER_KAFKA_{trigger_name}_BROKERS`                 |  :red_circle:  | Comma-separated list of Kafka broker endpoints (`host:port`) | String                                    |                            |
-| `WUD_TRIGGER_KAFKA_{trigger_name}_SSL`                     | :white_circle: | Enable TLS/SSL connection                                    | `true`, `false`                           | `false`                    |
-| `WUD_TRIGGER_KAFKA_{trigger_name}_TOPIC`                   | :white_circle: | Kafka topic name to publish records to                       | String                                    | `wud-container`            |
-| `WUD_TRIGGER_KAFKA_{trigger_name}_AUTHENTICATION_TYPE`     | :white_circle: | SASL authentication mechanism                                | `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512` | `PLAIN`                    |
-| `WUD_TRIGGER_KAFKA_{trigger_name}_AUTHENTICATION_USER`     | :white_circle: | SASL username (required when authentication is enabled)      | String                                    |                            |
-| `WUD_TRIGGER_KAFKA_{trigger_name}_AUTHENTICATION_PASSWORD` | :white_circle: | SASL password (required when authentication is enabled)      | String                                    |                            |
+<ConfigList>
+  <ConfigOption
+    name="WUD_TRIGGER_KAFKA_{trigger_name}_BROKERS"
+    required={true}
+    type="string">
+    Comma-separated list of Kafka broker endpoints (`host:port`)
+  </ConfigOption>
 
-:::warning
-The Kafka topic must already exist on the broker; WUD will not create it automatically.
+  <ConfigOption
+    name="WUD_TRIGGER_KAFKA_{trigger_name}_AUTHENTICATION_PASSWORD"
+    required={false}
+    type="string">
+    SASL password (required when authentication is enabled)
+  </ConfigOption>
+
+  <ConfigOption name="WUD_TRIGGER_KAFKA_{trigger_name}_AUTHENTICATION_TYPE"
+    type="enum"
+    required={false}
+    defaultValue="PLAIN"
+    supported="`PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512`">
+    SASL authentication mechanism
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_KAFKA_{trigger_name}_AUTHENTICATION_USER"
+    required={false}
+    type="string">
+    SASL username (required when authentication is enabled)
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_KAFKA_{trigger_name}_SSL"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    Enable TLS/SSL connection
+  </ConfigOption>
+
+  <ConfigOption name="WUD_TRIGGER_KAFKA_{trigger_name}_TOPIC"
+    required={false}
+    type="email"
+    defaultValue="wud-container">
+    Kafka topic name to publish records to
+  </ConfigOption>
+</ConfigList>
+:::warning[The Kafka topic must already exist on the broker; WUD will not create it automatically.]
 :::
 
 :::info

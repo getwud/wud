@@ -176,3 +176,129 @@
   background: rgba(100, 116, 139, 0.6);
 }
 
+/* Document Logo Vector Icons */
+article img[alt='logo'] {
+  display: block;
+  max-width: 68px;
+  max-height: 68px;
+  width: auto;
+  height: auto;
+  margin: 1rem 0 1.5rem;
+  filter: drop-shadow(0 2px 8px rgba(0, 53, 94, 0.08));
+  transition: transform 0.2s ease;
+}
+
+article img[alt='logo']:hover {
+  transform: scale(1.05);
+}
+
+[data-theme='dark'] article img[alt='logo'] {
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
+}
+
+/* Standalone Code Blocks Styling (Adaptive Light & Dark Modes) */
+div[class*='codeBlockContainer'],
+.theme-code-block {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.5rem !important;
+  overflow: hidden;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+[data-theme='dark'] div[class*='codeBlockContainer'],
+[data-theme='dark'] .theme-code-block {
+  border-color: rgba(255, 255, 255, 0.12);
+  background-color: #0b1220;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* Ensure code blocks inside Tabs container seamlessly blend without double borders */
+.tabs-container div[class*='codeBlockContainer'],
+.theme-tabs-container div[class*='codeBlockContainer'],
+.tabs-container .theme-code-block,
+.theme-tabs-container .theme-code-block {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  background: transparent !important;
+}
+
+/* ==========================================================================
+   Modern Admonitions & Callouts (:::info, :::tip, :::warning, :::danger)
+   ========================================================================== */
+
+.theme-admonition {
+  border-radius: 12px !important;
+  border-left-width: 4px !important;
+  margin: 1.25rem 0 1.5rem !important;
+  padding: 1rem 1.25rem !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.theme-admonition div[class*='admonitionHeading'] {
+  font-family: var(--ifm-heading-font-family);
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Info Callout */
+.theme-admonition-info {
+  background-color: rgba(2, 132, 199, 0.08) !important;
+  border-color: #0284c7 !important;
+  color: #0369a1 !important;
+}
+
+[data-theme='dark'] .theme-admonition-info {
+  background-color: rgba(56, 189, 248, 0.08) !important;
+  border-color: #38bdf8 !important;
+  color: #e0f2fe !important;
+}
+
+/* Tip Callout */
+.theme-admonition-tip {
+  background-color: rgba(16, 185, 129, 0.08) !important;
+  border-color: #10b981 !important;
+  color: #065f46 !important;
+}
+
+[data-theme='dark'] .theme-admonition-tip {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  border-color: #34d399 !important;
+  color: #d1fae5 !important;
+}
+
+/* Warning Callout */
+.theme-admonition-warning {
+  background-color: rgba(245, 158, 11, 0.08) !important;
+  border-color: #f59e0b !important;
+  color: #92400e !important;
+}
+
+[data-theme='dark'] .theme-admonition-warning {
+  background-color: rgba(245, 158, 11, 0.1) !important;
+  border-color: #fbbf24 !important;
+  color: #fef3c7 !important;
+}
+
+/* Danger Callout */
+.theme-admonition-danger {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+  border-color: #ef4444 !important;
+  color: #991b1b !important;
+}
+
+[data-theme='dark'] .theme-admonition-danger {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  border-color: #f87171 !important;
+  color: #fee2e2 !important;
+}
+

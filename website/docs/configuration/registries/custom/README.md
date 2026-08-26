@@ -1,21 +1,45 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # CUSTOM (Self-Hosted Docker Registry)
 
-![logo](custom.png)
+![logo](custom.svg)
 
 The `custom` registry module lets you integrate self-hosted [Docker Registry (v2)](https://docs.docker.com/registry/) instances.
 
 ### Variables
 
-| Env var                                        |    Required    | Description                                                              | Supported values                           | Default value when missing |
-| ---------------------------------------------- | :------------: | ------------------------------------------------------------------------ | ------------------------------------------ | -------------------------- |
-| `WUD_REGISTRY_CUSTOM_{registry_name}_URL`      |  :red_circle:  | Registry URL (e.g., `http://localhost:5000` or `https://registry.local`) | Valid HTTP/HTTPS URL                       |                            |
-| `WUD_REGISTRY_CUSTOM_{registry_name}_LOGIN`    | :white_circle: | Username (when Basic/htpasswd authentication is enabled)                 | Required when password is provided         |                            |
-| `WUD_REGISTRY_CUSTOM_{registry_name}_PASSWORD` | :white_circle: | Password (when Basic/htpasswd authentication is enabled)                 | Required when username is provided         |                            |
-| `WUD_REGISTRY_CUSTOM_{registry_name}_AUTH`     | :white_circle: | Base64-encoded `username:password` string                                | Mutually exclusive with `LOGIN`/`PASSWORD` |                            |
+<ConfigList>
+  <ConfigOption
+    name="WUD_REGISTRY_CUSTOM_{registry_name}_URL"
+    required={true}
+    type="url"
+    supported="Valid HTTP/HTTPS URL">
+    Registry URL (e.g., `http://localhost:5000` or `https://registry.local`)
+  </ConfigOption>
 
+  <ConfigOption name="WUD_REGISTRY_CUSTOM_{registry_name}_AUTH"
+    type="string"
+    required={false}
+    supported="Mutually exclusive with `LOGIN`/`PASSWORD`">
+    Base64-encoded `username:password` string
+  </ConfigOption>
+
+  <ConfigOption name="WUD_REGISTRY_CUSTOM_{registry_name}_LOGIN"
+    type="string"
+    required={false}
+    supported="Required when password is provided">
+    Username (when Basic/htpasswd authentication is enabled)
+  </ConfigOption>
+
+  <ConfigOption name="WUD_REGISTRY_CUSTOM_{registry_name}_PASSWORD"
+    type="string"
+    required={false}
+    supported="Required when username is provided">
+    Password (when Basic/htpasswd authentication is enabled)
+  </ConfigOption>
+</ConfigList>
 ### Examples
 
 #### Configure for anonymous access

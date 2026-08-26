@@ -1,26 +1,96 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # SMTP
 
+![logo](smtp.svg)
+
 The `smtp` trigger lets you send container update notifications via email using SMTP.
 
 ### Variables
 
-| Env var                                             |    Required    | Description                                       | Supported values                      | Default value when missing |
-| --------------------------------------------------- | :------------: | :------------------------------------------------ | ------------------------------------- | -------------------------- |
-| `WUD_TRIGGER_SMTP_{trigger_name}_HOST`              |  :red_circle:  | SMTP server hostname or IP address                | Valid hostname or IP address          |                            |
-| `WUD_TRIGGER_SMTP_{trigger_name}_PORT`              |  :red_circle:  | SMTP server port                                  | Valid port number (e.g. `465`, `587`) |                            |
-| `WUD_TRIGGER_SMTP_{trigger_name}_FROM_ADDRESS`      |  :red_circle:  | Sender email address (`From`)                     | Valid email address                   |                            |
-| `WUD_TRIGGER_SMTP_{trigger_name}_FROM` (deprecated) | :white_circle: | Sender email address (legacy alias)               | Valid email address                   |                            |
-| `WUD_TRIGGER_SMTP_{trigger_name}_FROM_NAME`         | :white_circle: | Sender display name                               | String                                |                            |
-| `WUD_TRIGGER_SMTP_{trigger_name}_TO`                |  :red_circle:  | Recipient email address (`To`)                    | Valid email address                   |                            |
-| `WUD_TRIGGER_SMTP_{trigger_name}_USER`              | :white_circle: | SMTP authentication username                      | String                                |                            |
-| `WUD_TRIGGER_SMTP_{trigger_name}_PASS`              | :white_circle: | SMTP authentication password                      | String                                |                            |
-| `WUD_TRIGGER_SMTP_{trigger_name}_TLS_ENABLED`       | :white_circle: | Enable TLS/SSL connection                         | `true`, `false`                       | `false`                    |
-| `WUD_TRIGGER_SMTP_{trigger_name}_TLS_VERIFY`        | :white_circle: | Verify server TLS certificate                     | `true`, `false`                       | `true`                     |
-| `WUD_TRIGGER_SMTP_{trigger_name}_ALLOWCUSTOMTLD`    | :white_circle: | Allow non-standard/custom TLDs in email addresses | `true`, `false`                       | `false`                    |
+<ConfigList>
+  <ConfigOption name="WUD_TRIGGER_SMTP_{trigger_name}_FROM_ADDRESS"
+    type="email"
+    required={true}
+    supported="Valid email address">
+    Sender email address (`From`)
+  </ConfigOption>
 
+  <ConfigOption name="WUD_TRIGGER_SMTP_{trigger_name}_HOST"
+    type="string"
+    required={true}
+    supported="Valid hostname or IP address">
+    SMTP server hostname or IP address
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_SMTP_{trigger_name}_PORT"
+    required={true}
+    type="integer"
+    supported="Valid port number (e.g. `465`, `587`)">
+    SMTP server port
+  </ConfigOption>
+
+  <ConfigOption name="WUD_TRIGGER_SMTP_{trigger_name}_TO"
+    type="email"
+    required={true}
+    supported="Valid email address">
+    Recipient email address (`To`)
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_SMTP_{trigger_name}_ALLOWCUSTOMTLD"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    Allow non-standard/custom TLDs in email addresses
+  </ConfigOption>
+
+  <ConfigOption name="WUD_TRIGGER_SMTP_{trigger_name}_FROM"
+    type="email"
+    required={false}
+    supported="Valid email address">
+    Sender email address (legacy alias)
+  </ConfigOption>
+
+  <ConfigOption name="WUD_TRIGGER_SMTP_{trigger_name}_FROM_NAME"
+    required={false}
+    type="email">
+    Sender display name
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_SMTP_{trigger_name}_PASS"
+    required={false}
+    type="string">
+    SMTP authentication password
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_SMTP_{trigger_name}_TLS_ENABLED"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    Enable TLS/SSL connection
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_SMTP_{trigger_name}_TLS_VERIFY"
+    required={false}
+    type="boolean"
+    defaultValue="true">
+    Verify server TLS certificate
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_SMTP_{trigger_name}_USER"
+    required={false}
+    type="string">
+    SMTP authentication username
+  </ConfigOption>
+</ConfigList>
 :::info
 This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).
 :::

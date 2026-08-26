@@ -1,22 +1,69 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # HTTP
 
+![logo](http.svg)
+
 The `http` trigger lets you send container update webhook notifications to custom HTTP/HTTPS endpoints.
 
 ### Variables
 
-| Env var                                         |    Required    | Description                            | Supported values             | Default value when missing |
-| ----------------------------------------------- | :------------: | -------------------------------------- | ---------------------------- | -------------------------- |
-| `WUD_TRIGGER_HTTP_{trigger_name}_URL`           |  :red_circle:  | Target webhook URL                     | Valid HTTP or HTTPS endpoint |                            |
-| `WUD_TRIGGER_HTTP_{trigger_name}_METHOD`        | :white_circle: | HTTP request method                    | `GET`, `POST`                | `POST`                     |
-| `WUD_TRIGGER_HTTP_{trigger_name}_AUTH_TYPE`     | :white_circle: | Authentication type                    | `BASIC`, `BEARER`            | `BASIC`                    |
-| `WUD_TRIGGER_HTTP_{trigger_name}_AUTH_USER`     | :white_circle: | Username for Basic authentication      | String                       |                            |
-| `WUD_TRIGGER_HTTP_{trigger_name}_AUTH_PASSWORD` | :white_circle: | Password for Basic authentication      | String                       |                            |
-| `WUD_TRIGGER_HTTP_{trigger_name}_AUTH_BEARER`   | :white_circle: | Bearer token for Bearer authentication | String                       |                            |
-| `WUD_TRIGGER_HTTP_{trigger_name}_PROXY`         | :white_circle: | HTTP/HTTPS proxy URL                   | Valid proxy URL              |                            |
+<ConfigList>
+  <ConfigOption
+    name="WUD_TRIGGER_HTTP_{trigger_name}_URL"
+    required={true}
+    type="url"
+    supported="Valid HTTP or HTTPS endpoint">
+    Target webhook URL
+  </ConfigOption>
 
+  <ConfigOption
+    name="WUD_TRIGGER_HTTP_{trigger_name}_AUTH_BEARER"
+    required={false}
+    type="string">
+    Bearer token for Bearer authentication
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_HTTP_{trigger_name}_AUTH_PASSWORD"
+    required={false}
+    type="string">
+    Password for Basic authentication
+  </ConfigOption>
+
+  <ConfigOption name="WUD_TRIGGER_HTTP_{trigger_name}_AUTH_TYPE"
+    type="enum"
+    required={false}
+    defaultValue="BASIC"
+    supported="`BASIC`, `BEARER`">
+    Authentication type
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_HTTP_{trigger_name}_AUTH_USER"
+    required={false}
+    type="string">
+    Username for Basic authentication
+  </ConfigOption>
+
+  <ConfigOption name="WUD_TRIGGER_HTTP_{trigger_name}_METHOD"
+    type="enum"
+    required={false}
+    defaultValue="POST"
+    supported="`GET`, `POST`">
+    HTTP request method
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_HTTP_{trigger_name}_PROXY"
+    required={false}
+    type="url"
+    supported="Valid proxy URL">
+    HTTP/HTTPS proxy URL
+  </ConfigOption>
+</ConfigList>
 :::info
 This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).
 :::

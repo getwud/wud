@@ -1,28 +1,83 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Rocket.Chat
 
-![logo](rocketchat.png)
+![logo](rocketchat.svg)
 
 The `rocketchat` trigger lets you post container update notifications to a Rocket.Chat channel or direct message.
 
 ### Variables
 
-| Env var                                              |    Required    | Description                                                                                         | Supported values                                                                             | Default value when missing |
-| ---------------------------------------------------- | :------------: | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | -------------------------- |
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_URL`          |  :red_circle:  | Rocket.Chat workspace URL (e.g., `https://chat.example.com`)                                        | Valid HTTP/HTTPS URL                                                                         |                            |
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_USER_ID`      |  :red_circle:  | User ID of the account sending notifications (found when generating a Personal Access Token)        | String                                                                                       |                            |
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_AUTH_TOKEN`   |  :red_circle:  | Personal Access Token (PAT) of the sending account                                                  | String                                                                                       |                            |
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_CHANNEL`      |  :red_circle:  | Destination channel or user                                                                         | Channel ID (`6561ce603d237c33797650d7`), channel name (`#example`), or username (`@example`) |                            |
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_ALIAS`        | :white_circle: | Custom sender display name (requires `message-impersonate` permission, typically on the `bot` role) | String                                                                                       |                            |
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_AVATAR`       | :white_circle: | Custom sender avatar image URL (requires `message-impersonate` permission)                          | Valid HTTP/HTTPS image URL                                                                   |                            |
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_EMOJI`        | :white_circle: | Custom sender avatar emoji (e.g., `:whale:`)                                                        | Emoji shortcode                                                                              |                            |
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_PARSE_URLS`   | :white_circle: | Generate link previews when the message contains URLs                                               | `true`, `false`                                                                              | `true`                     |
-| `WUD_TRIGGER_ROCKETCHAT_{trigger_name}_DISABLETITLE` | :white_circle: | Disable the default title heading to allow full custom message formatting                           | `true`, `false`                                                                              | `false`                    |
+<ConfigList>
+  <ConfigOption name="WUD_TRIGGER_ROCKETCHAT_{trigger_name}_AUTH_TOKEN"
+    required={true}
+    type="email">
+    Personal Access Token (PAT) of the sending account
+  </ConfigOption>
 
-:::warning
-The destination Rocket.Chat channel must already exist on the workspace; WUD will not create it automatically.
+  <ConfigOption name="WUD_TRIGGER_ROCKETCHAT_{trigger_name}_CHANNEL"
+    type="enum"
+    required={true}
+    supported="Channel ID (`6561ce603d237c33797650d7`), channel name (`#example`), or username (`@example`)">
+    Destination channel or user
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_ROCKETCHAT_{trigger_name}_URL"
+    required={true}
+    type="url"
+    supported="Valid HTTP/HTTPS URL">
+    Rocket.Chat workspace URL (e.g., `https://chat.example.com`)
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_ROCKETCHAT_{trigger_name}_USER_ID"
+    required={true}
+    type="string">
+    User ID of the account sending notifications (found when generating a Personal Access Token)
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_ROCKETCHAT_{trigger_name}_ALIAS"
+    required={false}
+    type="string">
+    Custom sender display name (requires `message-impersonate` permission, typically on the `bot` role)
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_ROCKETCHAT_{trigger_name}_AVATAR"
+    required={false}
+    type="url"
+    supported="Valid HTTP/HTTPS image URL">
+    Custom sender avatar image URL (requires `message-impersonate` permission)
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_ROCKETCHAT_{trigger_name}_DISABLETITLE"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    Disable the default title heading to allow full custom message formatting
+  </ConfigOption>
+
+  <ConfigOption name="WUD_TRIGGER_ROCKETCHAT_{trigger_name}_EMOJI"
+    type="string"
+    required={false}
+    supported="Emoji shortcode">
+    Custom sender avatar emoji (e.g., `:whale:`)
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_ROCKETCHAT_{trigger_name}_PARSE_URLS"
+    required={false}
+    type="boolean"
+    defaultValue="true">
+    Generate link previews when the message contains URLs
+  </ConfigOption>
+</ConfigList>
+:::warning[The destination Rocket.Chat channel must already exist on the workspace; WUD will not create it automatically.]
 :::
 
 :::info

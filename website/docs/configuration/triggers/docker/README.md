@@ -1,9 +1,10 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Docker
 
-![logo](docker.png)
+![logo](docker.svg)
 
 The `docker` trigger automatically replaces standalone containers with their updated versions.
 
@@ -19,11 +20,23 @@ When triggered, WUD will:
 
 ### Variables
 
-| Env var                                    |    Required    | Description                                                          | Supported values | Default value when missing |
-| ------------------------------------------ | :------------: | -------------------------------------------------------------------- | ---------------- | -------------------------- |
-| `WUD_TRIGGER_DOCKER_{trigger_name}_PRUNE`  | :white_circle: | Prune the old image after the upgrade completes                      | `true`, `false`  | `false`                    |
-| `WUD_TRIGGER_DOCKER_{trigger_name}_DRYRUN` | :white_circle: | When enabled, only pull the new image ahead of time without updating | `true`, `false`  | `false`                    |
+<ConfigList>
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKER_{trigger_name}_DRYRUN"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    When enabled, only pull the new image ahead of time without updating
+  </ConfigOption>
 
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKER_{trigger_name}_PRUNE"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    Prune the old image after the upgrade completes
+  </ConfigOption>
+</ConfigList>
 :::info
 This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).
 :::

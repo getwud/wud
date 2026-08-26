@@ -1,3 +1,4 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
@@ -7,11 +8,23 @@ You can adjust the log level and output format using environment variables.
 
 ### Variables
 
-| Env var          |    Required    | Description | Supported values                  | Default value when missing |
-| ---------------- | :------------: | ----------- | --------------------------------- | -------------------------- |
-| `WUD_LOG_LEVEL`  | :white_circle: | Log level   | `error`, `info`, `debug`, `trace` | `info`                     |
-| `WUD_LOG_FORMAT` | :white_circle: | Log format  | `text`, `json`                    | `text`                     |
+<ConfigList>
+  <ConfigOption name="WUD_LOG_FORMAT"
+    type="enum"
+    required={false}
+    defaultValue="text"
+    supported="`text`, `json`">
+    Log format
+  </ConfigOption>
 
+  <ConfigOption name="WUD_LOG_LEVEL"
+    type="enum"
+    required={false}
+    defaultValue="info"
+    supported="`error`, `info`, `debug`, `trace`">
+    Log level
+  </ConfigOption>
+</ConfigList>
 ### Examples
 
 #### Set log level to debug

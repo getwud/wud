@@ -1,9 +1,10 @@
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 
 # Docker Hub (including private repositories)
 
-![logo](docker.png)
+![logo](docker.svg)
 
 The `hub` registry module lets you configure authentication and settings for [Docker Hub](https://hub.docker.com/).
 
@@ -19,14 +20,55 @@ By default, WUD connects to Docker Hub anonymously. Configure authentication if 
 
 ### Variables
 
-| Env var                                              |    Required    | Description                                                           | Supported values                           | Default value when missing |
-| ---------------------------------------------------- | :------------: | --------------------------------------------------------------------- | ------------------------------------------ | -------------------------- |
-| `WUD_REGISTRY_HUB_PUBLIC_LOGIN`                      | :white_circle: | Docker Hub username                                                   | Required when password/token is provided   |                            |
-| `WUD_REGISTRY_HUB_PUBLIC_PASSWORD`                   | :white_circle: | Docker Hub Personal Access Token or password                          | Required when username is provided         |                            |
-| `WUD_REGISTRY_HUB_PUBLIC_TOKEN`                      | :white_circle: | Docker Hub token (deprecated; use `WUD_REGISTRY_HUB_PUBLIC_PASSWORD`) | Required when username is provided         |                            |
-| `WUD_REGISTRY_HUB_PUBLIC_AUTH`                       | :white_circle: | Base64-encoded `username:password` string                             | Mutually exclusive with `LOGIN`/`PASSWORD` |                            |
-| `WUD_REGISTRY_HUB_PUBLIC_WATCHDIGEST`                | :white_circle: | Globally track image digests on Docker Hub                            | `true`, `false`                            | `false`                    |
-| `WUD_REGISTRY_HUB_PUBLIC_SUPPRESSDIGESTWATCHWARNING` | :white_circle: | Suppress warning logs when digest watching without credentials        | `true`, `false`                            | `false`                    |
+<ConfigList>
+  <ConfigOption
+    name="WUD_REGISTRY_HUB_PUBLIC_AUTH"
+    required={false}
+    type="string"
+    supported="Base64-encoded username:password (mutually exclusive with LOGIN/PASSWORD)">
+    Direct Base64-encoded `username:password` string (as found in `~/.docker/config.json`).
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_REGISTRY_HUB_PUBLIC_LOGIN"
+    required={false}
+    type="string"
+    supported="Required when password/token is provided">
+    Docker Hub username for authentication.
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_REGISTRY_HUB_PUBLIC_PASSWORD"
+    required={false}
+    type="string"
+    supported="Required when username is provided">
+    Docker Hub Personal Access Token (recommended) or account password.
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_REGISTRY_HUB_PUBLIC_SUPPRESSDIGESTWATCHWARNING"
+    required={false}
+    type="boolean"
+    defaultValue="false"
+    supported="true | false">
+    Suppress warning logs when digest watching is enabled without authentication.
+  </ConfigOption>
+
+  <ConfigOption name="WUD_REGISTRY_HUB_PUBLIC_TOKEN"
+    required={false}
+    type="email">
+    Docker Hub token (deprecated; prefer `WUD_REGISTRY_HUB_PUBLIC_PASSWORD`).
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_REGISTRY_HUB_PUBLIC_WATCHDIGEST"
+    required={false}
+    type="boolean"
+    defaultValue="false"
+    supported="true | false">
+    Globally track image manifests/digests on Docker Hub to detect updates even when tags stay unchanged.
+  </ConfigOption>
+</ConfigList>
 
 ### Examples
 
@@ -116,8 +158,7 @@ docker run \
 
 By default, WUD tracks updates by comparing semver image tags. You can enable digest watching to detect updates even when tags remain unchanged.
 
-:::info
-Digest watching is useful for tracking mutable tags like `latest`, `stable`, or `nightly`.
+:::info[Digest watching is useful for tracking mutable tags like `latest`, `stable`, or `nightly`.]
 :::
 
 <Tabs>

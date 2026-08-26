@@ -1,20 +1,38 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # ACR (Azure Container Registry)
 
-![logo](azure.png)
+![logo](azure.svg)
 
 The `acr` registry module lets you authenticate against [Azure Container Registry](https://azure.microsoft.com/en-us/products/container-registry).
 
 ### Variables
 
-| Env var                                         |    Required    | Description                                          | Supported values | Default value when missing   |
-| ----------------------------------------------- | :------------: | ---------------------------------------------------- | ---------------- | ---------------------------- |
-| `WUD_REGISTRY_ACR_{registry_name}_CLIENTID`     |  :red_circle:  | Azure Service Principal Client ID                    | String           |                              |
-| `WUD_REGISTRY_ACR_{registry_name}_CLIENTSECRET` |  :red_circle:  | Azure Service Principal Client Secret                | String           |                              |
-| `WUD_REGISTRY_ACR_{registry_name}_NAME`         | :white_circle: | Registry domain name (e.g., `myregistry.azurecr.io`) | String           | `{registry_name}.azurecr.io` |
+<ConfigList>
+  <ConfigOption
+    name="WUD_REGISTRY_ACR_{registry_name}_CLIENTID"
+    required={true}
+    type="string">
+    Azure Service Principal Client ID
+  </ConfigOption>
 
+  <ConfigOption
+    name="WUD_REGISTRY_ACR_{registry_name}_CLIENTSECRET"
+    required={true}
+    type="string">
+    Azure Service Principal Client Secret
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_REGISTRY_ACR_{registry_name}_NAME"
+    required={false}
+    type="string"
+    defaultValue="{registry_name}.azurecr.io">
+    Registry domain name (e.g., `myregistry.azurecr.io`)
+  </ConfigOption>
+</ConfigList>
 :::info
 You can obtain the Client ID and Secret from an Azure Service Principal with the `AcrPull` role assigned ([see Azure documentation](https://learn.microsoft.com/azure/container-registry/container-registry-auth-service-principal)).
 :::

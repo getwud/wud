@@ -1,22 +1,55 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Telegram
 
-![logo](telegram.png)
+![logo](telegram.svg)
 
 The `telegram` trigger lets you send real-time container update notifications via [Telegram](https://telegram.org/) bots.
 
 ### Variables
 
-| Env var                                             |    Required    | Description                                                                                           | Supported values                                             | Default value when missing |
-| --------------------------------------------------- | :------------: | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------- |
-| `WUD_TRIGGER_TELEGRAM_{trigger_name}_BOTTOKEN`      |  :red_circle:  | Telegram Bot API token                                                                                | String                                                       |                            |
-| `WUD_TRIGGER_TELEGRAM_{trigger_name}_CHATID`        |  :red_circle:  | Target Telegram chat ID or channel username                                                           | String / Integer                                             |                            |
-| `WUD_TRIGGER_TELEGRAM_{trigger_name}_DISABLETITLE`  | :white_circle: | Disable the default title heading to allow full custom message formatting                             | `true`, `false`                                              | `false`                    |
-| `WUD_TRIGGER_TELEGRAM_{trigger_name}_MESSAGEFORMAT` | :white_circle: | Parse mode for custom message formatting                                                              | `Markdown`, `HTML`                                           | `Markdown`                 |
-| `WUD_TRIGGER_TELEGRAM_{trigger_name}_PROXY`         | :white_circle: | Route Telegram API calls through a dedicated SOCKS5/HTTP proxy (all other WUD traffic remains direct) | `socks5://user:pass@host:1080`, `http://user:pass@host:8118` |                            |
+<ConfigList>
+  <ConfigOption
+    name="WUD_TRIGGER_TELEGRAM_{trigger_name}_BOTTOKEN"
+    required={true}
+    type="string">
+    Telegram Bot API token
+  </ConfigOption>
 
+  <ConfigOption
+    name="WUD_TRIGGER_TELEGRAM_{trigger_name}_CHATID"
+    required={true}
+    type="integer"
+    supported="String / Integer">
+    Target Telegram chat ID or channel username
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_TELEGRAM_{trigger_name}_DISABLETITLE"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    Disable the default title heading to allow full custom message formatting
+  </ConfigOption>
+
+  <ConfigOption name="WUD_TRIGGER_TELEGRAM_{trigger_name}_MESSAGEFORMAT"
+    type="enum"
+    required={false}
+    defaultValue="Markdown"
+    supported="`Markdown`, `HTML`">
+    Parse mode for custom message formatting
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_TELEGRAM_{trigger_name}_PROXY"
+    required={false}
+    type="url"
+    supported="`socks5://user:pass@host:1080`, `http://user:pass@host:8118`">
+    Route Telegram API calls through a dedicated SOCKS5/HTTP proxy (all other WUD traffic remains direct)
+  </ConfigOption>
+</ConfigList>
 :::info
 This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).
 :::

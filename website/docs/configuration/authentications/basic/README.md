@@ -1,19 +1,33 @@
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 
 # Basic Authentication
+
+![logo](basic.svg)
 
 The `basic` authentication module lets you protect WUD access using the [HTTP Basic authentication standard](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication).
 
 ### Variables
 
-| Env var                           |   Required   | Description                      | Supported values                                                                           | Default value when missing |
-| --------------------------------- | :----------: | -------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------- |
-| `WUD_AUTH_BASIC_{auth_name}_USER` | :red_circle: | Username                         |                                                                                            |                            |
-| `WUD_AUTH_BASIC_{auth_name}_HASH` | :red_circle: | htpasswd-compliant password hash | [See htpasswd documentation](https://httpd.apache.org/docs/current/programs/htpasswd.html) |                            |
+<ConfigList>
+  <ConfigOption
+    name="WUD_AUTH_BASIC_{auth_name}_HASH"
+    required={true}
+    type="string"
+    supported="htpasswd-compliant Apache hash (MD5, SHA1, Crypt, APR1, Bcrypt)">
+    htpasswd-compliant password hash ([see htpasswd documentation](https://httpd.apache.org/docs/current/programs/htpasswd.html)).
+  </ConfigOption>
 
-:::warning
-Password hashes typically contain `$` characters; make sure to escape or quote them appropriately:
+  <ConfigOption
+    name="WUD_AUTH_BASIC_{auth_name}_USER"
+    required={true}
+    type="string">
+    Username for the authorized user.
+  </ConfigOption>
+</ConfigList>
+
+:::warning[Password hashes typically contain `$` characters; make sure to escape or quote them appropriately:]
 
 - Use **double `$$`** in Docker Compose files ([see variable substitution](https://docs.docker.com/compose/compose-file/compose-file-v3/#variable-substitution)):
   `WUD_AUTH_BASIC_JOHN_HASH: $$apr1$$aefKbZEa$$ZSA5Y3zv9vDQOxr283NGx/`
@@ -23,8 +37,7 @@ Password hashes typically contain `$` characters; make sure to escape or quote t
   `WUD_AUTH_BASIC_JOHN_HASH="\$apr1\$aefKbZEa\$ZSA5Y3zv9vDQOxr283NGx/"`
 :::
 
-:::warning
-**Known limitation:** Passwords containing colon characters (`:`) are not supported due to a limitation in the underlying `passport-http` library. Authentication will fail if your password contains a colon. Use passwords without colons until this is resolved.
+:::warning[**Known limitation:** Passwords containing colon characters (`:`) are not supported due to a limitation in the underlying `passport-http` library. Authentication will fail if your password contains a colon. Use passwords without colons until this is resolved.]
 :::
 
 ### Examples

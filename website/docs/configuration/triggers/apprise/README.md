@@ -1,21 +1,48 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Apprise
 
-![logo](apprise.png)
+![logo](apprise.svg)
 
 The `apprise` trigger lets you send container update notifications via the [Apprise API](https://github.com/caronc/apprise-api).
 
 ### Variables
 
-| Env var                                     |    Required    | Description                                                       | Supported values                                                                                       | Default value when missing |
-| ------------------------------------------- | :------------: | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------- |
-| `WUD_TRIGGER_APPRISE_{trigger_name}_URL`    |  :red_circle:  | Base URL of the Apprise API server                                | Valid HTTP/HTTPS URL                                                                                   |                            |
-| `WUD_TRIGGER_APPRISE_{trigger_name}_URLS`   | :white_circle: | Comma-separated list of Apprise service notification URLs         | [Supported Apprise notification URLs](https://github.com/caronc/apprise#popular-notification-services) |                            |
-| `WUD_TRIGGER_APPRISE_{trigger_name}_CONFIG` | :white_circle: | Name of an Apprise YAML configuration file                        | [Apprise persistent configuration documentation](https://github.com/caronc/apprise/wiki/config_yaml)   |                            |
-| `WUD_TRIGGER_APPRISE_{trigger_name}_TAG`    | :white_circle: | Optional tag(s) to match when using an Apprise YAML configuration | [Apprise persistent configuration documentation](https://github.com/caronc/apprise/wiki/config_yaml)   |                            |
+<ConfigList>
+  <ConfigOption
+    name="WUD_TRIGGER_APPRISE_{trigger_name}_URL"
+    required={true}
+    type="url"
+    supported="Valid HTTP/HTTPS URL">
+    Base URL of the Apprise API server
+  </ConfigOption>
 
+  <ConfigOption
+    name="WUD_TRIGGER_APPRISE_{trigger_name}_CONFIG"
+    required={false}
+    type="url"
+    supported="[Apprise persistent configuration documentation](https://github.com/caronc/apprise/wiki/config_yaml)">
+    Name of an Apprise YAML configuration file
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_APPRISE_{trigger_name}_TAG"
+    required={false}
+    type="url"
+    supported="[Apprise persistent configuration documentation](https://github.com/caronc/apprise/wiki/config_yaml)">
+    Optional tag(s) to match when using an Apprise YAML configuration
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_APPRISE_{trigger_name}_URLS"
+    required={false}
+    type="url"
+    supported="[Supported Apprise notification URLs](https://github.com/caronc/apprise#popular-notification-services)">
+    Comma-separated list of Apprise service notification URLs
+  </ConfigOption>
+</ConfigList>
 :::info
 This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).
 :::

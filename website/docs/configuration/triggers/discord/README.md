@@ -1,21 +1,55 @@
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 
 # Discord
 
-![logo](discord.png)
+![logo](discord.svg)
 
 The `discord` trigger lets you send real-time container update notifications to Discord channels using webhooks.
 
 ### Variables
 
-| Env var                                          |    Required    | Description                              | Supported values | Default value when missing |
-| ------------------------------------------------ | :------------: | ---------------------------------------- | ---------------- | -------------------------- |
-| `WUD_TRIGGER_DISCORD_{trigger_name}_URL`         |  :red_circle:  | Discord incoming webhook URL             | Valid HTTPS URL  |                            |
-| `WUD_TRIGGER_DISCORD_{trigger_name}_BOTUSERNAME` | :white_circle: | Bot username displayed in Discord        | String           | `WUD`                      |
-| `WUD_TRIGGER_DISCORD_{trigger_name}_AVATARURL`   | :white_circle: | Avatar image URL for the webhook bot     | Valid HTTPS URL  |                            |
-| `WUD_TRIGGER_DISCORD_{trigger_name}_CARDCOLOR`   | :white_circle: | Embed card color in decimal format       | Decimal integer  | `65280` (green)            |
-| `WUD_TRIGGER_DISCORD_{trigger_name}_CARDLABEL`   | :white_circle: | Optional label/tag to include in message | String           |                            |
+<ConfigList>
+  <ConfigOption
+    name="WUD_TRIGGER_DISCORD_{trigger_name}_URL"
+    required={true}
+    type="url"
+    supported="Valid HTTPS URL">
+    Discord incoming webhook URL.
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_DISCORD_{trigger_name}_AVATARURL"
+    required={false}
+    type="url"
+    supported="Valid HTTPS URL">
+    Avatar image URL for the webhook bot.
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_DISCORD_{trigger_name}_BOTUSERNAME"
+    required={false}
+    type="string"
+    defaultValue="WUD">
+    Bot username displayed in the Discord channel.
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_DISCORD_{trigger_name}_CARDCOLOR"
+    required={false}
+    type="integer"
+    defaultValue="65280">
+    Embed card color in decimal format (`65280` is green).
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_DISCORD_{trigger_name}_CARDLABEL"
+    required={false}
+    type="string">
+    Optional label or tag to include in the message.
+  </ConfigOption>
+</ConfigList>
 
 :::info
 This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).

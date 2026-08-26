@@ -76,8 +76,7 @@ services:
 
 ## Secret management
 
-:::warning
-If you prefer not to expose sensitive values directly in environment variables, you can store them in files and reference those files by appending `__FILE` to the environment variable name.
+:::warning[If you prefer not to expose sensitive values directly in environment variables, you can store them in files and reference those files by appending `__FILE` to the environment variable name.]
 :::
 
 For example, instead of providing the Basic auth hash directly:
@@ -92,6 +91,5 @@ You can save the secret value (`$$apr1$$aefKbZEa$$ZSA5Y3zv9vDQOxr283NGx/`) to a 
 WUD_AUTH_BASIC_JOHN_HASH__FILE=/tmp/john_hash
 ```
 
-:::info
-This feature can be used with any WUD environment variable (no exceptions).
+:::info[This feature can be used with any WUD environment variable (no exceptions).]
 :::

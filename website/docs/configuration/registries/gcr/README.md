@@ -1,23 +1,35 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # GCR (Google Container Registry)
 
-![logo](gcr.png)
+![logo](gcr.svg)
 
 The `gcr` registry module lets you authenticate against [Google Container Registry](https://cloud.google.com/container-registry) (GCR) and Google Artifact Registry.
 
-:::info
-Public GCR images work out of the box without authentication. Configure this module to access private repositories.
+:::info[Public GCR images work out of the box without authentication. Configure this module to access private repositories.]
 :::
 
 ### Variables
 
-| Env var                                        |    Required    | Description                                                | Supported values                                                                                                     | Default value when missing |
-| ---------------------------------------------- | :------------: | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| `WUD_REGISTRY_GCR_{registry_name}_CLIENTEMAIL` | :white_circle: | Service Account client email (required for private images) | See [Service Account credentials](https://cloud.google.com/container-registry/docs/advanced-authentication#json-key) |                            |
-| `WUD_REGISTRY_GCR_{registry_name}_PRIVATEKEY`  | :white_circle: | Service Account private key (required for private images)  | See [Service Account credentials](https://cloud.google.com/container-registry/docs/advanced-authentication#json-key) |                            |
+<ConfigList>
+  <ConfigOption
+    name="WUD_REGISTRY_GCR_{registry_name}_CLIENTEMAIL"
+    required={false}
+    type="url"
+    supported="See [Service Account credentials](https://cloud.google.com/container-registry/docs/advanced-authentication#json-key)">
+    Service Account client email (required for private images)
+  </ConfigOption>
 
+  <ConfigOption
+    name="WUD_REGISTRY_GCR_{registry_name}_PRIVATEKEY"
+    required={false}
+    type="url"
+    supported="See [Service Account credentials](https://cloud.google.com/container-registry/docs/advanced-authentication#json-key)">
+    Service Account private key (required for private images)
+  </ConfigOption>
+</ConfigList>
 ### Examples
 
 #### Authenticate with a Google Service Account

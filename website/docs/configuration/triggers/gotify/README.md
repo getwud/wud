@@ -1,20 +1,40 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Gotify
 
-![logo](gotify.png)
+![logo](gotify.svg)
 
 The `gotify` trigger lets you send container update notifications via [Gotify](https://gotify.net/).
 
 ### Variables
 
-| Env var                                      |    Required    | Description              | Supported values       | Default value when missing |
-| -------------------------------------------- | :------------: | ------------------------ | ---------------------- | -------------------------- |
-| `WUD_TRIGGER_GOTIFY_{trigger_name}_PRIORITY` | :white_circle: | Gotify message priority  | Integer >= `0`         | `5`                        |
-| `WUD_TRIGGER_GOTIFY_{trigger_name}_TOKEN`    |  :red_circle:  | Gotify application token | Valid Gotify app token |                            |
-| `WUD_TRIGGER_GOTIFY_{trigger_name}_URL`      |  :red_circle:  | Gotify server base URL   | Valid HTTP/HTTPS URL   |                            |
+<ConfigList>
+  <ConfigOption name="WUD_TRIGGER_GOTIFY_{trigger_name}_TOKEN"
+    type="email"
+    required={true}
+    supported="Valid Gotify app token">
+    Gotify application token
+  </ConfigOption>
 
+  <ConfigOption
+    name="WUD_TRIGGER_GOTIFY_{trigger_name}_URL"
+    required={true}
+    type="url"
+    supported="Valid HTTP/HTTPS URL">
+    Gotify server base URL
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_GOTIFY_{trigger_name}_PRIORITY"
+    required={false}
+    type="integer"
+    defaultValue="5"
+    supported="Integer >= `0`">
+    Gotify message priority
+  </ConfigOption>
+</ConfigList>
 :::info
 This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).
 :::

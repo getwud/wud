@@ -1,23 +1,60 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # ntfy
 
-![logo](ntfy.png)
+![logo](ntfy.svg)
 
 The `ntfy` trigger lets you send container update push notifications via [ntfy](https://ntfy.sh/).
 
 ### Variables
 
-| Env var                                         |    Required    | Description                              | Supported values                                                                                   | Default value when missing |
-| ----------------------------------------------- | :------------: | ---------------------------------------- | -------------------------------------------------------------------------------------------------- | -------------------------- |
-| `WUD_TRIGGER_NTFY_{trigger_name}_TOPIC`         |  :red_circle:  | Target ntfy topic name                   | String                                                                                             |                            |
-| `WUD_TRIGGER_NTFY_{trigger_name}_URL`           | :white_circle: | ntfy server base URL                     | Valid HTTP or HTTPS URL                                                                            | `https://ntfy.sh`          |
-| `WUD_TRIGGER_NTFY_{trigger_name}_PRIORITY`      | :white_circle: | ntfy notification priority               | Integer between `1` (min) and `5` (max) [see docs](https://docs.ntfy.sh/publish/#message-priority) | `3` (default)              |
-| `WUD_TRIGGER_NTFY_{trigger_name}_AUTH_USER`     | :white_circle: | Username (for Basic authentication)      | String                                                                                             |                            |
-| `WUD_TRIGGER_NTFY_{trigger_name}_AUTH_PASSWORD` | :white_circle: | Password (for Basic authentication)      | String                                                                                             |                            |
-| `WUD_TRIGGER_NTFY_{trigger_name}_AUTH_TOKEN`    | :white_circle: | Access token (for Bearer authentication) | String                                                                                             |                            |
+<ConfigList>
+  <ConfigOption name="WUD_TRIGGER_NTFY_{trigger_name}_TOPIC"
+    required={true}
+    type="email">
+    Target ntfy topic name
+  </ConfigOption>
 
+  <ConfigOption
+    name="WUD_TRIGGER_NTFY_{trigger_name}_AUTH_PASSWORD"
+    required={false}
+    type="string">
+    Password (for Basic authentication)
+  </ConfigOption>
+
+  <ConfigOption name="WUD_TRIGGER_NTFY_{trigger_name}_AUTH_TOKEN"
+    required={false}
+    type="email">
+    Access token (for Bearer authentication)
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_NTFY_{trigger_name}_AUTH_USER"
+    required={false}
+    type="string">
+    Username (for Basic authentication)
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_NTFY_{trigger_name}_PRIORITY"
+    required={false}
+    type="url"
+    defaultValue="3"
+    supported="Integer between `1` (min) and `5` (max) [see docs](https://docs.ntfy.sh/publish/#message-priority)">
+    ntfy notification priority
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_NTFY_{trigger_name}_URL"
+    required={false}
+    type="url"
+    defaultValue="https://ntfy.sh"
+    supported="Valid HTTP or HTTPS URL">
+    ntfy server base URL
+  </ConfigOption>
+</ConfigList>
 :::info
 This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).
 :::

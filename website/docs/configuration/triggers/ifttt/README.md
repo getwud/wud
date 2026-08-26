@@ -1,19 +1,31 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # IFTTT
 
-![logo](ifttt.png)
+![logo](ifttt.svg)
 
 The `ifttt` trigger lets you send container update notifications to IFTTT via the [Maker Webhooks service](https://ifttt.com/maker_webhooks/).
 
 ### Variables
 
-| Env var                                  |    Required    | Description              | Supported values | Default value when missing |
-| ---------------------------------------- | :------------: | ------------------------ | ---------------- | -------------------------- |
-| `WUD_TRIGGER_IFTTT_{trigger_name}_KEY`   |  :red_circle:  | IFTTT Webhook API key    | String           |                            |
-| `WUD_TRIGGER_IFTTT_{trigger_name}_EVENT` | :white_circle: | IFTTT Webhook event name | String           | `wud-image`                |
+<ConfigList>
+  <ConfigOption
+    name="WUD_TRIGGER_IFTTT_{trigger_name}_KEY"
+    required={true}
+    type="string">
+    IFTTT Webhook API key
+  </ConfigOption>
 
+  <ConfigOption
+    name="WUD_TRIGGER_IFTTT_{trigger_name}_EVENT"
+    required={false}
+    type="string"
+    defaultValue="wud-image">
+    IFTTT Webhook event name
+  </ConfigOption>
+</ConfigList>
 :::info
 This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).
 :::

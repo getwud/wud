@@ -1,21 +1,45 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Gitea Container Registry
 
-![logo](gitea.png)
+![logo](gitea.svg)
 
 The `gitea` registry module lets you authenticate against [Gitea](https://gitea.com) container registry instances (hosted or self-hosted).
 
 ### Variables
 
-| Env var                                       |    Required    | Description                                            | Supported values                           | Default value when missing |
-| --------------------------------------------- | :------------: | ------------------------------------------------------ | ------------------------------------------ | -------------------------- |
-| `WUD_REGISTRY_GITEA_{registry_name}_URL`      |  :red_circle:  | Gitea instance URL (e.g., `https://gitea.example.com`) | Valid HTTP/HTTPS URL                       |                            |
-| `WUD_REGISTRY_GITEA_{registry_name}_LOGIN`    |  :red_circle:  | Gitea username                                         | Required when password/token is provided   |                            |
-| `WUD_REGISTRY_GITEA_{registry_name}_PASSWORD` |  :red_circle:  | Gitea password or personal access token                | Required when username is provided         |                            |
-| `WUD_REGISTRY_GITEA_{registry_name}_AUTH`     | :white_circle: | Base64-encoded `username:password` string              | Mutually exclusive with `LOGIN`/`PASSWORD` |                            |
+<ConfigList>
+  <ConfigOption name="WUD_REGISTRY_GITEA_{registry_name}_LOGIN"
+    type="string"
+    required={true}
+    supported="Required when password/token is provided">
+    Gitea username
+  </ConfigOption>
 
+  <ConfigOption name="WUD_REGISTRY_GITEA_{registry_name}_PASSWORD"
+    type="string"
+    required={true}
+    supported="Required when username is provided">
+    Gitea password or personal access token
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_REGISTRY_GITEA_{registry_name}_URL"
+    required={true}
+    type="url"
+    supported="Valid HTTP/HTTPS URL">
+    Gitea instance URL (e.g., `https://gitea.example.com`)
+  </ConfigOption>
+
+  <ConfigOption name="WUD_REGISTRY_GITEA_{registry_name}_AUTH"
+    type="string"
+    required={false}
+    supported="Mutually exclusive with `LOGIN`/`PASSWORD`">
+    Base64-encoded `username:password` string
+  </ConfigOption>
+</ConfigList>
 ### Examples
 
 #### Authenticate with a Gitea instance

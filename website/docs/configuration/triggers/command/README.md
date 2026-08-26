@@ -1,26 +1,45 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Command
 
-![logo](command.png)
+![logo](command.svg)
 
 The `command` trigger lets you run arbitrary shell commands or scripts upon container update notifications.
 
 ### Variables
 
-| Env var                                      |    Required    | Description                       | Supported values                      | Default value when missing |
-| -------------------------------------------- | :------------: | --------------------------------- | ------------------------------------- | -------------------------- |
-| `WUD_TRIGGER_COMMAND_{trigger_name}_CMD`     |  :red_circle:  | The shell command to run          | String                                |                            |
-| `WUD_TRIGGER_COMMAND_{trigger_name}_SHELL`   | :white_circle: | Shell binary path to use          | Valid installed shell path            | `/bin/sh`                  |
-| `WUD_TRIGGER_COMMAND_{trigger_name}_TIMEOUT` | :white_circle: | Command execution timeout (in ms) | Positive integer (`0` for no timeout) | `60000` (1 minute)         |
+<ConfigList>
+  <ConfigOption
+    name="WUD_TRIGGER_COMMAND_{trigger_name}_CMD"
+    required={true}
+    type="string">
+    The shell command to run
+  </ConfigOption>
 
+  <ConfigOption name="WUD_TRIGGER_COMMAND_{trigger_name}_SHELL"
+    type="path"
+    required={false}
+    defaultValue="/bin/sh"
+    supported="Valid installed shell path">
+    Shell binary path to use
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_COMMAND_{trigger_name}_TIMEOUT"
+    required={false}
+    type="integer"
+    defaultValue="60000"
+    supported="Positive integer (`0` for no timeout)">
+    Command execution timeout (in ms)
+  </ConfigOption>
+</ConfigList>
 :::info
 This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).
 :::
 
-:::info
-Update information is passed to the command process as environment variables (see below).
+:::info[Update information is passed to the command process as environment variables (see below).]
 :::
 
 ### Environment variables passed to the executed command
@@ -79,14 +98,12 @@ update_kind_semver_diff='major'
 watcher='local'
 ```
 
-:::info
-In addition, a `container_json` environment variable is passed containing the full container entity serialized as a JSON string.
+:::info[In addition, a `container_json` environment variable is passed containing the full container entity serialized as a JSON string.]
 :::
 
 #### In batch mode (one execution for a batch of container updates)
 
-:::info
-A `containers_json` environment variable is passed containing the JSON array of all update objects.
+:::info[A `containers_json` environment variable is passed containing the JSON array of all update objects.]
 :::
 
 ### Examples

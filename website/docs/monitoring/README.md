@@ -36,7 +36,7 @@ services:
 
 ## Prometheus metrics
 
-![logo](prometheus.png)
+![logo](prometheus.svg)
 
 WUD exposes various metrics that [Prometheus](https://prometheus.io/) can scrape.
 
@@ -270,7 +270,7 @@ nodejs_gc_duration_seconds_count{kind="weakcb"} 1
 
 ## Grafana
 
-![logo](grafana.png)
+![logo](grafana.svg)
 
 You can use [Grafana](https://grafana.com/) to visualize charts and dashboards based on WUD Prometheus metrics.
 

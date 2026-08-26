@@ -109,8 +109,7 @@
 - :wrench: Add Prettier
 - :wrench: Upgrade to Node.js 23
 
-:::warning
-**Breaking changes!**
+:::warning[**Breaking changes!**]
 
 Registry configuration has changed; please update [your environment variables](configuration/registries/).
 Internal IDs have changed; your [existing state](configuration/storage/) will be reset.
@@ -138,8 +137,7 @@ Internal IDs have changed; your [existing state](configuration/storage/) will be
 - :star: [UI] - Add support for [Selfh.st](https://selfh.st/icons/) icons
 - :star: [Docker watcher] - Add `watchatstart` option to disable automatic check during startup
 
-:::warning
-**Breaking changes!**
+:::warning[**Breaking changes!**]
 
 **WUD** has moved to its own organization!
 - GitHub repository: [https://github.com/getwud/wud](https://github.com/getwud/wud)
@@ -171,8 +169,7 @@ Internal IDs have changed; your [existing state](configuration/storage/) will be
 - :star: Upgrade all dependencies
 - :star: Upgrade to Node.js 18
 
-:::warning
-**Breaking changes!**
+:::warning[**Breaking changes!**]
 
 Home Assistant sensors are now created as `update` sensors instead of `binary` sensors.
 Existing Home Assistant entities must be manually cleaned up.
@@ -233,8 +230,7 @@ Remember to update your Home Assistant automations and dashboards accordingly.
 - :star: Upgrade to Node.js 16
 - :star: Watch individual containers instead of images
 
-:::warning
-**Breaking changes!**
+:::warning[**Breaking changes!**]
 
 WUD is now **container-centric** instead of image-centric.
 The data model, API, and some integrations have changed.

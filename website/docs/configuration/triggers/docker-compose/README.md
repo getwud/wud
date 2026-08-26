@@ -1,9 +1,10 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Docker Compose
 
-![logo](docker-compose.png)
+![logo](docker-compose.svg)
 
 The `dockercompose` trigger automatically updates `docker-compose.yml` files and recreates containers with their updated images.
 
@@ -20,23 +21,47 @@ When triggered, WUD will:
 
 ### Variables
 
-| Env var                                           |    Required    | Description                                                          | Supported values | Default value when missing                                               |
-| ------------------------------------------------- | :------------: | -------------------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------ |
-| `WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_FILE`   | :white_circle: | Path to the `docker-compose.yml` file inside the container           | File path        | Value of the container's `com.docker.compose.project.config_files` label |
-| `WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_BACKUP` | :white_circle: | Back up `docker-compose.yml` to `.back` before updating              | `true`, `false`  | `false`                                                                  |
-| `WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_PRUNE`  | :white_circle: | Prune the old image after the upgrade completes                      | `true`, `false`  | `false`                                                                  |
-| `WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_DRYRUN` | :white_circle: | When enabled, only pull the new image ahead of time without updating | `true`, `false`  | `false`                                                                  |
+<ConfigList>
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_BACKUP"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    Back up `docker-compose.yml` to `.back` before updating
+  </ConfigOption>
 
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_DRYRUN"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    When enabled, only pull the new image ahead of time without updating
+  </ConfigOption>
+
+  <ConfigOption name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_FILE"
+    type="path"
+    required={false}
+    defaultValue="com.docker.compose.project.config_files"
+    supported="File path">
+    Path to the `docker-compose.yml` file inside the container
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_PRUNE"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    Prune the old image after the upgrade completes
+  </ConfigOption>
+</ConfigList>
 :::info
 This trigger supports [common trigger configuration options](../README.md#common-trigger-configuration) and runs in `batch` mode only.
 :::
 
-:::warning
-This trigger only works with locally monitored containers on the same Docker host.
+:::warning[This trigger only works with locally monitored containers on the same Docker host.]
 :::
 
-:::warning
-Ensure the `docker-compose.yml` file is mounted into the WUD container. If relying on the automatic `com.docker.compose.project.config_files` label, mount the file at the exact same path inside the container as on the Docker host.
+:::warning[Ensure the `docker-compose.yml` file is mounted into the WUD container. If relying on the automatic `com.docker.compose.project.config_files` label, mount the file at the exact same path inside the container as on the Docker host.]
 :::
 
 ### Examples
