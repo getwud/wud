@@ -19,7 +19,14 @@ test('validatedConfiguration should initialize when configuration is valid', asy
         url: 'http://localhost:5000',
         login: 'login',
         password: 'password',
+        concurrency: 2,
     });
+});
+
+test('validatedConfiguration should require a URL with concurrency', async () => {
+    expect(() => {
+        custom.validateConfiguration({ concurrency: 2 });
+    }).toThrow('"url" is required');
 });
 
 test('validatedConfiguration should throw error when auth is not base64', async () => {

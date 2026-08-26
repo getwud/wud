@@ -22,6 +22,7 @@ test('validatedConfiguration should initialize when configuration is valid', asy
         url: 'https://gitea.acme.com',
         login: 'login',
         password: 'password',
+        concurrency: 2,
     });
 });
 

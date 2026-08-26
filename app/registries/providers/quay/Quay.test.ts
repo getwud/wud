@@ -20,8 +20,10 @@ quay.configuration = {
 quay.log = log;
 
 test('validatedConfiguration should initialize when anonymous configuration is valid', async () => {
-    expect(quay.validateConfiguration('')).toStrictEqual({});
-    expect(quay.validateConfiguration(undefined)).toStrictEqual({});
+    expect(quay.validateConfiguration('')).toStrictEqual({ concurrency: 2 });
+    expect(quay.validateConfiguration(undefined)).toStrictEqual({
+        concurrency: 2,
+    });
 });
 
 test('validatedConfiguration should initialize when auth configuration is valid', async () => {
@@ -35,6 +37,7 @@ test('validatedConfiguration should initialize when auth configuration is valid'
         namespace: 'namespace',
         account: 'account',
         token: 'token',
+        concurrency: 2,
     });
 });
 
@@ -125,6 +128,13 @@ test('authenticate should populate header with base64 bearer', async () => {
             Authorization: 'Bearer token',
         },
     });
+});
+
+test('authenticate should propagate rate limits', async () => {
+    const error = { response: { status: 429 } };
+    axios.mockRejectedValueOnce(error);
+
+    await expect(quay.authenticate({}, { headers: {} })).rejects.toBe(error);
 });
 
 test('authenticate should not populate header with base64 bearer when anonymous', async () => {
