@@ -79,8 +79,10 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
-      // WUD social share card image
       image: 'img/wud-logo-512.png',
+      mermaid: {
+        theme: { light: 'neutral', dark: 'dark' },
+      },
       colorMode: {
         defaultMode: 'dark',
         disableSwitch: false,

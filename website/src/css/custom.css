@@ -302,3 +302,112 @@ div[class*='codeBlockContainer'],
   color: #fee2e2 !important;
 }
 
+/* ==========================================================================
+   Mermaid Architecture Diagram (Adaptive Light & Dark Modes)
+   ========================================================================== */
+
+.docusaurus-mermaid-container {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0 2rem;
+}
+
+/* Center WUD Engine Node */
+.docusaurus-mermaid-container .wudNode > polygon,
+.docusaurus-mermaid-container .wudNode > rect,
+.docusaurus-mermaid-container .wudNode > path {
+  fill: #0284c7 !important;
+  stroke: #38bdf8 !important;
+  stroke-width: 2.5px !important;
+}
+.docusaurus-mermaid-container .wudNode span,
+.docusaurus-mermaid-container .wudNode text {
+  color: #ffffff !important;
+  fill: #ffffff !important;
+  font-weight: 600;
+}
+
+/* 1. Watchers Node - Light Mode */
+.docusaurus-mermaid-container .watcherNode > rect,
+.docusaurus-mermaid-container .watcherNode > polygon,
+.docusaurus-mermaid-container .watcherNode > path {
+  fill: #f0f9ff !important;
+  stroke: #0284c7 !important;
+  stroke-width: 2px !important;
+}
+.docusaurus-mermaid-container .watcherNode span,
+.docusaurus-mermaid-container .watcherNode text {
+  color: #0c4a6e !important;
+  fill: #0c4a6e !important;
+}
+
+/* 1. Watchers Node - Dark Mode */
+[data-theme='dark'] .docusaurus-mermaid-container .watcherNode > rect,
+[data-theme='dark'] .docusaurus-mermaid-container .watcherNode > polygon,
+[data-theme='dark'] .docusaurus-mermaid-container .watcherNode > path {
+  fill: #0f172a !important;
+  stroke: #38bdf8 !important;
+  stroke-width: 2px !important;
+}
+[data-theme='dark'] .docusaurus-mermaid-container .watcherNode span,
+[data-theme='dark'] .docusaurus-mermaid-container .watcherNode text {
+  color: #f0f9ff !important;
+  fill: #f0f9ff !important;
+}
+
+/* 2. Registries Node - Light Mode */
+.docusaurus-mermaid-container .registryNode > rect,
+.docusaurus-mermaid-container .registryNode > polygon,
+.docusaurus-mermaid-container .registryNode > path {
+  fill: #faf5ff !important;
+  stroke: #9333ea !important;
+  stroke-width: 2px !important;
+}
+.docusaurus-mermaid-container .registryNode span,
+.docusaurus-mermaid-container .registryNode text {
+  color: #581c87 !important;
+  fill: #581c87 !important;
+}
+
+/* 2. Registries Node - Dark Mode */
+[data-theme='dark'] .docusaurus-mermaid-container .registryNode > rect,
+[data-theme='dark'] .docusaurus-mermaid-container .registryNode > polygon,
+[data-theme='dark'] .docusaurus-mermaid-container .registryNode > path {
+  fill: #0f172a !important;
+  stroke: #a855f7 !important;
+  stroke-width: 2px !important;
+}
+[data-theme='dark'] .docusaurus-mermaid-container .registryNode span,
+[data-theme='dark'] .docusaurus-mermaid-container .registryNode text {
+  color: #faf5ff !important;
+  fill: #faf5ff !important;
+}
+
+/* 3. Triggers Node - Light Mode */
+.docusaurus-mermaid-container .triggerNode > rect,
+.docusaurus-mermaid-container .triggerNode > polygon,
+.docusaurus-mermaid-container .triggerNode > path {
+  fill: #f0fdf4 !important;
+  stroke: #16a34a !important;
+  stroke-width: 2px !important;
+}
+.docusaurus-mermaid-container .triggerNode span,
+.docusaurus-mermaid-container .triggerNode text {
+  color: #14532d !important;
+  fill: #14532d !important;
+}
+
+/* 3. Triggers Node - Dark Mode */
+[data-theme='dark'] .docusaurus-mermaid-container .triggerNode > rect,
+[data-theme='dark'] .docusaurus-mermaid-container .triggerNode > polygon,
+[data-theme='dark'] .docusaurus-mermaid-container .triggerNode > path {
+  fill: #0f172a !important;
+  stroke: #10b981 !important;
+  stroke-width: 2px !important;
+}
+[data-theme='dark'] .docusaurus-mermaid-container .triggerNode span,
+[data-theme='dark'] .docusaurus-mermaid-container .triggerNode text {
+  color: #f0fdf4 !important;
+  fill: #f0fdf4 !important;
+}
+

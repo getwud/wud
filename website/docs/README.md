@@ -13,7 +13,19 @@ Keep your containers up to date!
 - <i className="mdi mdi-database-search" /> **REGISTRIES** query remote Docker registries to find candidate updates.
 - <i className="mdi mdi-bell-ring" /> **TRIGGERS** execute actions when updates are available.
 
-![image](assets/wud-arch.png)
+```mermaid
+flowchart LR
+    W["🔍 <b>1. WATCHERS</b><br/>Discover running containers<br/><i>Local &amp; Remote Docker</i>"]:::watcherNode
+    WUD{"⚡ <b>WUD ENGINE</b><br/>Compare versions &amp; digests"}:::wudNode
+    R["📦 <b>2. REGISTRIES</b><br/>Check latest tags &amp; manifests<br/><i>Docker Hub, GHCR, Private...</i>"]:::registryNode
+    T["🚀 <b>3. TRIGGERS</b><br/>Notify or auto-update<br/><i>Discord, Slack, Compose...</i>"]:::triggerNode
+
+    W -->|"Scan"| WUD
+    WUD <-->|"Check"| R
+    WUD -->|"Act"| T
+```
+
+
 
 ## Supported triggers
 
