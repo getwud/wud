@@ -3,15 +3,17 @@ title: MQTT
 description: Publish container update notifications to MQTT brokers and Home Assistant in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # MQTT
 
-![logo](mqtt.svg)
-
-The `mqtt` trigger lets you publish container update notifications to any MQTT broker and automatically registers updates in [Home Assistant](https://www.home-assistant.io/) via MQTT Auto-Discovery.
+<DocHero
+  icon="mqtt"
+  description="The mqtt trigger publishes JSON update payloads to an MQTT message broker with Home Assistant auto-discovery support."
+/>
 
 ---
 

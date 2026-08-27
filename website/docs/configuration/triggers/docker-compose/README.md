@@ -3,33 +3,17 @@ title: Docker Compose
 description: Automatically update Docker Compose services and files in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Docker Compose
 
-![logo](docker-compose.svg)
-
-The `dockercompose` trigger automatically updates image tags inside `docker-compose.yml` files and recreates the target services.
-
----
-
-## 🔄 Update Lifecycle
-
-When triggered, WUD executes the following sequence:
-
-1. Updates the image tag reference in the target `docker-compose.yml` file.
-2. Clones the existing service container configuration.
-3. Pulls the new target image.
-4. Stops and removes the old container.
-5. Recreates and starts the updated container.
-6. Prunes the obsolete image (if `PRUNE=true`).
-
-:::warning[Host & Volume Requirements]
-- This trigger only works with **locally monitored containers** running on the same host.
-- The `docker-compose.yml` file must be mounted into the WUD container. If relying on Docker Compose's automatic `com.docker.compose.project.config_files` label, mount the file at the exact same path inside WUD as on the host.
-:::
+<DocHero
+  icon="docker-compose"
+  description="The docker-compose trigger recreates containers managed by Docker Compose by pulling the latest images and restarting the stack."
+/>
 
 ---
 

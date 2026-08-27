@@ -3,19 +3,19 @@ title: AWS Elastic Container Registry (ECR)
 description: Configure authentication for Amazon ECR Private and Public Registries in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # AWS Elastic Container Registry (ECR)
 
-![logo](ecr.svg)
-
-The `ecr` registry module lets you authenticate against [Amazon Elastic Container Registry (ECR)](https://aws.amazon.com/ecr/) private and public repositories.
-
-:::info[Zero-Config for ECR Public]
-Public images on Amazon ECR Public Gallery (`public.ecr.aws`) work out of the box with zero configuration. Configure this module to authenticate against private ECR repositories.
-:::
+<DocHero
+  icon="ecr"
+  badge="🔐 Setup Required"
+  badgeType="setup"
+  description="The ecr registry module lets you authenticate against private AWS Elastic Container Registry (ECR) repositories."
+/>
 
 ---
 

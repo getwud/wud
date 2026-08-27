@@ -3,15 +3,17 @@ title: Gotify
 description: Send container update notifications to a Gotify push server in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Gotify
 
-![logo](gotify.png)
-
-The `gotify` trigger lets you send push container update notifications via a self-hosted [Gotify](https://gotify.net/) server.
+<DocHero
+  icon="gotify"
+  description="The gotify trigger sends real-time push notifications to self-hosted Gotify servers and clients."
+/>
 
 ---
 

@@ -3,18 +3,22 @@ title: GitHub Container Registry (GHCR)
 description: Configure authentication for GitHub Container Registry packages in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # GitHub Container Registry (GHCR)
 
-![logo](github.svg)
-
-The `ghcr` registry module lets you authenticate against the [GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-docker-registry) (`ghcr.io`).
+<DocHero
+  icon="ghcr"
+  badge="⚡ Active by Default"
+  badgeType="default"
+  description="The ghcr registry module lets you authenticate against the GitHub Container Registry (ghcr.io)."
+/>
 
 :::info[Zero-Config for Public Images]
-Public GHCR packages work out of the box with zero configuration. Configure this module to monitor private packages or prevent anonymous rate limiting.
+Public packages work out of the box with zero configuration. Configure this module to monitor private repositories or avoid anonymous rate limits.
 :::
 
 ---

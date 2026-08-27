@@ -3,15 +3,17 @@ title: Rocket.Chat
 description: Post container update notifications to Rocket.Chat channels or direct messages in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Rocket.Chat
 
-![logo](rocketchat.svg)
-
-The `rocketchat` trigger lets you post container update notifications to a [Rocket.Chat](https://rocket.chat/) channel or direct message using Personal Access Tokens (PAT).
+<DocHero
+  icon="rocketchat"
+  description="The rocketchat trigger posts container update messages to Rocket.Chat channels via incoming webhooks."
+/>
 
 ---
 

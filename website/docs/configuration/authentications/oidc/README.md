@@ -1,12 +1,14 @@
+import DocHero, { BrandIcon } from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # OpenID Connect (OIDC) Authentication
 
-![logo](oidc.svg)
-
-The `oidc` authentication module lets you protect WUD access using the [OpenID Connect standard](https://openid.net/).
+<DocHero
+  icon="oidc"
+  description="The oidc authentication module lets you protect WUD access using the OpenID Connect standard with providers such as Authelia, Auth0, Authentik, Keycloak, or Okta."
+/>
 
 ### Variables
 
@@ -69,7 +71,7 @@ The `oidc` authentication module lets you protect WUD access using the [OpenID C
 
 ### How to integrate with [Authelia](https://www.authelia.com)
 
-![logo](authelia.svg)
+<div style={{ marginBottom: '1rem' }}><BrandIcon name="authelia" size={40} /></div>
 
 #### Configure an OpenID Client for WUD in Authelia `configuration.yml` ([see official Authelia documentation](https://www.authelia.com/docs/configuration/identity-providers/oidc.html))
 
@@ -148,7 +150,7 @@ docker run \
 
 ### How to integrate with [Auth0](https://auth0.com)
 
-![logo](auth0.svg)
+<div style={{ marginBottom: '1rem' }}><BrandIcon name="auth0" size={40} /></div>
 
 #### Create an application (Regular Web Application)
 
@@ -191,7 +193,7 @@ docker run \
 
 ### How to integrate with [Authentik](https://goauthentik.io/)
 
-![logo](authentik.svg)
+<div style={{ marginBottom: '1rem' }}><BrandIcon name="authentik" size={40} /></div>
 
 #### In Authentik, create a provider of type `OAuth2/OpenID` (or configure an existing one)
 

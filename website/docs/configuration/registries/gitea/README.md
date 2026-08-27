@@ -3,15 +3,23 @@ title: Gitea
 description: Configure authentication for Gitea container registries in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Gitea Container Registry
 
-![logo](gitea.svg)
+<DocHero
+  icon="gitea"
+  badge="⚡ Active by Default"
+  badgeType="default"
+  description="The gitea registry module connects to self-hosted or public Gitea container registries."
+/>
 
-The `gitea` registry module lets you authenticate against [Gitea](https://gitea.com) container registry instances (both hosted and self-hosted).
+:::info[Zero-Config for Public Images]
+Public packages work out of the box with zero configuration. Configure this module to monitor private repositories or avoid anonymous rate limits.
+:::
 
 ---
 

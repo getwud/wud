@@ -3,19 +3,19 @@ title: Google Container Registry (GCR)
 description: Configure authentication for Google Container Registry and Artifact Registry in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Google Container Registry (GCR)
 
-![logo](gcr.svg)
-
-The `gcr` registry module lets you authenticate against [Google Container Registry](https://cloud.google.com/container-registry) (GCR) and Google Artifact Registry using Service Account keys.
-
-:::info[Zero-Config for Public Images]
-Public GCR images (e.g. `gcr.io` or `k8s.gcr.io`) work out of the box with zero configuration. Configure this module to access private images or private Artifact Registry repositories.
-:::
+<DocHero
+  icon="gcr"
+  badge="🔐 Setup Required"
+  badgeType="setup"
+  description="The gcr registry module authenticates against Google Container Registry (GCR) and Google Artifact Registry (GAR)."
+/>
 
 ---
 

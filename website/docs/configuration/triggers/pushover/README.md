@@ -3,15 +3,17 @@ title: Pushover
 description: Send container update push notifications via Pushover in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Pushover
 
-![logo](pushover.svg)
-
-The `pushover` trigger lets you send real-time container update push notifications to mobile devices and desktops using [Pushover](https://pushover.net/).
+<DocHero
+  icon="pushover"
+  description="The pushover trigger sends instant push notifications to Android, iOS, and desktop devices via the Pushover API."
+/>
 
 ---
 

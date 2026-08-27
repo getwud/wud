@@ -3,15 +3,19 @@ title: Custom / Self-Hosted Registry
 description: Integrate self-hosted Docker Registry v2, Harbor, Nexus, or Artifactory in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Custom / Self-Hosted Registry
 
-![logo](custom.svg)
-
-The `custom` registry module lets you integrate standalone [Docker Registry v2](https://docs.docker.com/registry/), [Harbor](https://goharbor.io/), [Sonatype Nexus](https://www.sonatype.com/products/sonatype-nexus-repository), [JFrog Artifactory](https://jfrog.com/artifactory/), or any generic OCI-compliant registry.
+<DocHero
+  icon="custom"
+  badge="🔐 Setup Required"
+  badgeType="setup"
+  description="The custom registry module allows connecting to any self-hosted, private, or third-party OCI-compliant registry."
+/>
 
 ---
 

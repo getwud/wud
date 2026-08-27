@@ -3,15 +3,17 @@ title: HTTP Webhooks
 description: Send container update webhook notifications to custom HTTP/HTTPS endpoints in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # HTTP Webhooks
 
-![logo](http.svg)
-
-The `http` trigger lets you dispatch container update webhook notifications to any custom HTTP/HTTPS endpoint or API.
+<DocHero
+  icon="http"
+  description="The http trigger executes custom HTTP/REST webhooks with configurable methods, headers, and body payloads whenever updates are detected."
+/>
 
 ---
 

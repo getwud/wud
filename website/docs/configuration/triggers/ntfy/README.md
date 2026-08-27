@@ -3,15 +3,17 @@ title: ntfy
 description: Send container update push notifications via ntfy in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # ntfy
 
-![logo](ntfy.svg)
-
-The `ntfy` trigger lets you send container update push notifications to phones and desktops via [ntfy](https://ntfy.sh/) (public service or self-hosted).
+<DocHero
+  icon="ntfy"
+  description="The ntfy trigger sends push notifications to any ntfy.sh topic or self-hosted ntfy server with priority levels, tags, and action buttons."
+/>
 
 ---
 

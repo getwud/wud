@@ -3,25 +3,17 @@ title: Nomad
 description: Update HashiCorp Nomad-managed containers cleanly via the Nomad API in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Nomad
 
-![logo](nomad.svg)
-
-The `nomad` trigger updates containers managed by [HashiCorp Nomad](https://www.nomadproject.io/) cleanly through the Nomad HTTP API without conflicting with Nomad's container lifecycle supervision.
-
----
-
-## 🔄 How It Works
-
-Nomad actively supervises its containers (handling service discovery, templating, health checks, and restart policies). Rather than replacing containers via the Docker socket, the `nomad` trigger instructs Nomad's API to restart the allocation task natively.
-
-:::important[Force Pull Required in Job Spec]
-Ensure the target task has `force_pull = true` set in its Nomad job definition so Nomad pulls the newly released image before restarting the task.
-:::
+<DocHero
+  icon="nomad"
+  description="The nomad trigger triggers job restarts or task redeployments on HashiCorp Nomad clusters when updated container images are found."
+/>
 
 ---
 

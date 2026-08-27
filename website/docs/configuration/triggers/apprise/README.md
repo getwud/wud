@@ -3,15 +3,17 @@ title: Apprise
 description: Configure Apprise API notification triggers in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Apprise
 
-![logo](apprise.svg)
-
-The `apprise` trigger lets you send container update notifications to 80+ notification services via the [Apprise API](https://github.com/caronc/apprise-api).
+<DocHero
+  icon="apprise"
+  description="The apprise trigger sends notifications via Apprise, unlocking delivery to 80+ notification services including Matrix, Signal, Nextcloud, Line, and more."
+/>
 
 ---
 

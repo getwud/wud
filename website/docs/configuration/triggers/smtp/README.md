@@ -3,15 +3,17 @@ title: SMTP Email
 description: Send container update alert emails via SMTP in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # SMTP Email
 
-![logo](smtp.svg)
-
-The `smtp` trigger lets you send container update alert emails via any SMTP mail server (such as Gmail, Fastmail, Postmark, AWS SES, or a self-hosted mail server).
+<DocHero
+  icon="smtp"
+  description="The smtp trigger sends email notifications for container updates via standard SMTP servers with SSL/TLS and authentication."
+/>
 
 ---
 

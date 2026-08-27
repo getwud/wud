@@ -3,18 +3,22 @@ title: LinuxServer.io (LSCR)
 description: Configure authentication for LinuxServer.io Container Registry (lscr.io) in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # LinuxServer.io (LSCR)
 
-![logo](linuxserver.svg)
-
-The `lscr` registry module lets you authenticate against the [LinuxServer.io Container Registry](https://fleet.linuxserver.io/) (`lscr.io`), which is backed by GitHub Container Registry.
+<DocHero
+  icon="lscr"
+  badge="⚡ Active by Default"
+  badgeType="default"
+  description="The lscr registry module authenticates with LinuxServer.io (lscr.io) container registries."
+/>
 
 :::info[Zero-Config for Public Images]
-Public LSCR images work out of the box with zero configuration. Configure this module to authenticate with GitHub credentials if needed to bypass rate limits.
+Public packages work out of the box with zero configuration. Configure this module to monitor private repositories or avoid anonymous rate limits.
 :::
 
 ---

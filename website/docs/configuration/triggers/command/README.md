@@ -3,15 +3,17 @@ title: Command
 description: Run custom shell commands and automation scripts upon container updates in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Command
 
-![logo](command.svg)
-
-The `command` trigger lets you run arbitrary shell commands or scripts whenever container updates are discovered.
+<DocHero
+  icon="command"
+  description="The command trigger executes a shell command or script whenever container updates are detected."
+/>
 
 ---
 

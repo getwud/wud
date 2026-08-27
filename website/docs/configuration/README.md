@@ -9,7 +9,27 @@ import TabItem from '@theme/TabItem';
 
 # Configuration
 
-WUD relies on **environment variables** and **[Docker labels](https://docs.docker.com/config/labels-custom-metadata/)** to configure all of its components.
+WUD uses a clean, two-tier configuration model combining **Environment Variables** on the WUD service and **Docker Labels** on your monitored containers.
+
+---
+
+## ⚙️ Environment Variables vs. Docker Labels
+
+Understanding where each setting is applied is essential:
+
+| Configuration Mechanism | Where to Configure | Scope | Typical Use Cases |
+| :--- | :--- | :--- | :--- |
+| **Environment Variables** (`WUD_*`) | **WUD container** | Global | Server port, log level, authentication, registry credentials, notification triggers, watcher intervals |
+| **Docker Labels** (`wud.*`) | **Monitored containers** | Per-container | Tag filtering regex, release link templates, digest watching, display names, trigger overrides |
+
+:::tip[Rule of Thumb]
+- **Configure WUD globally**: Pass `WUD_*` environment variables to the **WUD container** (e.g. configure a Telegram bot token, Docker Hub credentials, or storage path).
+- **Customize a specific application**: Attach `wud.*` labels to the **monitored container** (e.g. enforce semver pattern `^\d+\.\d+\.\d+$`, watch digests on mutable tags, or customize the changelog link). For full details, see the [Container Labels Guide](./watchers/labels.md).
+:::
+
+---
+
+## 📂 Configuration Components
 
 Explore the documentation for each component below:
 
@@ -75,12 +95,14 @@ Explore the documentation for each component below:
 
 ## Complete Example
 
+The following `docker-compose.yml` demonstrates how global `WUD_*` environment variables are set on the WUD service while `wud.*` labels are attached to monitored services:
+
 <Tabs>
 <TabItem value="docker-compose" label="docker-compose.yml">
 
 ```yaml
 services:
-  # Valid semver followed by OS name
+  # Monitored Service 1: Valid semver followed by OS name
   vaultwarden:
     image: vaultwarden/server:1.22.1-alpine
     container_name: bitwarden
@@ -88,14 +110,14 @@ services:
       - 'wud.tag.include=^\d+\.\d+\.\d+-alpine$$'
       - "wud.link.template=https://github.com/dani-garcia/vaultwarden/releases/tag/$${major}.$${minor}.$${patch}"
 
-  # Valid semver followed by a build number (LinuxServer style)
+  # Monitored Service 2: Valid semver followed by a build number (LinuxServer style)
   duplicati:
     image: linuxserver/duplicati:v2.0.6.3-2.0.6.3_beta_2021-06-17-ls104
     container_name: duplicati
     labels:
       - 'wud.tag.include=^v\d+\.\d+\.\d+\.\d+-\d+\.\d+\.\d+\.\d+.*$$'
 
-  # Valid CalVer (calendar versioning)
+  # Monitored Service 3: Valid CalVer (calendar versioning)
   homeassistant:
     image: homeassistant/home-assistant:2021.7.1
     container_name: homeassistant
@@ -103,7 +125,7 @@ services:
       - 'wud.tag.include=^\d+\.\d+\.\d+$$'
       - "wud.link.template=https://github.com/home-assistant/core/releases/tag/$${major}.$${minor}.$${patch}"
 
-  # Valid semver with a leading 'v'
+  # Monitored Service 4: Valid semver with a leading 'v'
   pihole:
     image: pihole/pihole:v5.8.1
     container_name: pihole
@@ -111,7 +133,7 @@ services:
       - 'wud.tag.include=^v\d+\.\d+\.\d+$$'
       - "wud.link.template=https://github.com/pi-hole/FTL/releases/tag/v$${major}.$${minor}.$${patch}"
 
-  # Mutable tag (latest) with digest tracking
+  # Monitored Service 5: Mutable tag (latest) with digest tracking
   pyload:
     image: writl/pyload:latest
     container_name: pyload
@@ -119,13 +141,16 @@ services:
       - "wud.tag.include=latest"
       - "wud.watch.digest=true"
 
-  # WUD self-tracking
+  # WUD Service: Configured via global environment variables
   whatsupdocker:
     image: getwud/wud:5.1.0
     container_name: wud
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /opt/wud/store:/store
+    environment:
+      - WUD_LOG_LEVEL=info
+      - WUD_SERVER_PORT=3000
     healthcheck:
       test: curl --fail http://localhost:${WUD_SERVER_PORT:-3000}/health || exit 1
       interval: 10s
@@ -133,6 +158,7 @@ services:
       retries: 3
       start_period: 10s
     labels:
+      # WUD can also monitor itself!
       - 'wud.tag.include=^\d+\.\d+\.\d+$$'
       - "wud.link.template=https://github.com/getwud/wud/releases/tag/$${major}.$${minor}.$${patch}"
 ```

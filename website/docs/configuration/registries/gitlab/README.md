@@ -3,15 +3,23 @@ title: GitLab
 description: Configure authentication for GitLab Container Registries in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # GitLab Container Registry
 
-![logo](gitlab.svg)
+<DocHero
+  icon="gitlab"
+  badge="⚡ Active by Default"
+  badgeType="default"
+  description="The gitlab registry module authenticates against GitLab Container Registries (GitLab.com and self-hosted instances)."
+/>
 
-The `gitlab` registry module lets you authenticate against [GitLab Container Registry](https://docs.gitlab.com/ee/user/packages/container_registry/) (both GitLab.com and self-hosted instances).
+:::info[Zero-Config for Public Images]
+Public packages work out of the box with zero configuration. Configure this module to monitor private repositories or avoid anonymous rate limits.
+:::
 
 ---
 

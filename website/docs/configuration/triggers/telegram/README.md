@@ -3,15 +3,17 @@ title: Telegram
 description: Send container update notifications via Telegram bots in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Telegram
 
-![logo](telegram.svg)
-
-The `telegram` trigger lets you send real-time container update notifications directly to Telegram chats, groups, or channels using a bot.
+<DocHero
+  icon="telegram"
+  description="The telegram trigger delivers container update alerts directly to Telegram chats, groups, or channels via Telegram Bot API."
+/>
 
 ---
 

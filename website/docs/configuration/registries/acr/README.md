@@ -3,15 +3,19 @@ title: Azure Container Registry (ACR)
 description: Configure authentication for private Azure Container Registries in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Azure Container Registry (ACR)
 
-![logo](azure.svg)
-
-The `acr` registry module lets you authenticate against private [Azure Container Registry](https://azure.microsoft.com/en-us/products/container-registry) (ACR) instances using Azure Service Principals.
+<DocHero
+  icon="acr"
+  badge="🔐 Setup Required"
+  badgeType="setup"
+  description="The acr registry module lets you authenticate against Azure Container Registry (ACR) instances."
+/>
 
 ---
 

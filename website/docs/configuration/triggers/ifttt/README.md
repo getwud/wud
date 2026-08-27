@@ -3,15 +3,17 @@ title: IFTTT
 description: Send container update notifications to IFTTT applets using Webhooks in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # IFTTT
 
-![logo](ifttt.svg)
-
-The `ifttt` trigger lets you send container update notifications to [IFTTT](https://ifttt.com/) via the Maker Webhooks service.
+<DocHero
+  icon="ifttt"
+  description="The ifttt trigger fires custom events on the IFTTT Webhooks service to trigger smart home and automation applets."
+/>
 
 ---
 

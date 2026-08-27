@@ -3,18 +3,22 @@ title: Forgejo
 description: Configure authentication for Forgejo container registries in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Forgejo Container Registry
 
-![logo](forgejo.svg)
-
-The `forgejo` registry module lets you authenticate against [Forgejo](https://forgejo.org/) container registry instances (hosted and self-hosted).
+<DocHero
+  icon="forgejo"
+  badge="⚡ Active by Default"
+  badgeType="default"
+  description="The forgejo registry module connects to self-hosted or public Forgejo container registries."
+/>
 
 :::info[Zero-Config for Public Images]
-Public packages on `code.forgejo.org` work out of the box with zero configuration. Configure this module to monitor private packages or connect to self-hosted instances.
+Public packages work out of the box with zero configuration. Configure this module to monitor private repositories or avoid anonymous rate limits.
 :::
 
 ---

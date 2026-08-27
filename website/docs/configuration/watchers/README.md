@@ -1,12 +1,16 @@
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Docker Watchers
 
-![logo](docker.svg)
-
-Watchers are responsible for discovering and scanning Docker containers on local or remote Docker daemons.
+<DocHero
+  icon="docker"
+  badge="⚡ Active by Default"
+  badgeType="default"
+  description="Watchers are responsible for discovering and scanning Docker containers on local or remote Docker daemons."
+/>
 
 :::info[Default Watcher]
 If no watcher is explicitly configured, a default watcher named `local` is automatically created, monitoring `/var/run/docker.sock`.

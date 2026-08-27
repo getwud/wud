@@ -3,18 +3,22 @@ title: Codeberg
 description: Configure authentication for private Codeberg Container Registries in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Codeberg Container Registry
 
-![logo](codeberg.svg)
-
-The `codeberg` registry module lets you authenticate against the [Codeberg Container Registry](https://codeberg.org/).
+<DocHero
+  icon="codeberg"
+  badge="⚡ Active by Default"
+  badgeType="default"
+  description="The codeberg registry module connects to Codeberg's container registry (codeberg.org)."
+/>
 
 :::info[Zero-Config for Public Images]
-Public Codeberg packages (`codeberg.org/owner/repo`) work out of the box with zero configuration. Configure this module only if you need to monitor private packages or increase API rate limits.
+Public packages work out of the box with zero configuration. Configure this module to monitor private repositories or avoid anonymous rate limits.
 :::
 
 ---

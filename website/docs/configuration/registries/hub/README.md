@@ -3,18 +3,22 @@ title: Docker Hub
 description: Configure authentication, rate limiting, and digest tracking for Docker Hub in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Docker Hub
 
-![logo](docker.svg)
-
-The `hub` registry module lets you configure authentication, rate limits, and digest monitoring for [Docker Hub](https://hub.docker.com/).
+<DocHero
+  icon="hub"
+  badge="⚡ Active by Default"
+  badgeType="default"
+  description="The hub registry module connects to Docker Hub to query container tags and manifest digests."
+/>
 
 :::info[Zero-Config for Public Images]
-By default, WUD connects to Docker Hub anonymously with zero configuration. Configure authentication if you need to monitor private repositories or double your API rate limit quotas.
+Public packages work out of the box with zero configuration. Configure this module to monitor private repositories or avoid anonymous rate limits.
 :::
 
 ---

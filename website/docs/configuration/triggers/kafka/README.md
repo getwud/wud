@@ -3,15 +3,17 @@ title: Kafka
 description: Publish container update events to Apache Kafka topics in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Kafka
 
-![logo](kafka.svg)
-
-The `kafka` trigger lets you stream container update notification records directly into an [Apache Kafka](https://kafka.apache.org/) topic.
+<DocHero
+  icon="kafka"
+  description="The kafka trigger publishes container update event messages to an Apache Kafka topic for stream processing."
+/>
 
 ---
 

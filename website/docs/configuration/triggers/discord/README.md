@@ -3,15 +3,17 @@ title: Discord
 description: Send container update notifications to Discord channels in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Discord
 
-![logo](discord.svg)
-
-The `discord` trigger lets you send real-time container update notifications to Discord channels using incoming webhooks.
+<DocHero
+  icon="discord"
+  description="The discord trigger lets you send real-time container update notifications to Discord channels using incoming webhooks."
+/>
 
 ---
 

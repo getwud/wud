@@ -3,15 +3,17 @@ title: Slack
 description: Send container update notifications to Slack channels in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Slack
 
-![logo](slack.svg)
-
-The `slack` trigger lets you post real-time container update notifications to any [Slack](https://slack.com/) channel using a Bot OAuth token.
+<DocHero
+  icon="slack"
+  description="The slack trigger posts rich message notifications to Slack channels using incoming webhooks."
+/>
 
 ---
 

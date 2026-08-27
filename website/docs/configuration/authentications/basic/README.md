@@ -1,12 +1,14 @@
+import DocHero from '@site/src/components/DocHero';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 
 # Basic Authentication
 
-![logo](basic.svg)
-
-The `basic` authentication module lets you protect WUD access using the [HTTP Basic authentication standard](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication).
+<DocHero
+  icon="basic"
+  description="The basic authentication module lets you protect WUD access using the HTTP Basic authentication standard."
+/>
 
 ### Variables
 

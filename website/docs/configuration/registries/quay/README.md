@@ -3,18 +3,22 @@ title: Quay (Red Hat Quay)
 description: Configure authentication for Red Hat Quay and Quay.io registries in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Quay (Red Hat Quay)
 
-![logo](quay.svg)
-
-The `quay` registry module lets you authenticate against [Quay.io](https://quay.io/) and self-hosted Red Hat Quay registries.
+<DocHero
+  icon="quay"
+  badge="⚡ Active by Default"
+  badgeType="default"
+  description="The quay registry module connects to Red Hat Quay (quay.io) container registries."
+/>
 
 :::info[Zero-Config for Public Images]
-Public Quay images work out of the box with zero configuration. Configure this module to authenticate against private repositories or organizations.
+Public packages work out of the box with zero configuration. Configure this module to monitor private repositories or avoid anonymous rate limits.
 :::
 
 ---

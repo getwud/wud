@@ -1,3 +1,5 @@
+import { BrandIcon } from '@site/src/components/DocHero';
+
 # Monitoring
 
 ## Health Check
@@ -34,9 +36,9 @@ services:
       start_period: 10s
 ```
 
-## Prometheus metrics
+## Prometheus Metrics
 
-![logo](prometheus.svg)
+<div style={{ marginBottom: '1rem' }}><BrandIcon name="prometheus" size={40} /></div>
 
 WUD exposes various metrics that [Prometheus](https://prometheus.io/) can scrape.
 
@@ -270,7 +272,7 @@ nodejs_gc_duration_seconds_count{kind="weakcb"} 1
 
 ## Grafana
 
-![logo](grafana.svg)
+<div style={{ marginBottom: '1rem' }}><BrandIcon name="grafana" size={40} /></div>
 
 You can use [Grafana](https://grafana.com/) to visualize charts and dashboards based on WUD Prometheus metrics.
 

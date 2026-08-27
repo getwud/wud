@@ -3,32 +3,17 @@ title: Docker
 description: Automatically update standalone Docker containers in What's Up Docker (WUD).
 ---
 
+import DocHero from '@site/src/components/DocHero';
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Docker
 
-![logo](docker.svg)
-
-The `docker` trigger automatically replaces standalone containers with their updated versions upon discovering new image releases.
-
----
-
-## 🔄 Update Lifecycle
-
-When triggered, WUD executes the following sequence:
-
-1. Clones the existing container configuration (ports, volumes, env, networks, labels).
-2. Pulls the new target image.
-3. Stops the currently running container.
-4. Removes the old container.
-5. Recreates and starts the new container with identical runtime options.
-6. Prunes the obsolete image (if `PRUNE=true`).
-
-:::info[Watcher Connection Reuse]
-This trigger automatically reuses Docker connection settings from the [configured Docker watchers](../../watchers/README.md) and can perform updates on both local and remote Docker daemons.
-:::
+<DocHero
+  icon="docker"
+  description="The docker trigger automatically restarts or recreates local containers when updated images are available."
+/>
 
 ---
 
