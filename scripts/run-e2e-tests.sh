@@ -23,12 +23,12 @@ MAX_WAIT_SECONDS=30
 START_TIME=$(date +%s)
 
 while true; do
-    CONTAINERS_JSON=$(curl -s http://localhost:3000/api/containers 2>/dev/null || echo "[]")
+    CONTAINERS_JSON=$(curl -s -u "${WUD_USERNAME:-john}:${WUD_PASSWORD:-doe}" http://localhost:3000/api/containers 2>/dev/null || echo "[]")
     
     CONTAINER_COUNT=$(node -e "
         try {
             const arr = JSON.parse(process.argv[1]);
-            if (Array.isArray(arr) && arr.length >= 9 && arr.every(c => c.result && (c.result.tag || c.result.digest))) {
+            if (Array.isArray(arr) && arr.length >= 9 && arr.every(c => c.result || c.error)) {
                 console.log(arr.length);
             } else {
                 console.log(0);
