@@ -1,22 +1,29 @@
+---
+title: Discord
+description: Send container update notifications to Discord channels in What's Up Docker (WUD).
+---
+
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
-import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 
 # Discord
 
 ![logo](discord.svg)
 
-The `discord` trigger lets you send real-time container update notifications to Discord channels using webhooks.
+The `discord` trigger lets you send real-time container update notifications to Discord channels using incoming webhooks.
 
-### Variables
+---
+
+## ⚙️ Configuration Variables
 
 <ConfigList>
   <ConfigOption
     name="WUD_TRIGGER_DISCORD_{trigger_name}_URL"
     required={true}
     type="url"
-    supported="Valid HTTPS URL">
-    Discord incoming webhook URL.
+    supported="Valid HTTPS Discord webhook URL">
+    Discord incoming webhook URL
   </ConfigOption>
 
   <ConfigOption
@@ -24,7 +31,7 @@ The `discord` trigger lets you send real-time container update notifications to 
     required={false}
     type="url"
     supported="Valid HTTPS URL">
-    Avatar image URL for the webhook bot.
+    Avatar image URL for the webhook bot
   </ConfigOption>
 
   <ConfigOption
@@ -32,7 +39,7 @@ The `discord` trigger lets you send real-time container update notifications to 
     required={false}
     type="string"
     defaultValue="WUD">
-    Bot username displayed in the Discord channel.
+    Bot username displayed in the Discord channel
   </ConfigOption>
 
   <ConfigOption
@@ -40,24 +47,26 @@ The `discord` trigger lets you send real-time container update notifications to 
     required={false}
     type="integer"
     defaultValue="65280">
-    Embed card color in decimal format (`65280` is green).
+    Embed card border color in decimal format (e.g. `65280` is green)
   </ConfigOption>
 
   <ConfigOption
     name="WUD_TRIGGER_DISCORD_{trigger_name}_CARDLABEL"
     required={false}
     type="string">
-    Optional label or tag to include in the message.
+    Optional label or environment tag to include in the embed message
   </ConfigOption>
 </ConfigList>
 
 :::info
-This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).
+This trigger also supports all [common trigger configuration options](../README.md#common-trigger-configuration) (such as thresholds, scheduling, and batching).
 :::
 
-### Examples
+---
 
-#### Send notifications to a Discord channel
+## 🚀 Examples
+
+### Basic Webhook Notification
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -66,10 +75,9 @@ This trigger also supports [common trigger configuration options](../README.md#c
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
-      - WUD_TRIGGER_DISCORD_1_URL=https://discord.com/api/webhooks/123456789/abcdefghijklmnopqrstuvwxyz
-      - WUD_TRIGGER_DISCORD_1_BOTUSERNAME=WUD
+      - WUD_TRIGGER_DISCORD_LOCAL_URL=https://discord.com/api/webhooks/123456789/abcdefghijklmnopqrstuvwxyz
+      - WUD_TRIGGER_DISCORD_LOCAL_BOTUSERNAME=WUD
 ```
 
 </TabItem>
@@ -77,15 +85,19 @@ services:
 
 ```bash
 docker run \
-  -e WUD_TRIGGER_DISCORD_1_URL="https://discord.com/api/webhooks/123456789/abcdefghijklmnopqrstuvwxyz" \
-  -e WUD_TRIGGER_DISCORD_1_BOTUSERNAME="WUD" \
-  ...
+  -e WUD_TRIGGER_DISCORD_LOCAL_URL="https://discord.com/api/webhooks/123456789/abcdefghijklmnopqrstuvwxyz" \
+  -e WUD_TRIGGER_DISCORD_LOCAL_BOTUSERNAME="WUD" \
   getwud/wud
 ```
 
 </TabItem>
 </Tabs>
 
-### How to create a Discord webhook
+---
 
-Follow the [official Discord webhook guide](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks) to create a webhook URL in your server settings.
+## 📖 Setup Guide: Creating a Discord Webhook
+
+1. Open your Discord server and navigate to **Server Settings** > **Integrations** > **Webhooks**.
+2. Click **New Webhook** and select the channel where update notifications should be posted.
+3. Copy the **Webhook URL** and configure it as `WUD_TRIGGER_DISCORD_{trigger_name}_URL`.
+4. For additional details, see the [official Discord webhook guide](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks).

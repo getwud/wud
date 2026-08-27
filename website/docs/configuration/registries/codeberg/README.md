@@ -1,3 +1,8 @@
+---
+title: Codeberg
+description: Configure authentication for private Codeberg Container Registries in What's Up Docker (WUD).
+---
+
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -8,10 +13,13 @@ import TabItem from '@theme/TabItem';
 
 The `codeberg` registry module lets you authenticate against the [Codeberg Container Registry](https://codeberg.org/).
 
-:::info[Public Codeberg repositories work out of the box without authentication. Configure this module to access private repositories or increase API rate limits.]
+:::info[Zero-Config for Public Images]
+Public Codeberg packages (`codeberg.org/owner/repo`) work out of the box with zero configuration. Configure this module only if you need to monitor private packages or increase API rate limits.
 :::
 
-### Variables
+---
+
+## ⚙️ Configuration Variables
 
 <ConfigList>
   <ConfigOption name="WUD_REGISTRY_CODEBERG_{registry_name}_LOGIN"
@@ -25,19 +33,22 @@ The `codeberg` registry module lets you authenticate against the [Codeberg Conta
     type="string"
     required={true}
     supported="Required when username is provided">
-    Codeberg password or personal access token
+    Codeberg password or Personal Access Token (PAT)
   </ConfigOption>
 
   <ConfigOption name="WUD_REGISTRY_CODEBERG_{registry_name}_AUTH"
     type="string"
     required={false}
-    supported="Mutually exclusive with `LOGIN`/`PASSWORD`">
-    Base64-encoded `username:password` string
+    supported="Base64-encoded username:password (mutually exclusive with LOGIN/PASSWORD)">
+    Direct Base64-encoded `username:password` string
   </ConfigOption>
 </ConfigList>
-### Examples
 
-#### Authenticate with credentials
+---
+
+## 🚀 Examples
+
+### Authenticate for Private Codeberg Packages
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -46,10 +57,9 @@ The `codeberg` registry module lets you authenticate against the [Codeberg Conta
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
-      - WUD_REGISTRY_CODEBERG_PRIVATE_LOGIN=john
-      - WUD_REGISTRY_CODEBERG_PRIVATE_PASSWORD=secret-token
+      - WUD_REGISTRY_CODEBERG_LOCAL_LOGIN=johndoe
+      - WUD_REGISTRY_CODEBERG_LOCAL_PASSWORD=codeberg_secret_token
 ```
 
 </TabItem>
@@ -57,9 +67,8 @@ services:
 
 ```bash
 docker run \
-  -e "WUD_REGISTRY_CODEBERG_PRIVATE_LOGIN=john" \
-  -e "WUD_REGISTRY_CODEBERG_PRIVATE_PASSWORD=secret-token" \
-  ...
+  -e WUD_REGISTRY_CODEBERG_LOCAL_LOGIN="johndoe" \
+  -e WUD_REGISTRY_CODEBERG_LOCAL_PASSWORD="codeberg_secret_token" \
   getwud/wud
 ```
 

@@ -20,8 +20,54 @@ const sidebars = {
     },
     {
       type: 'doc',
+      id: 'configuration/README',
+      label: 'Configuration Hub',
+    },
+    {
+      type: 'doc',
       id: 'faq/README',
       label: 'FAQ',
+    },
+    {
+      type: 'category',
+      label: 'Changelog',
+      link: {
+        type: 'doc',
+        id: 'changelog/README',
+      },
+      collapsed: false,
+      items: [
+        {
+          type: 'doc',
+          id: 'changelog/next',
+          label: 'Next (Unreleased)',
+        },
+        {
+          type: 'doc',
+          id: 'changelog/v8',
+          label: 'v8.x (Current)',
+        },
+        {
+          type: 'doc',
+          id: 'changelog/v7',
+          label: 'v7.x',
+        },
+        {
+          type: 'doc',
+          id: 'changelog/v6',
+          label: 'v6.x',
+        },
+        {
+          type: 'doc',
+          id: 'changelog/v5',
+          label: 'v5.x',
+        },
+        {
+          type: 'doc',
+          id: 'changelog/legacy',
+          label: 'v1.x – v4.x',
+        },
+      ],
     },
   ],
 
@@ -116,28 +162,8 @@ const sidebars = {
       items: [
         {
           type: 'doc',
-          id: 'configuration/registries/hub/README',
-          label: 'Docker Hub',
-        },
-        {
-          type: 'doc',
-          id: 'configuration/registries/ghcr/README',
-          label: 'GitHub Container Registry (GHCR)',
-        },
-        {
-          type: 'doc',
-          id: 'configuration/registries/quay/README',
-          label: 'Quay',
-        },
-        {
-          type: 'doc',
           id: 'configuration/registries/ecr/README',
           label: 'AWS ECR',
-        },
-        {
-          type: 'doc',
-          id: 'configuration/registries/gcr/README',
-          label: 'Google Container Registry (GCR)',
         },
         {
           type: 'doc',
@@ -146,13 +172,18 @@ const sidebars = {
         },
         {
           type: 'doc',
-          id: 'configuration/registries/gitlab/README',
-          label: 'GitLab',
+          id: 'configuration/registries/codeberg/README',
+          label: 'Codeberg',
         },
         {
           type: 'doc',
-          id: 'configuration/registries/gitea/README',
-          label: 'Gitea',
+          id: 'configuration/registries/custom/README',
+          label: 'Custom / Self-Hosted',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/registries/hub/README',
+          label: 'Docker Hub',
         },
         {
           type: 'doc',
@@ -161,8 +192,23 @@ const sidebars = {
         },
         {
           type: 'doc',
-          id: 'configuration/registries/codeberg/README',
-          label: 'Codeberg',
+          id: 'configuration/registries/gitea/README',
+          label: 'Gitea',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/registries/ghcr/README',
+          label: 'GitHub Container Registry (GHCR)',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/registries/gitlab/README',
+          label: 'GitLab',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/registries/gcr/README',
+          label: 'Google Container Registry (GCR)',
         },
         {
           type: 'doc',
@@ -171,13 +217,13 @@ const sidebars = {
         },
         {
           type: 'doc',
-          id: 'configuration/registries/trueforge/README',
-          label: 'TrueForge',
+          id: 'configuration/registries/quay/README',
+          label: 'Quay',
         },
         {
           type: 'doc',
-          id: 'configuration/registries/custom/README',
-          label: 'Custom / Self-Hosted',
+          id: 'configuration/registries/trueforge/README',
+          label: 'TrueForge',
         },
       ],
     },
@@ -218,23 +264,23 @@ const sidebars = {
       items: [
         {
           type: 'doc',
+          id: 'configuration/triggers/apprise/README',
+          label: 'Apprise',
+        },
+        {
+          type: 'doc',
           id: 'configuration/triggers/discord/README',
           label: 'Discord',
         },
         {
           type: 'doc',
-          id: 'configuration/triggers/slack/README',
-          label: 'Slack',
-        },
-        {
-          type: 'doc',
-          id: 'configuration/triggers/telegram/README',
-          label: 'Telegram',
-        },
-        {
-          type: 'doc',
           id: 'configuration/triggers/gotify/README',
           label: 'Gotify',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/triggers/ifttt/README',
+          label: 'IFTTT',
         },
         {
           type: 'doc',
@@ -253,18 +299,18 @@ const sidebars = {
         },
         {
           type: 'doc',
+          id: 'configuration/triggers/slack/README',
+          label: 'Slack',
+        },
+        {
+          type: 'doc',
           id: 'configuration/triggers/smtp/README',
           label: 'SMTP Email',
         },
         {
           type: 'doc',
-          id: 'configuration/triggers/apprise/README',
-          label: 'Apprise',
-        },
-        {
-          type: 'doc',
-          id: 'configuration/triggers/ifttt/README',
-          label: 'IFTTT',
+          id: 'configuration/triggers/telegram/README',
+          label: 'Telegram',
         },
       ],
     },
@@ -275,6 +321,11 @@ const sidebars = {
       items: [
         {
           type: 'doc',
+          id: 'configuration/triggers/kafka/README',
+          label: 'Apache Kafka',
+        },
+        {
+          type: 'doc',
           id: 'configuration/triggers/http/README',
           label: 'HTTP Webhooks',
         },
@@ -282,11 +333,6 @@ const sidebars = {
           type: 'doc',
           id: 'configuration/triggers/mqtt/README',
           label: 'MQTT (Home Assistant)',
-        },
-        {
-          type: 'doc',
-          id: 'configuration/triggers/kafka/README',
-          label: 'Apache Kafka',
         },
         {
           type: 'doc',

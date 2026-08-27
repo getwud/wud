@@ -10,9 +10,9 @@ You can enable one or more authentication strategies using `WUD_AUTH_*` environm
 Currently, the following strategies are supported:
 
 :::info
-[**Basic Authentication**](configuration/authentications/basic/)
+[**Basic Authentication**](./basic/README.md)
 :::
 
 :::info
-[**OpenID Connect (OIDC)**](configuration/authentications/oidc/)
+[**OpenID Connect (OIDC)**](./oidc/README.md)
 :::

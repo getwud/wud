@@ -1,23 +1,23 @@
+---
+title: Gotify
+description: Send container update notifications to a Gotify push server in What's Up Docker (WUD).
+---
+
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 # Gotify
 
-![logo](gotify.svg)
+![logo](gotify.png)
 
-The `gotify` trigger lets you send container update notifications via [Gotify](https://gotify.net/).
+The `gotify` trigger lets you send push container update notifications via a self-hosted [Gotify](https://gotify.net/) server.
 
-### Variables
+---
+
+## ⚙️ Configuration Variables
 
 <ConfigList>
-  <ConfigOption name="WUD_TRIGGER_GOTIFY_{trigger_name}_TOKEN"
-    type="email"
-    required={true}
-    supported="Valid Gotify app token">
-    Gotify application token
-  </ConfigOption>
-
   <ConfigOption
     name="WUD_TRIGGER_GOTIFY_{trigger_name}_URL"
     required={true}
@@ -27,29 +27,32 @@ The `gotify` trigger lets you send container update notifications via [Gotify](h
   </ConfigOption>
 
   <ConfigOption
+    name="WUD_TRIGGER_GOTIFY_{trigger_name}_TOKEN"
+    required={true}
+    type="string"
+    supported="Valid Gotify application token">
+    Gotify application token
+  </ConfigOption>
+
+  <ConfigOption
     name="WUD_TRIGGER_GOTIFY_{trigger_name}_PRIORITY"
     required={false}
     type="integer"
     defaultValue="5"
     supported="Integer >= `0`">
-    Gotify message priority
+    Gotify notification priority level (0–10)
   </ConfigOption>
 </ConfigList>
+
 :::info
-This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).
+This trigger also supports all [common trigger configuration options](../README.md#common-trigger-configuration) (such as thresholds, scheduling, and batching).
 :::
 
-### Examples
+---
 
-#### 1. Create an application in Gotify
+## 🚀 Examples
 
-![image](gotify_01.png)
-
-#### 2. Copy the application token
-
-![image](gotify_02.png)
-
-#### 3. Configure WUD
+### Push Notifications to Gotify
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -58,10 +61,10 @@ This trigger also supports [common trigger configuration options](../README.md#c
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
-      - WUD_TRIGGER_GOTIFY_LOCAL_URL=http://gotify.localhost
+      - WUD_TRIGGER_GOTIFY_LOCAL_URL=http://gotify.example.com
       - WUD_TRIGGER_GOTIFY_LOCAL_TOKEN=AWp8A.TbBO3xpn4
+      - WUD_TRIGGER_GOTIFY_LOCAL_PRIORITY=5
 ```
 
 </TabItem>
@@ -69,11 +72,20 @@ services:
 
 ```bash
 docker run \
-  -e WUD_TRIGGER_GOTIFY_LOCAL_URL="http://gotify.localhost" \
+  -e WUD_TRIGGER_GOTIFY_LOCAL_URL="http://gotify.example.com" \
   -e WUD_TRIGGER_GOTIFY_LOCAL_TOKEN="AWp8A.TbBO3xpn4" \
-  ...
+  -e WUD_TRIGGER_GOTIFY_LOCAL_PRIORITY=5 \
   getwud/wud
 ```
 
 </TabItem>
 </Tabs>
+
+---
+
+## 📖 Setup Guide: Obtaining a Gotify Token
+
+1. Log in to your **Gotify Web UI** as an administrator.
+2. Navigate to the **Apps** tab and click **Create Application**.
+3. Name your app (e.g. `WUD`) and click **Create**.
+4. Copy the generated **Token** and set it as `WUD_TRIGGER_GOTIFY_{trigger_name}_TOKEN`.

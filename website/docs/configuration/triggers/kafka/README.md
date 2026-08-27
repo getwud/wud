@@ -1,3 +1,8 @@
+---
+title: Kafka
+description: Publish container update events to Apache Kafka topics in What's Up Docker (WUD).
+---
+
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -6,23 +11,34 @@ import TabItem from '@theme/TabItem';
 
 ![logo](kafka.svg)
 
-The `kafka` trigger lets you publish container update notification records to an Apache Kafka topic.
+The `kafka` trigger lets you stream container update notification records directly into an [Apache Kafka](https://kafka.apache.org/) topic.
 
-### Variables
+---
+
+## ⚙️ Configuration Variables
 
 <ConfigList>
   <ConfigOption
     name="WUD_TRIGGER_KAFKA_{trigger_name}_BROKERS"
     required={true}
-    type="string">
-    Comma-separated list of Kafka broker endpoints (`host:port`)
+    type="string"
+    supported="Comma-separated `host:port` pairs">
+    Comma-separated list of Kafka broker bootstrap endpoints
+  </ConfigOption>
+
+  <ConfigOption name="WUD_TRIGGER_KAFKA_{trigger_name}_TOPIC"
+    required={false}
+    type="string"
+    defaultValue="wud-container">
+    Kafka topic name to publish records to
   </ConfigOption>
 
   <ConfigOption
-    name="WUD_TRIGGER_KAFKA_{trigger_name}_AUTHENTICATION_PASSWORD"
+    name="WUD_TRIGGER_KAFKA_{trigger_name}_SSL"
     required={false}
-    type="string">
-    SASL password (required when authentication is enabled)
+    type="boolean"
+    defaultValue="false">
+    Enable TLS/SSL encryption for broker connections
   </ConfigOption>
 
   <ConfigOption name="WUD_TRIGGER_KAFKA_{trigger_name}_AUTHENTICATION_TYPE"
@@ -41,30 +57,26 @@ The `kafka` trigger lets you publish container update notification records to an
   </ConfigOption>
 
   <ConfigOption
-    name="WUD_TRIGGER_KAFKA_{trigger_name}_SSL"
+    name="WUD_TRIGGER_KAFKA_{trigger_name}_AUTHENTICATION_PASSWORD"
     required={false}
-    type="boolean"
-    defaultValue="false">
-    Enable TLS/SSL connection
-  </ConfigOption>
-
-  <ConfigOption name="WUD_TRIGGER_KAFKA_{trigger_name}_TOPIC"
-    required={false}
-    type="email"
-    defaultValue="wud-container">
-    Kafka topic name to publish records to
+    type="string">
+    SASL password (required when authentication is enabled)
   </ConfigOption>
 </ConfigList>
-:::warning[The Kafka topic must already exist on the broker; WUD will not create it automatically.]
+
+:::warning[Topic Pre-creation Required]
+The destination Kafka topic must already exist on your cluster; WUD will not create missing topics automatically.
 :::
 
 :::info
-This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).
+This trigger also supports all [common trigger configuration options](../README.md#common-trigger-configuration) (such as thresholds, scheduling, and batching).
 :::
 
-### Examples
+---
 
-#### Publish messages to a [CloudKarafka](https://www.cloudkarafka.com/) broker
+## 🚀 Examples
+
+### Publish Events to a Secured Kafka Cluster
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -73,14 +85,13 @@ This trigger also supports [common trigger configuration options](../README.md#c
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
-      - WUD_TRIGGER_KAFKA_KARAFKA_BROKERS=ark-01.srvs.cloudkafka.com:9094,ark-02.srvs.cloudkafka.com:9094,ark-03.srvs.cloudkafka.com:9094
-      - WUD_TRIGGER_KAFKA_KARAFKA_SSL=true
-      - WUD_TRIGGER_KAFKA_KARAFKA_TOPIC=my-user-id-wud-image
-      - WUD_TRIGGER_KAFKA_KARAFKA_AUTHENTICATION_USER=my-user-id
-      - WUD_TRIGGER_KAFKA_KARAFKA_AUTHENTICATION_PASSWORD=my-secret
-      - WUD_TRIGGER_KAFKA_KARAFKA_AUTHENTICATION_TYPE=SCRAM-SHA-256
+      - WUD_TRIGGER_KAFKA_LOCAL_BROKERS=kafka-1.example.com:9094,kafka-2.example.com:9094
+      - WUD_TRIGGER_KAFKA_LOCAL_SSL=true
+      - WUD_TRIGGER_KAFKA_LOCAL_TOPIC=wud-container-updates
+      - WUD_TRIGGER_KAFKA_LOCAL_AUTHENTICATION_USER=wud-publisher
+      - WUD_TRIGGER_KAFKA_LOCAL_AUTHENTICATION_PASSWORD=your_sasl_secret
+      - WUD_TRIGGER_KAFKA_LOCAL_AUTHENTICATION_TYPE=SCRAM-SHA-256
 ```
 
 </TabItem>
@@ -88,48 +99,14 @@ services:
 
 ```bash
 docker run \
-  -e WUD_TRIGGER_KAFKA_KARAFKA_BROKERS="ark-01.srvs.cloudkafka.com:9094,ark-02.srvs.cloudkafka.com:9094,ark-03.srvs.cloudkafka.com:9094" \
-  -e WUD_TRIGGER_KAFKA_KARAFKA_SSL="true" \
-  -e WUD_TRIGGER_KAFKA_KARAFKA_TOPIC="my-user-id-wud-image" \
-  -e WUD_TRIGGER_KAFKA_KARAFKA_AUTHENTICATION_USER="my-user-id" \
-  -e WUD_TRIGGER_KAFKA_KARAFKA_AUTHENTICATION_PASSWORD="my-secret" \
-  -e WUD_TRIGGER_KAFKA_KARAFKA_AUTHENTICATION_TYPE="SCRAM-SHA-256" \
-  ...
+  -e WUD_TRIGGER_KAFKA_LOCAL_BROKERS="kafka-1.example.com:9094,kafka-2.example.com:9094" \
+  -e WUD_TRIGGER_KAFKA_LOCAL_SSL="true" \
+  -e WUD_TRIGGER_KAFKA_LOCAL_TOPIC="wud-container-updates" \
+  -e WUD_TRIGGER_KAFKA_LOCAL_AUTHENTICATION_USER="wud-publisher" \
+  -e WUD_TRIGGER_KAFKA_LOCAL_AUTHENTICATION_PASSWORD="your_sasl_secret" \
+  -e WUD_TRIGGER_KAFKA_LOCAL_AUTHENTICATION_TYPE="SCRAM-SHA-256" \
   getwud/wud
 ```
 
 </TabItem>
 </Tabs>
-
-#### Example published JSON record
-
-```json
-{
-  "id": "31a61a8305ef1fc9a71fa4f20a68d7ec88b28e32303bbc4a5f192e851165b816",
-  "name": "homeassistant",
-  "watcher": "local",
-  "includeTags": "^\\d+\\.\\d+\\.\\d+$",
-  "image": {
-    "id": "sha256:d4a6fafb7d4da37495e5c9be3242590be24a87d7edcc4f79761098889c54fca6",
-    "registry": {
-      "url": "123456789.dkr.ecr.eu-west-1.amazonaws.com"
-    },
-    "name": "test",
-    "tag": {
-      "value": "2021.6.4",
-      "semver": true
-    },
-    "digest": {
-      "watch": false,
-      "repo": "sha256:ca0edc3fb0b4647963629bdfccbb3ccfa352184b45a9b4145832000c2878dd72"
-    },
-    "architecture": "amd64",
-    "os": "linux",
-    "created": "2021-06-12T05:33:38.440Z"
-  },
-  "result": {
-    "tag": "2021.6.5"
-  },
-  "updateAvailable": true
-}
-```

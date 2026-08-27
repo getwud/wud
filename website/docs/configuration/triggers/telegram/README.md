@@ -1,3 +1,8 @@
+---
+title: Telegram
+description: Send container update notifications via Telegram bots in What's Up Docker (WUD).
+---
+
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -6,24 +11,35 @@ import TabItem from '@theme/TabItem';
 
 ![logo](telegram.svg)
 
-The `telegram` trigger lets you send real-time container update notifications via [Telegram](https://telegram.org/) bots.
+The `telegram` trigger lets you send real-time container update notifications directly to Telegram chats, groups, or channels using a bot.
 
-### Variables
+---
+
+## ⚙️ Configuration Variables
 
 <ConfigList>
   <ConfigOption
     name="WUD_TRIGGER_TELEGRAM_{trigger_name}_BOTTOKEN"
     required={true}
-    type="string">
-    Telegram Bot API token
+    type="string"
+    supported="Bot token from `@BotFather`">
+    Telegram Bot API HTTP access token
   </ConfigOption>
 
   <ConfigOption
     name="WUD_TRIGGER_TELEGRAM_{trigger_name}_CHATID"
     required={true}
-    type="integer"
-    supported="String / Integer">
+    type="string"
+    supported="Numeric chat ID (e.g. `987654321`) or `@channelusername`">
     Target Telegram chat ID or channel username
+  </ConfigOption>
+
+  <ConfigOption name="WUD_TRIGGER_TELEGRAM_{trigger_name}_MESSAGEFORMAT"
+    type="enum"
+    required={false}
+    defaultValue="Markdown"
+    supported="`Markdown`, `HTML`">
+    Message formatting parse mode
   </ConfigOption>
 
   <ConfigOption
@@ -34,29 +50,24 @@ The `telegram` trigger lets you send real-time container update notifications vi
     Disable the default title heading to allow full custom message formatting
   </ConfigOption>
 
-  <ConfigOption name="WUD_TRIGGER_TELEGRAM_{trigger_name}_MESSAGEFORMAT"
-    type="enum"
-    required={false}
-    defaultValue="Markdown"
-    supported="`Markdown`, `HTML`">
-    Parse mode for custom message formatting
-  </ConfigOption>
-
   <ConfigOption
     name="WUD_TRIGGER_TELEGRAM_{trigger_name}_PROXY"
     required={false}
     type="url"
     supported="`socks5://user:pass@host:1080`, `http://user:pass@host:8118`">
-    Route Telegram API calls through a dedicated SOCKS5/HTTP proxy (all other WUD traffic remains direct)
+    Route Telegram API calls through a dedicated SOCKS5/HTTP proxy
   </ConfigOption>
 </ConfigList>
+
 :::info
-This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).
+This trigger also supports all [common trigger configuration options](../README.md#common-trigger-configuration) (such as thresholds, scheduling, and batching).
 :::
 
-### Examples
+---
 
-#### Basic Configuration
+## 🚀 Examples
+
+### Basic Telegram Notification
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -65,10 +76,9 @@ This trigger also supports [common trigger configuration options](../README.md#c
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
-      - WUD_TRIGGER_TELEGRAM_1_BOTTOKEN=0123456789:AApFzFLD0g0NVg8l0bZf55ex3sajC4Aw84Q
-      - WUD_TRIGGER_TELEGRAM_1_CHATID=9876543210
+      - WUD_TRIGGER_TELEGRAM_LOCAL_BOTTOKEN=123456789:AApFzFLD0g0NVg8l0bZf55ex3sajC4Aw84Q
+      - WUD_TRIGGER_TELEGRAM_LOCAL_CHATID=987654321
 ```
 
 </TabItem>
@@ -76,19 +86,24 @@ services:
 
 ```bash
 docker run \
-  -e WUD_TRIGGER_TELEGRAM_1_BOTTOKEN="0123456789:AApFzFLD0g0NVg8l0bZf55ex3sajC4Aw84Q" \
-  -e WUD_TRIGGER_TELEGRAM_1_CHATID="9876543210" \
-  ...
+  -e WUD_TRIGGER_TELEGRAM_LOCAL_BOTTOKEN="123456789:AApFzFLD0g0NVg8l0bZf55ex3sajC4Aw84Q" \
+  -e WUD_TRIGGER_TELEGRAM_LOCAL_CHATID="987654321" \
   getwud/wud
 ```
 
 </TabItem>
 </Tabs>
 
-### How to create a bot and obtain the Bot Token
+---
 
-Use the official Telegram `@BotFather` bot to create a new bot and copy the HTTP API token. For step-by-step instructions, see [Generating a Telegram Bot Token](https://medium.com/geekculture/generate-telegram-token-for-bot-api-d26faf9bf064).
+## 📖 Setup Guide
 
-### How to find your Chat ID
+### 1. Create a Bot & Obtain a Bot Token
+1. Open Telegram and start a chat with [@BotFather](https://t.me/BotFather).
+2. Send `/newbot` and follow the prompts to choose a bot name and username.
+3. Copy the HTTP API token provided by BotFather into `WUD_TRIGGER_TELEGRAM_{trigger_name}_BOTTOKEN`.
 
-To get your numeric Chat ID, send a message to `@userinfobot` or `@GetIDsBot` on Telegram, or follow [this Chat ID guide](https://www.alphr.com/find-chat-id-telegram/).
+### 2. Find Your Chat ID
+1. Send a message to your newly created bot or add it to your target group.
+2. Start a chat with [@userinfobot](https://t.me/userinfobot) or [@GetIDsBot](https://t.me/GetIDsBot) to see your numeric Chat ID.
+3. Set your Chat ID as `WUD_TRIGGER_TELEGRAM_{trigger_name}_CHATID`.

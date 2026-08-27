@@ -1,27 +1,36 @@
+---
+title: Azure Container Registry (ACR)
+description: Configure authentication for private Azure Container Registries in What's Up Docker (WUD).
+---
+
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-# ACR (Azure Container Registry)
+# Azure Container Registry (ACR)
 
 ![logo](azure.svg)
 
-The `acr` registry module lets you authenticate against [Azure Container Registry](https://azure.microsoft.com/en-us/products/container-registry).
+The `acr` registry module lets you authenticate against private [Azure Container Registry](https://azure.microsoft.com/en-us/products/container-registry) (ACR) instances using Azure Service Principals.
 
-### Variables
+---
+
+## ⚙️ Configuration Variables
 
 <ConfigList>
   <ConfigOption
     name="WUD_REGISTRY_ACR_{registry_name}_CLIENTID"
     required={true}
-    type="string">
-    Azure Service Principal Client ID
+    type="string"
+    supported="Valid Azure Service Principal Application (Client) ID UUID">
+    Azure Service Principal Application (Client) ID
   </ConfigOption>
 
   <ConfigOption
     name="WUD_REGISTRY_ACR_{registry_name}_CLIENTSECRET"
     required={true}
-    type="string">
+    type="string"
+    supported="Valid Azure Service Principal Client Secret">
     Azure Service Principal Client Secret
   </ConfigOption>
 
@@ -29,17 +38,21 @@ The `acr` registry module lets you authenticate against [Azure Container Registr
     name="WUD_REGISTRY_ACR_{registry_name}_NAME"
     required={false}
     type="string"
-    defaultValue="{registry_name}.azurecr.io">
-    Registry domain name (e.g., `myregistry.azurecr.io`)
+    defaultValue="{registry_name}.azurecr.io"
+    supported="Full registry domain name">
+    Registry domain name (e.g. `myregistry.azurecr.io`)
   </ConfigOption>
 </ConfigList>
-:::info
-You can obtain the Client ID and Secret from an Azure Service Principal with the `AcrPull` role assigned ([see Azure documentation](https://learn.microsoft.com/azure/container-registry/container-registry-auth-service-principal)).
+
+:::info[Required Permissions]
+Ensure your Azure Service Principal is assigned the `AcrPull` role on the target Container Registry. See [Azure Service Principal Authentication](https://learn.microsoft.com/azure/container-registry/container-registry-auth-service-principal).
 :::
 
-### Examples
+---
 
-#### Authenticate with an Azure Container Registry
+## 🚀 Examples
+
+### Authenticate with an Azure Container Registry
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -48,7 +61,6 @@ You can obtain the Client ID and Secret from an Azure Service Principal with the
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
       - WUD_REGISTRY_ACR_MYREGISTRY_CLIENTID=00000000-0000-0000-0000-000000000000
       - WUD_REGISTRY_ACR_MYREGISTRY_CLIENTSECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -61,26 +73,27 @@ services:
 docker run \
   -e WUD_REGISTRY_ACR_MYREGISTRY_CLIENTID="00000000-0000-0000-0000-000000000000" \
   -e WUD_REGISTRY_ACR_MYREGISTRY_CLIENTSECRET="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
-  ...
   getwud/wud
 ```
 
 </TabItem>
 </Tabs>
 
-### How to create Registry credentials on Microsoft Azure Platform
+---
 
-#### Create a Service Principal
+## 📖 Setup Guide: Creating Azure Service Principal Credentials
 
-Follow the [official Azure documentation](https://docs.microsoft.com/azure/active-directory/develop/howto-create-service-principal-portal).
+### 1. Create a Service Principal
+Follow the [official Azure guide](https://docs.microsoft.com/azure/active-directory/develop/howto-create-service-principal-portal) to register an application and generate a client secret in Microsoft Entra ID.
 
 ![image](acr_01.png)
 
-#### Go to your Container Registry and click on the Access Control (IAM) Menu
+### 2. Open Access Control (IAM)
+Navigate to your Container Registry in the Azure Portal and select **Access Control (IAM)**.
 
 ![image](acr_02.png)
 
-#### Click to Add a role assignment
+### 3. Assign the AcrPull Role
+Click **Add role assignment**, select the **AcrPull** role, and assign it to your newly created Service Principal.
 
-Select the `AcrPull` role and assign to your Service Principal
 ![image](acr_03.png)

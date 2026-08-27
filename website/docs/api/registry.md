@@ -3,7 +3,7 @@
 This API allows you to query the state of configured registries.
 
 :::info
-[Need to configure registries?](configuration/registries/)
+[Need to configure registries?](../configuration/registries/README.md)
 :::
 
 ## Get all registries

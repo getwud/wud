@@ -36,7 +36,7 @@ A wide range of triggers are supported:
 - **Custom automation**: Trigger arbitrary actions via scripts, HTTP webhooks, message queues (MQTT, Kafka), and more.
 
 :::info
-[View the full list of supported triggers](configuration/triggers/)
+[View the full list of supported triggers](./configuration/triggers/README.md)
 :::
 
 ## Supported registries
@@ -51,11 +51,11 @@ Many container registries are supported out of the box:
 - ...
 
 :::info
-[View the full list of supported registries](configuration/registries/)
+[View the full list of supported registries](./configuration/registries/README.md)
 :::
 
 :::info
-[Self-hosted registries are also supported](configuration/registries/custom/)
+[Self-hosted registries are also supported](./configuration/registries/custom/README.md)
 :::
 
 ## UI / API
@@ -76,7 +76,7 @@ A web UI provides container insights and allows you to manually run triggers.
 
 ## Ready to go?
 
-> [**Follow the quick start guide!**](quickstart/)
+> [**Follow the quick start guide!**](./quickstart/README.md)
 
 ## Contact & Support
 

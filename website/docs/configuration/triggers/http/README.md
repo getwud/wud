@@ -1,14 +1,21 @@
+---
+title: HTTP Webhooks
+description: Send container update webhook notifications to custom HTTP/HTTPS endpoints in What's Up Docker (WUD).
+---
+
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-# HTTP
+# HTTP Webhooks
 
 ![logo](http.svg)
 
-The `http` trigger lets you send container update webhook notifications to custom HTTP/HTTPS endpoints.
+The `http` trigger lets you dispatch container update webhook notifications to any custom HTTP/HTTPS endpoint or API.
 
-### Variables
+---
+
+## ⚙️ Configuration Variables
 
 <ConfigList>
   <ConfigOption
@@ -19,18 +26,12 @@ The `http` trigger lets you send container update webhook notifications to custo
     Target webhook URL
   </ConfigOption>
 
-  <ConfigOption
-    name="WUD_TRIGGER_HTTP_{trigger_name}_AUTH_BEARER"
+  <ConfigOption name="WUD_TRIGGER_HTTP_{trigger_name}_METHOD"
+    type="enum"
     required={false}
-    type="string">
-    Bearer token for Bearer authentication
-  </ConfigOption>
-
-  <ConfigOption
-    name="WUD_TRIGGER_HTTP_{trigger_name}_AUTH_PASSWORD"
-    required={false}
-    type="string">
-    Password for Basic authentication
+    defaultValue="POST"
+    supported="`GET`, `POST`">
+    HTTP request method
   </ConfigOption>
 
   <ConfigOption name="WUD_TRIGGER_HTTP_{trigger_name}_AUTH_TYPE"
@@ -38,7 +39,7 @@ The `http` trigger lets you send container update webhook notifications to custo
     required={false}
     defaultValue="BASIC"
     supported="`BASIC`, `BEARER`">
-    Authentication type
+    Authentication mechanism
   </ConfigOption>
 
   <ConfigOption
@@ -48,29 +49,38 @@ The `http` trigger lets you send container update webhook notifications to custo
     Username for Basic authentication
   </ConfigOption>
 
-  <ConfigOption name="WUD_TRIGGER_HTTP_{trigger_name}_METHOD"
-    type="enum"
+  <ConfigOption
+    name="WUD_TRIGGER_HTTP_{trigger_name}_AUTH_PASSWORD"
     required={false}
-    defaultValue="POST"
-    supported="`GET`, `POST`">
-    HTTP request method
+    type="string">
+    Password for Basic authentication
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_HTTP_{trigger_name}_AUTH_BEARER"
+    required={false}
+    type="string">
+    Bearer token for Bearer authentication
   </ConfigOption>
 
   <ConfigOption
     name="WUD_TRIGGER_HTTP_{trigger_name}_PROXY"
     required={false}
     type="url"
-    supported="Valid proxy URL">
-    HTTP/HTTPS proxy URL
+    supported="Valid HTTP/HTTPS proxy URL">
+    HTTP/HTTPS proxy server URL
   </ConfigOption>
 </ConfigList>
+
 :::info
-This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).
+This trigger also supports all [common trigger configuration options](../README.md#common-trigger-configuration) (such as thresholds, scheduling, and batching).
 :::
 
-### Examples
+---
 
-#### Send an HTTP POST webhook
+## 🚀 Examples
+
+### Dispatch an Authenticated POST Webhook
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -79,9 +89,11 @@ This trigger also supports [common trigger configuration options](../README.md#c
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
-      - WUD_TRIGGER_HTTP_MYREMOTEHOST_URL=https://my-remote-host/new-version
+      - WUD_TRIGGER_HTTP_LOCAL_URL=https://api.example.com/webhooks/container-updates
+      - WUD_TRIGGER_HTTP_LOCAL_METHOD=POST
+      - WUD_TRIGGER_HTTP_LOCAL_AUTH_TYPE=BEARER
+      - WUD_TRIGGER_HTTP_LOCAL_AUTH_BEARER=your_secret_bearer_token
 ```
 
 </TabItem>
@@ -89,15 +101,21 @@ services:
 
 ```bash
 docker run \
-  -e WUD_TRIGGER_HTTP_MYREMOTEHOST_URL="https://my-remote-host/new-version" \
-  ...
+  -e WUD_TRIGGER_HTTP_LOCAL_URL="https://api.example.com/webhooks/container-updates" \
+  -e WUD_TRIGGER_HTTP_LOCAL_METHOD="POST" \
+  -e WUD_TRIGGER_HTTP_LOCAL_AUTH_TYPE="BEARER" \
+  -e WUD_TRIGGER_HTTP_LOCAL_AUTH_BEARER="your_secret_bearer_token" \
   getwud/wud
 ```
 
 </TabItem>
 </Tabs>
 
-#### Example POST payload (JSON)
+---
+
+## 📦 Webhook Payload Format
+
+In `POST` mode, WUD transmits a JSON payload containing the discovered update:
 
 ```json
 {
@@ -108,11 +126,11 @@ docker run \
   "image": {
     "id": "sha256:d4a6fafb7d4da37495e5c9be3242590be24a87d7edcc4f79761098889c54fca6",
     "registry": {
-      "url": "123456789.dkr.ecr.eu-west-1.amazonaws.com"
+      "url": "hub.docker.com"
     },
-    "name": "test",
+    "name": "homeassistant/home-assistant",
     "tag": {
-      "value": "2021.6.4",
+      "value": "2024.6.4",
       "semver": true
     },
     "digest": {
@@ -121,10 +139,10 @@ docker run \
     },
     "architecture": "amd64",
     "os": "linux",
-    "created": "2021-06-12T05:33:38.440Z"
+    "created": "2024-06-12T05:33:38.440Z"
   },
   "result": {
-    "tag": "2021.6.5"
+    "tag": "2024.6.5"
   },
   "updateAvailable": true
 }

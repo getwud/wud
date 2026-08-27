@@ -1,19 +1,82 @@
+---
+title: Configuration
+description: Comprehensive configuration reference for What's Up Docker (WUD).
+---
+
+import { NavigationGrid, NavigationCard } from '@site/src/components/NavigationCard';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Configuration
 
 WUD relies on **environment variables** and **[Docker labels](https://docs.docker.com/config/labels-custom-metadata/)** to configure all of its components.
 
 Explore the documentation for each component below:
 
-- <i className="mdi mdi-lock" /> [**Authentication**](configuration/authentications/)
-- <i className="mdi mdi-bug" /> [**Logs**](configuration/logs/)
-- <i className="mdi mdi-database-search" /> [**Registries**](configuration/registries/)
-- <i className="mdi mdi-connection" /> [**Server**](configuration/server/)
-- <i className="mdi mdi-content-save" /> [**Storage**](configuration/storage/)
-- <i className="mdi mdi-clock-outline" /> [**Timezone**](configuration/timezone/)
-- <i className="mdi mdi-bell-ring" /> [**Triggers**](configuration/triggers/)
-- <i className="mdi mdi-update" /> [**Watchers**](configuration/watchers/)
+<NavigationGrid>
+  <NavigationCard
+    icon="mdi-lock"
+    title="Authentication"
+    href="/docs/configuration/authentications"
+    description="Protect the WUD web UI and API with Basic Auth or OpenID Connect (OIDC) single sign-on."
+  />
 
-## Complete example
+  <NavigationCard
+    icon="mdi-bug"
+    title="Logs"
+    href="/docs/configuration/logs"
+    description="Configure log verbosity levels (debug, info, warn, error) and structured output formatting."
+  />
+
+  <NavigationCard
+    icon="mdi-database-search"
+    title="Registries"
+    href="/docs/configuration/registries"
+    description="Authenticate with Docker Hub, GHCR, AWS ECR, GCP GCR/GAR, Azure ACR, Quay, or self-hosted OCI registries."
+  />
+
+  <NavigationCard
+    icon="mdi-connection"
+    title="Server"
+    href="/docs/configuration/server"
+    description="Customize the HTTP server port, CORS policies, reverse proxy headers, and base URLs."
+  />
+
+  <NavigationCard
+    icon="mdi-content-save"
+    title="Storage"
+    href="/docs/configuration/storage"
+    description="Persist state, discovered image tags, and trigger notification history with local file storage."
+  />
+
+  <NavigationCard
+    icon="mdi-clock-outline"
+    title="Timezone"
+    href="/docs/configuration/timezone"
+    description="Set the system timezone to ensure accurate CRON scheduling and timestamped logs."
+  />
+
+  <NavigationCard
+    icon="mdi-bell-ring"
+    title="Triggers"
+    href="/docs/configuration/triggers"
+    description="Send update alerts via Discord, Slack, Telegram, Gotify, Ntfy, SMTP, or execute auto-updates."
+  />
+
+  <NavigationCard
+    icon="mdi-update"
+    title="Watchers"
+    href="/docs/configuration/watchers"
+    description="Monitor local Docker daemons, remote engines over TLS, and customize container labels."
+  />
+</NavigationGrid>
+
+---
+
+## Complete Example
+
+<Tabs>
+<TabItem value="docker-compose" label="docker-compose.yml">
 
 ```yaml
 services:
@@ -74,22 +137,41 @@ services:
       - "wud.link.template=https://github.com/getwud/wud/releases/tag/$${major}.$${minor}.$${patch}"
 ```
 
-## Secret management
+</TabItem>
+</Tabs>
 
-:::warning[If you prefer not to expose sensitive values directly in environment variables, you can store them in files and reference those files by appending `__FILE` to the environment variable name.]
+---
+
+## Secret Management
+
+:::warning[File-Based Secrets]
+If you prefer not to expose sensitive values directly in environment variables, you can store them in files and reference those files by appending `__FILE` to the environment variable name.
 :::
 
 For example, instead of providing the Basic auth hash directly:
 
-```
+<Tabs>
+<TabItem value="env" label=".env">
+
+```bash
 WUD_AUTH_BASIC_JOHN_HASH=$$apr1$$aefKbZEa$$ZSA5Y3zv9vDQOxr283NGx/
 ```
 
+</TabItem>
+</Tabs>
+
 You can save the secret value (`$$apr1$$aefKbZEa$$ZSA5Y3zv9vDQOxr283NGx/`) to a file with appropriate permissions (such as `/tmp/john_hash`), and reference it using:
 
-```
+<Tabs>
+<TabItem value="env-file" label=".env">
+
+```bash
 WUD_AUTH_BASIC_JOHN_HASH__FILE=/tmp/john_hash
 ```
 
-:::info[This feature can be used with any WUD environment variable (no exceptions).]
+</TabItem>
+</Tabs>
+
+:::info[Universal Support]
+This file-based secret reference feature can be used with any WUD environment variable across all watchers, registries, and triggers.
 :::

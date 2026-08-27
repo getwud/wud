@@ -134,7 +134,7 @@ const config = {
           {
             to: '/docs/changelog',
             label: 'Changelog',
-            position: 'left',
+            position: 'right',
           },
           {
             href: 'https://github.com/getwud/wud',
@@ -147,56 +147,7 @@ const config = {
       },
       footer: {
         style: 'dark',
-        links: [
-          {
-            title: 'Documentation',
-            items: [
-              {
-                label: 'Introduction',
-                to: '/docs',
-              },
-              {
-                label: 'Quick Start',
-                to: '/docs/quickstart',
-              },
-              {
-                label: 'Configuration',
-                to: '/docs/configuration',
-              },
-            ],
-          },
-          {
-            title: 'Community & Support',
-            items: [
-              {
-                label: 'GitHub Issues',
-                href: 'https://github.com/getwud/wud/issues',
-              },
-              {
-                label: 'GitHub Discussions',
-                href: 'https://github.com/getwud/wud/discussions',
-              },
-              {
-                label: 'Buy Me a Coffee',
-                href: 'https://www.buymeacoffee.com/61rUNMm',
-              },
-            ],
-          },
-          {
-            title: 'More',
-            items: [
-              {
-                label: 'Docker Hub',
-                href: 'https://hub.docker.com/r/getwud/wud',
-              },
-              {
-                label: 'GitHub Repository',
-                href: 'https://github.com/getwud/wud',
-              },
-            ],
-          },
-        ],
-        copyright: `Copyright © ${new Date().getFullYear()} WUD (What's up Docker?).`,
+        copyright: `Copyright © ${new Date().getFullYear()} WUD`,
       },
       prism: {
         theme: prismThemes.github,

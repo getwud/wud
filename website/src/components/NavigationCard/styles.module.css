@@ -1,0 +1,108 @@
+.navigationGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  margin: 1.5rem 0 2.5rem;
+}
+
+@media (max-width: 768px) {
+  .navigationGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding: 1.35rem 1.5rem;
+  border-radius: 14px;
+  background: var(--wud-glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--wud-glass-border);
+  box-shadow: var(--wud-glass-shadow);
+  text-decoration: none !important;
+  color: inherit !important;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease,
+              box-shadow 0.25s ease;
+  position: relative;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  border-color: var(--wud-card-hover-border);
+  box-shadow: 0 12px 32px 0 var(--wud-accent-glow);
+}
+
+.iconWrapper {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(0, 53, 94, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ifm-color-primary);
+  font-size: 1.4rem;
+  transition: transform 0.25s ease, background-color 0.25s ease;
+}
+
+[data-theme='dark'] .iconWrapper {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+}
+
+.card:hover .iconWrapper {
+  transform: scale(1.08);
+  background: rgba(0, 53, 94, 0.12);
+}
+
+[data-theme='dark'] .card:hover .iconWrapper {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.content {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.title {
+  font-family: var(--ifm-heading-font-family);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--ifm-heading-color);
+  letter-spacing: -0.01em;
+}
+
+.arrow {
+  color: var(--ifm-color-primary);
+  font-size: 1.15rem;
+  font-weight: 700;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: all 0.25s ease;
+}
+
+.card:hover .arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.description {
+  font-size: 0.88rem;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.45;
+  margin: 0;
+}

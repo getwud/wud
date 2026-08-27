@@ -1,14 +1,21 @@
+---
+title: Custom / Self-Hosted Registry
+description: Integrate self-hosted Docker Registry v2, Harbor, Nexus, or Artifactory in What's Up Docker (WUD).
+---
+
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-# CUSTOM (Self-Hosted Docker Registry)
+# Custom / Self-Hosted Registry
 
 ![logo](custom.svg)
 
-The `custom` registry module lets you integrate self-hosted [Docker Registry (v2)](https://docs.docker.com/registry/) instances.
+The `custom` registry module lets you integrate standalone [Docker Registry v2](https://docs.docker.com/registry/), [Harbor](https://goharbor.io/), [Sonatype Nexus](https://www.sonatype.com/products/sonatype-nexus-repository), [JFrog Artifactory](https://jfrog.com/artifactory/), or any generic OCI-compliant registry.
 
-### Variables
+---
+
+## ⚙️ Configuration Variables
 
 <ConfigList>
   <ConfigOption
@@ -16,33 +23,36 @@ The `custom` registry module lets you integrate self-hosted [Docker Registry (v2
     required={true}
     type="url"
     supported="Valid HTTP/HTTPS URL">
-    Registry URL (e.g., `http://localhost:5000` or `https://registry.local`)
-  </ConfigOption>
-
-  <ConfigOption name="WUD_REGISTRY_CUSTOM_{registry_name}_AUTH"
-    type="string"
-    required={false}
-    supported="Mutually exclusive with `LOGIN`/`PASSWORD`">
-    Base64-encoded `username:password` string
+    Registry base URL (e.g. `http://localhost:5000` or `https://registry.local`)
   </ConfigOption>
 
   <ConfigOption name="WUD_REGISTRY_CUSTOM_{registry_name}_LOGIN"
     type="string"
     required={false}
     supported="Required when password is provided">
-    Username (when Basic/htpasswd authentication is enabled)
+    Username (for Basic / htpasswd authentication)
   </ConfigOption>
 
   <ConfigOption name="WUD_REGISTRY_CUSTOM_{registry_name}_PASSWORD"
     type="string"
     required={false}
     supported="Required when username is provided">
-    Password (when Basic/htpasswd authentication is enabled)
+    Password (for Basic / htpasswd authentication)
+  </ConfigOption>
+
+  <ConfigOption name="WUD_REGISTRY_CUSTOM_{registry_name}_AUTH"
+    type="string"
+    required={false}
+    supported="Base64-encoded username:password (mutually exclusive with LOGIN/PASSWORD)">
+    Direct Base64-encoded `username:password` string
   </ConfigOption>
 </ConfigList>
-### Examples
 
-#### Configure for anonymous access
+---
+
+## 🚀 Examples
+
+### Anonymous Local Registry
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -51,9 +61,8 @@ The `custom` registry module lets you integrate self-hosted [Docker Registry (v2
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
-      - WUD_REGISTRY_CUSTOM_PRIVATE_URL=http://localhost:5000
+      - WUD_REGISTRY_CUSTOM_LOCAL_URL=http://localhost:5000
 ```
 
 </TabItem>
@@ -61,15 +70,14 @@ services:
 
 ```bash
 docker run \
-  -e "WUD_REGISTRY_CUSTOM_PRIVATE_URL=http://localhost:5000" \
-  ...
+  -e WUD_REGISTRY_CUSTOM_LOCAL_URL="http://localhost:5000" \
   getwud/wud
 ```
 
 </TabItem>
 </Tabs>
 
-#### Configure with Basic authentication
+### Authenticated Private Registry
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -78,11 +86,10 @@ docker run \
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
-      - WUD_REGISTRY_CUSTOM_PRIVATE_URL=http://localhost:5000
-      - WUD_REGISTRY_CUSTOM_PRIVATE_LOGIN=john
-      - WUD_REGISTRY_CUSTOM_PRIVATE_PASSWORD=secret
+      - WUD_REGISTRY_CUSTOM_LOCAL_URL=https://registry.example.com
+      - WUD_REGISTRY_CUSTOM_LOCAL_LOGIN=admin
+      - WUD_REGISTRY_CUSTOM_LOCAL_PASSWORD=secret_password
 ```
 
 </TabItem>
@@ -90,47 +97,9 @@ services:
 
 ```bash
 docker run \
-  -e "WUD_REGISTRY_CUSTOM_PRIVATE_URL=http://localhost:5000" \
-  -e "WUD_REGISTRY_CUSTOM_PRIVATE_LOGIN=john" \
-  -e "WUD_REGISTRY_CUSTOM_PRIVATE_PASSWORD=secret" \
-  ...
-  getwud/wud
-```
-
-</TabItem>
-</Tabs>
-
-#### Configure multiple self-hosted registries
-
-<Tabs>
-<TabItem value="docker-compose" label="Docker Compose">
-
-```yaml
-services:
-  whatsupdocker:
-    image: getwud/wud
-    ...
-    environment:
-      - WUD_REGISTRY_CUSTOM_PRIVATE1_URL=http://localhost:5000
-      - WUD_REGISTRY_CUSTOM_PRIVATE1_LOGIN=john
-      - WUD_REGISTRY_CUSTOM_PRIVATE1_PASSWORD=secret1
-      - WUD_REGISTRY_CUSTOM_PRIVATE2_URL=http://localhost:5001
-      - WUD_REGISTRY_CUSTOM_PRIVATE2_LOGIN=jane
-      - WUD_REGISTRY_CUSTOM_PRIVATE2_PASSWORD=secret2
-```
-
-</TabItem>
-<TabItem value="docker" label="Docker">
-
-```bash
-docker run \
-  -e "WUD_REGISTRY_CUSTOM_PRIVATE1_URL=http://localhost:5000" \
-  -e "WUD_REGISTRY_CUSTOM_PRIVATE1_LOGIN=john" \
-  -e "WUD_REGISTRY_CUSTOM_PRIVATE1_PASSWORD=secret1" \
-  -e "WUD_REGISTRY_CUSTOM_PRIVATE2_URL=http://localhost:5001" \
-  -e "WUD_REGISTRY_CUSTOM_PRIVATE2_LOGIN=jane" \
-  -e "WUD_REGISTRY_CUSTOM_PRIVATE2_PASSWORD=secret2" \
-  ...
+  -e WUD_REGISTRY_CUSTOM_LOCAL_URL="https://registry.example.com" \
+  -e WUD_REGISTRY_CUSTOM_LOCAL_LOGIN="admin" \
+  -e WUD_REGISTRY_CUSTOM_LOCAL_PASSWORD="secret_password" \
   getwud/wud
 ```
 

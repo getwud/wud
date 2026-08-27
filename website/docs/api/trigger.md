@@ -3,7 +3,7 @@
 This API allows you to query the state of configured triggers and test-run them.
 
 :::info
-[Need to configure triggers?](configuration/triggers/)
+[Need to configure triggers?](../configuration/triggers/README.md)
 :::
 
 ## Get all triggers

@@ -3,7 +3,7 @@
 This API allows you to query the state of configured watchers.
 
 :::info
-[Need to configure watchers?](configuration/watchers/)
+[Need to configure watchers?](../configuration/watchers/README.md)
 :::
 
 ## Get all watchers

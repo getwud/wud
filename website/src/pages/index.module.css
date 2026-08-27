@@ -151,29 +151,37 @@
   background: #162442;
 }
 
-/* Quick Run Terminal Widget */
+/* Quick Run Terminal Widget (macOS Window Style) */
 .terminalCard {
   max-width: 680px;
   margin: 0 auto;
-  background: #0f172a;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 8px 24px rgba(0, 53, 94, 0.08);
   text-align: left;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 [data-theme='dark'] .terminalCard {
-  border-color: rgba(56, 189, 248, 0.25);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  background: #0b1220;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
 }
 
 .terminalHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.6rem 1rem;
-  background: rgba(0, 0, 0, 0.35);
+  padding: 0.65rem 1rem;
+  background: #e2e8f0;
+  border-bottom: 1px solid #cbd5e1;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+[data-theme='dark'] .terminalHeader {
+  background: #0f172a;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -203,38 +211,58 @@
 .terminalTitle {
   font-family: var(--ifm-font-family-monospace);
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: #475569;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  font-weight: 600;
+}
+
+[data-theme='dark'] .terminalTitle {
+  color: #94a3b8;
 }
 
 .terminalBody {
-  padding: 1rem 1.25rem;
+  padding: 1.1rem 1.25rem;
+  background: #f8fafc;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   font-family: var(--ifm-font-family-monospace);
   font-size: 0.875rem;
-  color: #f1f5f9;
   overflow-x: auto;
+  transition: background-color 0.2s ease;
+}
+
+[data-theme='dark'] .terminalBody {
+  background: #0b1220;
 }
 
 .terminalPrompt {
-  color: #38bdf8;
+  color: #0284c7;
   margin-right: 0.5rem;
   user-select: none;
+  font-weight: 700;
+}
+
+[data-theme='dark'] .terminalPrompt {
+  color: #38bdf8;
 }
 
 .terminalCode {
-  color: #f8fafc;
+  color: #0f172a;
   white-space: nowrap;
+  font-weight: 500;
+}
+
+[data-theme='dark'] .terminalCode {
+  color: #f8fafc;
 }
 
 .copyBtn {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #e2e8f0;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
   padding: 0.35rem 0.75rem;
   border-radius: 6px;
   font-size: 0.75rem;
@@ -242,12 +270,28 @@
   transition: all 0.2s ease;
   white-space: nowrap;
   font-family: var(--ifm-font-family-base);
-  font-weight: 500;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .copyBtn:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+[data-theme='dark'] .copyBtn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #e2e8f0;
+  box-shadow: none;
+}
+
+[data-theme='dark'] .copyBtn:hover {
+  background: rgba(255, 255, 255, 0.18);
   color: #ffffff;
+  border-color: rgba(56, 189, 248, 0.4);
 }
 
 /* Features Section */

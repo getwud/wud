@@ -1,3 +1,8 @@
+---
+title: ntfy
+description: Send container update push notifications via ntfy in What's Up Docker (WUD).
+---
+
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -6,28 +11,43 @@ import TabItem from '@theme/TabItem';
 
 ![logo](ntfy.svg)
 
-The `ntfy` trigger lets you send container update push notifications via [ntfy](https://ntfy.sh/).
+The `ntfy` trigger lets you send container update push notifications to phones and desktops via [ntfy](https://ntfy.sh/) (public service or self-hosted).
 
-### Variables
+---
+
+## ⚙️ Configuration Variables
 
 <ConfigList>
   <ConfigOption name="WUD_TRIGGER_NTFY_{trigger_name}_TOPIC"
     required={true}
-    type="email">
+    type="string"
+    supported="Valid ntfy topic name">
     Target ntfy topic name
   </ConfigOption>
 
   <ConfigOption
-    name="WUD_TRIGGER_NTFY_{trigger_name}_AUTH_PASSWORD"
+    name="WUD_TRIGGER_NTFY_{trigger_name}_URL"
     required={false}
-    type="string">
-    Password (for Basic authentication)
+    type="url"
+    defaultValue="https://ntfy.sh"
+    supported="Valid HTTP/HTTPS URL">
+    ntfy server base URL
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_NTFY_{trigger_name}_PRIORITY"
+    required={false}
+    type="integer"
+    defaultValue="3"
+    supported="Integer between `1` (min) and `5` (max) [see docs](https://docs.ntfy.sh/publish/#message-priority)">
+    ntfy notification priority
   </ConfigOption>
 
   <ConfigOption name="WUD_TRIGGER_NTFY_{trigger_name}_AUTH_TOKEN"
     required={false}
-    type="email">
-    Access token (for Bearer authentication)
+    type="string"
+    supported="Bearer token">
+    Access token (for Bearer authentication on protected topics)
   </ConfigOption>
 
   <ConfigOption
@@ -38,30 +58,22 @@ The `ntfy` trigger lets you send container update push notifications via [ntfy](
   </ConfigOption>
 
   <ConfigOption
-    name="WUD_TRIGGER_NTFY_{trigger_name}_PRIORITY"
+    name="WUD_TRIGGER_NTFY_{trigger_name}_AUTH_PASSWORD"
     required={false}
-    type="url"
-    defaultValue="3"
-    supported="Integer between `1` (min) and `5` (max) [see docs](https://docs.ntfy.sh/publish/#message-priority)">
-    ntfy notification priority
-  </ConfigOption>
-
-  <ConfigOption
-    name="WUD_TRIGGER_NTFY_{trigger_name}_URL"
-    required={false}
-    type="url"
-    defaultValue="https://ntfy.sh"
-    supported="Valid HTTP or HTTPS URL">
-    ntfy server base URL
+    type="string">
+    Password (for Basic authentication)
   </ConfigOption>
 </ConfigList>
+
 :::info
-This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).
+This trigger also supports all [common trigger configuration options](../README.md#common-trigger-configuration) (such as thresholds, scheduling, and batching).
 :::
 
-### Examples
+---
 
-#### Publish to the public ntfy.sh service
+## 🚀 Examples
+
+### Public ntfy.sh Service
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -70,9 +82,9 @@ This trigger also supports [common trigger configuration options](../README.md#c
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
-      - WUD_TRIGGER_NTFY_SH_TOPIC=my_secret_topic_name
+      - WUD_TRIGGER_NTFY_LOCAL_TOPIC=my_unique_wud_topic
+      - WUD_TRIGGER_NTFY_LOCAL_PRIORITY=3
 ```
 
 </TabItem>
@@ -80,15 +92,15 @@ services:
 
 ```bash
 docker run \
-  -e WUD_TRIGGER_NTFY_SH_TOPIC="my_secret_topic_name" \
-  ...
+  -e WUD_TRIGGER_NTFY_LOCAL_TOPIC="my_unique_wud_topic" \
+  -e WUD_TRIGGER_NTFY_LOCAL_PRIORITY=3 \
   getwud/wud
 ```
 
 </TabItem>
 </Tabs>
 
-#### Publish to a self-hosted ntfy instance with Basic authentication
+### Self-Hosted Protected ntfy Server
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -97,12 +109,10 @@ docker run \
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
-      - WUD_TRIGGER_NTFY_PRIVATE_URL=https://ntfy.example.com
-      - WUD_TRIGGER_NTFY_PRIVATE_TOPIC=my_secret_topic_name
-      - WUD_TRIGGER_NTFY_PRIVATE_AUTH_USER=john
-      - WUD_TRIGGER_NTFY_PRIVATE_AUTH_PASSWORD=mysecretpassword
+      - WUD_TRIGGER_NTFY_LOCAL_URL=https://ntfy.example.com
+      - WUD_TRIGGER_NTFY_LOCAL_TOPIC=alerts
+      - WUD_TRIGGER_NTFY_LOCAL_AUTH_TOKEN=tk_1234567890abcdef
 ```
 
 </TabItem>
@@ -110,11 +120,9 @@ services:
 
 ```bash
 docker run \
-  -e WUD_TRIGGER_NTFY_PRIVATE_URL="https://ntfy.example.com" \
-  -e WUD_TRIGGER_NTFY_PRIVATE_TOPIC="my_secret_topic_name" \
-  -e WUD_TRIGGER_NTFY_PRIVATE_AUTH_USER="john" \
-  -e WUD_TRIGGER_NTFY_PRIVATE_AUTH_PASSWORD="mysecretpassword" \
-  ...
+  -e WUD_TRIGGER_NTFY_LOCAL_URL="https://ntfy.example.com" \
+  -e WUD_TRIGGER_NTFY_LOCAL_TOPIC="alerts" \
+  -e WUD_TRIGGER_NTFY_LOCAL_AUTH_TOKEN="tk_1234567890abcdef" \
   getwud/wud
 ```
 

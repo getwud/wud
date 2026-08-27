@@ -1,3 +1,8 @@
+---
+title: Gitea
+description: Configure authentication for Gitea container registries in What's Up Docker (WUD).
+---
+
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -6,11 +11,21 @@ import TabItem from '@theme/TabItem';
 
 ![logo](gitea.svg)
 
-The `gitea` registry module lets you authenticate against [Gitea](https://gitea.com) container registry instances (hosted or self-hosted).
+The `gitea` registry module lets you authenticate against [Gitea](https://gitea.com) container registry instances (both hosted and self-hosted).
 
-### Variables
+---
+
+## ⚙️ Configuration Variables
 
 <ConfigList>
+  <ConfigOption
+    name="WUD_REGISTRY_GITEA_{registry_name}_URL"
+    required={true}
+    type="url"
+    supported="Valid HTTP/HTTPS URL">
+    Gitea instance base URL (e.g. `https://gitea.example.com`)
+  </ConfigOption>
+
   <ConfigOption name="WUD_REGISTRY_GITEA_{registry_name}_LOGIN"
     type="string"
     required={true}
@@ -22,27 +37,22 @@ The `gitea` registry module lets you authenticate against [Gitea](https://gitea.
     type="string"
     required={true}
     supported="Required when username is provided">
-    Gitea password or personal access token
-  </ConfigOption>
-
-  <ConfigOption
-    name="WUD_REGISTRY_GITEA_{registry_name}_URL"
-    required={true}
-    type="url"
-    supported="Valid HTTP/HTTPS URL">
-    Gitea instance URL (e.g., `https://gitea.example.com`)
+    Gitea password or Personal Access Token (PAT)
   </ConfigOption>
 
   <ConfigOption name="WUD_REGISTRY_GITEA_{registry_name}_AUTH"
     type="string"
     required={false}
-    supported="Mutually exclusive with `LOGIN`/`PASSWORD`">
-    Base64-encoded `username:password` string
+    supported="Base64-encoded username:password (mutually exclusive with LOGIN/PASSWORD)">
+    Direct Base64-encoded `username:password` string
   </ConfigOption>
 </ConfigList>
-### Examples
 
-#### Authenticate with a Gitea instance
+---
+
+## 🚀 Examples
+
+### Authenticate with a Self-Hosted Gitea Instance
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -51,11 +61,10 @@ The `gitea` registry module lets you authenticate against [Gitea](https://gitea.
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
-      - WUD_REGISTRY_GITEA_PRIVATE_URL=https://gitea.example.com
-      - WUD_REGISTRY_GITEA_PRIVATE_LOGIN=john
-      - WUD_REGISTRY_GITEA_PRIVATE_PASSWORD=secret-token
+      - WUD_REGISTRY_GITEA_LOCAL_URL=https://gitea.example.com
+      - WUD_REGISTRY_GITEA_LOCAL_LOGIN=johndoe
+      - WUD_REGISTRY_GITEA_LOCAL_PASSWORD=secret_token_12345
 ```
 
 </TabItem>
@@ -63,10 +72,9 @@ services:
 
 ```bash
 docker run \
-  -e "WUD_REGISTRY_GITEA_PRIVATE_URL=https://gitea.example.com" \
-  -e "WUD_REGISTRY_GITEA_PRIVATE_LOGIN=john" \
-  -e "WUD_REGISTRY_GITEA_PRIVATE_PASSWORD=secret-token" \
-  ...
+  -e WUD_REGISTRY_GITEA_LOCAL_URL="https://gitea.example.com" \
+  -e WUD_REGISTRY_GITEA_LOCAL_LOGIN="johndoe" \
+  -e WUD_REGISTRY_GITEA_LOCAL_PASSWORD="secret_token_12345" \
   getwud/wud
 ```
 

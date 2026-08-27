@@ -1,3 +1,8 @@
+---
+title: GitLab
+description: Configure authentication for GitLab Container Registries in What's Up Docker (WUD).
+---
+
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -6,33 +11,18 @@ import TabItem from '@theme/TabItem';
 
 ![logo](gitlab.svg)
 
-The `gitlab` registry module lets you authenticate against the [GitLab Container Registry](https://docs.gitlab.com/ee/user/packages/container_registry/) (both gitlab.com and self-hosted instances).
+The `gitlab` registry module lets you authenticate against [GitLab Container Registry](https://docs.gitlab.com/ee/user/packages/container_registry/) (both GitLab.com and self-hosted instances).
 
-### Variables
+---
+
+## ⚙️ Configuration Variables
 
 <ConfigList>
   <ConfigOption name="WUD_REGISTRY_GITLAB_{registry_name}_TOKEN"
     required={true}
-    type="email">
+    type="string"
+    supported="Valid GitLab Personal Access Token, Deploy Token, or Project Access Token">
     GitLab Personal Access Token or Deploy Token
-  </ConfigOption>
-
-  <ConfigOption
-    name="WUD_REGISTRY_GITLAB_{registry_name}_AUTHURL"
-    required={false}
-    type="url"
-    defaultValue="https://gitlab.com"
-    supported="Valid URL">
-    GitLab authentication base URL
-  </ConfigOption>
-
-  <ConfigOption
-    name="WUD_REGISTRY_GITLAB_{registry_name}_URL"
-    required={false}
-    type="url"
-    defaultValue="https://registry.gitlab.com"
-    supported="Valid URL">
-    GitLab Registry base URL
   </ConfigOption>
 
   <ConfigOption
@@ -41,37 +31,31 @@ The `gitlab` registry module lets you authenticate against the [GitLab Container
     type="string">
     Username (required when using a Group Access Token or Deploy Token)
   </ConfigOption>
+
+  <ConfigOption
+    name="WUD_REGISTRY_GITLAB_{registry_name}_URL"
+    required={false}
+    type="url"
+    defaultValue="https://registry.gitlab.com"
+    supported="Valid registry URL">
+    GitLab Container Registry base URL
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_REGISTRY_GITLAB_{registry_name}_AUTHURL"
+    required={false}
+    type="url"
+    defaultValue="https://gitlab.com"
+    supported="Valid instance URL">
+    GitLab authentication base URL
+  </ConfigOption>
 </ConfigList>
-### Examples
 
-#### Authenticate with gitlab.com
+---
 
-<Tabs>
-<TabItem value="docker-compose" label="Docker Compose">
+## 🚀 Examples
 
-```yaml
-services:
-  whatsupdocker:
-    image: getwud/wud
-    ...
-    environment:
-      - WUD_REGISTRY_GITLAB_PUBLIC_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx
-```
-
-</TabItem>
-<TabItem value="docker" label="Docker">
-
-```bash
-docker run \
-  -e WUD_REGISTRY_GITLAB_PUBLIC_TOKEN="glpat-xxxxxxxxxxxxxxxxxxxx" \
-  ...
-  getwud/wud
-```
-
-</TabItem>
-</Tabs>
-
-#### Authenticate with a self-hosted GitLab instance
+### Authenticate with GitLab.com
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -80,11 +64,8 @@ docker run \
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
-      - WUD_REGISTRY_GITLAB_PRIVATE_URL=https://registry.gitlab.example.com
-      - WUD_REGISTRY_GITLAB_PRIVATE_AUTHURL=https://gitlab.example.com
-      - WUD_REGISTRY_GITLAB_PRIVATE_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx
+      - WUD_REGISTRY_GITLAB_LOCAL_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx
 ```
 
 </TabItem>
@@ -92,27 +73,46 @@ services:
 
 ```bash
 docker run \
-  -e WUD_REGISTRY_GITLAB_PRIVATE_URL="https://registry.gitlab.example.com" \
-  -e WUD_REGISTRY_GITLAB_PRIVATE_AUTHURL="https://gitlab.example.com" \
-  -e WUD_REGISTRY_GITLAB_PRIVATE_TOKEN="glpat-xxxxxxxxxxxxxxxxxxxx" \
-  ...
+  -e WUD_REGISTRY_GITLAB_LOCAL_TOKEN="glpat-xxxxxxxxxxxxxxxxxxxx" \
   getwud/wud
 ```
 
 </TabItem>
 </Tabs>
 
-### How to create a GitLab Personal Access Token
+### Authenticate with a Self-Hosted GitLab Instance
 
-#### 1. Open your GitLab Personal Access Tokens page
+<Tabs>
+<TabItem value="docker-compose" label="Docker Compose">
 
-Navigate to [GitLab Personal Access Tokens](https://gitlab.com/-/profile/personal_access_tokens).
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    environment:
+      - WUD_REGISTRY_GITLAB_LOCAL_URL=https://registry.gitlab.example.com
+      - WUD_REGISTRY_GITLAB_LOCAL_AUTHURL=https://gitlab.example.com
+      - WUD_REGISTRY_GITLAB_LOCAL_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx
+```
 
-#### 2. Create the token
+</TabItem>
+<TabItem value="docker" label="Docker">
 
-Set an expiration date and select the `read_registry` scope (the only scope required by WUD).
-![image](gitlab_01.png)
+```bash
+docker run \
+  -e WUD_REGISTRY_GITLAB_LOCAL_URL="https://registry.gitlab.example.com" \
+  -e WUD_REGISTRY_GITLAB_LOCAL_AUTHURL="https://gitlab.example.com" \
+  -e WUD_REGISTRY_GITLAB_LOCAL_TOKEN="glpat-xxxxxxxxxxxxxxxxxxxx" \
+  getwud/wud
+```
 
-#### 3. Copy the token and configure WUD
+</TabItem>
+</Tabs>
 
-![image](gitlab_02.png)
+---
+
+## 📖 Setup Guide: Creating a GitLab Personal Access Token
+
+1. Navigate to [GitLab Personal Access Tokens](https://gitlab.com/-/profile/personal_access_tokens).
+2. Select the **`read_registry`** scope (the only scope required by WUD).
+3. Click **Create personal access token**, copy the token string, and set it as `WUD_REGISTRY_GITLAB_{registry_name}_TOKEN`.

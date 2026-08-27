@@ -47,17 +47,17 @@ docker run -d --name wud \
 ## Add your first trigger
 
 :::info[Everything running smoothly?]
-It's time to [**configure your triggers**](configuration/triggers/)!
+It's time to [**configure your triggers**](../configuration/triggers/README.md)!
 :::
 
 ## Going deeper...
 
 :::info[Need to fine-tune how WUD monitors your containers?]
-Check out the [**watcher documentation**](configuration/watchers/)!
+Check out the [**watcher documentation**](../configuration/watchers/README.md)!
 :::
 
 :::info[Need to integrate other registries (ECR, GCR, GitLab...)?]
-Check out the [**registry documentation**](configuration/registries/).
+Check out the [**registry documentation**](../configuration/registries/README.md).
 :::
 
 ## Ready-to-go examples

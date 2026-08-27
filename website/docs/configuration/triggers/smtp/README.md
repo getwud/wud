@@ -1,23 +1,23 @@
+---
+title: SMTP Email
+description: Send container update alert emails via SMTP in What's Up Docker (WUD).
+---
+
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-# SMTP
+# SMTP Email
 
 ![logo](smtp.svg)
 
-The `smtp` trigger lets you send container update notifications via email using SMTP.
+The `smtp` trigger lets you send container update alert emails via any SMTP mail server (such as Gmail, Fastmail, Postmark, AWS SES, or a self-hosted mail server).
 
-### Variables
+---
+
+## ⚙️ Configuration Variables
 
 <ConfigList>
-  <ConfigOption name="WUD_TRIGGER_SMTP_{trigger_name}_FROM_ADDRESS"
-    type="email"
-    required={true}
-    supported="Valid email address">
-    Sender email address (`From`)
-  </ConfigOption>
-
   <ConfigOption name="WUD_TRIGGER_SMTP_{trigger_name}_HOST"
     type="string"
     required={true}
@@ -29,43 +29,44 @@ The `smtp` trigger lets you send container update notifications via email using 
     name="WUD_TRIGGER_SMTP_{trigger_name}_PORT"
     required={true}
     type="integer"
-    supported="Valid port number (e.g. `465`, `587`)">
+    supported="Valid port number (e.g. `465`, `587`, `25`)">
     SMTP server port
   </ConfigOption>
 
-  <ConfigOption name="WUD_TRIGGER_SMTP_{trigger_name}_TO"
-    type="email"
+  <ConfigOption name="WUD_TRIGGER_SMTP_{trigger_name}_FROM_ADDRESS"
+    type="string"
     required={true}
-    supported="Valid email address">
+    supported="Valid email address (e.g. `wud@example.com`)">
+    Sender email address (`From`)
+  </ConfigOption>
+
+  <ConfigOption name="WUD_TRIGGER_SMTP_{trigger_name}_TO"
+    type="string"
+    required={true}
+    supported="Valid email address or comma-separated list">
     Recipient email address (`To`)
-  </ConfigOption>
-
-  <ConfigOption
-    name="WUD_TRIGGER_SMTP_{trigger_name}_ALLOWCUSTOMTLD"
-    required={false}
-    type="boolean"
-    defaultValue="false">
-    Allow non-standard/custom TLDs in email addresses
-  </ConfigOption>
-
-  <ConfigOption name="WUD_TRIGGER_SMTP_{trigger_name}_FROM"
-    type="email"
-    required={false}
-    supported="Valid email address">
-    Sender email address (legacy alias)
   </ConfigOption>
 
   <ConfigOption name="WUD_TRIGGER_SMTP_{trigger_name}_FROM_NAME"
     required={false}
-    type="email">
+    type="string"
+    defaultValue="WUD"
+    supported="String display name">
     Sender display name
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_SMTP_{trigger_name}_USER"
+    required={false}
+    type="string">
+    SMTP authentication username
   </ConfigOption>
 
   <ConfigOption
     name="WUD_TRIGGER_SMTP_{trigger_name}_PASS"
     required={false}
     type="string">
-    SMTP authentication password
+    SMTP authentication password or App Password
   </ConfigOption>
 
   <ConfigOption
@@ -73,7 +74,7 @@ The `smtp` trigger lets you send container update notifications via email using 
     required={false}
     type="boolean"
     defaultValue="false">
-    Enable TLS/SSL connection
+    Enable implicit TLS/SSL connection (typically on port 465)
   </ConfigOption>
 
   <ConfigOption
@@ -85,19 +86,23 @@ The `smtp` trigger lets you send container update notifications via email using 
   </ConfigOption>
 
   <ConfigOption
-    name="WUD_TRIGGER_SMTP_{trigger_name}_USER"
+    name="WUD_TRIGGER_SMTP_{trigger_name}_ALLOWCUSTOMTLD"
     required={false}
-    type="string">
-    SMTP authentication username
+    type="boolean"
+    defaultValue="false">
+    Allow non-standard or internal TLDs in email addresses
   </ConfigOption>
 </ConfigList>
+
 :::info
-This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).
+This trigger also supports all [common trigger configuration options](../README.md#common-trigger-configuration) (such as thresholds, scheduling, and batching).
 :::
 
-### Examples
+---
 
-#### Send email notifications via Gmail
+## 🚀 Examples
+
+### Send Emails via Gmail (App Password)
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -106,16 +111,14 @@ This trigger also supports [common trigger configuration options](../README.md#c
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
       - WUD_TRIGGER_SMTP_GMAIL_HOST=smtp.gmail.com
       - WUD_TRIGGER_SMTP_GMAIL_PORT=465
-      - WUD_TRIGGER_SMTP_GMAIL_USER=john.doe@gmail.com
-      - WUD_TRIGGER_SMTP_GMAIL_PASS=mysecretpass
-      - WUD_TRIGGER_SMTP_GMAIL_FROM_ADDRESS=john.doe@gmail.com
-      - WUD_TRIGGER_SMTP_GMAIL_FROM_NAME=John Doe
-      - WUD_TRIGGER_SMTP_GMAIL_TO=jane.doe@gmail.com
       - WUD_TRIGGER_SMTP_GMAIL_TLS_ENABLED=true
+      - WUD_TRIGGER_SMTP_GMAIL_USER=myaccount@gmail.com
+      - WUD_TRIGGER_SMTP_GMAIL_PASS=abcd efgh ijkl mnop # Gmail 16-char App Password
+      - WUD_TRIGGER_SMTP_GMAIL_FROM_ADDRESS=myaccount@gmail.com
+      - WUD_TRIGGER_SMTP_GMAIL_TO=admin@example.com
 ```
 
 </TabItem>
@@ -124,20 +127,14 @@ services:
 ```bash
 docker run \
   -e WUD_TRIGGER_SMTP_GMAIL_HOST="smtp.gmail.com" \
-  -e WUD_TRIGGER_SMTP_GMAIL_PORT="465" \
-  -e WUD_TRIGGER_SMTP_GMAIL_USER="john.doe@gmail.com" \
-  -e WUD_TRIGGER_SMTP_GMAIL_PASS="mysecretpass" \
-  -e WUD_TRIGGER_SMTP_GMAIL_FROM_ADDRESS="john.doe@gmail.com" \
-  -e WUD_TRIGGER_SMTP_GMAIL_FROM_NAME="John Doe" \
-  -e WUD_TRIGGER_SMTP_GMAIL_TO="jane.doe@gmail.com" \
-  -e WUD_TRIGGER_SMTP_GMAIL_TLS_ENABLED="true" \
-  ...
+  -e WUD_TRIGGER_SMTP_GMAIL_PORT=465 \
+  -e WUD_TRIGGER_SMTP_GMAIL_TLS_ENABLED=true \
+  -e WUD_TRIGGER_SMTP_GMAIL_USER="myaccount@gmail.com" \
+  -e WUD_TRIGGER_SMTP_GMAIL_PASS="abcd efgh ijkl mnop" \
+  -e WUD_TRIGGER_SMTP_GMAIL_FROM_ADDRESS="myaccount@gmail.com" \
+  -e WUD_TRIGGER_SMTP_GMAIL_TO="admin@example.com" \
   getwud/wud
 ```
 
 </TabItem>
 </Tabs>
-
-:::warning
-When using Gmail, create and use a dedicated App Password ([see Google App Passwords documentation](https://security.google.com/settings/security/apppasswords)).
-:::

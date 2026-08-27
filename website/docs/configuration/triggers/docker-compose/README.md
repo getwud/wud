@@ -1,3 +1,8 @@
+---
+title: Docker Compose
+description: Automatically update Docker Compose services and files in What's Up Docker (WUD).
+---
+
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -6,20 +11,29 @@ import TabItem from '@theme/TabItem';
 
 ![logo](docker-compose.svg)
 
-The `dockercompose` trigger automatically updates `docker-compose.yml` files and recreates containers with their updated images.
+The `dockercompose` trigger automatically updates image tags inside `docker-compose.yml` files and recreates the target services.
 
-When triggered, WUD will:
+---
 
-- Update the image tag in the corresponding `docker-compose.yml` file
-- Clone the existing container configuration
-- Pull the new image
-- Stop the running container
-- Remove the old container
-- Create the new container
-- Start the new container (if the previous container was running)
-- Prune the old image (optional)
+## 🔄 Update Lifecycle
 
-### Variables
+When triggered, WUD executes the following sequence:
+
+1. Updates the image tag reference in the target `docker-compose.yml` file.
+2. Clones the existing service container configuration.
+3. Pulls the new target image.
+4. Stops and removes the old container.
+5. Recreates and starts the updated container.
+6. Prunes the obsolete image (if `PRUNE=true`).
+
+:::warning[Host & Volume Requirements]
+- This trigger only works with **locally monitored containers** running on the same host.
+- The `docker-compose.yml` file must be mounted into the WUD container. If relying on Docker Compose's automatic `com.docker.compose.project.config_files` label, mount the file at the exact same path inside WUD as on the host.
+:::
+
+---
+
+## ⚙️ Configuration Variables
 
 <ConfigList>
   <ConfigOption
@@ -27,7 +41,7 @@ When triggered, WUD will:
     required={false}
     type="boolean"
     defaultValue="false">
-    Back up `docker-compose.yml` to `.back` before updating
+    Back up `docker-compose.yml` to `.back` before modifying it
   </ConfigOption>
 
   <ConfigOption
@@ -35,15 +49,15 @@ When triggered, WUD will:
     required={false}
     type="boolean"
     defaultValue="false">
-    When enabled, only pull the new image ahead of time without updating
+    When enabled, only pulls the new image ahead of time without rewriting compose files or restarting
   </ConfigOption>
 
   <ConfigOption name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_FILE"
     type="path"
     required={false}
     defaultValue="com.docker.compose.project.config_files"
-    supported="File path">
-    Path to the `docker-compose.yml` file inside the container
+    supported="Valid mounted file path">
+    Path to the `docker-compose.yml` file inside the WUD container
   </ConfigOption>
 
   <ConfigOption
@@ -51,20 +65,19 @@ When triggered, WUD will:
     required={false}
     type="boolean"
     defaultValue="false">
-    Prune the old image after the upgrade completes
+    Prune obsolete image versions after a successful upgrade
   </ConfigOption>
 </ConfigList>
+
 :::info
-This trigger supports [common trigger configuration options](../README.md#common-trigger-configuration) and runs in `batch` mode only.
+This trigger supports all [common trigger configuration options](../README.md#common-trigger-configuration) and runs in `batch` mode by default.
 :::
 
-:::warning[This trigger only works with locally monitored containers on the same Docker host.]
-:::
+---
 
-:::warning[Ensure the `docker-compose.yml` file is mounted into the WUD container. If relying on the automatic `com.docker.compose.project.config_files` label, mount the file at the exact same path inside the container as on the Docker host.]
-:::
+## 🚀 Examples
 
-### Examples
+### Auto-Update Compose Services with Mounted Compose File
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -73,30 +86,37 @@ This trigger supports [common trigger configuration options](../README.md#common
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     volumes:
-      - /etc/my-services/docker-compose.yml:/wud/docker-compose.yml
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/stacks/app/docker-compose.yml:/wud/docker-compose.yml
     environment:
       - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_FILE=/wud/docker-compose.yml
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_BACKUP=true
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_PRUNE=true
 ```
 
 </TabItem>
 <TabItem value="docker" label="Docker">
 
 ```bash
-docker run \
-  -v /etc/my-services/docker-compose.yml:/wud/docker-compose.yml \
-  -e "WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_FILE=/wud/docker-compose.yml" \
-  ...
+docker run -d \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /opt/stacks/app/docker-compose.yml:/wud/docker-compose.yml \
+  -e WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_FILE="/wud/docker-compose.yml" \
+  -e WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_BACKUP=true \
+  -e WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_PRUNE=true \
   getwud/wud
 ```
 
 </TabItem>
-<TabItem value="container-label" label="Container Label">
+<TabItem value="container-label" label="Per-Container Override">
 
 ```yaml
-labels:
-  - wud.compose.file=/my/path/docker-compose.yaml
+services:
+  my-app:
+    image: my-app:1.2.0
+    labels:
+      - wud.compose.file=/opt/stacks/app/docker-compose.yml
 ```
 
 </TabItem>

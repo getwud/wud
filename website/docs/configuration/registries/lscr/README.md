@@ -1,36 +1,47 @@
+---
+title: LinuxServer.io (LSCR)
+description: Configure authentication for LinuxServer.io Container Registry (lscr.io) in What's Up Docker (WUD).
+---
+
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-# LSCR (LinuxServer.io Container Registry)
+# LinuxServer.io (LSCR)
 
 ![logo](linuxserver.svg)
 
-The `lscr` registry module lets you authenticate against the [LinuxServer.io Container Registry](https://fleet.linuxserver.io/) (`lscr.io`), which is hosted on GitHub Container Registry.
+The `lscr` registry module lets you authenticate against the [LinuxServer.io Container Registry](https://fleet.linuxserver.io/) (`lscr.io`), which is backed by GitHub Container Registry.
 
-:::info[Public LSCR images work out of the box without authentication. Configure this module to authenticate with GitHub credentials if needed.]
+:::info[Zero-Config for Public Images]
+Public LSCR images work out of the box with zero configuration. Configure this module to authenticate with GitHub credentials if needed to bypass rate limits.
 :::
 
-### Variables
+---
+
+## ⚙️ Configuration Variables
 
 <ConfigList>
-  <ConfigOption name="WUD_REGISTRY_LSCR_{registry_name}_TOKEN"
-    type="email"
-    required={true}
-    supported="Valid GitHub PAT">
-    GitHub Personal Access Token
-  </ConfigOption>
-
   <ConfigOption
     name="WUD_REGISTRY_LSCR_{registry_name}_USERNAME"
     required={true}
     type="string">
     GitHub username
   </ConfigOption>
-</ConfigList>
-### Examples
 
-#### Authenticate with GitHub credentials
+  <ConfigOption name="WUD_REGISTRY_LSCR_{registry_name}_TOKEN"
+    type="string"
+    required={true}
+    supported="Valid GitHub Personal Access Token (`ghp_...` or classic)">
+    GitHub Personal Access Token (PAT)
+  </ConfigOption>
+</ConfigList>
+
+---
+
+## 🚀 Examples
+
+### Authenticate for LSCR Images
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -39,10 +50,9 @@ The `lscr` registry module lets you authenticate against the [LinuxServer.io Con
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
-      - WUD_REGISTRY_LSCR_PRIVATE_USERNAME=johndoe
-      - WUD_REGISTRY_LSCR_PRIVATE_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+      - WUD_REGISTRY_LSCR_LOCAL_USERNAME=johndoe
+      - WUD_REGISTRY_LSCR_LOCAL_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
 ```
 
 </TabItem>
@@ -50,26 +60,18 @@ services:
 
 ```bash
 docker run \
-  -e WUD_REGISTRY_LSCR_PRIVATE_USERNAME="johndoe" \
-  -e WUD_REGISTRY_LSCR_PRIVATE_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxx" \
-  ...
+  -e WUD_REGISTRY_LSCR_LOCAL_USERNAME="johndoe" \
+  -e WUD_REGISTRY_LSCR_LOCAL_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxx" \
   getwud/wud
 ```
 
 </TabItem>
 </Tabs>
 
-### How to create a GitHub Personal Access Token
+---
 
-#### 1. Open your GitHub Personal Access Tokens settings
+## 📖 Setup Guide: Creating a GitHub PAT for LSCR
 
-Navigate to [GitHub Token Settings](https://github.com/settings/tokens).
-
-#### 2. Click "Generate new token (classic)"
-
-Set an expiration date and select the `read:packages` scope (the only scope required by WUD).
-![image](lscr_01.png)
-
-#### 3. Copy the token and configure WUD
-
-![image](lscr_02.png)
+1. Open [GitHub Personal Access Tokens Settings](https://github.com/settings/tokens).
+2. Click **Generate new token (classic)** and select the **`read:packages`** scope.
+3. Copy the token and set it as `WUD_REGISTRY_LSCR_{registry_name}_TOKEN`.

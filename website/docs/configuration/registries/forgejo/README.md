@@ -1,3 +1,8 @@
+---
+title: Forgejo
+description: Configure authentication for Forgejo container registries in What's Up Docker (WUD).
+---
+
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -6,14 +11,25 @@ import TabItem from '@theme/TabItem';
 
 ![logo](forgejo.svg)
 
-The `forgejo` registry module lets you authenticate against [Forgejo](https://forgejo.org/) container registry instances (both hosted and self-hosted).
+The `forgejo` registry module lets you authenticate against [Forgejo](https://forgejo.org/) container registry instances (hosted and self-hosted).
 
-:::info[Public images on `code.forgejo.org` work out of the box. Use this configuration for self-hosted instances or private repositories.]
+:::info[Zero-Config for Public Images]
+Public packages on `code.forgejo.org` work out of the box with zero configuration. Configure this module to monitor private packages or connect to self-hosted instances.
 :::
 
-### Variables
+---
+
+## ⚙️ Configuration Variables
 
 <ConfigList>
+  <ConfigOption
+    name="WUD_REGISTRY_FORGEJO_{registry_name}_URL"
+    required={true}
+    type="url"
+    supported="Valid HTTP/HTTPS URL">
+    Forgejo instance URL (e.g. `https://forgejo.example.com`)
+  </ConfigOption>
+
   <ConfigOption name="WUD_REGISTRY_FORGEJO_{registry_name}_LOGIN"
     type="string"
     required={true}
@@ -25,27 +41,22 @@ The `forgejo` registry module lets you authenticate against [Forgejo](https://fo
     type="string"
     required={true}
     supported="Required when username is provided">
-    Forgejo password or personal access token
-  </ConfigOption>
-
-  <ConfigOption
-    name="WUD_REGISTRY_FORGEJO_{registry_name}_URL"
-    required={true}
-    type="url"
-    supported="Valid HTTP/HTTPS URL">
-    Forgejo instance URL (e.g., `https://forgejo.example.com`)
+    Forgejo password or Personal Access Token (PAT)
   </ConfigOption>
 
   <ConfigOption name="WUD_REGISTRY_FORGEJO_{registry_name}_AUTH"
     type="string"
     required={false}
-    supported="Mutually exclusive with `LOGIN`/`PASSWORD`">
-    Base64-encoded `username:password` string
+    supported="Base64-encoded username:password (mutually exclusive with LOGIN/PASSWORD)">
+    Direct Base64-encoded `username:password` string
   </ConfigOption>
 </ConfigList>
-### Examples
 
-#### Authenticate with a Forgejo instance
+---
+
+## 🚀 Examples
+
+### Authenticate with a Self-Hosted Forgejo Instance
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -54,11 +65,10 @@ The `forgejo` registry module lets you authenticate against [Forgejo](https://fo
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
-      - WUD_REGISTRY_FORGEJO_PRIVATE_URL=https://forgejo.example.com
-      - WUD_REGISTRY_FORGEJO_PRIVATE_LOGIN=john
-      - WUD_REGISTRY_FORGEJO_PRIVATE_PASSWORD=secret-token
+      - WUD_REGISTRY_FORGEJO_LOCAL_URL=https://forgejo.example.com
+      - WUD_REGISTRY_FORGEJO_LOCAL_LOGIN=johndoe
+      - WUD_REGISTRY_FORGEJO_LOCAL_PASSWORD=secret_pat_token
 ```
 
 </TabItem>
@@ -66,10 +76,9 @@ services:
 
 ```bash
 docker run \
-  -e "WUD_REGISTRY_FORGEJO_PRIVATE_URL=https://forgejo.example.com" \
-  -e "WUD_REGISTRY_FORGEJO_PRIVATE_LOGIN=john" \
-  -e "WUD_REGISTRY_FORGEJO_PRIVATE_PASSWORD=secret-token" \
-  ...
+  -e WUD_REGISTRY_FORGEJO_LOCAL_URL="https://forgejo.example.com" \
+  -e WUD_REGISTRY_FORGEJO_LOCAL_LOGIN="johndoe" \
+  -e WUD_REGISTRY_FORGEJO_LOCAL_PASSWORD="secret_pat_token" \
   getwud/wud
 ```
 

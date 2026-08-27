@@ -1,3 +1,8 @@
+---
+title: Docker
+description: Automatically update standalone Docker containers in What's Up Docker (WUD).
+---
+
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -6,19 +11,28 @@ import TabItem from '@theme/TabItem';
 
 ![logo](docker.svg)
 
-The `docker` trigger automatically replaces standalone containers with their updated versions.
+The `docker` trigger automatically replaces standalone containers with their updated versions upon discovering new image releases.
 
-When triggered, WUD will:
+---
 
-- Clone the existing container configuration
-- Pull the new image
-- Stop the running container
-- Remove the old container
-- Create the new container
-- Start the new container (if the previous container was running)
-- Prune the old image (optional)
+## 🔄 Update Lifecycle
 
-### Variables
+When triggered, WUD executes the following sequence:
+
+1. Clones the existing container configuration (ports, volumes, env, networks, labels).
+2. Pulls the new target image.
+3. Stops the currently running container.
+4. Removes the old container.
+5. Recreates and starts the new container with identical runtime options.
+6. Prunes the obsolete image (if `PRUNE=true`).
+
+:::info[Watcher Connection Reuse]
+This trigger automatically reuses Docker connection settings from the [configured Docker watchers](../../watchers/README.md) and can perform updates on both local and remote Docker daemons.
+:::
+
+---
+
+## ⚙️ Configuration Variables
 
 <ConfigList>
   <ConfigOption
@@ -26,7 +40,7 @@ When triggered, WUD will:
     required={false}
     type="boolean"
     defaultValue="false">
-    When enabled, only pull the new image ahead of time without updating
+    When enabled, only pulls the new image ahead of time without recreating the container
   </ConfigOption>
 
   <ConfigOption
@@ -34,18 +48,19 @@ When triggered, WUD will:
     required={false}
     type="boolean"
     defaultValue="false">
-    Prune the old image after the upgrade completes
+    Prune obsolete image versions after a successful upgrade
   </ConfigOption>
 </ConfigList>
-:::info
-This trigger also supports [common trigger configuration options](../README.md#common-trigger-configuration).
-:::
 
 :::info
-This trigger automatically reuses Docker connection settings from the [configured Docker watchers](configuration/watchers/) and can perform updates on both local and remote Docker hosts.
+This trigger also supports all [common trigger configuration options](../README.md#common-trigger-configuration) (such as thresholds, scheduling, and batching).
 :::
 
-### Examples
+---
+
+## 🚀 Examples
+
+### Auto-Update Standalone Containers with Pruning
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -54,7 +69,8 @@ This trigger automatically reuses Docker connection settings from the [configure
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - WUD_TRIGGER_DOCKER_LOCAL_PRUNE=true
 ```
@@ -63,9 +79,9 @@ services:
 <TabItem value="docker" label="Docker">
 
 ```bash
-docker run \
-  -e "WUD_TRIGGER_DOCKER_LOCAL_PRUNE=true" \
-  ...
+docker run -d \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -e WUD_TRIGGER_DOCKER_LOCAL_PRUNE=true \
   getwud/wud
 ```
 

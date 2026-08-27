@@ -1,3 +1,8 @@
+---
+title: Triggers
+description: Overview of container update triggers, notification providers, and automations in What's Up Docker (WUD).
+---
+
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -12,18 +17,23 @@ Triggers are configured using environment variables following this naming patter
 WUD_TRIGGER_{trigger_type}_{trigger_name}_{configuration_item}=value
 ```
 
-:::warning[You can configure multiple triggers of the same type (for example, multiple SMTP destinations). Simply assign each one a distinct trigger name.]
+:::info[Multiple Instances Supported]
+You can configure multiple triggers of the same type (for example, multiple SMTP or Discord destinations). Simply assign each one a distinct `{trigger_name}` identifier (e.g. `WUD_TRIGGER_DISCORD_DEV_URL`, `WUD_TRIGGER_DISCORD_PROD_URL`).
 :::
 
-### Trigger Categories
+---
+
+## 📂 Trigger Categories
 
 WUD supports 17+ triggers organized into three functional categories:
 
-- **⚡ [Auto-Update & Orchestration](configuration/triggers/docker/)**: Automatically pull new images and recreate containers or trigger orchestrator restarts ([Docker](configuration/triggers/docker/), [Docker Compose](configuration/triggers/docker-compose/), [Nomad](configuration/triggers/nomad/)).
-- **🔔 [Notifications & Chat](configuration/triggers/discord/)**: Send rich alert messages with update details ([Discord](configuration/triggers/discord/), [Slack](configuration/triggers/slack/), [Telegram](configuration/triggers/telegram/), [Gotify](configuration/triggers/gotify/), [Ntfy](configuration/triggers/ntfy/), [Pushover](configuration/triggers/pushover/), [Rocket.Chat](configuration/triggers/rocketchat/), [SMTP Email](configuration/triggers/smtp/), [Apprise](configuration/triggers/apprise/), [IFTTT](configuration/triggers/ifttt/)).
-- **🛠 [Webhooks & Automation Pipelines](configuration/triggers/http/)**: Integrate with custom automation flows, Home Assistant, and message brokers ([HTTP Webhooks](configuration/triggers/http/), [MQTT](configuration/triggers/mqtt/), [Kafka](configuration/triggers/kafka/), [Shell Commands](configuration/triggers/command/)).
+- **⚡ [Auto-Update & Orchestration](./docker/README.md)**: Automatically pull new images and recreate containers or trigger orchestrator restarts ([Docker](./docker/README.md), [Docker Compose](./docker-compose/README.md), [Nomad](./nomad/README.md)).
+- **🔔 [Notifications & Chat](./discord/README.md)**: Send rich alert messages with update details ([Apprise](./apprise/README.md), [Discord](./discord/README.md), [Gotify](./gotify/README.md), [IFTTT](./ifttt/README.md), [Ntfy](./ntfy/README.md), [Pushover](./pushover/README.md), [Rocket.Chat](./rocketchat/README.md), [Slack](./slack/README.md), [SMTP Email](./smtp/README.md), [Telegram](./telegram/README.md)).
+- **🛠 [Webhooks & Automation Pipelines](./http/README.md)**: Integrate with custom automation flows, Home Assistant, and message brokers ([Command](./command/README.md), [HTTP Webhooks](./http/README.md), [Kafka](./kafka/README.md), [MQTT](./mqtt/README.md)).
 
-### Common Trigger Configuration
+---
+
+## Common Trigger Configuration
 
 In addition to provider-specific settings, all triggers support the following common configuration variables:
 
@@ -95,31 +105,21 @@ In addition to provider-specific settings, all triggers support the following co
     Minimum semver version bump required to fire the trigger
   </ConfigOption>
 </ConfigList>
-:::info[Threshold `all`: Executes the trigger for all update types (including digests).]
-:::
 
-:::info[Threshold `major`: Executes the trigger for `major`, `minor`, or `patch` semver updates.]
-:::
+### Threshold Values
 
-:::info[Threshold `major-only`: Executes the trigger only for `major` semver updates.]
-:::
+- **`all`**: Executes the trigger for all update types (including digests).
+- **`major`**: Executes the trigger for `major`, `minor`, or `patch` semver updates.
+- **`major-only`**: Executes the trigger only for `major` semver updates.
+- **`minor`**: Executes the trigger for `minor` or `patch` semver updates.
+- **`minor-only`**: Executes the trigger only for `minor` semver updates.
+- **`patch`**: Executes the trigger only for `patch` semver updates.
 
-:::info[Threshold `minor`: Executes the trigger for `minor` or `patch` semver updates.]
-:::
+---
 
-:::info[Threshold `minor-only`: Executes the trigger only for `minor` semver updates.]
-:::
+## 🚀 Examples
 
-:::info[Threshold `patch`: Executes the trigger only for `patch` semver updates.]
-:::
-
-:::info[Setting `ONCE=false` combined with `MODE=batch` is useful for generating periodic summary digests of all available pending updates.]
-:::
-
-:::info[Setting `INCLUDEBYDEFAULT=false` creates an opt-in trigger that only fires for containers explicitly listing it in their `wud.trigger.include` label.]
-:::
-
-### Examples
+### Customizing Notification Content
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -128,7 +128,6 @@ In addition to provider-specific settings, all triggers support the following co
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
       - WUD_TRIGGER_SMTP_GMAIL_SIMPLETITLE=Container $${container.name} can be updated
       - WUD_TRIGGER_SMTP_GMAIL_SIMPLEBODY=Container $${container.name} can be updated from $${container.updateKind.localValue} to $${container.updateKind.remoteValue}
@@ -141,7 +140,6 @@ services:
 docker run \
   -e 'WUD_TRIGGER_SMTP_GMAIL_SIMPLETITLE=Container ${container.name} can be updated' \
   -e 'WUD_TRIGGER_SMTP_GMAIL_SIMPLEBODY=Container ${container.name} can be updated from ${container.updateKind.localValue} to ${container.updateKind.remoteValue}' \
-  ...
   getwud/wud
 ```
 

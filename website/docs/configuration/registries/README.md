@@ -1,3 +1,8 @@
+---
+title: Registries
+description: Overview of container registry integrations and authentication in What's Up Docker (WUD).
+---
+
 import { RegistryGrid, RegistryCard } from '@site/src/components/RegistryCard';
 
 # Registries
@@ -21,38 +26,10 @@ You only need to configure environment variables if you want to:
 
 <RegistryGrid>
   <RegistryCard
-    title="Docker Hub"
-    href="/docs/configuration/registries/hub"
-    defaultSupport={true}
-    description="Monitors public images anonymously by default. Configure username and PAT/password for private repos or increased rate limits."
-  />
-
-  <RegistryCard
-    title="GitHub Container Registry (GHCR)"
-    href="/docs/configuration/registries/ghcr"
-    defaultSupport={true}
-    description="Monitors public packages anonymously out of the box. Configure a GitHub Personal Access Token (PAT) for private packages."
-  />
-
-  <RegistryCard
-    title="Quay"
-    href="/docs/configuration/registries/quay"
-    defaultSupport={true}
-    description="Red Hat Quay public images supported anonymously. Supports custom tokens for private repos and on-prem Quay clusters."
-  />
-
-  <RegistryCard
     title="AWS ECR Public"
     href="/docs/configuration/registries/ecr"
     defaultSupport={true}
     description="Monitors public images hosted on Amazon ECR Public Gallery anonymously without AWS credentials."
-  />
-
-  <RegistryCard
-    title="Google Container Registry (GCR)"
-    href="/docs/configuration/registries/gcr"
-    defaultSupport={true}
-    description="Public images supported anonymously. Configure a Google Service Account JSON key for private images and Artifact Registry."
   />
 
   <RegistryCard
@@ -63,6 +40,13 @@ You only need to configure environment variables if you want to:
   />
 
   <RegistryCard
+    title="Docker Hub"
+    href="/docs/configuration/registries/hub"
+    defaultSupport={true}
+    description="Monitors public images anonymously by default. Configure username and PAT/password for private repos or increased rate limits."
+  />
+
+  <RegistryCard
     title="Forgejo"
     href="/docs/configuration/registries/forgejo"
     defaultSupport={true}
@@ -70,10 +54,31 @@ You only need to configure environment variables if you want to:
   />
 
   <RegistryCard
+    title="GitHub Container Registry (GHCR)"
+    href="/docs/configuration/registries/ghcr"
+    defaultSupport={true}
+    description="Monitors public packages anonymously out of the box. Configure a GitHub Personal Access Token (PAT) for private packages."
+  />
+
+  <RegistryCard
+    title="Google Container Registry (GCR)"
+    href="/docs/configuration/registries/gcr"
+    defaultSupport={true}
+    description="Public images supported anonymously. Configure a Google Service Account JSON key for private images and Artifact Registry."
+  />
+
+  <RegistryCard
     title="LinuxServer (LSCR)"
     href="/docs/configuration/registries/lscr"
     defaultSupport={true}
     description="Seamless tag and update monitoring for the entire LinuxServer.io container ecosystem."
+  />
+
+  <RegistryCard
+    title="Quay"
+    href="/docs/configuration/registries/quay"
+    defaultSupport={true}
+    description="Red Hat Quay public images supported anonymously. Supports custom tokens for private repos and on-prem Quay clusters."
   />
 
   <RegistryCard
@@ -106,10 +111,10 @@ These registries host private images or custom infrastructure and **require expl
   />
 
   <RegistryCard
-    title="GitLab"
-    href="/docs/configuration/registries/gitlab"
+    title="Custom / Self-Hosted OCI"
+    href="/docs/configuration/registries/custom"
     defaultSupport={false}
-    description="Requires a GitLab Personal Access Token or Deploy Token. Supports both gitlab.com and self-hosted GitLab CE/EE instances."
+    description="Generic provider for Harbor, Sonatype Nexus, JFrog Artifactory, or standalone Docker Registry v2 instances."
   />
 
   <RegistryCard
@@ -120,9 +125,9 @@ These registries host private images or custom infrastructure and **require expl
   />
 
   <RegistryCard
-    title="Custom / Self-Hosted OCI"
-    href="/docs/configuration/registries/custom"
+    title="GitLab"
+    href="/docs/configuration/registries/gitlab"
     defaultSupport={false}
-    description="Generic provider for Harbor, Sonatype Nexus, JFrog Artifactory, or standalone Docker Registry v2 instances."
+    description="Requires a GitLab Personal Access Token or Deploy Token. Supports both gitlab.com and self-hosted GitLab CE/EE instances."
   />
 </RegistryGrid>

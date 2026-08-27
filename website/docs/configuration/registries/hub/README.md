@@ -1,40 +1,33 @@
+---
+title: Docker Hub
+description: Configure authentication, rate limiting, and digest tracking for Docker Hub in What's Up Docker (WUD).
+---
+
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
-import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 
-# Docker Hub (including private repositories)
+# Docker Hub
 
 ![logo](docker.svg)
 
-The `hub` registry module lets you configure authentication and settings for [Docker Hub](https://hub.docker.com/).
+The `hub` registry module lets you configure authentication, rate limits, and digest monitoring for [Docker Hub](https://hub.docker.com/).
 
-Supported authentication methods:
-
-- Docker Hub username + Personal Access Token (recommended)
-- Docker Base64 credentials (as found in `~/.docker/config.json`)
-- Docker Hub username + password (not recommended)
-
-:::warning
-By default, WUD connects to Docker Hub anonymously. Configure authentication if you need to access [Docker Hub Private Repositories](https://docs.docker.com/docker-hub/repos/#private-repositories) or increase your rate limits.
+:::info[Zero-Config for Public Images]
+By default, WUD connects to Docker Hub anonymously with zero configuration. Configure authentication if you need to monitor private repositories or double your API rate limit quotas.
 :::
 
-### Variables
+---
+
+## ⚙️ Configuration Variables
 
 <ConfigList>
-  <ConfigOption
-    name="WUD_REGISTRY_HUB_PUBLIC_AUTH"
-    required={false}
-    type="string"
-    supported="Base64-encoded username:password (mutually exclusive with LOGIN/PASSWORD)">
-    Direct Base64-encoded `username:password` string (as found in `~/.docker/config.json`).
-  </ConfigOption>
-
   <ConfigOption
     name="WUD_REGISTRY_HUB_PUBLIC_LOGIN"
     required={false}
     type="string"
     supported="Required when password/token is provided">
-    Docker Hub username for authentication.
+    Docker Hub account username
   </ConfigOption>
 
   <ConfigOption
@@ -42,48 +35,39 @@ By default, WUD connects to Docker Hub anonymously. Configure authentication if 
     required={false}
     type="string"
     supported="Required when username is provided">
-    Docker Hub Personal Access Token (recommended) or account password.
+    Docker Hub Personal Access Token (PAT) (recommended) or account password
   </ConfigOption>
 
   <ConfigOption
-    name="WUD_REGISTRY_HUB_PUBLIC_SUPPRESSDIGESTWATCHWARNING"
+    name="WUD_REGISTRY_HUB_PUBLIC_AUTH"
     required={false}
-    type="boolean"
-    defaultValue="false"
-    supported="true | false">
-    Suppress warning logs when digest watching is enabled without authentication.
-  </ConfigOption>
-
-  <ConfigOption name="WUD_REGISTRY_HUB_PUBLIC_TOKEN"
-    required={false}
-    type="email">
-    Docker Hub token (deprecated; prefer `WUD_REGISTRY_HUB_PUBLIC_PASSWORD`).
+    type="string"
+    supported="Base64-encoded username:password (mutually exclusive with LOGIN/PASSWORD)">
+    Direct Base64-encoded `username:password` string (as found in `~/.docker/config.json`)
   </ConfigOption>
 
   <ConfigOption
     name="WUD_REGISTRY_HUB_PUBLIC_WATCHDIGEST"
     required={false}
     type="boolean"
-    defaultValue="false"
-    supported="true | false">
-    Globally track image manifests/digests on Docker Hub to detect updates even when tags stay unchanged.
+    defaultValue="false">
+    Globally track image digests on Docker Hub to detect updates on mutable tags (e.g. `latest`)
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_REGISTRY_HUB_PUBLIC_SUPPRESSDIGESTWATCHWARNING"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    Suppress warning logs when digest watching is enabled on unauthenticated connections
   </ConfigOption>
 </ConfigList>
 
-### Examples
+---
 
-#### Authenticate using username and Access Token
+## 🚀 Examples
 
-##### 1. Log in to your [Docker Hub Account](https://hub.docker.com/)
-
-![image](hub_login.png)
-
-##### 2. Open [Security Settings](https://hub.docker.com/settings/security)
-
-- Create a new Personal Access Token with `Read-only` permissions
-- Copy the token value and set it as `WUD_REGISTRY_HUB_PUBLIC_PASSWORD`
-
-![image](hub_token.png)
+### Authenticate with Username & Personal Access Token
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -92,7 +76,6 @@ By default, WUD connects to Docker Hub anonymously. Configure authentication if 
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
     environment:
       - WUD_REGISTRY_HUB_PUBLIC_LOGIN=mylogin
       - WUD_REGISTRY_HUB_PUBLIC_PASSWORD=dckr_pat_xxxxxxxxxxxxxxxxxxxx
@@ -105,29 +88,13 @@ services:
 docker run \
   -e WUD_REGISTRY_HUB_PUBLIC_LOGIN="mylogin" \
   -e WUD_REGISTRY_HUB_PUBLIC_PASSWORD="dckr_pat_xxxxxxxxxxxxxxxxxxxx" \
-  ...
   getwud/wud
 ```
 
 </TabItem>
 </Tabs>
 
-#### Authenticate using Base64-encoded credentials
-
-##### 1. Create an Access Token
-
-[See above](#authenticate-using-username-and-access-token).
-
-##### 2. Encode credentials with Base64
-
-Concatenate `$username:$token` and [encode with Base64](https://www.base64encode.org/).
-
-For example:
-
-- Username: `johndoe`
-- Token: `2c1bd872-efb6-4f3a-81aa-724518a0a592`
-- String to encode: `johndoe:2c1bd872-efb6-4f3a-81aa-724518a0a592`
-- Resulting Base64 string: `am9obmRvZToyYzFiZDg3Mi1lZmI2LTRmM2EtODFhYS03MjQ1MThhMGE1OTI=`
+### Enable Global Digest Watching
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -136,39 +103,6 @@ For example:
 services:
   whatsupdocker:
     image: getwud/wud
-    ...
-    environment:
-      - WUD_REGISTRY_HUB_PUBLIC_AUTH=am9obmRvZToyYzFiZDg3Mi1lZmI2LTRmM2EtODFhYS03MjQ1MThhMGE1OTI=
-```
-
-</TabItem>
-<TabItem value="docker" label="Docker">
-
-```bash
-docker run \
-  -e WUD_REGISTRY_HUB_PUBLIC_AUTH="am9obmRvZToyYzFiZDg3Mi1lZmI2LTRmM2EtODFhYS03MjQ1MThhMGE1OTI=" \
-  ...
-  getwud/wud
-```
-
-</TabItem>
-</Tabs>
-
-#### Enable global digest watching
-
-By default, WUD tracks updates by comparing semver image tags. You can enable digest watching to detect updates even when tags remain unchanged.
-
-:::info[Digest watching is useful for tracking mutable tags like `latest`, `stable`, or `nightly`.]
-:::
-
-<Tabs>
-<TabItem value="docker-compose" label="Docker Compose">
-
-```yaml
-services:
-  whatsupdocker:
-    image: getwud/wud
-    ...
     environment:
       - WUD_REGISTRY_HUB_PUBLIC_WATCHDIGEST=true
 ```
@@ -179,60 +113,32 @@ services:
 ```bash
 docker run \
   -e WUD_REGISTRY_HUB_PUBLIC_WATCHDIGEST="true" \
-  ...
   getwud/wud
 ```
 
 </TabItem>
 </Tabs>
 
-### Docker Hub Rate Limiting
+---
 
-:::warning
-Docker Hub enforces [rate limits](https://docs.docker.com/docker-hub/download-rate-limit/) on API requests. These limits can affect WUD's ability to check for updates, especially when digest watching is enabled.
-:::
+## 📖 Setup Guide: Creating a Docker Hub Personal Access Token
 
-#### Understanding Docker Hub rate limits
+1. Log in to [Docker Hub](https://hub.docker.com/).
+2. Open your account avatar > **Account Settings** > **Security** (or [Personal Access Tokens](https://hub.docker.com/settings/security)).
+3. Click **New Access Token**, name it `WUD`, and set permissions to **Read-only**.
+4. Copy the generated token (`dckr_pat_...`) and set it as `WUD_REGISTRY_HUB_PUBLIC_PASSWORD`.
 
-Docker Hub limits image manifest requests based on your account tier:
+---
 
-- **Anonymous users**: 100 pulls per 6 hours per IP address
-- **Authenticated users (free tier)**: 200 pulls per 6 hours
-- **Pro / Team subscriptions**: Higher or unlimited quotas
+## ⏱️ Docker Hub Rate Limiting & Recommendations
 
-#### How rate limiting affects WUD
+Docker Hub enforces [rate limits](https://docs.docker.com/docker-hub/download-rate-limit/) on anonymous and authenticated image pulls:
 
-When digest watching is enabled (`WUD_REGISTRY_HUB_PUBLIC_WATCHDIGEST=true`), WUD makes registry API calls to inspect manifests for each monitored image, consuming quota more quickly.
+- **Anonymous**: 100 pulls / 6 hours per IP address.
+- **Authenticated (Free Tier)**: 200 pulls / 6 hours.
+- **Pro / Team**: Unlimited.
 
-#### Recommendations to avoid rate limit issues
-
-1. **Authenticate with Docker Hub**: Use a personal access token to double your quota from 100 to 200 requests per 6 hours.
-
-   ```yaml
-   - WUD_REGISTRY_HUB_PUBLIC_LOGIN=mylogin
-   - WUD_REGISTRY_HUB_PUBLIC_PASSWORD=your-access-token
-   ```
-
-2. **Reduce watcher check frequency**: Adjust the CRON schedule to check less often.
-
-   ```yaml
-   - WUD_WATCHER_LOCAL_CRON=0 20 * * * # daily at 8:00 PM
-   ```
-
-3. **Enable digest watching selectively**: Use the `wud.watch.digest=true` label on specific containers instead of enabling it globally.
-
-   ```yaml
-   labels:
-     - wud.watch.digest=true
-   ```
-
-4. **Consider upgrading**: Docker Hub Pro and Team tiers offer higher rate limits.
-
-5. **Suppress warning logs**: If you understand the limitations and want to silence warnings:
-   ```yaml
-   - WUD_REGISTRY_HUB_PUBLIC_SUPPRESSDIGESTWATCHWARNING=true
-   ```
-
-:::info
-If you encounter rate limit errors, check your usage on [Docker Hub](https://hub.docker.com/usage/pulls).
+:::tip[Best Practices for Rate Limits]
+- **Authenticate**: Adding a free Docker Hub PAT instantly doubles your rate limit quota.
+- **Digest Watch Selectively**: Rather than enabling global digest watching, apply the `wud.watch.digest=true` label only to containers that truly need it.
 :::
