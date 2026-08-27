@@ -42,6 +42,10 @@
   transform: scale(1.06);
 }
 
+.brandIcon {
+  display: block;
+}
+
 .brandImg {
   display: block;
 }

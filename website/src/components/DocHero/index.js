@@ -1,127 +1,93 @@
 import React from 'react';
 import clsx from 'clsx';
-import * as simpleIcons from 'simple-icons';
-import {
-  AppriseIcon,
-  GotifyIcon,
-  SlackIcon,
-  AwsIcon,
-  AzureIcon,
-  PushoverIcon,
-  TrueForgeIcon,
-} from './customIcons';
+import { Icon, addCollection } from '@iconify/react';
+import logosIcons from '@iconify-json/logos/icons.json';
+import selfhstIcons from '@iconify-json/selfhst/icons.json';
+import simpleIcons from '@iconify-json/simple-icons/icons.json';
+import mdiIcons from '@iconify-json/mdi/icons.json';
 import styles from './styles.module.css';
 
-// Custom icons mapping
-const CUSTOM_ICONS = {
-  apprise: AppriseIcon,
-  gotify: GotifyIcon,
-  slack: SlackIcon,
-  ecr: AwsIcon,
-  aws: AwsIcon,
-  acr: AzureIcon,
-  azure: AzureIcon,
-  pushover: PushoverIcon,
-  trueforge: TrueForgeIcon,
-};
+// Register icon collections for fast, offline SSR rendering
+addCollection(logosIcons);
+addCollection(selfhstIcons);
+addCollection(simpleIcons);
+addCollection(mdiIcons);
 
-// Brand dictionary mapping directly to Simple Icons, MDI, or Custom SVG
-const BRAND_MAPPING = {
+const BRAND_CONFIG = {
   // Triggers
-  apprise: { type: 'custom', Component: AppriseIcon },
-  command: { type: 'mdi', icon: 'mdi-console-line', color: '#38bdf8' },
-  discord: { type: 'simple', icon: simpleIcons.siDiscord },
-  docker: { type: 'simple', icon: simpleIcons.siDocker },
-  'docker-compose': { type: 'simple', icon: simpleIcons.siDocker },
-  gotify: { type: 'custom', Component: GotifyIcon },
-  http: { type: 'mdi', icon: 'mdi-webhook', color: '#0ea5e9' },
-  ifttt: { type: 'simple', icon: simpleIcons.siIfttt },
-  kafka: { type: 'simple', icon: simpleIcons.siApachekafka },
-  mqtt: { type: 'simple', icon: simpleIcons.siMqtt },
-  nomad: { type: 'simple', icon: simpleIcons.siNomad },
-  ntfy: { type: 'simple', icon: simpleIcons.siNtfy },
-  pushover: { type: 'custom', Component: PushoverIcon },
-  rocketchat: { type: 'simple', icon: simpleIcons.siRocketdotchat },
-  slack: { type: 'custom', Component: SlackIcon },
-  smtp: { type: 'mdi', icon: 'mdi-email-fast-outline', color: '#f59e0b' },
-  telegram: { type: 'simple', icon: simpleIcons.siTelegram },
+  apprise: { icon: 'selfhst:apprise' },
+  command: { icon: 'mdi:console-line', color: '#0284c7' },
+  discord: { icon: 'logos:discord-icon' },
+  docker: { icon: 'logos:docker-icon' },
+  'docker-compose': { icon: 'logos:docker-icon' },
+  gotify: { icon: 'selfhst:gotify' },
+  http: { icon: 'mdi:webhook', color: '#0284c7' },
+  ifttt: { icon: 'simple-icons:ifttt', color: '#000000' },
+  kafka: { icon: 'logos:kafka-icon' },
+  mqtt: { icon: 'selfhst:mqtt' },
+  nomad: { icon: 'logos:nomad-icon' },
+  ntfy: { icon: 'selfhst:ntfy' },
+  pushover: { icon: 'selfhst:pushover' },
+  rocketchat: { icon: 'simple-icons:rocketdotchat', color: '#F5455C' },
+  slack: { icon: 'logos:slack-icon' },
+  smtp: { icon: 'mdi:email-fast-outline', color: '#f59e0b' },
+  telegram: { icon: 'logos:telegram' },
 
   // Registries
-  acr: { type: 'custom', Component: AzureIcon },
-  azure: { type: 'custom', Component: AzureIcon },
-  codeberg: { type: 'simple', icon: simpleIcons.siCodeberg },
-  custom: { type: 'simple', icon: simpleIcons.siDocker },
-  ecr: { type: 'custom', Component: AwsIcon },
-  aws: { type: 'custom', Component: AwsIcon },
-  forgejo: { type: 'simple', icon: simpleIcons.siForgejo },
-  gcr: { type: 'simple', icon: simpleIcons.siGooglecloud },
-  ghcr: { type: 'simple', icon: simpleIcons.siGithub },
-  gitea: { type: 'simple', icon: simpleIcons.siGitea },
-  gitlab: { type: 'simple', icon: simpleIcons.siGitlab },
-  hub: { type: 'simple', icon: simpleIcons.siDocker },
-  lscr: { type: 'simple', icon: simpleIcons.siLinuxserver },
-  quay: { type: 'simple', icon: simpleIcons.siRedhat },
-  trueforge: { type: 'custom', Component: TrueForgeIcon },
+  acr: { icon: 'logos:azure-icon' },
+  azure: { icon: 'logos:azure-icon' },
+  codeberg: { icon: 'selfhst:codeberg' },
+  custom: { icon: 'logos:docker-icon' },
+  ecr: { icon: 'logos:aws' },
+  aws: { icon: 'logos:aws' },
+  forgejo: { icon: 'selfhst:forgejo' },
+  gcr: { icon: 'logos:google-cloud' },
+  ghcr: { icon: 'logos:github-icon' },
+  gitea: { icon: 'selfhst:gitea' },
+  gitlab: { icon: 'logos:gitlab' },
+  hub: { icon: 'logos:docker-icon' },
+  lscr: { icon: 'selfhst:linuxserver-io' },
+  quay: { icon: 'logos:quay' },
+  trueforge: { icon: 'mdi:cube-outline', color: '#38bdf8' },
 
   // Auth & Monitoring
-  basic: { type: 'mdi', icon: 'mdi-lock-outline', color: '#eab308' },
-  oidc: { type: 'simple', icon: simpleIcons.siOpenid },
-  auth0: { type: 'simple', icon: simpleIcons.siAuth0 },
-  authelia: { type: 'simple', icon: simpleIcons.siAuthelia },
-  authentik: { type: 'simple', icon: simpleIcons.siAuthentik },
-  grafana: { type: 'simple', icon: simpleIcons.siGrafana },
-  prometheus: { type: 'simple', icon: simpleIcons.siPrometheus },
+  basic: { icon: 'mdi:lock-outline', color: '#eab308' },
+  oidc: { icon: 'simple-icons:openid', color: '#F78C40' },
+  auth0: { icon: 'logos:auth0-icon' },
+  authelia: { icon: 'selfhst:authelia' },
+  authentik: { icon: 'selfhst:authentik' },
+  grafana: { icon: 'logos:grafana' },
+  prometheus: { icon: 'logos:prometheus' },
 };
 
 export function BrandIcon({ name, size = 36, className }) {
   if (!name) return null;
 
-  // Direct MDI string
-  if (name.startsWith('mdi-') || name.startsWith('mdi ')) {
-    return (
-      <i
-        className={clsx('mdi', name, className)}
-        style={{ fontSize: `${size}px`, lineHeight: 1 }}
-      />
-    );
+  const iconName = name.toLowerCase();
+  const brand = BRAND_CONFIG[iconName] || {};
+
+  let iconRef = brand.icon;
+  let iconColor = brand.color;
+
+  if (!iconRef) {
+    if (iconName.startsWith('mdi:')) {
+      iconRef = iconName;
+    } else if (iconName.startsWith('mdi-') || iconName.startsWith('mdi ')) {
+      iconRef = `mdi:${iconName.replace(/^mdi[- ]/, '')}`;
+    } else if (iconName.includes(':')) {
+      iconRef = iconName;
+    } else {
+      iconRef = `simple-icons:${iconName}`;
+    }
   }
 
-  const brandKey = name.toLowerCase();
-  const brand = BRAND_MAPPING[brandKey];
-
-  if (brand?.type === 'custom' && brand.Component) {
-    const Component = brand.Component;
-    return <Component size={size} className={className} />;
-  }
-
-  if (brand?.type === 'mdi') {
-    return (
-      <i
-        className={clsx('mdi', brand.icon, className)}
-        style={{ fontSize: `${size}px`, lineHeight: 1, color: brand.color }}
-      />
-    );
-  }
-
-  if (brand?.type === 'simple' && brand.icon) {
-    return (
-      <svg
-        role="img"
-        viewBox="0 0 24 24"
-        width={size}
-        height={size}
-        className={clsx(styles.simpleIconSvg, className)}
-        style={{ fill: `#${brand.icon.hex}` }}>
-        <path d={brand.icon.path} />
-      </svg>
-    );
-  }
-
-  // Fallback generic icon
   return (
-    <i
-      className={clsx('mdi mdi-cube-outline', className)}
-      style={{ fontSize: `${size}px` }}
+    <Icon
+      icon={iconRef}
+      width={size}
+      height={size}
+      style={iconColor ? { color: iconColor } : undefined}
+      className={clsx(styles.brandIcon, className)}
     />
   );
 }
