@@ -28,6 +28,6 @@ Feature: Prometheus exposure
       | hub_homeassistant_latest | hub.public   | https://registry-1.docker.io/v2                         | homeassistant/home-assistant | latest            | latest            | false           |
       | hub_nginx_120            | hub.public   | https://registry-1.docker.io/v2                         | library/nginx                | 1.20-alpine       | 1.31-alpine       | false           |
       | hub_nginx_latest         | hub.public   | https://registry-1.docker.io/v2                         | library/nginx                | latest            | latest            | true            |
-      | hub_traefik_245          | hub.public   | https://registry-1.docker.io/v2                         | library/traefik              | 2.4.5             | 3.7.11            | false           |
+      | hub_traefik_245          | hub.public   | https://registry-1.docker.io/v2                         | library/traefik              | 2.4.5             | 3.7.12            | false           |
       | lscr_radarr              | lscr.private | https://lscr.io/v2                                      | linuxserver/radarr           | 5.14.0.9383-ls245 | 6.3.0.10514-ls314 | true            |
       | quay_prometheus          | quay.public  | https://quay.io/v2                                      | prometheus/prometheus        | v2.52.0           | v3.14.0           | true            |

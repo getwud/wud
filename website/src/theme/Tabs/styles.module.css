@@ -1,0 +1,124 @@
+/* ==========================================================================
+   Terminal Window Tabs Component - Responsive to Light & Dark Theme
+   ========================================================================== */
+
+/* Outer Window Frame */
+.tabsWindow {
+  margin: 1.5rem 0 !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  border: 1px solid #e2e8f0 !important;
+  background-color: #f8fafc !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+:global([data-theme='dark']) .tabsWindow {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  background-color: #0b1220 !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Header Bar (macOS Window Titlebar) */
+.tabListHeader {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  padding: 0.65rem 0.85rem 0.65rem 4.25rem !important;
+  margin: 0 !important;
+  background-color: #e2e8f0 !important;
+  border: none !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+:global([data-theme='dark']) .tabListHeader {
+  background-color: #0f172a !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Window Traffic Lights (Red, Yellow, Green) */
+.tabListHeader::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 1rem !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50% !important;
+  background: #ef4444 !important;
+  box-shadow: 16px 0 0 #f59e0b, 32px 0 0 #10b981 !important;
+}
+
+/* Tab Item Chips */
+.tabItem {
+  font-family: var(--ifm-font-family-monospace) !important;
+  font-size: 0.82rem !important;
+  font-weight: 500 !important;
+  padding: 0.3rem 0.75rem !important;
+  border-radius: 6px !important;
+  color: #64748b !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  transition: all 0.15s ease-in-out !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  margin: 0 !important;
+}
+
+.tabItem:hover {
+  color: #0f172a !important;
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+
+:global([data-theme='dark']) .tabItem {
+  color: #94a3b8 !important;
+}
+
+:global([data-theme='dark']) .tabItem:hover {
+  color: #e2e8f0 !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Active Tab Chip */
+.tabItemActive {
+  color: #0369a1 !important;
+  background: #e0f2fe !important;
+  border-color: #7dd3fc !important;
+  font-weight: 600 !important;
+}
+
+:global([data-theme='dark']) .tabItemActive {
+  color: #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.14) !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.1) !important;
+}
+
+/* Tab Content */
+.tabContent {
+  margin: 0 !important;
+  padding: 0 !important;
+  background-color: transparent !important;
+}
+
+/* Make internal code blocks seamlessly integrate inside the window */
+.tabsWindow :global(div[class*='codeBlockContainer']),
+.tabsWindow :global(.theme-code-block) {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  background: transparent !important;
+}
+
+.tabsWindow :global(div[class*='codeBlockContainer'] pre),
+.tabsWindow :global(.theme-code-block pre) {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}

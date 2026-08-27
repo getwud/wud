@@ -1,0 +1,413 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import '@mdi/font/css/materialdesignicons.min.css';
+
+/**
+ * Global CSS for WUD (What's up Docker?) Documentation & Portal.
+ * Bundles Infima with custom design tokens for a sleek, modern, premium aesthetic.
+ */
+
+:root {
+  /* WUD Brand Primary Color: #00355E */
+  --ifm-color-primary: #00355e;
+  --ifm-color-primary-dark: #003055;
+  --ifm-color-primary-darker: #002d50;
+  --ifm-color-primary-darkest: #002542;
+  --ifm-color-primary-light: #003a67;
+  --ifm-color-primary-lighter: #003d6c;
+  --ifm-color-primary-lightest: #00457a;
+  --ifm-color-primary-contrast-background: #edf5fa;
+  --ifm-color-primary-contrast-foreground: #002542;
+
+  /* Typography */
+  --ifm-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --ifm-heading-font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --ifm-heading-font-weight: 700;
+  --ifm-line-height-base: 1.65;
+
+  /* Layout & Accents */
+  --ifm-code-font-size: 90%;
+  --ifm-code-border-radius: 6px;
+  --ifm-global-radius: 10px;
+  --ifm-button-border-radius: 8px;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 53, 94, 0.08);
+
+  /* Custom WUD Tokens */
+  --wud-accent-cyan: #0284c7;
+  --wud-accent-glow: rgba(0, 53, 94, 0.15);
+  --wud-glass-bg: rgba(255, 255, 255, 0.75);
+  --wud-glass-border: rgba(0, 53, 94, 0.12);
+  --wud-glass-shadow: 0 8px 32px 0 rgba(0, 53, 94, 0.08);
+  --wud-card-hover-border: rgba(0, 53, 94, 0.35);
+}
+
+/* Premium Dark Mode */
+[data-theme='dark'] {
+  /* Complementary vibrant cyan-blue for high contrast & elegance on dark backgrounds */
+  --ifm-color-primary: #38bdf8;
+  --ifm-color-primary-dark: #1ea7e6;
+  --ifm-color-primary-darker: #139ad9;
+  --ifm-color-primary-darkest: #0e7490;
+  --ifm-color-primary-light: #5ecaf9;
+  --ifm-color-primary-lighter: #70d1fa;
+  --ifm-color-primary-lightest: #a5e3fc;
+  --ifm-color-primary-contrast-background: #082f49;
+  --ifm-color-primary-contrast-foreground: #e0f2fe;
+
+  /* Sleek Dark Background Palette */
+  --ifm-background-color: #0a0e17;
+  --ifm-background-surface-color: #0f172a;
+  --ifm-card-background-color: #111c33;
+  --ifm-navbar-background-color: rgba(10, 14, 23, 0.85);
+  --ifm-footer-background-color: #06090f;
+
+  /* Code & Syntax */
+  --docusaurus-highlighted-code-line-bg: rgba(56, 189, 248, 0.15);
+
+  /* Dark Glassmorphism & Accents */
+  --wud-accent-cyan: #38bdf8;
+  --wud-accent-glow: rgba(56, 189, 248, 0.22);
+  --wud-glass-bg: rgba(17, 28, 51, 0.65);
+  --wud-glass-border: rgba(56, 189, 248, 0.18);
+  --wud-glass-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
+  --wud-card-hover-border: rgba(56, 189, 248, 0.5);
+}
+
+/* Smooth Navbar with Backdrop Blur */
+.navbar {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--wud-glass-border);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.navbar__brand {
+  font-family: var(--ifm-heading-font-family);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.navbar__title {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+/* Subtle micro-animations for interactive elements */
+.navbar__item,
+.button,
+.card,
+.menu__link {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.button:hover {
+  transform: translateY(-2px);
+}
+
+.button:active {
+  transform: translateY(0);
+}
+
+/* Glassmorphism Card Style */
+.wud-glass-card {
+  background: var(--wud-glass-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--wud-glass-border);
+  box-shadow: var(--wud-glass-shadow);
+  border-radius: 16px;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.3s ease,
+              box-shadow 0.3s ease;
+}
+
+.wud-glass-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--wud-card-hover-border);
+  box-shadow: 0 16px 40px 0 var(--wud-accent-glow);
+}
+
+/* Search Box Enhancements */
+.navbar__search-input {
+  border-radius: 9999px !important;
+  font-family: var(--ifm-font-family-base) !important;
+  font-size: 0.875rem !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-theme='dark'] .navbar__search-input {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme='dark'] .navbar__search-input:focus {
+  background-color: rgba(255, 255, 255, 0.14) !important;
+  border-color: var(--ifm-color-primary) !important;
+  box-shadow: 0 0 0 2px var(--wud-accent-glow) !important;
+}
+
+/* Footer Styling */
+.footer {
+  border-top: 1px solid var(--wud-glass-border);
+}
+
+.footer__title {
+  font-family: var(--ifm-heading-font-family);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.35);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}
+
+/* Document Logo Vector Icons */
+article img[alt='logo'] {
+  display: block;
+  max-width: 68px;
+  max-height: 68px;
+  width: auto;
+  height: auto;
+  margin: 1rem 0 1.5rem;
+  filter: drop-shadow(0 2px 8px rgba(0, 53, 94, 0.08));
+  transition: transform 0.2s ease;
+}
+
+article img[alt='logo']:hover {
+  transform: scale(1.05);
+}
+
+[data-theme='dark'] article img[alt='logo'] {
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
+}
+
+/* Standalone Code Blocks Styling (Adaptive Light & Dark Modes) */
+div[class*='codeBlockContainer'],
+.theme-code-block {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.5rem !important;
+  overflow: hidden;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+[data-theme='dark'] div[class*='codeBlockContainer'],
+[data-theme='dark'] .theme-code-block {
+  border-color: rgba(255, 255, 255, 0.12);
+  background-color: #0b1220;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* Ensure code blocks inside Tabs container seamlessly blend without double borders */
+.tabs-container div[class*='codeBlockContainer'],
+.theme-tabs-container div[class*='codeBlockContainer'],
+.tabs-container .theme-code-block,
+.theme-tabs-container .theme-code-block {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  background: transparent !important;
+}
+
+/* ==========================================================================
+   Modern Admonitions & Callouts (:::info, :::tip, :::warning, :::danger)
+   ========================================================================== */
+
+.theme-admonition {
+  border-radius: 12px !important;
+  border-left-width: 4px !important;
+  margin: 1.25rem 0 1.5rem !important;
+  padding: 1rem 1.25rem !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.theme-admonition div[class*='admonitionHeading'] {
+  font-family: var(--ifm-heading-font-family);
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Info Callout */
+.theme-admonition-info {
+  background-color: rgba(2, 132, 199, 0.08) !important;
+  border-color: #0284c7 !important;
+  color: #0369a1 !important;
+}
+
+[data-theme='dark'] .theme-admonition-info {
+  background-color: rgba(56, 189, 248, 0.08) !important;
+  border-color: #38bdf8 !important;
+  color: #e0f2fe !important;
+}
+
+/* Tip Callout */
+.theme-admonition-tip {
+  background-color: rgba(16, 185, 129, 0.08) !important;
+  border-color: #10b981 !important;
+  color: #065f46 !important;
+}
+
+[data-theme='dark'] .theme-admonition-tip {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  border-color: #34d399 !important;
+  color: #d1fae5 !important;
+}
+
+/* Warning Callout */
+.theme-admonition-warning {
+  background-color: rgba(245, 158, 11, 0.08) !important;
+  border-color: #f59e0b !important;
+  color: #92400e !important;
+}
+
+[data-theme='dark'] .theme-admonition-warning {
+  background-color: rgba(245, 158, 11, 0.1) !important;
+  border-color: #fbbf24 !important;
+  color: #fef3c7 !important;
+}
+
+/* Danger Callout */
+.theme-admonition-danger {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+  border-color: #ef4444 !important;
+  color: #991b1b !important;
+}
+
+[data-theme='dark'] .theme-admonition-danger {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  border-color: #f87171 !important;
+  color: #fee2e2 !important;
+}
+
+/* ==========================================================================
+   Mermaid Architecture Diagram (Adaptive Light & Dark Modes)
+   ========================================================================== */
+
+.docusaurus-mermaid-container {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0 2rem;
+}
+
+/* Center WUD Engine Node */
+.docusaurus-mermaid-container .wudNode > polygon,
+.docusaurus-mermaid-container .wudNode > rect,
+.docusaurus-mermaid-container .wudNode > path {
+  fill: #0284c7 !important;
+  stroke: #38bdf8 !important;
+  stroke-width: 2.5px !important;
+}
+.docusaurus-mermaid-container .wudNode span,
+.docusaurus-mermaid-container .wudNode text {
+  color: #ffffff !important;
+  fill: #ffffff !important;
+  font-weight: 600;
+}
+
+/* 1. Watchers Node - Light Mode */
+.docusaurus-mermaid-container .watcherNode > rect,
+.docusaurus-mermaid-container .watcherNode > polygon,
+.docusaurus-mermaid-container .watcherNode > path {
+  fill: #f0f9ff !important;
+  stroke: #0284c7 !important;
+  stroke-width: 2px !important;
+}
+.docusaurus-mermaid-container .watcherNode span,
+.docusaurus-mermaid-container .watcherNode text {
+  color: #0c4a6e !important;
+  fill: #0c4a6e !important;
+}
+
+/* 1. Watchers Node - Dark Mode */
+[data-theme='dark'] .docusaurus-mermaid-container .watcherNode > rect,
+[data-theme='dark'] .docusaurus-mermaid-container .watcherNode > polygon,
+[data-theme='dark'] .docusaurus-mermaid-container .watcherNode > path {
+  fill: #0f172a !important;
+  stroke: #38bdf8 !important;
+  stroke-width: 2px !important;
+}
+[data-theme='dark'] .docusaurus-mermaid-container .watcherNode span,
+[data-theme='dark'] .docusaurus-mermaid-container .watcherNode text {
+  color: #f0f9ff !important;
+  fill: #f0f9ff !important;
+}
+
+/* 2. Registries Node - Light Mode */
+.docusaurus-mermaid-container .registryNode > rect,
+.docusaurus-mermaid-container .registryNode > polygon,
+.docusaurus-mermaid-container .registryNode > path {
+  fill: #faf5ff !important;
+  stroke: #9333ea !important;
+  stroke-width: 2px !important;
+}
+.docusaurus-mermaid-container .registryNode span,
+.docusaurus-mermaid-container .registryNode text {
+  color: #581c87 !important;
+  fill: #581c87 !important;
+}
+
+/* 2. Registries Node - Dark Mode */
+[data-theme='dark'] .docusaurus-mermaid-container .registryNode > rect,
+[data-theme='dark'] .docusaurus-mermaid-container .registryNode > polygon,
+[data-theme='dark'] .docusaurus-mermaid-container .registryNode > path {
+  fill: #0f172a !important;
+  stroke: #a855f7 !important;
+  stroke-width: 2px !important;
+}
+[data-theme='dark'] .docusaurus-mermaid-container .registryNode span,
+[data-theme='dark'] .docusaurus-mermaid-container .registryNode text {
+  color: #faf5ff !important;
+  fill: #faf5ff !important;
+}
+
+/* 3. Triggers Node - Light Mode */
+.docusaurus-mermaid-container .triggerNode > rect,
+.docusaurus-mermaid-container .triggerNode > polygon,
+.docusaurus-mermaid-container .triggerNode > path {
+  fill: #f0fdf4 !important;
+  stroke: #16a34a !important;
+  stroke-width: 2px !important;
+}
+.docusaurus-mermaid-container .triggerNode span,
+.docusaurus-mermaid-container .triggerNode text {
+  color: #14532d !important;
+  fill: #14532d !important;
+}
+
+/* 3. Triggers Node - Dark Mode */
+[data-theme='dark'] .docusaurus-mermaid-container .triggerNode > rect,
+[data-theme='dark'] .docusaurus-mermaid-container .triggerNode > polygon,
+[data-theme='dark'] .docusaurus-mermaid-container .triggerNode > path {
+  fill: #0f172a !important;
+  stroke: #10b981 !important;
+  stroke-width: 2px !important;
+}
+[data-theme='dark'] .docusaurus-mermaid-container .triggerNode span,
+[data-theme='dark'] .docusaurus-mermaid-container .triggerNode text {
+  color: #f0fdf4 !important;
+  fill: #f0fdf4 !important;
+}
+

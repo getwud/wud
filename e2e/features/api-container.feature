@@ -29,7 +29,7 @@ Feature: WUD Container API Exposure
       | 4     | hub.public     | hub_homeassistant_latest | https://registry-1.docker.io/v2                         | homeassistant/home-assistant | latest            | latest            | false           | Hub latest tag no update     |
       | 5     | hub.public     | hub_nginx_120            | https://registry-1.docker.io/v2                         | library/nginx                | 1.20-alpine       | 1.31-alpine       | true            | Hub alpine minor update      |
       | 6     | hub.public     | hub_nginx_latest         | https://registry-1.docker.io/v2                         | library/nginx                | latest            | latest            | true            | Hub latest tag digest update |
-      | 7     | hub.public     | hub_traefik_245          | https://registry-1.docker.io/v2                         | library/traefik              | 2.4.5             | 3.7.11            | true            | Hub semver major update      |
+      | 7     | hub.public     | hub_traefik_245          | https://registry-1.docker.io/v2                         | library/traefik              | 2.4.5             | 3.7.12            | true            | Hub semver major update      |
       | 8     | lscr.private   | lscr_radarr              | https://lscr.io/v2                                      | linuxserver/radarr           | 5.14.0.9383-ls245 | 6.3.0.10514-ls314 | true            | LSCR complex semver update   |
       | 9     | quay.public    | quay_prometheus          | https://quay.io/v2                                      | prometheus/prometheus        | v2.52.0           | v3.14.0           | true            | Quay semver major update     |
 
