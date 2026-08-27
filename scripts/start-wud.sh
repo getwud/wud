@@ -7,7 +7,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 echo "🚀 Starting WUD container for local e2e tests..."
 
 # Build wud docker image
-docker build -t wud --build-arg WUD_VERSION=local "$SCRIPT_DIR/.."
+DOCKER_BUILDKIT=1 docker build -t wud --build-arg WUD_VERSION=local "$SCRIPT_DIR/.."
 
 # Run wud docker image
 docker run -d \

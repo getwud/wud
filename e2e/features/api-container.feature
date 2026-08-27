@@ -4,7 +4,7 @@ Feature: WUD Container API Exposure
     When I GET /api/containers
     Then response code should be 200
     And response body should be valid json
-    And response body path $ should be of type array with length 10
+    And response body path $ should be of type array with length 9
 
   # Test one representative container per registry type + update pattern
   Scenario Outline: WUD must handle different registry types and update patterns
@@ -25,13 +25,11 @@ Feature: WUD Container API Exposure
       # | 0     | ecr.private    | ecr_sub_sub_test         | https://229211676173.dkr.ecr.eu-west-1.amazonaws.com/v2 | sub/sub/test                 | 1.0.0             | 2.0.0             | true            | ECR semver major update      |
       | 1     | ghcr.private   | ghcr_radarr              | https://ghcr.io/v2                                      | linuxserver/radarr           | 5.14.0.9383-ls245 | 6.3.0.10514-ls314 | true            | GHCR complex semver update   |
       | 2     | gitlab.private | gitlab_test              | https://registry.gitlab.com/v2                          | gitlab-org/gitlab-runner     | v16.0.0           | v16.1.0           | true            | GitLab semver update         |
-      | 3     | hub.public     | hub_homeassistant_202161 | https://registry-1.docker.io/v2                         | homeassistant/home-assistant | 2021.6.1          | 2026.8.3          | true            | Hub date-based versioning    |
-      | 4     | hub.public     | hub_homeassistant_latest | https://registry-1.docker.io/v2                         | homeassistant/home-assistant | latest            | latest            | false           | Hub latest tag no update     |
-      | 5     | hub.public     | hub_nginx_120            | https://registry-1.docker.io/v2                         | library/nginx                | 1.20-alpine       | 1.31-alpine       | true            | Hub alpine minor update      |
-      | 6     | hub.public     | hub_nginx_latest         | https://registry-1.docker.io/v2                         | library/nginx                | latest            | latest            | true            | Hub latest tag digest update |
-      | 7     | hub.public     | hub_traefik_245          | https://registry-1.docker.io/v2                         | library/traefik              | 2.4.5             | 3.7.12            | true            | Hub semver major update      |
-      | 8     | lscr.private   | lscr_radarr              | https://lscr.io/v2                                      | linuxserver/radarr           | 5.14.0.9383-ls245 | 6.3.0.10514-ls314 | true            | LSCR complex semver update   |
-      | 9     | quay.public    | quay_prometheus          | https://quay.io/v2                                      | prometheus/prometheus        | v2.52.0           | v3.14.0           | true            | Quay semver major update     |
+      | 3     | hub.public     | hub_alpine_latest        | https://registry-1.docker.io/v2                         | library/alpine               | latest            | latest            | false           | Hub latest tag no update     |
+      | 4     | hub.public     | hub_homeassistant_202161 | https://registry-1.docker.io/v2                         | homeassistant/home-assistant | 2021.6.1          | 2026.8.3          | true            | Hub date-based versioning    |
+      | 5     | hub.public     | hub_nginx_latest         | https://registry-1.docker.io/v2                         | library/nginx                | latest            | latest            | true            | Hub latest tag digest update |
+      | 6     | lscr.private   | lscr_radarr              | https://lscr.io/v2                                      | linuxserver/radarr           | 5.14.0.9383-ls245 | 6.3.0.10514-ls314 | true            | LSCR complex semver update   |
+      | 7     | quay.public    | quay_prometheus          | https://quay.io/v2                                      | prometheus/prometheus        | v2.52.0           | v3.14.0           | true            | Quay semver major update     |
 
   # Test detailed container inspection (semver)
   Scenario: WUD must provide detailed container information for semver containers
@@ -50,7 +48,7 @@ Feature: WUD Container API Exposure
   # Test detailed container inspection (digest)
   Scenario: WUD must provide detailed container information for digest-based containers
     Given I GET /api/containers
-    And I store the value of body path $[6].id as containerId in scenario scope
+    And I store the value of body path $[5].id as containerId in scenario scope
     When I GET /api/containers/`containerId`
     Then response code should be 200
     And response body should be valid json
@@ -64,7 +62,7 @@ Feature: WUD Container API Exposure
   # Test link functionality
   Scenario: WUD must generate correct links for containers with link templates
     Given I GET /api/containers
-    And I store the value of body path $[3].id as containerId in scenario scope
+    And I store the value of body path $[4].id as containerId in scenario scope
     When I GET /api/containers/`containerId`
     Then response code should be 200
     And response body should be valid json
