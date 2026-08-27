@@ -7,13 +7,15 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 echo "🧪 Running UI integration tests..."
 
 # Cleanup any existing containers
-"$SCRIPT_DIR/cleanup-test-containers.sh"
+echo "🧹 Cleaning up existing test containers..."
+docker compose -f "$SCRIPT_DIR/docker-compose.e2e.yml" down -v
 
 # Setup test containers
 "$SCRIPT_DIR/setup-test-containers.sh"
 
-# Start WUD (this will build the UI and the Docker image)
-"$SCRIPT_DIR/start-wud.sh"
+# Start WUD and test containers via Docker Compose
+echo "🚀 Starting test containers and WUD via Docker Compose..."
+docker compose -f "$SCRIPT_DIR/docker-compose.e2e.yml" up -d --build
 
 # Wait for WUD to be responsive
 echo "⏳ Waiting for WUD to be responsive..."
@@ -41,4 +43,4 @@ echo "🏃 Running Playwright tests..."
 echo "✅ UI integration tests completed!"
 
 # Cleanup (Optional - comment out if you want to inspect after success)
-# "$SCRIPT_DIR/cleanup-test-containers.sh"
+# docker compose -f "$SCRIPT_DIR/docker-compose.e2e.yml" down -v

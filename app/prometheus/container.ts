@@ -14,8 +14,8 @@ let metricsDirty = true;
 /**
  * Populate gauge.
  */
-function populateGauge() {
-    if (!metricsDirty) {
+export function populateGauge() {
+    if (!metricsDirty || !gaugeContainer) {
         return;
     }
 
@@ -51,6 +51,9 @@ export function init() {
     gaugeContainer = new Gauge({
         name: 'wud_containers',
         help: 'The watched containers',
+        collect() {
+            populateGauge();
+        },
         labelNames: [
             'display_icon',
             'display_name',
