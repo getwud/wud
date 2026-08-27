@@ -11,7 +11,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 env:
@@ -66,6 +66,28 @@ jobs:
         run: |
           (cd app && npm test)
           (cd ui && npm run test:unit)
+
+  build-docs:
+    name: Build Docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: website/package-lock.json
+      - name: Install dependencies
+        run: (cd website && npm ci)
+      - name: Build website
+        run: (cd website && npm run build)
+      - name: Upload docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docusaurus-build
+          path: website/build
+          retention-days: 1
 
   e2e-test:
     name: E2E Tests
@@ -145,3 +167,21 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             WUD_VERSION=${{ steps.meta.outputs.version }}
+
+  deploy-docs:
+    name: Deploy Docs
+    needs: [build-docs, publish]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download docs artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docusaurus-build
+          path: website/build
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./website/build
