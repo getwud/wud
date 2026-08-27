@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  wud:
+    build:
+      context: ..
+      args:
+        WUD_VERSION: local
+    image: wud
+    container_name: wud
+    ports:
+      - "3000:3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WUD_TRIGGER_MOCK_EXAMPLE_MOCK=mock
+      - WUD_WATCHER_LOCAL_WATCHBYDEFAULT=false
+      - WUD_REGISTRY_ECR_PRIVATE_ACCESSKEYID=${AWS_ACCESSKEY_ID:-dummy}
+      - WUD_REGISTRY_ECR_PRIVATE_SECRETACCESSKEY=${AWS_SECRET_ACCESSKEY:-dummy}
+      - WUD_REGISTRY_ECR_PRIVATE_REGION=eu-west-1
+      - WUD_REGISTRY_GHCR_PRIVATE_USERNAME=${GITHUB_USERNAME:-dummy}
+      - WUD_REGISTRY_GHCR_PRIVATE_TOKEN=${GITHUB_TOKEN:-dummy}
+      - WUD_REGISTRY_GITLAB_PRIVATE_TOKEN=${GITLAB_TOKEN:-dummy}
+      - WUD_REGISTRY_LSCR_PRIVATE_USERNAME=${GITHUB_USERNAME:-dummy}
+      - WUD_REGISTRY_LSCR_PRIVATE_TOKEN=${GITHUB_TOKEN:-dummy}
+      - WUD_REGISTRY_ACR_PRIVATE_CLIENTID=${ACR_CLIENT_ID:-89dcf54b-ef99-4dc1-bebb-8e0eacafdac8}
+      - WUD_REGISTRY_ACR_PRIVATE_CLIENTSECRET=${ACR_CLIENT_SECRET:-dummy}
+      - WUD_REGISTRY_TRUEFORGE_PRIVATE_USERNAME=${TRUEFORGE_USERNAME:-dummy}
+      - WUD_REGISTRY_TRUEFORGE_PRIVATE_TOKEN=${TRUEFORGE_TOKEN:-dummy}
+      - WUD_REGISTRY_GCR_PRIVATE_CLIENTEMAIL=${GCR_CLIENT_EMAIL:-gcr@wud-test.iam.gserviceaccount.com}
+      - WUD_REGISTRY_GCR_PRIVATE_PRIVATEKEY=${GCR_PRIVATE_KEY:------BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDZ\n-----END PRIVATE KEY-----}
+      - WUD_AUTH_BASIC_JOHN_USER=john
+      - WUD_AUTH_BASIC_JOHN_HASH=$$apr1$$8zDVtSAY$$62WBh9DspNbUKMZXYRsjS/
+
+  ecr_sub_sub_test:
+    image: 229211676173.dkr.ecr.eu-west-1.amazonaws.com/sub/sub/test:1.0.0
+    container_name: ecr_sub_sub_test
+    command: tail -f /dev/null
+    pull_policy: never
+    labels:
+      - 'wud.watch=true'
+
+  ghcr_radarr:
+    image: ghcr.io/linuxserver/radarr:5.14.0.9383-ls245
+    container_name: ghcr_radarr
+    command: tail -f /dev/null
+    pull_policy: never
+    labels:
+      - 'wud.watch=true'
+      - 'wud.tag.include=^\d+\.\d+\.\d+\.\d+-ls\d+$$'
+
+  gitlab_test:
+    image: registry.gitlab.com/gitlab-org/gitlab-runner:v16.0.0
+    container_name: gitlab_test
+    command: tail -f /dev/null
+    pull_policy: never
+    labels:
+      - 'wud.watch=true'
+      - 'wud.tag.include=^v16\.[01]\.0$$'
+
+  hub_alpine_latest:
+    image: alpine:latest
+    container_name: hub_alpine_latest
+    command: tail -f /dev/null
+    pull_policy: never
+    labels:
+      - 'wud.watch=true'
+      - 'wud.watch.digest=true'
+      - 'wud.tag.include=^latest$$'
+
+  hub_homeassistant_202161:
+    image: homeassistant/home-assistant:2021.6.1
+    container_name: hub_homeassistant_202161
+    command: tail -f /dev/null
+    pull_policy: never
+    labels:
+      - 'wud.watch=true'
+      - 'wud.tag.include=^\d+\.\d+.\d+$$'
+      - 'wud.link.template=https://github.com/home-assistant/core/releases/tag/$${major}.$${minor}.$${patch}'
+
+  hub_nginx_latest:
+    image: nginx:latest
+    container_name: hub_nginx_latest
+    command: tail -f /dev/null
+    pull_policy: never
+    labels:
+      - 'wud.watch=true'
+      - 'wud.watch.digest=true'
+      - 'wud.tag.include=^latest$$'
+
+  lscr_radarr:
+    image: lscr.io/linuxserver/radarr:5.14.0.9383-ls245
+    container_name: lscr_radarr
+    command: tail -f /dev/null
+    pull_policy: never
+    labels:
+      - 'wud.watch=true'
+      - 'wud.tag.include=^\d+\.\d+\.\d+\.\d+-ls\d+$$'
+
+  trueforge_radarr:
+    image: oci.trueforge.org/containerforge/radarr:6.0.4
+    container_name: trueforge_radarr
+    command: tail -f /dev/null
+    pull_policy: never
+    mem_limit: 512m
+    tmpfs:
+      - /config
+    labels:
+      - 'wud.watch=true'
+      - 'wud.tag.include=^v\d+\.\d+\.\d+$$'
+
+  quay_prometheus:
+    image: quay.io/prometheus/prometheus:v2.52.0
+    container_name: quay_prometheus
+    command: tail -f /dev/null
+    pull_policy: never
+    user: root
+    tmpfs:
+      - /prometheus:rw,mode=777
+    labels:
+      - 'wud.watch=true'
+      - 'wud.tag.include=^v\d+\.\d+\.\d+$$'
