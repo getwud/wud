@@ -20,6 +20,7 @@
   <a href="https://getwud.github.io/wud/docs/configuration/"><b>⚙️ Configuration</b></a> •
   <a href="https://getwud.github.io/wud/docs/configuration/triggers/"><b>🔔 Triggers</b></a> •
   <a href="https://getwud.github.io/wud/docs/configuration/registries/"><b>📦 Registries</b></a> •
+  <a href="CONTRIBUTING.md"><b>🛠️ Contributing</b></a> •
   <a href="https://github.com/getwud/wud/issues"><b>💬 Issues & Support</b></a>
 </p>
 
@@ -168,6 +169,7 @@ For complete setup guides, advanced configurations, tutorials, and API reference
 
 ## 🤝 Community & Support
 
+- 🛠️ **Want to contribute?** Read our [Developer & Contributing Guide](CONTRIBUTING.md).
 - 🐛 **Found a bug or need a feature?** Submit an [Issue](https://github.com/getwud/wud/issues).
 - ⭐ **Like WUD?** Give us a star on [GitHub](https://github.com/getwud/wud)!
 - ☕ **Support the maintainer:** [Buy me a coffee](https://www.buymeacoffee.com/61rUNMm) or [Donate via PayPal](https://www.paypal.com/donate/?business=ZSDMEC3ZE8DQ8&no_recurring=0&currency_code=EUR).
