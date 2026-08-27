@@ -16,9 +16,9 @@ const FEATURES = [
   },
   {
     icon: 'mdi-database-search',
-    title: 'Universal Registry Support',
+    title: 'Multi-Registry Support',
     description:
-      'Native authentication and automated tag inspection for Docker Hub, GHCR, AWS ECR, GCP GCR/GAR, Azure ACR, Quay, GitLab, Gitea, and self-hosted registries.',
+      'Native authentication and automated tag inspection for Docker Hub, GHCR, AWS ECR, GCP GCR/GAR, Azure ACR, Quay, GitLab, Gitea, and custom OCI registries.',
   },
   {
     icon: 'mdi-bell-ring',
