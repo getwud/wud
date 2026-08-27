@@ -4,10 +4,6 @@ set -e
 
 echo "🐳 Setting up test containers for local e2e tests..."
 
-# Login to private registries (if credentials available)
-if [ ! -z "$GITLAB_TOKEN" ]; then
-  docker login registry.gitlab.com -u "$GITLAB_USERNAME" -p "$GITLAB_TOKEN"
-fi
 
 # Pull lightweight test images
 docker pull nginx:1.10-alpine
@@ -27,7 +23,5 @@ docker tag nginx:1.10-alpine homeassistant/home-assistant:2021.6.1
 docker tag nginx:1.10-alpine lscr.io/linuxserver/radarr:5.14.0.9383-ls245
 docker tag nginx:1.10-alpine oci.trueforge.org/containerforge/radarr:6.0.4
 docker tag nginx:1.10-alpine quay.io/prometheus/prometheus:v2.52.0
-
-echo "✅ Docker images pulled and tagged"
 
 echo "✅ Docker images pulled and tagged. Ready for docker-compose up."
