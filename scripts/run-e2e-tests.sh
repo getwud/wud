@@ -17,39 +17,22 @@ docker compose -f "$SCRIPT_DIR/docker-compose.e2e.yml" down -v
 echo "🚀 Starting test containers and WUD via Docker Compose..."
 docker compose -f "$SCRIPT_DIR/docker-compose.e2e.yml" up -d --build
 
-# Wait dynamically for WUD to be healthy and have resolved all containers
-echo "⏳ Waiting for WUD to start and resolve all containers..."
+# Wait for WUD to finish its initial container scan
+echo "⏳ Waiting for WUD to finish container resolution..."
 MAX_WAIT_SECONDS=30
 START_TIME=$(date +%s)
 
 while true; do
-    CONTAINERS_JSON=$(curl -s -u "${WUD_USERNAME:-john}:${WUD_PASSWORD:-doe}" http://localhost:3000/api/containers 2>/dev/null || echo "[]")
-    
-    CONTAINER_COUNT=$(node -e "
-        try {
-            const arr = JSON.parse(process.argv[1]);
-            if (Array.isArray(arr) && arr.length >= 9 && arr.every(c => c.result || c.error)) {
-                console.log(arr.length);
-            } else {
-                console.log(0);
-            }
-        } catch (e) {
-            console.log(0);
-        }
-    " "$CONTAINERS_JSON" 2>/dev/null || echo "0")
-
-    if [ "$CONTAINER_COUNT" -ge 9 ]; then
+    if docker logs wud 2>&1 | grep -q "Cron finished"; then
         ELAPSED=$(( $(date +%s) - START_TIME ))
-        echo "🎯 Ready for e2e tests! (all $CONTAINER_COUNT containers resolved in ${ELAPSED}s)"
+        echo "🎯 Ready for e2e tests! (initial container scan finished in ${ELAPSED}s)"
         break
     fi
-
     ELAPSED=$(( $(date +%s) - START_TIME ))
     if [ $ELAPSED -ge $MAX_WAIT_SECONDS ]; then
-        echo "⚠️ Timed out after ${MAX_WAIT_SECONDS}s waiting for containers to resolve. Proceeding with tests..."
+        echo "⚠️ Timed out waiting for initial container scan. Proceeding with tests..."
         break
     fi
-
     sleep 1
 done
 
