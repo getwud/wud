@@ -51,7 +51,7 @@ flowchart LR
 
 ## ✨ Features
 
-- 🔍 **Universal Watcher Engine**  
+- 🔍 **Multi-Watcher Engine**  
   Monitor local Docker daemons, remote Docker engines over TLS, Docker Compose setups, or HashiCorp Nomad workloads.
 - 📦 **Multi-Registry Integration**  
   Zero-config & authenticated support for **Docker Hub**, **GitHub Container Registry (GHCR)**, **AWS ECR**, **Google GCR/GAR**, **Azure ACR**, **Quay**, **GitLab**, **Gitea**, **Forgejo**, **Codeberg**, **LinuxServer (LSCR)**, and any custom/self-hosted OCI registry.
@@ -67,8 +67,6 @@ flowchart LR
   Built-in Prometheus `/metrics` endpoint and pre-built Grafana dashboards for observability.
 - 🔒 **Enterprise-Grade Authentication**  
   Secure your WUD dashboard with **OpenID Connect (OIDC)** (Keycloak, Authentik, Authelia, Google, etc.) or **HTTP Basic Auth**.
-- 🪶 **Ultra-Lightweight & Privacy-Focused**  
-  Self-hosted, stateless, and low resource footprint. Your infrastructure data never leaves your environment.
 
 ---
 
@@ -99,10 +97,6 @@ services:
 ```
 
 > 🌐 **Access the Web UI**: Open [`http://localhost:3000`](http://localhost:3000) in your browser.
-
-> 📦 **Available Registries**:
-> - Docker Hub: `getwud/wud`
-> - GitHub Container Registry: `ghcr.io/getwud/wud`
 
 ---
 
