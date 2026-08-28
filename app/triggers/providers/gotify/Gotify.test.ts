@@ -6,9 +6,10 @@ import Gotify from './Gotify';
 
 const gotify = new Gotify();
 
-const configurationValid = {
+const configurationValid: any = {
     url: 'http://xxx.com',
     token: 'xxx',
+    priority: 2,
     mode: 'simple',
     threshold: 'all',
     once: true,
@@ -36,7 +37,8 @@ test('validateConfiguration should apply default configuration', async () => {
         url: configurationValid.url,
         token: configurationValid.token,
     });
-    const { ...expectedWithoutPriority } = configurationValid;
+    const expectedWithoutPriority = { ...configurationValid };
+    delete expectedWithoutPriority.priority;
     expect(validatedConfiguration).toStrictEqual(expectedWithoutPriority);
 });
 
