@@ -288,6 +288,15 @@ describe('transform', () => {
                 '1.2.3',
             );
         });
+
+        test('should substitute an empty string for an unmatched optional capture group', async () => {
+            // The formula references group 4, an optional group that does not
+            // participate when the tag has no suffix. It must not leak the
+            // literal "undefined" into the transformed tag.
+            expect(
+                semver.transform('^(\\d+)-(\\d+)(-(a|b))?$ => $2.$1-$4', '3-4'),
+            ).toBe('4.3-');
+        });
     });
 });
 
