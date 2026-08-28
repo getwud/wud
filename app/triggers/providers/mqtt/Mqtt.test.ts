@@ -1,5 +1,4 @@
 //@ts-nocheck
-import { ValidationError } from 'joi';
 import mqttClient from 'mqtt';
 import log from '../../../log';
 import { flatten } from '../../../model/container';

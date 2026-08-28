@@ -9,9 +9,9 @@ jest.mock('../configuration', () => ({
         enabled: true,
         port: 3000,
         cors: { enabled: false },
-        tls: { enabled: false }
+        tls: { enabled: false },
     })),
-    getLogLevel: jest.fn(() => 'info')
+    getLogLevel: jest.fn(() => 'info'),
 }));
 jest.mock('./auth', () => ({ init: jest.fn() }));
 jest.mock('./api', () => ({ init: jest.fn() }));
@@ -20,15 +20,15 @@ jest.mock('./prometheus', () => ({ init: jest.fn() }));
 jest.mock('./health', () => ({ init: jest.fn() }));
 jest.mock('https', () => ({
     createServer: jest.fn().mockReturnValue({
-        listen: jest.fn((port, cb) => cb())
-    })
+        listen: jest.fn((port, cb) => cb()),
+    }),
 }));
 jest.mock('fs');
 jest.mock('express', () => {
     const mockApp = {
         set: jest.fn(),
         use: jest.fn(),
-        listen: jest.fn((port, cb) => cb())
+        listen: jest.fn((port, cb) => cb()),
     };
     return jest.fn(() => mockApp);
 });
@@ -41,9 +41,9 @@ describe('API Index', () => {
     test('should not start if disabled', async () => {
         const configuration = require('../configuration');
         configuration.getServerConfiguration.mockReturnValueOnce({
-            enabled: false
+            enabled: false,
         });
-        
+
         // Re-import index.ts so it picks up the mocked configuration
         jest.isolateModules(() => {
             const indexLocal = require('./index');
@@ -58,15 +58,15 @@ describe('API Index', () => {
             enabled: true,
             port: 3000,
             cors: { enabled: true, origin: '*', methods: '*' },
-            tls: { enabled: false }
+            tls: { enabled: false },
         });
-        
+
         let indexLocal;
         jest.isolateModules(() => {
             indexLocal = require('./index');
         });
         await indexLocal.init();
-        
+
         const app = (express as unknown as jest.Mock).mock.results[0].value;
         expect(app.listen).toHaveBeenCalledWith(3000, expect.any(Function));
     });
@@ -77,16 +77,16 @@ describe('API Index', () => {
             enabled: true,
             port: 3000,
             cors: { enabled: false },
-            tls: { enabled: true, key: 'k.pem', cert: 'c.pem' }
+            tls: { enabled: true, key: 'k.pem', cert: 'c.pem' },
         });
         (fs.readFileSync as jest.Mock).mockReturnValue('cert-content');
-        
+
         let indexLocal;
         jest.isolateModules(() => {
             indexLocal = require('./index');
         });
         await indexLocal.init();
-        
+
         expect(fs.readFileSync).toHaveBeenCalledWith('k.pem');
         expect(fs.readFileSync).toHaveBeenCalledWith('c.pem');
         expect(https.createServer).toHaveBeenCalled();
@@ -98,13 +98,13 @@ describe('API Index', () => {
             enabled: true,
             port: 3000,
             cors: { enabled: false },
-            tls: { enabled: true, key: 'k.pem', cert: 'c.pem' }
+            tls: { enabled: true, key: 'k.pem', cert: 'c.pem' },
         });
         (fs.readFileSync as jest.Mock).mockImplementation((file) => {
             if (file === 'k.pem') throw new Error('key err');
             return 'cert-content';
         });
-        
+
         let indexLocal;
         jest.isolateModules(() => {
             indexLocal = require('./index');
@@ -118,13 +118,13 @@ describe('API Index', () => {
             enabled: true,
             port: 3000,
             cors: { enabled: false },
-            tls: { enabled: true, key: 'k.pem', cert: 'c.pem' }
+            tls: { enabled: true, key: 'k.pem', cert: 'c.pem' },
         });
         (fs.readFileSync as jest.Mock).mockImplementation((file) => {
             if (file === 'c.pem') throw new Error('cert err');
             return 'cert-content';
         });
-        
+
         let indexLocal;
         jest.isolateModules(() => {
             indexLocal = require('./index');

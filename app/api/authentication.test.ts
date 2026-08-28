@@ -9,10 +9,10 @@ jest.mock('../registry', () => ({
             'mock.test': {
                 type: 'mock',
                 name: 'test',
-                maskConfiguration: () => ({ mockConfig: true })
-            }
-        }
-    }))
+                maskConfiguration: () => ({ mockConfig: true }),
+            },
+        },
+    })),
 }));
 
 describe('API Authentication', () => {
@@ -29,16 +29,24 @@ describe('API Authentication', () => {
         const res = await request(app).get('/');
         expect(res.status).toBe(200);
         expect(res.body).toEqual([
-            { id: 'mock.test', type: 'mock', name: 'test', configuration: { mockConfig: true } }
+            {
+                id: 'mock.test',
+                type: 'mock',
+                name: 'test',
+                configuration: { mockConfig: true },
+            },
         ]);
     });
 
     test('should get authentication by type and name', async () => {
         const res = await request(app).get('/mock/test');
         expect(res.status).toBe(200);
-        expect(res.body).toEqual(
-            { id: 'mock.test', type: 'mock', name: 'test', configuration: { mockConfig: true } }
-        );
+        expect(res.body).toEqual({
+            id: 'mock.test',
+            type: 'mock',
+            name: 'test',
+            configuration: { mockConfig: true },
+        });
     });
 
     test('should return 404 for unknown authentication', async () => {

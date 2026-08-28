@@ -169,7 +169,7 @@ test.each(containerData)(
 
 test.each(containerData)(
     'updateContainerSensors must publish all sensors expected by HA',
-    async ({ containerName, data }) => {
+    async ({ containerName }) => {
         await hass.updateContainerSensors({
             name: containerName,
             watcher: 'watcher-name',

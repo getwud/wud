@@ -1,6 +1,5 @@
 // @ts-nocheck
 import { ValidationError } from 'joi';
-import axios from 'axios';
 
 jest.mock('axios');
 import Gotify from './Gotify';
@@ -10,7 +9,6 @@ const gotify = new Gotify();
 const configurationValid = {
     url: 'http://xxx.com',
     token: 'xxx',
-    priority: 2,
     mode: 'simple',
     threshold: 'all',
     once: true,
@@ -38,7 +36,7 @@ test('validateConfiguration should apply default configuration', async () => {
         url: configurationValid.url,
         token: configurationValid.token,
     });
-    const { priority, ...expectedWithoutPriority } = configurationValid;
+    const { ...expectedWithoutPriority } = configurationValid;
     expect(validatedConfiguration).toStrictEqual(expectedWithoutPriority);
 });
 

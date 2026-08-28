@@ -17,20 +17,24 @@ jest.mock('../registry', () => ({
             mockAuth: {
                 getId: () => 'mockAuth',
                 getStrategy: () => ({ name: 'mockStrategy' }),
-                getStrategyDescription: () => ({ type: 'mock', name: 'Mock Auth', logoutUrl: 'http://logout' })
-            }
-        }
+                getStrategyDescription: () => ({
+                    type: 'mock',
+                    name: 'Mock Auth',
+                    logoutUrl: 'http://logout',
+                }),
+            },
+        },
     })),
 }));
 
 jest.mock('getmac', () => jest.fn(() => '00:00:00:00:00:00'));
 jest.mock('uuid', () => ({
-    v5: jest.fn(() => '12345678-1234-5678-1234-567812345678')
+    v5: jest.fn(() => '12345678-1234-5678-1234-567812345678'),
 }));
 
 jest.mock('../configuration', () => ({
     getVersion: jest.fn(() => '1.0.0'),
-    getLogLevel: jest.fn(() => 'info')
+    getLogLevel: jest.fn(() => 'info'),
 }));
 
 describe('API Auth', () => {
@@ -40,29 +44,39 @@ describe('API Auth', () => {
         jest.clearAllMocks();
         app = express();
         app.use(express.json());
-        
+
         // Mock passport authentication middleware so it passes
         const passport = require('passport');
-        jest.spyOn(passport, 'authenticate').mockImplementation(() => (req: any, res: any, next: any) => {
-            req.user = { username: 'testuser' };
-            req.isAuthenticated = () => true;
-            next();
-        });
-        jest.spyOn(passport, 'initialize').mockImplementation(() => (req: any, res: any, next: any) => {
-            req.logout = jest.fn((cb: any) => { if(typeof cb === 'function') cb(null); });
-            req.isAuthenticated = () => true;
-            req.user = { username: 'testuser' };
-            next();
-        });
-        jest.spyOn(passport, 'session').mockImplementation(() => (req: any, res: any, next: any) => next());
-        
+        jest.spyOn(passport, 'authenticate').mockImplementation(
+            () => (req: any, res: any, next: any) => {
+                req.user = { username: 'testuser' };
+                req.isAuthenticated = () => true;
+                next();
+            },
+        );
+        jest.spyOn(passport, 'initialize').mockImplementation(
+            () => (req: any, res: any, next: any) => {
+                req.logout = jest.fn((cb: any) => {
+                    if (typeof cb === 'function') cb(null);
+                });
+                req.isAuthenticated = () => true;
+                req.user = { username: 'testuser' };
+                next();
+            },
+        );
+        jest.spyOn(passport, 'session').mockImplementation(
+            () => (req: any, res: any, next: any) => next(),
+        );
+
         auth.init(app);
     });
 
     test('GET /auth/strategies should return unique strategies', async () => {
         const res = await request(app).get('/auth/strategies');
         expect(res.status).toBe(200);
-        expect(res.body).toEqual([{ type: 'mock', name: 'Mock Auth', logoutUrl: 'http://logout' }]);
+        expect(res.body).toEqual([
+            { type: 'mock', name: 'Mock Auth', logoutUrl: 'http://logout' },
+        ]);
     });
 
     test('POST /auth/login should return user', async () => {
@@ -86,7 +100,7 @@ describe('API Auth', () => {
             console.error(err);
             res.status(500).json({ error: err.message });
         });
-        
+
         const res = await request(tempApp).post('/auth/logout');
         expect(res.status).toBe(200);
         expect(res.body).toHaveProperty('logoutUrl');
@@ -104,13 +118,13 @@ describe('API Auth', () => {
         const req = { isAuthenticated: () => false } as any;
         const res = {} as any;
         const next = jest.fn();
-        
+
         auth.requireAuthentication(req, res, next);
         // Since we mocked passport.authenticate to call next() and set user
         expect(req.user).toEqual({ username: 'testuser' });
         expect(next).toHaveBeenCalled();
     });
-    
+
     test('getAllIds should return registered strategy ids', () => {
         const ids = auth.getAllIds();
         expect(ids).toContain('mockAuth');

@@ -1,16 +1,18 @@
 import { ComponentConfiguration } from '../../registry/Component';
 
-export function testRegistryProvider(
-    ProviderClass: any,
-    validConfig: any,
-) {
+export function testRegistryProvider(ProviderClass: any, validConfig: any) {
     describe(`${ProviderClass.name} Registry`, () => {
         let provider: any;
 
         beforeEach(async () => {
             provider = new ProviderClass();
             if (validConfig) {
-                await provider.register('registry', ProviderClass.name.toLowerCase(), 'test', validConfig);
+                await provider.register(
+                    'registry',
+                    ProviderClass.name.toLowerCase(),
+                    'test',
+                    validConfig,
+                );
             }
         });
 
@@ -23,6 +25,5 @@ export function testRegistryProvider(
             const schema = provider.getConfigurationSchema();
             expect(schema).toBeDefined();
         });
-
     });
 }

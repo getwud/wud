@@ -5,11 +5,11 @@ import { output } from '../prometheus';
 import { requireAuthentication } from './auth';
 
 jest.mock('../prometheus', () => ({
-    output: jest.fn(() => Promise.resolve('mock-metrics'))
+    output: jest.fn(() => Promise.resolve('mock-metrics')),
 }));
 
 jest.mock('./auth', () => ({
-    requireAuthentication: jest.fn((req, res, next) => next())
+    requireAuthentication: jest.fn((req, res, next) => next()),
 }));
 
 describe('API Prometheus', () => {

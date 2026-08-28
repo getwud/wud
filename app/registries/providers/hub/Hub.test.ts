@@ -14,7 +14,7 @@ describe('Docker Hub Registry tests', () => {
         jest.clearAllMocks();
     });
 
-// testRegistryProvider boilerplate handles create instance
+    // testRegistryProvider boilerplate handles create instance
     test('should have correct registry url after init', async () => {
         expect(hub.configuration.url).toBe('https://registry-1.docker.io');
     });
@@ -116,7 +116,7 @@ describe('Docker Hub Registry tests', () => {
         expect(result.headers.Authorization).toBe('Bearer public-token');
     });
 
-// testRegistryProvider boilerplate handles validate string configuration
+    // testRegistryProvider boilerplate handles validate string configuration
     test('should validate object configuration with auth', async () => {
         const config = {
             login: 'user',

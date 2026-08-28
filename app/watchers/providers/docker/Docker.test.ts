@@ -228,6 +228,8 @@ describe('Docker Watcher', () => {
     describe('Deregistration', () => {
         test('should stop cron and clear timeouts on deregister', async () => {
             await docker.register('watcher', 'docker', 'test', {});
+            // @ts-expect-error
+            await docker.pullImage(imageToPull);
             docker.init();
             await docker.deregisterComponent();
             expect(mockSchedule.stop).toHaveBeenCalled();
@@ -797,7 +799,7 @@ describe('Docker Watcher', () => {
             const mockImageInspect = { Config: { Image: 'sha256:legacy123' } };
             mockImage.inspect.mockResolvedValue(mockImageInspect);
 
-            const result = await docker.findNewVersion(container, mockLogChild);
+            await docker.findNewVersion(container, mockLogChild);
 
             expect(mockImage.inspect).toHaveBeenCalled();
             expect(container.image.digest.value).toBe('sha256:legacy123');

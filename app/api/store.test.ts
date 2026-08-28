@@ -5,8 +5,8 @@ import * as store from '../store';
 
 jest.mock('../store', () => ({
     getConfiguration: jest.fn(() => ({
-        someConfig: 'value'
-    }))
+        someConfig: 'value',
+    })),
 }));
 
 describe('API Store', () => {

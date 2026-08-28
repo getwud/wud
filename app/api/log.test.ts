@@ -4,7 +4,7 @@ import * as log from './log';
 import * as configuration from '../configuration';
 
 jest.mock('../configuration', () => ({
-    getLogLevel: jest.fn(() => 'debug')
+    getLogLevel: jest.fn(() => 'debug'),
 }));
 
 describe('API Log', () => {

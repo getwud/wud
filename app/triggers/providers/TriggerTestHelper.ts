@@ -10,7 +10,7 @@ export function testTriggerProvider(
     validConfiguration: any,
     options: TriggerTestHelperOptions = {
         testTemplateRenders: true,
-    }
+    },
 ) {
     let provider: Trigger;
 
@@ -31,7 +31,8 @@ export function testTriggerProvider(
     });
 
     test('should validate configuration when valid', async () => {
-        const validatedConfiguration = provider.validateConfiguration(validConfiguration);
+        const validatedConfiguration =
+            provider.validateConfiguration(validConfiguration);
         expect(validatedConfiguration).toBeDefined();
     });
 
@@ -40,12 +41,14 @@ export function testTriggerProvider(
             provider.configuration = validConfiguration;
             provider.renderSimpleTitle = jest.fn().mockReturnValue('Title');
             provider.renderSimpleBody = jest.fn().mockReturnValue('Body');
-            
+
             const container = { name: 'test' } as any;
 
             try {
                 if (typeof (provider as any).sendMessage === 'function') {
-                    (provider as any).sendMessage = jest.fn().mockResolvedValue({});
+                    (provider as any).sendMessage = jest
+                        .fn()
+                        .mockResolvedValue({});
                 }
                 await provider.trigger(container);
             } catch (e) {
@@ -58,14 +61,18 @@ export function testTriggerProvider(
 
         test('should trigger batch with containers (verify render calls)', async () => {
             provider.configuration = validConfiguration;
-            provider.renderBatchTitle = jest.fn().mockReturnValue('Batch Title');
+            provider.renderBatchTitle = jest
+                .fn()
+                .mockReturnValue('Batch Title');
             provider.renderBatchBody = jest.fn().mockReturnValue('Batch Body');
-            
+
             const containers = [{ name: 'test1' }, { name: 'test2' }] as any[];
 
             try {
                 if (typeof (provider as any).sendMessage === 'function') {
-                    (provider as any).sendMessage = jest.fn().mockResolvedValue({});
+                    (provider as any).sendMessage = jest
+                        .fn()
+                        .mockResolvedValue({});
                 }
                 await provider.triggerBatch(containers);
             } catch (e) {
