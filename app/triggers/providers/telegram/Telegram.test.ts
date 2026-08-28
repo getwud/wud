@@ -4,6 +4,7 @@ import { ValidationError } from 'joi';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { Container } from '../../../model/container';
 import Telegram from './Telegram';
+import { testTriggerProvider } from '../TriggerTestHelper';
 
 jest.mock('axios', () => ({
     post: jest.fn(),
@@ -32,23 +33,12 @@ const configurationValid = {
     messageformat: 'Markdown',
 };
 
+testTriggerProvider(Telegram, configurationValid);
+
 beforeEach(async () => {
     jest.restoreAllMocks();
     mockedPost.mockReset();
     mockedPost.mockResolvedValue({ status: 200, data: {} } as any);
-});
-
-test('validateConfiguration should return validated configuration when valid', async () => {
-    const validatedConfiguration =
-        telegram.validateConfiguration(configurationValid);
-    expect(validatedConfiguration).toStrictEqual(configurationValid);
-});
-
-test('validateConfiguration should throw error when invalid', async () => {
-    const configuration = {};
-    expect(() => {
-        telegram.validateConfiguration(configuration);
-    }).toThrow(ValidationError);
 });
 
 test('maskConfiguration should mask sensitive data', async () => {

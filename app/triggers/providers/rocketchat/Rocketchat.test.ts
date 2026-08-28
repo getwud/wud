@@ -1,5 +1,6 @@
 // @ts-nocheck
 import Rocketchat from './Rocketchat';
+import { testTriggerProvider } from '../TriggerTestHelper';
 
 // Mock axios
 jest.mock('axios', () => ({
@@ -14,26 +15,18 @@ describe('Rocketchat Trigger', () => {
         jest.clearAllMocks();
     });
 
-    test('should create instance', async () => {
-        expect(rocketchat).toBeDefined();
-        expect(rocketchat).toBeInstanceOf(Rocketchat);
-    });
+    const configurationValid = {
+        url: 'https://open.rocket.chat',
+        user: { id: 'jDdn8oh9BfJKnWdDY' },
+        auth: { token: 'Rbqz90hnkRyVwRfcmE5PzkP5Pqwml_fo7ZUXzxv2_zx' },
+        channel: '#general',
+        threshold: 'all',
+        mode: 'simple',
+        once: true,
+        auto: true,
+    };
 
-    test('should have correct configuration schema', async () => {
-        const schema = rocketchat.getConfigurationSchema();
-        expect(schema).toBeDefined();
-    });
-
-    test('should validate configuration with required fields', async () => {
-        const config = {
-            url: 'https://open.rocket.chat',
-            user: { id: 'jDdn8oh9BfJKnWdDY' },
-            auth: { token: 'Rbqz90hnkRyVwRfcmE5PzkP5Pqwml_fo7ZUXzxv2_zx' },
-            channel: '#general',
-        };
-
-        expect(() => rocketchat.validateConfiguration(config)).not.toThrow();
-    });
+    testTriggerProvider(Rocketchat, configurationValid);
 
     test('should throw error when URL is missing', async () => {
         const config = {
@@ -89,39 +82,7 @@ describe('Rocketchat Trigger', () => {
         expect(masked.channel).toBe('#general');
     });
 
-    test('should trigger with container', async () => {
-        const { default: axios } = await import('axios');
-        rocketchat.configuration = {
-            url: 'https://open.rocket.chat',
-            user: { id: 'jDdn8oh9BfJKnWdDY' },
-            auth: { token: 'Rbqz90hnkRyVwRfcmE5PzkP5Pqwml_fo7ZUXzxv2_zx' },
-            channel: '#general',
-        };
-        rocketchat.renderSimpleTitle = jest.fn().mockReturnValue('Title');
-        rocketchat.renderSimpleBody = jest.fn().mockReturnValue('Body');
-        const container = { name: 'test' };
-
-        await rocketchat.trigger(container);
-        expect(rocketchat.renderSimpleTitle).toHaveBeenCalledWith(container);
-        expect(rocketchat.renderSimpleBody).toHaveBeenCalledWith(container);
-    });
-
-    test('should trigger batch with containers', async () => {
-        const { default: axios } = await import('axios');
-        rocketchat.configuration = {
-            url: 'https://open.rocket.chat',
-            user: { id: 'jDdn8oh9BfJKnWdDY' },
-            auth: { token: 'Rbqz90hnkRyVwRfcmE5PzkP5Pqwml_fo7ZUXzxv2_zx' },
-            channel: '#general',
-        };
-        rocketchat.renderBatchTitle = jest.fn().mockReturnValue('Batch Title');
-        rocketchat.renderBatchBody = jest.fn().mockReturnValue('Batch Body');
-        const containers = [{ name: 'test1' }, { name: 'test2' }];
-
-        await rocketchat.triggerBatch(containers);
-        expect(rocketchat.renderBatchTitle).toHaveBeenCalledWith(containers);
-        expect(rocketchat.renderBatchBody).toHaveBeenCalledWith(containers);
-    });
+    // boilerplate tests removed in favor of testTriggerProvider
 
     test('should send message with correct data', async () => {
         const { default: axios } = await import('axios');

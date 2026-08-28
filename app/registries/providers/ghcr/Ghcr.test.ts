@@ -1,8 +1,9 @@
 import { ContainerImage } from '../../../model/container';
 import { ComponentConfiguration } from '../../../registry/Component';
 import Ghcr from './Ghcr';
+import { testRegistryProvider } from '../RegistryTestHelper';
 
-describe('GitHub Container Registry', () => {
+describe('GitHub Container Registry tests', () => {
     let ghcr: Ghcr;
 
     beforeEach(async () => {
@@ -13,10 +14,7 @@ describe('GitHub Container Registry', () => {
         });
     });
 
-    test('should create instance', async () => {
-        expect(ghcr).toBeDefined();
-        expect(ghcr).toBeInstanceOf(Ghcr);
-    });
+    // testRegistryProvider boilerplate handles create instance
 
     test('should match registry', async () => {
         expect(ghcr.match('ghcr.io')).toBe(true);
@@ -88,16 +86,7 @@ describe('GitHub Container Registry', () => {
         expect(result.headers.Authorization).toBe(`Bearer ${expectedBearer}`);
     });
 
-    test('should validate string configuration', async () => {
-        expect(() =>
-            ghcr.validateConfiguration('' as unknown as ComponentConfiguration),
-        ).not.toThrow();
-        expect(() =>
-            ghcr.validateConfiguration(
-                'some-string' as unknown as ComponentConfiguration,
-            ),
-        ).not.toThrow();
-    });
+    // testRegistryProvider boilerplate handles validate string configuration
 
     test('should return undefined auth pull when missing username', async () => {
         ghcr.configuration = { token: 'test-token' };
@@ -111,3 +100,5 @@ describe('GitHub Container Registry', () => {
         expect(auth).toBeUndefined();
     });
 });
+
+testRegistryProvider(Ghcr, { username: 'testuser', token: 'testtoken' });

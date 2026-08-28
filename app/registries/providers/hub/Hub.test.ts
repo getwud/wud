@@ -1,10 +1,11 @@
 // @ts-nocheck
 import Hub from './Hub';
+import { testRegistryProvider } from '../RegistryTestHelper';
 
 // Mock axios
 jest.mock('axios', () => jest.fn());
 
-describe('Docker Hub Registry', () => {
+describe('Docker Hub Registry tests', () => {
     let hub;
 
     beforeEach(async () => {
@@ -13,11 +14,7 @@ describe('Docker Hub Registry', () => {
         jest.clearAllMocks();
     });
 
-    test('should create instance', async () => {
-        expect(hub).toBeDefined();
-        expect(hub).toBeInstanceOf(Hub);
-    });
-
+// testRegistryProvider boilerplate handles create instance
     test('should have correct registry url after init', async () => {
         expect(hub.configuration.url).toBe('https://registry-1.docker.io');
     });
@@ -119,11 +116,7 @@ describe('Docker Hub Registry', () => {
         expect(result.headers.Authorization).toBe('Bearer public-token');
     });
 
-    test('should validate string configuration', async () => {
-        expect(() => hub.validateConfiguration('')).not.toThrow();
-        expect(() => hub.validateConfiguration('some-string')).not.toThrow();
-    });
-
+// testRegistryProvider boilerplate handles validate string configuration
     test('should validate object configuration with auth', async () => {
         const config = {
             login: 'user',
@@ -214,3 +207,5 @@ describe('Docker Hub Registry', () => {
         });
     });
 });
+
+testRegistryProvider(Hub, { login: 'testuser', token: 'testtoken' });
