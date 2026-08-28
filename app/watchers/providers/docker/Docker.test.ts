@@ -797,7 +797,7 @@ describe('Docker Watcher', () => {
             const mockImageInspect = { Config: { Image: 'sha256:legacy123' } };
             mockImage.inspect.mockResolvedValue(mockImageInspect);
 
-            const result = await docker.findNewVersion(container, mockLogChild);
+            await docker.findNewVersion(container, mockLogChild);
 
             expect(mockImage.inspect).toHaveBeenCalled();
             expect(container.image.digest.value).toBe('sha256:legacy123');

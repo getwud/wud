@@ -12,6 +12,7 @@ jest.mock(
 );
 
 import Pushover from './Pushover';
+import { testTriggerProvider } from '../TriggerTestHelper';
 
 const pushover = new Pushover();
 
@@ -34,11 +35,7 @@ const configurationValid = {
     batchtitle: '${containers.length} updates available',
 };
 
-test('validateConfiguration should return validated configuration when valid', async () => {
-    const validatedConfiguration =
-        pushover.validateConfiguration(configurationValid);
-    expect(validatedConfiguration).toStrictEqual(configurationValid);
-});
+testTriggerProvider(Pushover, configurationValid);
 
 test('validateConfiguration should fail when priority is 2 and no retry set', async () => {
     expect(() => {
@@ -89,13 +86,6 @@ test('validateConfiguration should apply_default_configuration', async () => {
         token: configurationValid.token,
     });
     expect(validatedConfiguration).toStrictEqual(configurationValid);
-});
-
-test('validateConfiguration should throw error when invalid', async () => {
-    const configuration = {};
-    expect(() => {
-        pushover.validateConfiguration(configuration);
-    }).toThrowError(ValidationError);
 });
 
 test('maskConfiguration should mask sensitive data', async () => {

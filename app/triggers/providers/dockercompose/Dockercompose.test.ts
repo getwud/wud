@@ -1,5 +1,6 @@
 import log from '../../../log';
 import Dockercompose, { doesContainerBelongToCompose } from './Dockercompose';
+import { testTriggerProvider } from '../TriggerTestHelper';
 
 jest.mock('../../../registry', () => ({
     getState() {
@@ -18,6 +19,20 @@ jest.mock('../../../registry', () => ({
 
 const dockercompose = new Dockercompose();
 dockercompose.log = log;
+
+const configurationValid = {
+    file: '/path/to/docker-compose.yml',
+    threshold: 'all',
+    mode: 'simple',
+    once: true,
+    auto: true,
+};
+
+describe('Dockercompose Trigger', () => {
+    testTriggerProvider(Dockercompose, configurationValid, {
+        testTemplateRenders: false,
+    });
+});
 
 const container = {
     name: 'test',
@@ -123,4 +138,64 @@ test('automatic compose label is used without explicit configuration', () => {
             },
         }),
     ).toBe('/some/path/automatic-compose.yaml');
+});
+
+import fs from 'fs/promises';
+jest.mock('fs/promises');
+
+describe('Dockercompose Trigger - file operations', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        dockercompose.configuration = { ...configurationValid };
+    });
+
+    test('initTrigger should verify file access if file configured', async () => {
+        (fs.access as jest.Mock).mockResolvedValue(undefined);
+        await dockercompose.initTrigger();
+        expect(fs.access).toHaveBeenCalledWith(configurationValid.file);
+        expect(dockercompose.configuration.mode).toBe('batch');
+    });
+
+    test('initTrigger should throw error if file access fails', async () => {
+        (fs.access as jest.Mock).mockRejectedValue(new Error('File not found'));
+        await expect(dockercompose.initTrigger()).rejects.toThrow(
+            'File not found',
+        );
+    });
+
+    test('backup should copy file', async () => {
+        (fs.copyFile as jest.Mock).mockResolvedValue(undefined);
+        await dockercompose.backup('test.yml', 'test.yml.back');
+        expect(fs.copyFile).toHaveBeenCalledWith('test.yml', 'test.yml.back');
+    });
+
+    test('writeComposeFile should write data', async () => {
+        (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
+        await dockercompose.writeComposeFile('test.yml', 'data');
+        expect(fs.writeFile).toHaveBeenCalledWith('test.yml', 'data');
+    });
+
+    test('getComposeFile should read file', async () => {
+        (fs.readFile as jest.Mock).mockResolvedValue(Buffer.from('services:'));
+        const result = await dockercompose.getComposeFile('test.yml');
+        expect(fs.readFile).toHaveBeenCalledWith('test.yml');
+        expect(result.toString()).toBe('services:');
+    });
+
+    test('triggerBatch should process compose file', async () => {
+        (fs.access as jest.Mock).mockResolvedValue(undefined);
+        dockercompose.getWatcher = jest.fn().mockReturnValue({
+            dockerApi: { modem: { socketPath: '/var/run/docker.sock' } },
+        });
+        dockercompose.processComposeFile = jest
+            .fn()
+            .mockResolvedValue(undefined);
+
+        await dockercompose.triggerBatch([container as any]);
+
+        expect(dockercompose.processComposeFile).toHaveBeenCalledWith(
+            configurationValid.file,
+            [container],
+        );
+    });
 });

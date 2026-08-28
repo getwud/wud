@@ -1,11 +1,11 @@
 //@ts-nocheck
-import { ValidationError } from 'joi';
 import mqttClient from 'mqtt';
 import log from '../../../log';
 import { flatten } from '../../../model/container';
 
 jest.mock('mqtt');
 import Mqtt from './Mqtt';
+import { testTriggerProvider } from '../TriggerTestHelper';
 
 const mqtt = new Mqtt();
 mqtt.log = log;
@@ -40,6 +40,8 @@ const configurationValid = {
     batchtitle: '${containers.length} updates available',
 };
 
+testTriggerProvider(Mqtt, configurationValid, { testTemplateRenders: false });
+
 const containerData = [
     {
         containerName: 'homeassistant',
@@ -71,28 +73,7 @@ beforeEach(async () => {
     mqttClient.connect = jest.fn(() => mockClient);
 });
 
-test('validateConfiguration should return validated configuration when valid', async () => {
-    const validatedConfiguration =
-        mqtt.validateConfiguration(configurationValid);
-    expect(validatedConfiguration).toStrictEqual(configurationValid);
-});
-
-test('validateConfiguration should apply_default_configuration', async () => {
-    const validatedConfiguration = mqtt.validateConfiguration({
-        url: configurationValid.url,
-        clientid: 'wud',
-    });
-    expect(validatedConfiguration).toStrictEqual(configurationValid);
-});
-
-test('validateConfiguration should throw error when invalid', async () => {
-    const configuration = {
-        url: 'http://invalid',
-    };
-    expect(() => {
-        mqtt.validateConfiguration(configuration);
-    }).toThrowError(ValidationError);
-});
+// generic tests removed in favor of testTriggerProvider
 
 test('maskConfiguration should mask sensitive data', async () => {
     mqtt.configuration = {

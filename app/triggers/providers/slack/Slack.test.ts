@@ -4,6 +4,7 @@ import { WebClient } from '@slack/web-api';
 
 jest.mock('@slack/web-api');
 import Slack from './Slack';
+import { testTriggerProvider } from '../TriggerTestHelper';
 
 const slack = new Slack();
 
@@ -24,11 +25,7 @@ const configurationValid = {
     disabletitle: false,
 };
 
-test('validateConfiguration should return validated configuration when valid', async () => {
-    const validatedConfiguration =
-        slack.validateConfiguration(configurationValid);
-    expect(validatedConfiguration).toStrictEqual(configurationValid);
-});
+testTriggerProvider(Slack, configurationValid);
 
 test('validateConfiguration should throw error when invalid', async () => {
     expect(() => {
