@@ -989,6 +989,44 @@ describe('Docker Watcher', () => {
 
             expect(result).toEqual({ tag: '1.3' });
         });
+
+        test('should not propose a tag that transforms to the same version as the current one', async () => {
+            const container = {
+                includeTags: '^4.5.\\d+-ls\\d+$',
+                transformTags: '^(\\d+\\.\\d+\\.\\d+)-ls\\d+$ => $1',
+                image: {
+                    registry: { name: 'hub' },
+                    tag: { value: '4.5.5-ls239', semver: true },
+                    digest: { watch: false },
+                },
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue([
+                    '4.5.5-ls244', // rebuild of 4.5.5 - same version after transform
+                    '4.5.5-ls239', // current tag
+                ]),
+                shouldWatchDigest: jest.fn(() => false),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+
+            // Emulate the real transformer (strip the -lsNNN rebuild suffix)
+            mockTag.transform.mockImplementation((formula, tag) =>
+                tag.replace(/-ls\d+$/, ''),
+            );
+            // Emulate semver gte (equal versions are treated as valid here);
+            // the transform-equal rebuild must still be excluded by the gate.
+            mockTag.isGreater.mockImplementation((t1, t2) => t1 >= t2);
+
+            const mockLogChild = { error: jest.fn(), warn: jest.fn() };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            // 4.5.5-ls244 normalizes to the same 4.5.5 as the current image,
+            // so it must NOT be proposed as the next tag.
+            expect(result).toEqual({ tag: '4.5.5-ls239' });
+        });
     });
 
     describe('Container Details', () => {
