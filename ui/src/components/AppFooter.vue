@@ -5,5 +5,28 @@
     </v-col>
   </v-footer>
 </template>
+<script lang="ts">
+import { defineComponent } from "vue";
+import { getAppInfos } from "@/services/app";
 
-<script lang="ts" src="./AppFooter.ts"></script>
+export default defineComponent({
+  data() {
+    return {
+      version: "unknown",
+    };
+  },
+
+  async beforeMount() {
+    try {
+      const appInfos = await getAppInfos();
+      this.version = appInfos.version || "unknown";
+    } catch (e: any) {
+      (this as any).$eventBus.emit(
+        "notify",
+        `Error when trying to get app version (${e.message})`,
+        "error",
+      );
+    }
+  },
+});
+</script>

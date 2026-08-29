@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import AppBar from '@/components/AppBar';
+import AppBar from '@/components/AppBar.vue';
 
 jest.mock('vue-router', () => ({
   useRoute: jest.fn(() => ({ name: 'home' })),

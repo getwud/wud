@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import HomeView from '@/views/HomeView';
+import HomeView from '@/views/HomeView.vue';
 
 // Mock services
 jest.mock('@/services/container', () => ({

@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import LoginView from '@/views/LoginView';
+import LoginView from '@/views/LoginView.vue';
 import LoginBasic from '@/components/LoginBasic.vue';
 import LoginOidc from '@/components/LoginOidc.vue';
 import { getStrategies, getOidcRedirection } from '@/services/auth';

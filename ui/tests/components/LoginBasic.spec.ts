@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import LoginBasic from '@/components/LoginBasic';
+import LoginBasic from '@/components/LoginBasic.vue';
 
 // Mock the auth service
 jest.mock('@/services/auth', () => ({

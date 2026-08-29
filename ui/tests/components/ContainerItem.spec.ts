@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import ContainerItem from '@/components/ContainerItem';
+import ContainerItem from '@/components/ContainerItem.vue';
 
 const mockContainer = {
   id: 'test-container-id',

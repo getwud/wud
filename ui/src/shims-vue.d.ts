@@ -7,10 +7,6 @@ declare module '*.vue' {
   export default component
 }
 
-declare module '*.svg' {
-  const content: any;
-  export default content;
-}
 
 // 2. Global Type Augmentation
 // This tells TypeScript that these properties exist on ALL Vue components.

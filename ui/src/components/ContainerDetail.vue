@@ -123,4 +123,25 @@
     </v-list-item>
   </v-list>
 </template>
-<script lang="ts" src="./ContainerDetail.ts"></script>
+<script lang="ts">
+import { defineComponent } from "vue";
+
+export default defineComponent({
+  props: {
+    container: {
+      type: Object,
+      required: true,
+    },
+  },
+  data() {
+    return {};
+  },
+
+  methods: {
+    copyToClipboard(kind: string, value: string) {
+      navigator.clipboard.writeText(value);
+      (this as any).$eventBus.emit("notify", `${kind} copied to clipboard`);
+    },
+  },
+});
+</script>

@@ -230,7 +230,7 @@ To test the web interface using **Playwright**:
 ./scripts/run-ui-tests.sh
 ```
 
-Or interactively from `ui-e2e/`:
+Or interactively from `ui-e2e/` (requires WUD running on port 3000, e.g. via `docker compose -f scripts/docker-compose.e2e.yml up -d`):
 ```bash
 cd ui-e2e
 npx playwright install  # First time only
@@ -252,6 +252,7 @@ Before submitting a pull request, ensure your branch passes all checks:
 - [ ] Frontend unit tests pass: `cd ui && npm run test:unit`
 - [ ] Code is linted without errors: `cd app && npm run lint` and `cd ui && npm run lint`
 - [ ] E2E tests pass locally: `cd e2e && npm run test:local`
+- [ ] UI E2E tests pass locally: `./scripts/run-ui-tests.sh`
 - [ ] If documentation was updated, site builds cleanly: `cd website && npm run build`
 - [ ] Commit messages are concise and descriptive.
 
