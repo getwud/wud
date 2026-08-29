@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import AppFooter from '@/components/AppFooter';
+import AppFooter from '@/components/AppFooter.vue';
 
 // Mock the app service
 jest.mock('@/services/app', () => ({

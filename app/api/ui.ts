@@ -8,8 +8,13 @@ const indexHtmlPath = path.join(__dirname, '..', '..', 'ui', 'index.html');
 
 function serveIndex(res) {
     const basePath = getServerConfiguration().basepath;
+    const baseHref = basePath.endsWith('/') ? basePath : `${basePath}/`;
     const html = fs.readFileSync(indexHtmlPath, 'utf-8');
-    const injected = html.replace(
+    let injected = html.replace(
+        '<head>',
+        `<head><base href="${baseHref}">`,
+    );
+    injected = injected.replace(
         '<div id="app">',
         `<script>window.__WUD_BASE_PATH__='${basePath}'</script><div id="app">`,
     );

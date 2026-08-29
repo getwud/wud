@@ -12,4 +12,14 @@
   </v-list>
 </template>
 
-<script lang="ts" src="./ContainerError.ts"></script>
+<script lang="ts">
+import { defineComponent } from "vue";
+
+export default defineComponent({
+  props: {
+    error: {
+      type: Object,
+    },
+  },
+});
+</script>

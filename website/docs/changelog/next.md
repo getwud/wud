@@ -19,4 +19,9 @@ description: Unreleased changes and upcoming features in What's Up Docker (WUD).
 - 🐛 `HTTP` Mask HTTP auth password and bearer token values
 - 🐛 Preserve update results across registry errors
 - 🐛 `DOCKER-COMPOSE` Prefer trigger-level configuration over automatic labels
-- 🔒 Migrate CI workflow from Travis-CI to GitHub Actions
+- 🐛 `UI` Fix dynamic chunk loading failure (`ChunkLoadError`) when navigating between nested configuration routes
+- 🔧 `UI` Update dependencies to latest versions (Vue 3, Vuetify 3, Vue Router 4) and remove unnecessary packages
+- 🔧 `UI` Refactor components into Single File Components (SFCs) by merging separate `.ts` scripts into `.vue` files
+- 🔧 `E2E` Modernize UI end-to-end Playwright tests with improved selectors and automatic environment cleanup
+- 🔧 `CI` Migrate CI workflow from Travis-CI to GitHub Actions
+- 🔧 `CI` Add automated UI E2E testing job running with containerized dependencies

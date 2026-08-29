@@ -1,3 +1,4 @@
+import "./public-path";
 import { createApp } from "vue";
 import App from "./App.vue";
 import { createVuetify } from "./plugins/vuetify";
