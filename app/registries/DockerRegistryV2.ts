@@ -23,6 +23,8 @@ export class DockerRegistryV2 extends Registry {
         'secretaccesskey',
         'accesskeyid',
         'privatekey',
+        'secretkey',
+        'apikey',
     ];
 
     /**
@@ -196,6 +198,18 @@ export class DockerRegistryV2 extends Registry {
                 this.configuration.token,
             );
         }
+        if (this.configuration.apikey) {
+            return DockerRegistryV2.base64Encode(
+                this.configuration.username || 'iamapikey',
+                this.configuration.apikey,
+            );
+        }
+        if (this.configuration.secretkey) {
+            return DockerRegistryV2.base64Encode(
+                this.configuration.username || 'nologin',
+                this.configuration.secretkey,
+            );
+        }
         return undefined;
     }
 
@@ -276,6 +290,18 @@ export class DockerRegistryV2 extends Registry {
             return {
                 username: `${this.configuration.namespace}+${this.configuration.account}`,
                 password: this.configuration.token,
+            };
+        }
+        if (this.configuration.apikey) {
+            return {
+                username: this.configuration.username || 'iamapikey',
+                password: this.configuration.apikey,
+            };
+        }
+        if (this.configuration.secretkey) {
+            return {
+                username: this.configuration.username || 'nologin',
+                password: this.configuration.secretkey,
             };
         }
         return undefined;

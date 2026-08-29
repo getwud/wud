@@ -237,6 +237,18 @@ describe('DockerRegistryV2 base class tests', () => {
             expect(registry.getAuthCredentials()).toBe('bnMrYWNjOnRvaw==');
         });
 
+        test('should encode apikey with default iamapikey user', () => {
+            registry.configuration = { apikey: 'mykey' };
+            expect(registry.getAuthCredentials()).toBe('aWFtYXBpa2V5Om15a2V5');
+        });
+
+        test('should encode secretkey with default nologin user', () => {
+            registry.configuration = { secretkey: 'mysecret' };
+            expect(registry.getAuthCredentials()).toBe(
+                'bm9sb2dpbjpteXNlY3JldA==',
+            );
+        });
+
         test('should return undefined when no matching credential fields', () => {
             registry.configuration = { url: 'https://testreg.io' };
             expect(registry.getAuthCredentials()).toBeUndefined();
@@ -312,6 +324,22 @@ describe('DockerRegistryV2 base class tests', () => {
             await expect(registry.getAuthPull()).resolves.toEqual({
                 username: 'ns+acc',
                 password: 'tok',
+            });
+        });
+
+        test('should return apikey with default iamapikey username', async () => {
+            registry.configuration = { apikey: 'mykey' };
+            await expect(registry.getAuthPull()).resolves.toEqual({
+                username: 'iamapikey',
+                password: 'mykey',
+            });
+        });
+
+        test('should return secretkey with default nologin username', async () => {
+            registry.configuration = { secretkey: 'mysecret' };
+            await expect(registry.getAuthPull()).resolves.toEqual({
+                username: 'nologin',
+                password: 'mysecret',
             });
         });
 
