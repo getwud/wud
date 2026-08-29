@@ -1,12 +1,14 @@
 import { AxiosRequestConfig } from 'axios';
 import { ContainerImage } from '../../../model/container';
-import BaseRegistry from '../../BaseRegistry';
+import DockerRegistryV2 from '../../DockerRegistryV2';
 import { AnySchema } from 'joi';
 
 /**
  * Github Container Registry integration.
  */
-class Ghcr extends BaseRegistry {
+class Ghcr extends DockerRegistryV2 {
+    protected registryPattern = /^.*\.?ghcr.io$/;
+
     getConfigurationSchema(): AnySchema {
         return this.joi.alternatives([
             this.joi.string().allow(''),
@@ -15,18 +17,6 @@ class Ghcr extends BaseRegistry {
                 token: this.joi.string().required(),
             }),
         ]);
-    }
-
-    maskConfiguration() {
-        return this.maskSensitiveFields(['token']);
-    }
-
-    match(imageUrl: string) {
-        return this.matchUrlPattern(imageUrl, /^.*\.?ghcr.io$/);
-    }
-
-    normalizeImage(image: ContainerImage) {
-        return this.normalizeImageUrl(image);
     }
 
     async authenticate(

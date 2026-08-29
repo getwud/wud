@@ -2,7 +2,8 @@ import { ECRClient, GetAuthorizationTokenCommand } from '@aws-sdk/client-ecr';
 import { ContainerImage } from '../../../model/container';
 import axios, { AxiosRequestConfig } from 'axios';
 import joi from 'joi';
-import Registry, { RegistryTagsList } from '../../Registry';
+import { RegistryTagsList } from '../../Registry';
+import DockerRegistryV2 from '../../DockerRegistryV2';
 
 const ECR_PUBLIC_GALLERY_HOSTNAME = 'public.ecr.aws';
 
@@ -17,7 +18,7 @@ export interface EcrConfiguration {
 /**
  * Elastic Container Registry integration.
  */
-export class Ecr extends Registry {
+export class Ecr extends DockerRegistryV2 {
     getConfigurationSchema(): joi.AlternativesSchema | joi.ObjectSchema {
         return this.joi.alternatives(
             this.joi.string().allow(''),
@@ -32,21 +33,8 @@ export class Ecr extends Registry {
     }
 
     /**
-     * Sanitize sensitive data
-     */
-    maskConfiguration() {
-        return {
-            ...this.configuration,
-            accesskeyid: Ecr.mask(this.configuration.accesskeyid),
-            secretaccesskey: Ecr.mask(this.configuration.secretaccesskey),
-            region: this.configuration.region,
-        };
-    }
-
-    /**
      * Return true if image has not registryUrl.
      */
-
     match(imageUrl: string) {
         this.log.debug(`Matching image registry URL: ${imageUrl}`);
 
@@ -67,18 +55,6 @@ export class Ecr extends Registry {
         } else {
             return /^.*\.dkr\.ecr\..*\.amazonaws\.com$/.test(imageUrl);
         }
-    }
-
-    /**
-     * Normalize image according to AWS ECR characteristics.
-     */
-
-    normalizeImage(image: ContainerImage) {
-        const imageNormalized = image;
-        if (!imageNormalized.registry.url.startsWith('https://')) {
-            imageNormalized.registry.url = `https://${imageNormalized.registry.url}/v2`;
-        }
-        return imageNormalized;
     }
 
     private tokenCache?: {
@@ -133,17 +109,9 @@ export class Ecr extends Registry {
         return requestOptionsWithAuth;
     }
 
-    async getAuthPull() {
-        return this.configuration.accesskeyid
-            ? {
-                  username: this.configuration.accesskeyid,
-                  password: this.configuration.secretaccesskey,
-              }
-            : undefined;
-    }
     getTagsPage(
         image: ContainerImage,
-        lastItem: string | undefined = undefined,
+        _lastItem: string | undefined = undefined,
         link: string | undefined = undefined,
     ) {
         const itemsPerPage = 1000;

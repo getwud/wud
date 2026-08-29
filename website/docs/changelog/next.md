@@ -12,6 +12,7 @@ description: Unreleased changes and upcoming features in What's Up Docker (WUD).
 - 🚀 Skip tag listing for non-semver images
 - 🚀 `MQTT` Add customizable Home Assistant device ID and device name
 - 🚀 `NOMAD` Add Nomad trigger
+- 🚀 `REGISTRIES` Refactor registries to leverage Docker Registry v2 inheritance and standardize unit tests
 - 🚀 Migrate doc from Docsify to Docusaurus
 - 🐛 Fix login redirect issues when WUD is exposed under a subpath
 - 🐛 `HTTP` Mask HTTP auth password and bearer token values

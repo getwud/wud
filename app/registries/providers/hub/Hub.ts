@@ -45,23 +45,8 @@ class Hub extends Custom {
     }
 
     /**
-     * Sanitize sensitive data
-     */
-    maskConfiguration() {
-        return {
-            ...this.configuration,
-            url: this.configuration.url,
-            login: this.configuration.login,
-            password: Hub.mask(this.configuration.password),
-            token: Hub.mask(this.configuration.token),
-            auth: Hub.mask(this.configuration.auth),
-        };
-    }
-
-    /**
      * Return true if image has no registry url.
      */
-
     match(imageUrl: string) {
         return !imageUrl || /^.*\.?docker.io$/.test(imageUrl);
     }

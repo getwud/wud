@@ -1,11 +1,13 @@
 import axios, { AxiosRequestConfig } from 'axios';
-import BaseRegistry from '../../BaseRegistry';
+import DockerRegistryV2 from '../../DockerRegistryV2';
 import { ContainerImage } from '../../../model/container';
 
 /**
  * Google Container Registry integration.
  */
-class Gcr extends BaseRegistry {
+class Gcr extends DockerRegistryV2 {
+    protected registryPattern = /^.*\.?gcr.io$/;
+
     getConfigurationSchema() {
         return this.joi.alternatives([
             this.joi.string().allow(''),
@@ -14,18 +16,6 @@ class Gcr extends BaseRegistry {
                 privatekey: this.joi.string().required(),
             }),
         ]);
-    }
-
-    maskConfiguration() {
-        return this.maskSensitiveFields(['privatekey']);
-    }
-
-    match(imageUrl: string) {
-        return this.matchUrlPattern(imageUrl, /^.*\.?gcr.io$/);
-    }
-
-    normalizeImage(image: ContainerImage) {
-        return this.normalizeImageUrl(image);
     }
 
     async authenticate(
@@ -54,13 +44,6 @@ class Gcr extends BaseRegistry {
         const requestOptionsWithAuth = requestOptions;
         requestOptionsWithAuth.headers.Authorization = `Bearer ${response.data.token}`;
         return requestOptionsWithAuth;
-    }
-
-    async getAuthPull() {
-        return {
-            username: this.configuration.clientemail,
-            password: this.configuration.privatekey,
-        };
     }
 }
 

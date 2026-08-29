@@ -1,65 +1,18 @@
 import { ContainerImage } from '../../../model/container';
-import { ComponentConfiguration } from '../../../registry/Component';
 import Ghcr from './Ghcr';
 import { testRegistryProvider } from '../RegistryTestHelper';
 
-describe('GitHub Container Registry tests', () => {
+const validConfig = {
+    username: 'testuser',
+    token: 'testtoken',
+};
+
+describe('GitHub Container Registry specific tests', () => {
     let ghcr: Ghcr;
 
     beforeEach(async () => {
         ghcr = new Ghcr();
-        await ghcr.register('registry', 'ghcr', 'test', {
-            username: 'testuser',
-            token: 'testtoken',
-        });
-    });
-
-    // testRegistryProvider boilerplate handles create instance
-
-    test('should match registry', async () => {
-        expect(ghcr.match('ghcr.io')).toBe(true);
-        expect(ghcr.match('docker.io')).toBe(false);
-    });
-
-    test('should normalize image name', async () => {
-        const image = {
-            name: 'user/repo',
-            registry: { url: 'ghcr.io' },
-        } as ContainerImage;
-        const normalized = ghcr.normalizeImage(image);
-        expect(normalized.name).toBe('user/repo');
-        expect(normalized.registry.url).toBe('https://ghcr.io/v2');
-    });
-
-    test('should not modify URL if already starts with https', async () => {
-        const image = {
-            name: 'user/repo',
-            registry: { url: 'https://ghcr.io/v2' },
-        } as ContainerImage;
-        const normalized = ghcr.normalizeImage(image);
-        expect(normalized.registry.url).toBe('https://ghcr.io/v2');
-    });
-
-    test('should mask configuration token', async () => {
-        ghcr.configuration = { username: 'testuser', token: 'secret_token' };
-        const masked = ghcr.maskConfiguration();
-        expect(masked.username).toBe('testuser');
-        expect(masked.token).toBe('s**********n');
-    });
-
-    test('should return auth pull credentials', async () => {
-        ghcr.configuration = { username: 'testuser', token: 'testtoken' };
-        const auth = await ghcr.getAuthPull();
-        expect(auth).toEqual({
-            username: 'testuser',
-            password: 'testtoken',
-        });
-    });
-
-    test('should return undefined auth pull when no credentials', async () => {
-        ghcr.configuration = {};
-        const auth = await ghcr.getAuthPull();
-        expect(auth).toBeUndefined();
+        await ghcr.register('registry', 'ghcr', 'test', validConfig);
     });
 
     test('should authenticate with token', async () => {
@@ -86,8 +39,6 @@ describe('GitHub Container Registry tests', () => {
         expect(result.headers.Authorization).toBe(`Bearer ${expectedBearer}`);
     });
 
-    // testRegistryProvider boilerplate handles validate string configuration
-
     test('should return undefined auth pull when missing username', async () => {
         ghcr.configuration = { token: 'test-token' };
         const auth = await ghcr.getAuthPull();
@@ -99,6 +50,39 @@ describe('GitHub Container Registry tests', () => {
         const auth = await ghcr.getAuthPull();
         expect(auth).toBeUndefined();
     });
+
+    test('should return undefined auth pull when no credentials', async () => {
+        ghcr.configuration = {};
+        const auth = await ghcr.getAuthPull();
+        expect(auth).toBeUndefined();
+    });
 });
 
-testRegistryProvider(Ghcr, { username: 'testuser', token: 'testtoken' });
+testRegistryProvider(Ghcr, validConfig, {
+    matchingUrls: ['ghcr.io'],
+    nonMatchingUrls: ['docker.io'],
+    sampleImage: {
+        input: {
+            name: 'user/repo',
+            registry: { url: 'ghcr.io' },
+        },
+        expected: {
+            name: 'user/repo',
+            registry: { url: 'https://ghcr.io/v2' },
+        },
+    },
+    maskConfig: {
+        input: validConfig,
+        expected: {
+            username: 'testuser',
+            token: 't*******n',
+        },
+    },
+    authPullConfig: {
+        input: validConfig,
+        expected: {
+            username: 'testuser',
+            password: 'testtoken',
+        },
+    },
+});

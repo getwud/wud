@@ -1,6 +1,7 @@
 // @ts-nocheck
 import axios from 'axios';
 import Gitlab from './Gitlab';
+import { testRegistryProvider } from '../RegistryTestHelper';
 
 const gitlab = new Gitlab();
 gitlab.configuration = {
@@ -160,4 +161,8 @@ test('getAuthPull should return custom username', async () => {
         username: 'custom-user',
         password: 'abcdef',
     });
+});
+
+testRegistryProvider(Gitlab, {
+    token: 'abcdef',
 });

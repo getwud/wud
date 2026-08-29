@@ -1,31 +1,13 @@
-import { ContainerImage } from '../../../model/container';
 import Lscr from './Lscr';
+import { testRegistryProvider } from '../RegistryTestHelper';
 
-jest.mock('axios', () =>
-    jest.fn().mockImplementation(() => ({
-        data: { token: 'xxxxx' },
-    })),
-);
-
-const lscr = new Lscr();
-lscr.configuration = {
+const validConfig = {
     username: 'user',
     token: 'token',
 };
 
-jest.mock('axios');
-
-test('validatedConfiguration should initialize when configuration is valid', async () => {
-    expect(
-        lscr.validateConfiguration({
-            username: 'user',
-            token: 'token',
-        }),
-    ).toStrictEqual({
-        username: 'user',
-        token: 'token',
-    });
-});
+const lscr = new Lscr();
+lscr.configuration = validConfig;
 
 test('validatedConfiguration should throw error when configuration is missing', async () => {
     expect(() => {
@@ -33,26 +15,35 @@ test('validatedConfiguration should throw error when configuration is missing', 
     }).toThrow('"username" is required');
 });
 
-test('match should return true when registry url is from lscr', async () => {
-    expect(lscr.match('lscr.io')).toBeTruthy();
-});
-
-test('match should return false when registry url is not from lscr', async () => {
-    expect(lscr.match('wrong.io')).toBeFalsy();
-});
-
-test('normalizeImage should return the proper registry v2 endpoint', async () => {
-    expect(
-        lscr.normalizeImage({
+testRegistryProvider(Lscr, validConfig, {
+    matchingUrls: ['lscr.io'],
+    nonMatchingUrls: ['wrong.io'],
+    sampleImage: {
+        input: {
             name: 'test/image',
             registry: {
                 url: 'lscr.io/test/image',
             },
-        } as ContainerImage),
-    ).toStrictEqual({
-        name: 'test/image',
-        registry: {
-            url: 'https://lscr.io/test/image/v2',
         },
-    });
+        expected: {
+            name: 'test/image',
+            registry: {
+                url: 'https://lscr.io/test/image/v2',
+            },
+        },
+    },
+    maskConfig: {
+        input: validConfig,
+        expected: {
+            username: 'user',
+            token: 't***n',
+        },
+    },
+    authPullConfig: {
+        input: validConfig,
+        expected: {
+            username: 'user',
+            password: 'token',
+        },
+    },
 });
