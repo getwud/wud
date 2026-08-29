@@ -82,7 +82,13 @@ export function transform(transformFormula, originalTag) {
             );
             transformedTag = transformedTag.replace(
                 new RegExp(placeholder.replace('$', '\\$'), 'g'),
-                originalTagMatches[placeholderIndex],
+                // An optional capture group may not participate in the match
+                // (for example an optional group in the formula). Substitute
+                // an empty string for it, rather than letting replace() coerce
+                // undefined into the literal "undefined" and corrupt the tag.
+                originalTagMatches[placeholderIndex] !== undefined
+                    ? originalTagMatches[placeholderIndex]
+                    : '',
             );
         });
         return transformedTag;
