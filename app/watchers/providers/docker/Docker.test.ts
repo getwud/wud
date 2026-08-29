@@ -1244,7 +1244,9 @@ describe('Docker Watcher', () => {
             );
 
             expect(docker.log.warn).toHaveBeenCalledWith(
-                expect.stringContaining("uses deprecated icon prefix 'hl:plex'"),
+                expect.stringContaining(
+                    "uses deprecated icon prefix 'hl:plex'",
+                ),
             );
         });
     });
