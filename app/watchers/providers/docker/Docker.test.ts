@@ -1214,6 +1214,41 @@ describe('Docker Watcher', () => {
 
             expect(result).toBeDefined();
         });
+
+        test('should warn when displayIcon uses deprecated hl prefix', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const container = {
+                Id: 'deprecated-icon-container',
+                Names: ['/my-container'],
+                Image: 'test-image',
+                State: 'running',
+                Labels: { 'wud.display.icon': 'hl:plex' },
+            };
+            mockImage.inspect.mockResolvedValue({
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+                Id: 'img123',
+                RepoDigests: [],
+            });
+            docker.log.warn = jest.fn();
+
+            await docker.addImageDetailsToContainer(
+                container,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                'hl:plex',
+            );
+
+            expect(docker.log.warn).toHaveBeenCalledWith(
+                expect.stringContaining(
+                    "uses deprecated icon prefix 'hl:plex'",
+                ),
+            );
+        });
     });
 
     describe('Container Reporting', () => {

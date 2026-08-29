@@ -1,36 +1,29 @@
 <template>
-  <img
-    v-if="isHomarrIcon"
-    :src="homarrIconUrl"
+  <Icon
+    v-if="normalizedIcon"
+    :icon="normalizedIcon"
     :style="iconStyle"
-    :alt="icon"
+    :width="size"
+    :height="size"
+    class="icon-renderer"
+    :inline="true"
   />
-  <img
-    v-else-if="isSelfhstIcon"
-    :src="selfhstIconUrl"
-    :style="iconStyle"
-    :alt="icon"
-  />
-  <img
-    v-else-if="isSimpleIcon"
-    :src="simpleIconUrl"
-    :style="iconStyle"
-    :alt="icon"
-    class="simple-icon"
-  />
-  <v-icon v-else :style="iconStyle">
-    {{ normalizedIcon }}
-  </v-icon>
 </template>
 
 <script lang="ts">
 import { defineComponent } from "vue";
+import { Icon } from "@iconify/vue";
 
 export default defineComponent({
+  name: "IconRenderer",
+  components: {
+    Icon,
+  },
   props: {
     icon: {
       type: String,
       required: true,
+      default: "",
     },
     size: {
       type: [String, Number],
@@ -43,62 +36,73 @@ export default defineComponent({
   },
 
   computed: {
-    normalizedIcon() {
-      if (!this.icon) return '';
-      return this.icon
-        .replace("mdi:", "mdi-")
-        .replace("fa:", "fa-")
-        .replace("fab:", "fab-")
-        .replace("far:", "far-")
-        .replace("fas:", "fas-")
-        .replace("si:", "si-");
+    normalizedIcon(): string {
+      if (!this.icon) return "";
+
+      const iconName = this.icon.trim().toLowerCase();
+
+      // Deprecation warning for Homarr icons: mapped to selfhst
+      if (iconName.startsWith("hl-") || iconName.startsWith("hl:")) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[WUD] Icon prefix 'hl:'/'hl-' is deprecated and mapped to 'selfhst:'. Please update '${this.icon}' to 'selfhst:${iconName.replace(/^hl[:-]/, "")}' or standard Iconify format.`
+        );
+        return `selfhst:${iconName.replace(/^hl[:-]/, "")}`;
+      }
+
+      if (iconName.startsWith("sh-") || iconName.startsWith("sh:")) {
+        return `selfhst:${iconName.replace(/^sh[:-]/, "")}`;
+      }
+
+      if (iconName.startsWith("si-") || iconName.startsWith("si:")) {
+        return `simple-icons:${iconName.replace(/^si[:-]/, "")}`;
+      }
+
+      if (iconName.startsWith("mdi-") || iconName.startsWith("mdi ") || iconName.startsWith("mdi:")) {
+        return `mdi:${iconName.replace(/^mdi[- :]/, "")}`;
+      }
+
+      if (iconName.startsWith("fa-") || iconName.startsWith("fa ") || iconName.startsWith("fa:")) {
+        return `fa6-solid:${iconName.replace(/^fa[- :]/, "")}`;
+      }
+
+      if (iconName.startsWith("fab-") || iconName.startsWith("fab:")) {
+        return `fa6-brands:${iconName.replace(/^fab[:-]/, "")}`;
+      }
+
+      if (iconName.startsWith("far-") || iconName.startsWith("far:")) {
+        return `fa6-regular:${iconName.replace(/^far[:-]/, "")}`;
+      }
+
+      if (iconName.startsWith("fas-") || iconName.startsWith("fas:")) {
+        return `fa6-solid:${iconName.replace(/^fas[:-]/, "")}`;
+      }
+
+      // If it already contains a collection prefix (e.g. 'logos:docker', 'mdi:home', 'custom:icon')
+      if (iconName.includes(":")) {
+        return iconName;
+      }
+
+      // Default fallback when no prefix is specified: simple-icons
+      return `simple-icons:${iconName}`;
     },
-    
-    isHomarrIcon() {
-      return this.icon && (this.icon.startsWith("hl-") || this.icon.startsWith("hl:"));
-    },
-    
-    isSelfhstIcon() {
-      return this.icon && (this.icon.startsWith("sh-") || this.icon.startsWith("sh:"));
-    },
-    
-    isSimpleIcon() {
-      return this.normalizedIcon && this.normalizedIcon.startsWith("si-");
-    },
-    
-    homarrIconUrl() {
-      const iconName = this.icon.replace("hl-", "").replace("hl:", "");
-      return `https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/${iconName}.png`;
-    },
-    
-    selfhstIconUrl() {
-      const iconName = this.icon.replace("sh-", "").replace("sh:", "");
-      return `https://cdn.jsdelivr.net/gh/selfhst/icons/png/${iconName}.png`;
-    },
-    
-    simpleIconUrl() {
-      const iconName = this.normalizedIcon.replace("si-", "");
-      return `https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/${iconName}.svg`;
-    },
-    
+
     iconStyle() {
       return {
         width: `${this.size}px`,
         height: `${this.size}px`,
         marginRight: `${this.marginRight}px`,
+        display: "inline-block",
+        verticalAlign: "middle",
       };
     },
   },
-
 });
 </script>
 
 <style scoped>
-.simple-icon {
-  filter: brightness(0) saturate(100%) opacity(0.87);
-}
-
-.v-theme--dark .simple-icon {
-  filter: brightness(0) saturate(100%) invert(1) opacity(0.87);
+.icon-renderer {
+  display: inline-block;
+  vertical-align: middle;
 }
 </style>

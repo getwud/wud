@@ -768,6 +768,14 @@ export class Docker extends Watcher {
 
         // Get useful properties
         const containerName = getContainerName(container);
+        if (
+            displayIcon &&
+            (displayIcon.startsWith('hl:') || displayIcon.startsWith('hl-'))
+        ) {
+            this.log.warn(
+                `Container ${containerName} uses deprecated icon prefix '${displayIcon}'. Please migrate to 'selfhst:' (e.g. 'selfhst:${displayIcon.replace(/^hl[:-]/, '')}') or any standard Iconify format.`,
+            );
+        }
         const status = container.State;
         const architecture = image.Architecture;
         const os = image.Os;

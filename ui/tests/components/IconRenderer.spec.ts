@@ -1,114 +1,119 @@
 import { mount } from '@vue/test-utils';
 import IconRenderer from '@/components/IconRenderer.vue';
+import { Icon } from '@iconify/vue';
 
 describe('IconRenderer', () => {
-  it('renders v-icon for standard mdi icons', () => {
+  let consoleWarnSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('renders Icon component when icon is provided', () => {
     const wrapper = mount(IconRenderer, {
+      props: { icon: 'mdi:docker' }
+    });
+
+    expect(wrapper.findComponent(Icon).exists()).toBe(true);
+    expect(wrapper.vm.normalizedIcon).toBe('mdi:docker');
+  });
+
+  it('normalizes homarr icons to selfhst and logs a deprecation warning', () => {
+    const wrapper = mount(IconRenderer, {
+      props: { icon: 'hl:plex' }
+    });
+
+    expect(wrapper.vm.normalizedIcon).toBe('selfhst:plex');
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[WUD] Icon prefix 'hl:'/'hl-' is deprecated")
+    );
+  });
+
+  it('normalizes homarr with hyphen to selfhst', () => {
+    const wrapper = mount(IconRenderer, {
+      props: { icon: 'hl-plex' }
+    });
+
+    expect(wrapper.vm.normalizedIcon).toBe('selfhst:plex');
+    expect(consoleWarnSpy).toHaveBeenCalled();
+  });
+
+  it('normalizes selfhst icons correctly', () => {
+    const colonWrapper = mount(IconRenderer, {
+      props: { icon: 'sh:authentik' }
+    });
+    expect(colonWrapper.vm.normalizedIcon).toBe('selfhst:authentik');
+
+    const hyphenWrapper = mount(IconRenderer, {
+      props: { icon: 'sh-authentik' }
+    });
+    expect(hyphenWrapper.vm.normalizedIcon).toBe('selfhst:authentik');
+  });
+
+  it('normalizes simple-icons correctly', () => {
+    const colonWrapper = mount(IconRenderer, {
+      props: { icon: 'si:docker' }
+    });
+    expect(colonWrapper.vm.normalizedIcon).toBe('simple-icons:docker');
+
+    const hyphenWrapper = mount(IconRenderer, {
+      props: { icon: 'si-docker' }
+    });
+    expect(hyphenWrapper.vm.normalizedIcon).toBe('simple-icons:docker');
+  });
+
+  it('normalizes mdi icons correctly', () => {
+    const colonWrapper = mount(IconRenderer, {
+      props: { icon: 'mdi:docker' }
+    });
+    expect(colonWrapper.vm.normalizedIcon).toBe('mdi:docker');
+
+    const hyphenWrapper = mount(IconRenderer, {
       props: { icon: 'mdi-docker' }
     });
-
-    expect(wrapper.find('.v-icon').exists()).toBe(true);
-    expect(wrapper.vm.normalizedIcon).toBe('mdi-docker');
+    expect(hyphenWrapper.vm.normalizedIcon).toBe('mdi:docker');
   });
 
-  it('handles homarr icons', () => {
+  it('normalizes font awesome icons correctly', () => {
+    expect(mount(IconRenderer, { props: { icon: 'fa:docker' } }).vm.normalizedIcon).toBe('fa6-solid:docker');
+    expect(mount(IconRenderer, { props: { icon: 'fa-docker' } }).vm.normalizedIcon).toBe('fa6-solid:docker');
+    expect(mount(IconRenderer, { props: { icon: 'fas:heart' } }).vm.normalizedIcon).toBe('fa6-solid:heart');
+    expect(mount(IconRenderer, { props: { icon: 'far:heart' } }).vm.normalizedIcon).toBe('fa6-regular:heart');
+    expect(mount(IconRenderer, { props: { icon: 'fab:github' } }).vm.normalizedIcon).toBe('fa6-brands:github');
+  });
+
+  it('preserves custom Iconify collection prefixes', () => {
     const wrapper = mount(IconRenderer, {
-      props: { icon: 'homarr-test' }
+      props: { icon: 'logos:docker-icon' }
     });
 
-    expect(wrapper.vm.icon).toBe('homarr-test');
+    expect(wrapper.vm.normalizedIcon).toBe('logos:docker-icon');
   });
 
-  it('handles selfhst icons', () => {
+  it('defaults to simple-icons when no prefix is provided', () => {
     const wrapper = mount(IconRenderer, {
-      props: { icon: 'selfhst-test' }
+      props: { icon: 'nginx' }
     });
 
-    expect(wrapper.vm.icon).toBe('selfhst-test');
+    expect(wrapper.vm.normalizedIcon).toBe('simple-icons:nginx');
   });
 
-  it('handles simple icons', () => {
-    const wrapper = mount(IconRenderer, {
-      props: { icon: 'si-docker' }
-    });
-
-    expect(wrapper.vm.isSimpleIcon).toBeTruthy();
-  });
-
-  it('renders img for Homarr icons', () => {
-    const wrapper = mount(IconRenderer, {
-      props: { icon: 'hl-docker' }
-    });
-
-    expect(wrapper.find('img').exists()).toBe(true);
-    expect(wrapper.vm.isHomarrIcon).toBe(true);
-    expect(wrapper.vm.homarrIconUrl).toContain('docker.png');
-  });
-
-  it('renders img for Selfhst icons', () => {
-    const wrapper = mount(IconRenderer, {
-      props: { icon: 'sh-docker' }
-    });
-
-    expect(wrapper.find('img').exists()).toBe(true);
-    expect(wrapper.vm.isSelfhstIcon).toBe(true);
-    expect(wrapper.vm.selfhstIconUrl).toContain('docker.png');
-  });
-
-  it('renders img for Simple icons', () => {
-    const wrapper = mount(IconRenderer, {
-      props: { icon: 'si-docker' }
-    });
-
-    expect(wrapper.find('img.simple-icon').exists()).toBe(true);
-    expect(wrapper.vm.isSimpleIcon).toBe(true);
-    expect(wrapper.vm.simpleIconUrl).toContain('docker.svg');
-  });
-
-  it('normalizes icon prefixes correctly', () => {
-    const testCases = [
-      { input: 'mdi:docker', expected: 'mdi-docker' },
-      { input: 'fa:docker', expected: 'fa-docker' },
-      { input: 'fab:docker', expected: 'fab-docker' },
-      { input: 'far:docker', expected: 'far-docker' },
-      { input: 'fas:docker', expected: 'fas-docker' },
-      { input: 'si:docker', expected: 'si-docker' }
-    ];
-
-    testCases.forEach(({ input, expected }) => {
-      const wrapper = mount(IconRenderer, {
-        props: { icon: input }
-      });
-      expect(wrapper.vm.normalizedIcon).toBe(expected);
-    });
-  });
-
-  it('handles undefined icon gracefully', () => {
-    const wrapper = mount(IconRenderer, {
+  it('handles empty and null icon gracefully', () => {
+    const emptyWrapper = mount(IconRenderer, {
       props: { icon: '' }
     });
-
-    expect(wrapper.vm.isHomarrIcon).toBe('');
-    expect(wrapper.vm.isSelfhstIcon).toBe('');
-    expect(wrapper.vm.isSimpleIcon).toBe('');
-    expect(wrapper.vm.normalizedIcon).toBe('');
-  });
-
-  it('handles null icon gracefully', () => {
-    const wrapper = mount(IconRenderer, {
-      props: { icon: '' }
-    });
-
-    expect(wrapper.vm.isHomarrIcon).toBe('');
-    expect(wrapper.vm.isSelfhstIcon).toBe('');
-    expect(wrapper.vm.isSimpleIcon).toBe('');
-    expect(wrapper.vm.normalizedIcon).toBe('');
+    expect(emptyWrapper.vm.normalizedIcon).toBe('');
+    expect(emptyWrapper.findComponent(Icon).exists()).toBe(false);
   });
 
   it('applies correct styling based on props', () => {
     const wrapper = mount(IconRenderer, {
       props: {
-        icon: 'mdi-docker',
+        icon: 'mdi:docker',
         size: 32,
         marginRight: 16
       }
@@ -122,41 +127,12 @@ describe('IconRenderer', () => {
 
   it('uses default size and margin when not specified', () => {
     const wrapper = mount(IconRenderer, {
-      props: { icon: 'mdi-docker' }
+      props: { icon: 'mdi:docker' }
     });
 
     const style = wrapper.vm.iconStyle;
     expect(style.width).toBe('24px');
     expect(style.height).toBe('24px');
     expect(style.marginRight).toBe('8px');
-  });
-
-  it('generates correct URLs for different icon types', () => {
-    const homarrWrapper = mount(IconRenderer, {
-      props: { icon: 'hl:test-app' }
-    });
-    expect(homarrWrapper.vm.homarrIconUrl).toBe('https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/test-app.png');
-
-    const selfhstWrapper = mount(IconRenderer, {
-      props: { icon: 'sh:test-app' }
-    });
-    expect(selfhstWrapper.vm.selfhstIconUrl).toBe('https://cdn.jsdelivr.net/gh/selfhst/icons/png/test-app.png');
-
-    const simpleWrapper = mount(IconRenderer, {
-      props: { icon: 'si-testapp' }
-    });
-    expect(simpleWrapper.vm.simpleIconUrl).toBe('https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/testapp.svg');
-  });
-
-  it('detects icon types correctly with colon syntax', () => {
-    const homarrWrapper = mount(IconRenderer, {
-      props: { icon: 'hl:docker' }
-    });
-    expect(homarrWrapper.vm.isHomarrIcon).toBe(true);
-
-    const selfhstWrapper = mount(IconRenderer, {
-      props: { icon: 'sh:docker' }
-    });
-    expect(selfhstWrapper.vm.isSelfhstIcon).toBe(true);
   });
 });

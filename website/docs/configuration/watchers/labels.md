@@ -14,9 +14,9 @@ Container labels allow you to customize WUD behavior on a **per-container basis*
   <ConfigOption
     name="wud.display.icon"
     required={false}
-    type="url"
+    type="string"
     defaultValue="mdi:docker"
-    supported="Material Design, Font Awesome, Simple Icons, Homarr, Selfh.st">
+    supported="Any Iconify icon (mdi, simple-icons, selfhst, logos, fa6, etc.)">
     Custom display icon for the container in the UI and integrations
   </ConfigOption>
 
@@ -319,12 +319,20 @@ docker run -d --name mariadb \
 
 Customize how containers appear in the WUD Web UI and smart home integrations (e.g. Home Assistant):
 
-#### Supported Icon Prefixes
-- `mdi:` or `mdi-` for [Material Design Icons](https://materialdesignicons.com/) (`mdi:database`, `mdi-server`)
-- `si:` or `si-` for [Simple Icons](https://simpleicons.org/) (`si:mysql`, `si-plex`)
-- `fab:`, `far:`, `fas:` for [Font Awesome](https://fontawesome.com/) (`fab:github`, `fas:heart`)
-- `hl:` or `hl-` for [Homarr Labs](https://dashboardicons.com/) (`hl:plex`, `hl-authelia`)
-- `sh:` or `sh-` for [Selfh.st](https://selfh.st/icons/) (`sh:authentik`, `sh-authelia-light`)
+#### Supported Icons
+WUD supports the full [Iconify](https://icon-sets.iconify.design/) catalog (over 150,000+ open-source icons across 150+ collections) using the standard `collection:icon-name` format:
+- `mdi:` for [Material Design Icons](https://icon-sets.iconify.design/mdi/) (`mdi:database`, `mdi:docker`)
+- `simple-icons:` (or `si:`) for [Simple Icons](https://icon-sets.iconify.design/simple-icons/) (`simple-icons:mysql`, `si:mariadb`)
+- `selfhst:` (or `sh:`) for [Selfh.st Icons](https://icon-sets.iconify.design/selfhst/) (`selfhst:authentik`, `selfhst:jellyfin`)
+- `logos:` for [SVG Logos](https://icon-sets.iconify.design/logos/) (`logos:redis`, `logos:postgresql`)
+- `fa6-solid:`, `fa6-regular:`, `fa6-brands:` (or `fa:`, `fas:`, `far:`, `fab:`) for [Font Awesome](https://icon-sets.iconify.design/fa6-solid/) (`fa6-brands:github`, `fa:heart`)
+- Any other collection from [Icon-sets](https://icon-sets.iconify.design/) (e.g. `lucide:`, `tabler:`, `devicon:`, etc.)
+
+:::info Legacy Prefixes & Backward Compatibility
+- Legacy prefixes (`mdi-`, `si-`, `sh-`, `fa-`, `fab:`, etc.) are automatically normalized.
+- The `hl:` and `hl-` (Homarr) prefix is deprecated and automatically mapped to `selfhst:`.
+- Specifying an icon name without any prefix (e.g. `mariadb`) defaults to `simple-icons:mariadb`.
+:::
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
