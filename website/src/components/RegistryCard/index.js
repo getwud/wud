@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from '@docusaurus/Link';
 import clsx from 'clsx';
+import { BrandIcon } from '../DocHero';
 import styles from './styles.module.css';
 
 export function RegistryGrid({ children }) {
@@ -12,11 +13,22 @@ export function RegistryCard({
   href,
   defaultSupport = false,
   description,
+  icon,
 }) {
+  const iconName =
+    icon || (href ? href.split('/').filter(Boolean).pop() : undefined);
+
   return (
     <Link to={href} className={styles.card}>
       <div className={styles.header}>
-        <h3 className={styles.title}>{title}</h3>
+        <div className={styles.titleContainer}>
+          {iconName && (
+            <div className={styles.iconBox}>
+              <BrandIcon name={iconName} size={20} />
+            </div>
+          )}
+          <h3 className={styles.title}>{title}</h3>
+        </div>
         <span
           className={clsx(
             styles.badge,

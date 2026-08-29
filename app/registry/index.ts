@@ -264,13 +264,23 @@ async function registerTriggers() {
  */
 async function registerRegistries() {
     const defaultRegistries = {
+        alibaba: { public: '' },
         codeberg: { public: '' },
+        docr: { public: '' },
         ecr: { public: '' },
         forgejo: { public: '' },
         gcr: { public: '' },
         ghcr: { public: '' },
+        harbor: { public: '' },
         hub: { public: '' },
+        icr: { public: '' },
+        jfrog: { public: '' },
+        linode: { public: '' },
+        nexus: { public: '' },
+        ocir: { public: '' },
+        proget: { public: '' },
         quay: { public: '' },
+        scaleway: { public: '' },
     };
     const registriesToRegister = {
         ...defaultRegistries,

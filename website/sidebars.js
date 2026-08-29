@@ -162,6 +162,11 @@ const sidebars = {
       items: [
         {
           type: 'doc',
+          id: 'configuration/registries/alibaba/README',
+          label: 'Alibaba Cloud (ACR)',
+        },
+        {
+          type: 'doc',
           id: 'configuration/registries/ecr/README',
           label: 'AWS ECR',
         },
@@ -179,6 +184,11 @@ const sidebars = {
           type: 'doc',
           id: 'configuration/registries/custom/README',
           label: 'Custom / Self-Hosted',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/registries/docr/README',
+          label: 'DigitalOcean (DOCR)',
         },
         {
           type: 'doc',
@@ -212,13 +222,53 @@ const sidebars = {
         },
         {
           type: 'doc',
+          id: 'configuration/registries/harbor/README',
+          label: 'Harbor',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/registries/icr/README',
+          label: 'IBM Cloud (ICR)',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/registries/proget/README',
+          label: 'Inedo ProGet',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/registries/jfrog/README',
+          label: 'JFrog Artifactory',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/registries/linode/README',
+          label: 'Linode (Akamai)',
+        },
+        {
+          type: 'doc',
           id: 'configuration/registries/lscr/README',
           label: 'LinuxServer (LSCR)',
         },
         {
           type: 'doc',
+          id: 'configuration/registries/ocir/README',
+          label: 'Oracle Cloud (OCIR)',
+        },
+        {
+          type: 'doc',
           id: 'configuration/registries/quay/README',
           label: 'Quay',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/registries/scaleway/README',
+          label: 'Scaleway',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/registries/nexus/README',
+          label: 'Sonatype Nexus',
         },
         {
           type: 'doc',

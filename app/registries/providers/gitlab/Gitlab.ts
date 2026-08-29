@@ -1,11 +1,11 @@
 import axios, { AxiosRequestConfig } from 'axios';
-import Registry from '../../Registry';
+import DockerRegistryV2 from '../../DockerRegistryV2';
 import { ContainerImage } from '../../../model/container';
 
 /**
  * Docker Gitlab integration.
  */
-class Gitlab extends Registry {
+class Gitlab extends DockerRegistryV2 {
     /**
      * Get the Gitlab configuration schema.
      */
@@ -16,36 +16,6 @@ class Gitlab extends Registry {
             username: this.joi.string().optional().default(''),
             token: this.joi.string().required(),
         });
-    }
-
-    /**
-     * Sanitize sensitive data
-     */
-    maskConfiguration() {
-        return {
-            ...this.configuration,
-            url: this.configuration.url,
-            authurl: this.configuration.authurl,
-            token: Gitlab.mask(this.configuration.token),
-        };
-    }
-
-    /**
-     * Return true if image has no registry url.
-     */
-    match(imageUrl: string) {
-        return this.configuration.url.indexOf(imageUrl) !== -1;
-    }
-
-    /**
-     * Normalize images according to Gitlab characteristics.
-     */
-    normalizeImage(image: ContainerImage) {
-        const imageNormalized = image;
-        if (!imageNormalized.registry.url.startsWith('https://')) {
-            imageNormalized.registry.url = `https://${imageNormalized.registry.url}/v2`;
-        }
-        return imageNormalized;
     }
 
     /**
@@ -67,16 +37,6 @@ class Gitlab extends Registry {
         const requestOptionsWithAuth = requestOptions;
         requestOptionsWithAuth.headers.Authorization = `Bearer ${response.data.token}`;
         return requestOptionsWithAuth;
-    }
-
-    /**
-     * Return empty username and personal access token value.
-     */
-    async getAuthPull() {
-        return {
-            username: this.configuration.username,
-            password: this.configuration.token,
-        };
     }
 }
 

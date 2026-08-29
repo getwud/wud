@@ -2,6 +2,7 @@
 import axios from 'axios';
 import Quay from './Quay';
 import log from '../../../log';
+import { testRegistryProvider } from '../RegistryTestHelper';
 
 jest.mock('axios');
 axios.mockImplementation(() => ({
@@ -132,4 +133,10 @@ test('authenticate should not populate header with base64 bearer when anonymous'
     expect(quayInstance.authenticate({}, { headers: {} })).resolves.toEqual({
         headers: {},
     });
+});
+
+testRegistryProvider(Quay, {
+    namespace: 'namespace',
+    account: 'account',
+    token: 'token',
 });

@@ -14,6 +14,7 @@ jest.mock('@aws-sdk/client-ecr', () => {
 import Logger from 'bunyan';
 import { ContainerImage } from '../../../model/container';
 import { Ecr } from './Ecr';
+import { testRegistryProvider } from '../RegistryTestHelper';
 
 const ecr = new Ecr();
 ecr.log = {
@@ -130,4 +131,10 @@ test('getAuthPull should call ecr auth endpoint and get token', async () => {
         username: 'accesskeyid',
         password: 'secretaccesskey',
     });
+});
+
+testRegistryProvider(Ecr, {
+    accesskeyid: 'accesskeyid',
+    secretaccesskey: 'secretaccesskey',
+    region: 'region',
 });

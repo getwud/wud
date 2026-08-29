@@ -1,5 +1,6 @@
 import { ContainerImage } from '../../../model/container';
 import Gcr from './Gcr';
+import { testRegistryProvider } from '../RegistryTestHelper';
 
 jest.mock('axios', () =>
     jest.fn().mockImplementation(() => ({
@@ -7,25 +8,13 @@ jest.mock('axios', () =>
     })),
 );
 
-const gcr = new Gcr();
-gcr.configuration = {
+const validConfig = {
     clientemail: 'accesskeyid',
     privatekey: 'secretaccesskey',
 };
 
-jest.mock('axios');
-
-test('validatedConfiguration should initialize when configuration is valid', async () => {
-    expect(
-        gcr.validateConfiguration({
-            clientemail: 'accesskeyid',
-            privatekey: 'secretaccesskey',
-        }),
-    ).toStrictEqual({
-        clientemail: 'accesskeyid',
-        privatekey: 'secretaccesskey',
-    });
-});
+const gcr = new Gcr();
+gcr.configuration = validConfig;
 
 test('validatedConfiguration should throw error when configuration is missing', async () => {
     expect(() => {
@@ -33,46 +22,53 @@ test('validatedConfiguration should throw error when configuration is missing', 
     }).toThrow('"clientemail" is required');
 });
 
-test('maskConfiguration should mask configuration secrets', async () => {
-    expect(gcr.maskConfiguration()).toEqual({
-        clientemail: 'accesskeyid',
-        privatekey: 's*************y',
-    });
-});
-
-test('match should return true when registry url is from gcr', async () => {
-    expect(gcr.match('gcr.io')).toBeTruthy();
-    expect(gcr.match('us.gcr.io')).toBeTruthy();
-    expect(gcr.match('eu.gcr.io')).toBeTruthy();
-    expect(gcr.match('asia.gcr.io')).toBeTruthy();
-});
-
-test('match should return false when registry url is not from gcr', async () => {
-    expect(gcr.match('grr.io')).toBeFalsy();
-});
-
-test('normalizeImage should return the proper registry v2 endpoint', async () => {
-    expect(
-        gcr.normalizeImage({
-            name: 'test/image',
-            registry: {
-                url: 'eu.gcr.io/test/image',
-            },
-        } as ContainerImage),
-    ).toStrictEqual({
-        name: 'test/image',
-        registry: {
-            url: 'https://eu.gcr.io/test/image/v2',
-        },
-    });
-});
-
 test('authenticate should call ecr auth endpoint', async () => {
-    expect(
+    await expect(
         gcr.authenticate({} as ContainerImage, { headers: {} }),
     ).resolves.toEqual({
         headers: {
             Authorization: 'Bearer xxxxx',
         },
     });
+});
+
+test('authenticate should return requestOptions when clientemail is empty', async () => {
+    const anonymousGcr = new Gcr();
+    anonymousGcr.configuration = {};
+    await expect(
+        anonymousGcr.authenticate({} as ContainerImage, { headers: {} }),
+    ).resolves.toEqual({ headers: {} });
+});
+
+testRegistryProvider(Gcr, validConfig, {
+    matchingUrls: ['gcr.io', 'us.gcr.io', 'eu.gcr.io', 'asia.gcr.io'],
+    nonMatchingUrls: ['grr.io'],
+    sampleImage: {
+        input: {
+            name: 'test/image',
+            registry: {
+                url: 'eu.gcr.io/test/image',
+            },
+        },
+        expected: {
+            name: 'test/image',
+            registry: {
+                url: 'https://eu.gcr.io/test/image/v2',
+            },
+        },
+    },
+    maskConfig: {
+        input: validConfig,
+        expected: {
+            clientemail: 'accesskeyid',
+            privatekey: 's*************y',
+        },
+    },
+    authPullConfig: {
+        input: validConfig,
+        expected: {
+            username: 'accesskeyid',
+            password: 'secretaccesskey',
+        },
+    },
 });

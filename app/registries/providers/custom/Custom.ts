@@ -1,12 +1,11 @@
 import { AnySchema } from 'joi';
-import BaseRegistry from '../../BaseRegistry';
+import DockerRegistryV2 from '../../DockerRegistryV2';
 import { ContainerImage } from '../../../model/container';
-import { AxiosRequestConfig } from 'axios';
 
 /**
  * Docker Custom Registry V2 integration.
  */
-class Custom extends BaseRegistry {
+class Custom extends DockerRegistryV2 {
     getConfigurationSchema(): AnySchema<any> {
         return this.joi.alternatives([
             this.joi.string().allow(''),
@@ -36,17 +35,6 @@ class Custom extends BaseRegistry {
         ]);
     }
 
-    maskConfiguration() {
-        return this.maskSensitiveFields(['password', 'auth']);
-    }
-
-    /**
-     * Return true if image has no registry url.
-     */
-    match(imageUrl: string) {
-        return this.configuration.url.indexOf(imageUrl) !== -1;
-    }
-
     /**
      * Normalize images according to Custom characteristics.
      */
@@ -54,16 +42,6 @@ class Custom extends BaseRegistry {
         const imageNormalized = image;
         imageNormalized.registry.url = `${this.configuration.url}/v2`;
         return imageNormalized;
-    }
-
-    async authenticate(
-        image: ContainerImage,
-        requestOptions: AxiosRequestConfig,
-    ) {
-        return this.authenticateBasic(
-            requestOptions,
-            this.getAuthCredentials(),
-        );
     }
 }
 

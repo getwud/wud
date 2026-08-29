@@ -1,11 +1,13 @@
 import axios, { AxiosRequestConfig } from 'axios';
-import Registry from '../../Registry';
+import DockerRegistryV2 from '../../DockerRegistryV2';
 import { ContainerImage } from '../../../model/container';
 
 /**
  * Quay.io Registry integration.
  */
-class Quay extends Registry {
+class Quay extends DockerRegistryV2 {
+    protected registryPattern = /^.*\.?quay\.io$/;
+
     getConfigurationSchema() {
         return this.joi.alternatives([
             // Anonymous configuration
@@ -18,36 +20,6 @@ class Quay extends Registry {
                 token: this.joi.string().required(),
             }),
         ]);
-    }
-
-    /**
-     * Sanitize sensitive data
-     */
-    maskConfiguration() {
-        return {
-            ...this.configuration,
-            namespace: this.configuration.namespace,
-            account: this.configuration.account,
-            token: Quay.mask(this.configuration.token),
-        };
-    }
-
-    /**
-     * Return true if image has not registry url.
-     */
-    match(imageUrl: string) {
-        return /^.*\.?quay\.io$/.test(imageUrl);
-    }
-
-    /**
-     * Normalize image according to Github Container Registry characteristics.
-     */
-    normalizeImage(image: ContainerImage) {
-        const imageNormalized = image;
-        if (!imageNormalized.registry.url.startsWith('https://')) {
-            imageNormalized.registry.url = `https://${imageNormalized.registry.url}/v2`;
-        }
-        return imageNormalized;
     }
 
     async authenticate(
@@ -83,32 +55,6 @@ class Quay extends Registry {
             requestOptionsWithAuth.headers.Authorization = `Bearer ${token}`;
         }
         return requestOptionsWithAuth;
-    }
-
-    /**
-     * Return Base64 credentials if any.
-     */
-    getAuthCredentials() {
-        if (this.configuration.namespace && this.configuration.account) {
-            return Quay.base64Encode(
-                `${this.configuration.namespace}+${this.configuration.account}`,
-                this.configuration.token,
-            );
-        }
-        return undefined;
-    }
-
-    /**
-     * Return username / password for Docker(+compose) triggers usage
-     */
-    async getAuthPull() {
-        if (this.configuration.namespace && this.configuration.account) {
-            return {
-                username: `${this.configuration.namespace}+${this.configuration.account}`,
-                password: this.configuration.token,
-            };
-        }
-        return undefined;
     }
 
     getTagsPage(

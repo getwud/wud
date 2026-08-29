@@ -26,6 +26,13 @@ You only need to configure environment variables if you want to:
 
 <RegistryGrid>
   <RegistryCard
+    title="Alibaba Cloud (ACR)"
+    href="/docs/configuration/registries/alibaba"
+    defaultSupport={true}
+    description="Monitors public images on Alibaba Cloud Container Registry (*.aliyuncs.com) anonymously."
+  />
+
+  <RegistryCard
     title="AWS ECR Public"
     href="/docs/configuration/registries/ecr"
     defaultSupport={true}
@@ -37,6 +44,13 @@ You only need to configure environment variables if you want to:
     href="/docs/configuration/registries/codeberg"
     defaultSupport={true}
     description="Public Codeberg images supported anonymously. Configure access tokens for private packages."
+  />
+
+  <RegistryCard
+    title="DigitalOcean (DOCR)"
+    href="/docs/configuration/registries/docr"
+    defaultSupport={true}
+    description="Monitors public repositories on DigitalOcean Container Registry anonymously out of the box."
   />
 
   <RegistryCard
@@ -68,6 +82,20 @@ You only need to configure environment variables if you want to:
   />
 
   <RegistryCard
+    title="IBM Cloud (ICR)"
+    href="/docs/configuration/registries/icr"
+    defaultSupport={true}
+    description="Monitors public namespaces on IBM Cloud Container Registry (*.icr.io) anonymously."
+  />
+
+  <RegistryCard
+    title="JFrog Artifactory"
+    href="/docs/configuration/registries/jfrog"
+    defaultSupport={true}
+    description="Monitors public images hosted on JFrog Cloud (*.jfrog.io) anonymously."
+  />
+
+  <RegistryCard
     title="LinuxServer (LSCR)"
     href="/docs/configuration/registries/lscr"
     defaultSupport={true}
@@ -75,10 +103,24 @@ You only need to configure environment variables if you want to:
   />
 
   <RegistryCard
+    title="Oracle Cloud (OCIR)"
+    href="/docs/configuration/registries/ocir"
+    defaultSupport={true}
+    description="Monitors public images on Oracle Cloud Infrastructure Registry (*.ocir.io) anonymously."
+  />
+
+  <RegistryCard
     title="Quay"
     href="/docs/configuration/registries/quay"
     defaultSupport={true}
     description="Red Hat Quay public images supported anonymously. Supports custom tokens for private repos and on-prem Quay clusters."
+  />
+
+  <RegistryCard
+    title="Scaleway"
+    href="/docs/configuration/registries/scaleway"
+    defaultSupport={true}
+    description="Monitors public namespaces on Scaleway Container Registry (rg.<region>.scw.cloud) anonymously."
   />
 
   <RegistryCard
@@ -114,7 +156,7 @@ These registries host private images or custom infrastructure and **require expl
     title="Custom / Self-Hosted OCI"
     href="/docs/configuration/registries/custom"
     defaultSupport={false}
-    description="Generic provider for Harbor, Sonatype Nexus, JFrog Artifactory, or standalone Docker Registry v2 instances."
+    description="Generic provider for standalone Docker Registry v2 instances."
   />
 
   <RegistryCard
@@ -129,5 +171,33 @@ These registries host private images or custom infrastructure and **require expl
     href="/docs/configuration/registries/gitlab"
     defaultSupport={false}
     description="Requires a GitLab Personal Access Token or Deploy Token. Supports both gitlab.com and self-hosted GitLab CE/EE instances."
+  />
+
+  <RegistryCard
+    title="Harbor"
+    href="/docs/configuration/registries/harbor"
+    defaultSupport={false}
+    description="Requires your CNCF Harbor instance URL and optional robot account or user credentials."
+  />
+
+  <RegistryCard
+    title="Inedo ProGet"
+    href="/docs/configuration/registries/proget"
+    defaultSupport={false}
+    description="Requires your Inedo ProGet feed URL and API key or user credentials."
+  />
+
+  <RegistryCard
+    title="Linode (Akamai)"
+    href="/docs/configuration/registries/linode"
+    defaultSupport={false}
+    description="Requires your Linode / LKE private registry URL and access credentials."
+  />
+
+  <RegistryCard
+    title="Sonatype Nexus"
+    href="/docs/configuration/registries/nexus"
+    defaultSupport={false}
+    description="Requires your Sonatype Nexus Repository Docker connector URL and credentials."
   />
 </RegistryGrid>
