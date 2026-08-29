@@ -83,10 +83,22 @@ export function BrandIcon({ name, size = 36, className }) {
   let iconColor = brand.color;
 
   if (!iconRef) {
-    if (iconName.startsWith('mdi:')) {
-      iconRef = iconName;
-    } else if (iconName.startsWith('mdi-') || iconName.startsWith('mdi ')) {
-      iconRef = `mdi:${iconName.replace(/^mdi[- ]/, '')}`;
+    if (iconName.startsWith('hl-') || iconName.startsWith('hl:')) {
+      iconRef = `selfhst:${iconName.replace(/^hl[:-]/, '')}`;
+    } else if (iconName.startsWith('sh-') || iconName.startsWith('sh:')) {
+      iconRef = `selfhst:${iconName.replace(/^sh[:-]/, '')}`;
+    } else if (iconName.startsWith('si-') || iconName.startsWith('si:')) {
+      iconRef = `simple-icons:${iconName.replace(/^si[:-]/, '')}`;
+    } else if (iconName.startsWith('mdi-') || iconName.startsWith('mdi ') || iconName.startsWith('mdi:')) {
+      iconRef = `mdi:${iconName.replace(/^mdi[- :]/, '')}`;
+    } else if (iconName.startsWith('fa-') || iconName.startsWith('fa ') || iconName.startsWith('fa:')) {
+      iconRef = `fa6-solid:${iconName.replace(/^fa[- :]/, '')}`;
+    } else if (iconName.startsWith('fab-') || iconName.startsWith('fab:')) {
+      iconRef = `fa6-brands:${iconName.replace(/^fab[:-]/, '')}`;
+    } else if (iconName.startsWith('far-') || iconName.startsWith('far:')) {
+      iconRef = `fa6-regular:${iconName.replace(/^far[:-]/, '')}`;
+    } else if (iconName.startsWith('fas-') || iconName.startsWith('fas:')) {
+      iconRef = `fa6-solid:${iconName.replace(/^fas[:-]/, '')}`;
     } else if (iconName.includes(':')) {
       iconRef = iconName;
     } else {
