@@ -4,7 +4,7 @@ module.exports = {
     node: true,
     jest: true,
   },
-  extends: ["plugin:vue/essential", "eslint:recommended", "@vue/eslint-config-typescript", "@vue/prettier"],
+  extends: ["plugin:vue/vue3-essential", "eslint:recommended", "@vue/eslint-config-typescript", "@vue/prettier"],
   parserOptions: {
   },
   rules: {

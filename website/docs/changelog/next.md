@@ -15,6 +15,7 @@ description: Unreleased changes and upcoming features in What's Up Docker (WUD).
 - 🚀 `REGISTRIES` Refactor registries to leverage Docker Registry v2 inheritance and standardize unit tests
 - 🚀 `REGISTRIES` Add support for Alibaba Cloud (ACR), DigitalOcean (DOCR), Harbor, IBM Cloud (ICR), Inedo ProGet, JFrog Artifactory, Linode, Oracle Cloud (OCIR), Scaleway, and Sonatype Nexus
 - 🚀 `UI` Standardize icon rendering with Iconify (`@iconify/vue`), enabling access to over 150,000+ icons (Material Design, Simple Icons, Selfh.st, SVG Logos, Font Awesome, etc.)
+- 🚀 `UI` Complete visual redesign: modern SaaS layout with flattened sidebar navigation, streamlined full-height viewports, refined color palette harmonized with the documentation, and responsive dark/light themes
 - 🚀 Migrate doc from Docsify to Docusaurus
 - 🐛 Fix login redirect issues when WUD is exposed under a subpath
 - 🐛 `HTTP` Mask HTTP auth password and bearer token values

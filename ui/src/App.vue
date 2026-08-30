@@ -6,9 +6,7 @@
       :level="snackbarLevel"
     />
 
-    <navigation-drawer v-if="authenticated" />
-
-    <app-bar v-if="authenticated" :user="user" />
+    <navigation-drawer v-if="authenticated" :user="user" />
 
     <!-- Sizes your content based upon application components -->
     <v-main>
@@ -18,8 +16,6 @@
         </v-col>
       </v-row>
     </v-main>
-
-    <app-footer v-if="authenticated" />
   </v-app>
 </template>
 
@@ -36,18 +32,14 @@ import {
 } from "vue";
 import { url } from "@/services/base";
 import NavigationDrawer from "@/components/NavigationDrawer.vue";
-import AppBar from "@/components/AppBar.vue";
 import SnackBar from "@/components/SnackBar.vue";
-import AppFooter from "@/components/AppFooter.vue";
 import { getServer } from "@/services/server";
 import { useRoute } from "vue-router";
 
 export default defineComponent({
   components: {
     NavigationDrawer,
-    AppBar,
     SnackBar,
-    AppFooter,
   },
   setup() {
     const route = useRoute();

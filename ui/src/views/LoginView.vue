@@ -3,10 +3,9 @@
     <v-dialog v-model="showDialog" width="400px" persistent no-click-animation>
       <v-card>
         <v-container>
-          <v-row justify="center" class="ma-1">
-            <v-avatar color="primary" size="80">
-              <v-icon color="white" size="x-large">mdi-account</v-icon>
-            </v-avatar>
+          <v-row justify="center" class="my-3 d-flex flex-column align-center">
+            <v-img :src="logo" max-width="72" max-height="72" alt="WUD logo" class="mb-2" />
+            <span class="text-h6 font-weight-bold text-high-emphasis">What's Up Docker</span>
           </v-row>
           <v-row>
             <v-container>

@@ -7,6 +7,14 @@ import { registerGlobalProperties } from "./filters";
 import { useEventBus } from "./composables/useEventBus";
 import "./registerServiceWorker";
 
+// Suppress benign ResizeObserver loop errors that trigger webpack dev overlay
+window.addEventListener("error", (e) => {
+  if (e.message && (e.message.includes("ResizeObserver") || e.message.includes("undelivered notifications"))) {
+    e.stopImmediatePropagation();
+    e.preventDefault();
+  }
+});
+
 const app = createApp(App);
 
 // Register global properties (replacing filters)

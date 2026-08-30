@@ -123,4 +123,35 @@ describe('ContainerFilter', () => {
     await wrapper.vm.emitGroupByLabelChanged(null);
     expect(wrapper.emitted('group-by-label-changed')[0]).toEqual(['']);
   });
+
+  it('computes hasActiveFilters correctly', async () => {
+    expect(wrapper.vm.hasActiveFilters).toBe(false);
+
+    wrapper.vm.registrySelected = 'hub';
+    expect(wrapper.vm.hasActiveFilters).toBe(true);
+
+    wrapper.vm.registrySelected = '';
+    wrapper.vm.updateAvailableLocal = true;
+    expect(wrapper.vm.hasActiveFilters).toBe(true);
+  });
+
+  it('resets all filters on resetFilters', async () => {
+    wrapper.vm.registrySelected = 'hub';
+    wrapper.vm.watcherSelected = 'local';
+    wrapper.vm.updateKindSelected = 'minor';
+    wrapper.vm.groupByLabelLocal = 'app';
+    wrapper.vm.updateAvailableLocal = true;
+    wrapper.vm.oldestFirstLocal = true;
+
+    await wrapper.vm.resetFilters();
+
+    expect(wrapper.vm.registrySelected).toBe('');
+    expect(wrapper.vm.watcherSelected).toBe('');
+    expect(wrapper.vm.updateKindSelected).toBe('');
+    expect(wrapper.vm.groupByLabelLocal).toBe('');
+    expect(wrapper.vm.updateAvailableLocal).toBe(false);
+    expect(wrapper.vm.oldestFirstLocal).toBe(false);
+    expect(wrapper.emitted('reset-filters')).toBeTruthy();
+    expect(wrapper.emitted('registry-changed')).toBeTruthy();
+  });
 });

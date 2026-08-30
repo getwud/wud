@@ -7,16 +7,16 @@
  */
 
 :root {
-  /* WUD Brand Primary Color: #00355E */
-  --ifm-color-primary: #00355e;
-  --ifm-color-primary-dark: #003055;
-  --ifm-color-primary-darker: #002d50;
-  --ifm-color-primary-darkest: #002542;
-  --ifm-color-primary-light: #003a67;
-  --ifm-color-primary-lighter: #003d6c;
-  --ifm-color-primary-lightest: #00457a;
-  --ifm-color-primary-contrast-background: #edf5fa;
-  --ifm-color-primary-contrast-foreground: #002542;
+  /* WUD Brand Primary Color: #2563eb (Royal Blue) */
+  --ifm-color-primary: #2563eb;
+  --ifm-color-primary-dark: #1d4ed8;
+  --ifm-color-primary-darker: #1e40af;
+  --ifm-color-primary-darkest: #1e3a8a;
+  --ifm-color-primary-light: #3b82f6;
+  --ifm-color-primary-lighter: #60a5fa;
+  --ifm-color-primary-lightest: #93c5fd;
+  --ifm-color-primary-contrast-background: #eff6ff;
+  --ifm-color-primary-contrast-foreground: #1e3a8a;
 
   /* Typography */
   --ifm-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -43,16 +43,16 @@
 
 /* Premium Dark Mode */
 [data-theme='dark'] {
-  /* Complementary vibrant cyan-blue for high contrast & elegance on dark backgrounds */
-  --ifm-color-primary: #38bdf8;
-  --ifm-color-primary-dark: #1ea7e6;
-  --ifm-color-primary-darker: #139ad9;
-  --ifm-color-primary-darkest: #0e7490;
-  --ifm-color-primary-light: #5ecaf9;
-  --ifm-color-primary-lighter: #70d1fa;
-  --ifm-color-primary-lightest: #a5e3fc;
-  --ifm-color-primary-contrast-background: #082f49;
-  --ifm-color-primary-contrast-foreground: #e0f2fe;
+  /* Complementary vibrant blue for high contrast & elegance on dark backgrounds */
+  --ifm-color-primary: #3b82f6;
+  --ifm-color-primary-dark: #2563eb;
+  --ifm-color-primary-darker: #1d4ed8;
+  --ifm-color-primary-darkest: #1e3a8a;
+  --ifm-color-primary-light: #60a5fa;
+  --ifm-color-primary-lighter: #93c5fd;
+  --ifm-color-primary-lightest: #bfdbfe;
+  --ifm-color-primary-contrast-background: #0f172a;
+  --ifm-color-primary-contrast-foreground: #eff6ff;
 
   /* Sleek Dark Background Palette */
   --ifm-background-color: #0a0e17;
