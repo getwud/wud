@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { getVersion } from './configuration';
 import log from './log';
-import * as store from './store';
+import { store } from './store';
 import * as registry from './registry';
 import * as api from './api';
 import * as prometheus from './prometheus';
