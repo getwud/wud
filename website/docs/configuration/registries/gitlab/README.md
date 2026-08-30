@@ -27,10 +27,10 @@ Public packages work out of the box with zero configuration. Configure this modu
 
 <ConfigList>
   <ConfigOption name="WUD_REGISTRY_GITLAB_{registry_name}_TOKEN"
-    required={true}
+    required={false}
     type="string"
-    supported="Valid GitLab Personal Access Token, Deploy Token, or Project Access Token">
-    GitLab Personal Access Token or Deploy Token
+    supported="Valid GitLab Personal Access Token, Deploy Token, or Project Access Token (leave empty for anonymous pull of public projects)">
+    GitLab Personal Access Token or Deploy Token (optional for public projects)
   </ConfigOption>
 
   <ConfigOption
