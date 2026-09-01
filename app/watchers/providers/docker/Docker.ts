@@ -159,16 +159,20 @@ function getTagCandidates(
             });
         }
 
-        // Keep only greater semver
-        filteredTags = filteredTags.filter((tag) =>
-            isGreaterSemver(
-                transformTag(container.transformTags, tag),
-                transformTag(
-                    container.transformTags,
-                    container.image.tag.value,
-                ),
-            ),
-        );
+        // Keep only greater semver (strict). A tag that transforms to the
+        // same version as the current one (for example a rebuild suffix stripped
+        // by the transform formula) is not an upgrade and must be excluded.
+        filteredTags = filteredTags.filter((tag) => {
+            const tagTransformed = transformTag(container.transformTags, tag);
+            const currentTransformed = transformTag(
+                container.transformTags,
+                container.image.tag.value,
+            );
+            return (
+                tagTransformed !== currentTransformed &&
+                isGreaterSemver(tagTransformed, currentTransformed)
+            );
+        });
 
         // Apply semver sort desc
         filteredTags.sort((t1, t2) => {
