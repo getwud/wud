@@ -319,6 +319,11 @@ const sidebars = {
         },
         {
           type: 'doc',
+          id: 'configuration/triggers/bark/README',
+          label: 'Bark',
+        },
+        {
+          type: 'doc',
           id: 'configuration/triggers/discord/README',
           label: 'Discord',
         },
@@ -334,8 +339,33 @@ const sidebars = {
         },
         {
           type: 'doc',
+          id: 'configuration/triggers/matrix/README',
+          label: 'Matrix',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/triggers/mattermost/README',
+          label: 'Mattermost',
+        },
+        {
+          type: 'doc',
           id: 'configuration/triggers/ntfy/README',
           label: 'Ntfy',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/triggers/opsgenie/README',
+          label: 'Opsgenie',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/triggers/pagerduty/README',
+          label: 'PagerDuty',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/triggers/prowl/README',
+          label: 'Prowl',
         },
         {
           type: 'doc',
@@ -346,6 +376,11 @@ const sidebars = {
           type: 'doc',
           id: 'configuration/triggers/rocketchat/README',
           label: 'Rocket.Chat',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/triggers/signal/README',
+          label: 'Signal',
         },
         {
           type: 'doc',
@@ -362,6 +397,16 @@ const sidebars = {
           id: 'configuration/triggers/telegram/README',
           label: 'Telegram',
         },
+        {
+          type: 'doc',
+          id: 'configuration/triggers/whatsapp/README',
+          label: 'WhatsApp',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/triggers/zulip/README',
+          label: 'Zulip',
+        },
       ],
     },
     {
@@ -371,8 +416,28 @@ const sidebars = {
       items: [
         {
           type: 'doc',
+          id: 'configuration/triggers/amqp/README',
+          label: 'AMQP (RabbitMQ)',
+        },
+        {
+          type: 'doc',
           id: 'configuration/triggers/kafka/README',
           label: 'Apache Kafka',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/triggers/githubactions/README',
+          label: 'GitHub Actions',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/triggers/gitlabci/README',
+          label: 'GitLab CI',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/triggers/homeassistant/README',
+          label: 'Home Assistant (Webhook)',
         },
         {
           type: 'doc',
@@ -386,8 +451,18 @@ const sidebars = {
         },
         {
           type: 'doc',
+          id: 'configuration/triggers/nats/README',
+          label: 'NATS',
+        },
+        {
+          type: 'doc',
           id: 'configuration/triggers/command/README',
           label: 'Shell Command Scripts',
+        },
+        {
+          type: 'doc',
+          id: 'configuration/triggers/uptimekuma/README',
+          label: 'Uptime Kuma',
         },
       ],
     },
