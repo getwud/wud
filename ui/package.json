@@ -10,6 +10,7 @@
     "test:unit:watch": "jest --watch"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.3.0",
     "@fortawesome/fontawesome-free": "^6.7.2",
     "@iconify/vue": "^5.0.1",
     "core-js": "^3.41.0",

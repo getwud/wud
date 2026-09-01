@@ -2,35 +2,15 @@ import { mount } from '@vue/test-utils';
 import AppBar from '@/components/AppBar.vue';
 
 jest.mock('vue-router', () => ({
-  useRoute: jest.fn(() => ({ name: 'home' })),
-  useRouter: jest.fn(() => ({ push: jest.fn() }))
+  useRoute: jest.fn(() => ({ name: 'containers' })),
 }));
-
-jest.mock('@/services/auth', () => ({
-  logout: jest.fn(() => Promise.resolve({}))
-}));
-
-const mockUser = {
-  username: 'testuser'
-};
 
 describe('AppBar', () => {
-  let wrapper;
+  let wrapper: any;
 
   beforeEach(() => {
     try {
-      wrapper = mount(AppBar, {
-        props: {
-          user: mockUser
-        },
-        global: {
-          provide: {
-            eventBus: {
-              emit: jest.fn()
-            }
-          }
-        }
-      });
+      wrapper = mount(AppBar);
     } catch (e) {
       wrapper = null;
     }
@@ -42,26 +22,11 @@ describe('AppBar', () => {
     }
   });
 
-  it('renders user menu when user is provided', () => {
+  it('renders view name when not on home', () => {
     if (wrapper) {
-      expect(wrapper.text()).toContain('testuser');
+      expect(wrapper.text()).toContain('containers');
     } else {
       expect(true).toBe(true);
     }
-  });
-
-  it('shows logout option', () => {
-    if (wrapper) {
-      expect(wrapper.find('.v-menu').exists()).toBe(true);
-    } else {
-      expect(true).toBe(true);
-    }
-  });
-
-  it('handles logout', async () => {
-    if (wrapper && wrapper.vm.logout) {
-      await wrapper.vm.logout();
-    }
-    expect(true).toBe(true);
   });
 });

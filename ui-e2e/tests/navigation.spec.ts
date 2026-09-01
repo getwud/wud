@@ -24,4 +24,21 @@ test.describe('Navigation', () => {
       await page.waitForTimeout(500);
     }
   });
+
+  test('should toggle sidebar and open user menu', async ({ page }) => {
+    // 1. Toggle collapse/expand sidebar
+    const toggleBtn = page.locator('.drawer-header button');
+    if (await toggleBtn.isVisible()) {
+      await toggleBtn.click();
+      await page.waitForTimeout(300);
+    }
+
+    // 2. Open user menu popover
+    const userItem = page.locator('.user-item');
+    if (await userItem.isVisible()) {
+      await userItem.click();
+      await expect(page.getByText('Dark mode')).toBeVisible();
+    }
+  });
 });
+

@@ -1,5 +1,77 @@
 <template>
-  <v-container fluid class="ma-0 mb-3 pa-md-0">
+  <div class="filter-toolbar pa-4 bg-surface">
+    <!-- Top toolbar: Title, Stats, Toggles, Actions -->
+    <div class="d-flex flex-wrap align-center justify-space-between gap-3 mb-3">
+      <!-- Left side: Icon, Title & Counts -->
+      <div class="d-flex align-center gap-2">
+        <v-icon color="primary" size="24" class="mr-2">mdi-docker</v-icon>
+        <span class="text-subtitle-1 font-weight-bold mr-2">Containers</span>
+        <v-chip
+          v-if="totalCount !== undefined"
+          size="small"
+          variant="tonal"
+          color="primary"
+          class="font-weight-medium"
+        >
+          <template v-if="filteredCount !== undefined && filteredCount !== totalCount">
+            {{ filteredCount }} / {{ totalCount }}
+          </template>
+          <template v-else>
+            {{ totalCount }}
+          </template>
+        </v-chip>
+      </div>
+
+      <!-- Right side: Switches, Reset & Refresh Button -->
+      <div class="d-flex align-center flex-wrap gap-3">
+        <v-switch
+          class="switch-compact mr-2"
+          label="Update available"
+          v-model="updateAvailableLocal"
+          @update:modelValue="emitUpdateAvailableChanged"
+          :hide-details="true"
+          density="compact"
+          color="warning"
+        />
+
+        <v-switch
+          class="switch-compact mr-2"
+          label="Oldest first"
+          v-model="oldestFirstLocal"
+          @update:modelValue="emitOldestFirstChanged"
+          :hide-details="true"
+          density="compact"
+          color="primary"
+        />
+
+        <v-btn
+          v-if="hasActiveFilters"
+          variant="text"
+          color="grey"
+          size="small"
+          density="comfortable"
+          prepend-icon="mdi-filter-off-outline"
+          class="mr-2"
+          @click="resetFilters"
+        >
+          Reset
+        </v-btn>
+
+        <v-btn
+          color="primary"
+          variant="flat"
+          size="small"
+          @click.stop="refreshAllContainers"
+          :loading="isRefreshing"
+          prepend-icon="mdi-refresh"
+          class="font-weight-medium"
+        >
+          Watch now
+        </v-btn>
+      </div>
+    </div>
+
+    <!-- Bottom Filters Row: Selects & Autocomplete -->
     <v-row dense>
       <v-col cols="12" sm="6" md="3">
         <v-select
@@ -11,6 +83,7 @@
           label="Watcher"
           variant="outlined"
           density="compact"
+          prepend-inner-icon="mdi-eye-outline"
         ></v-select>
       </v-col>
       <v-col cols="12" sm="6" md="3">
@@ -23,6 +96,7 @@
           label="Registry"
           variant="outlined"
           density="compact"
+          prepend-inner-icon="mdi-database-outline"
         ></v-select>
       </v-col>
       <v-col cols="12" sm="6" md="3">
@@ -35,9 +109,9 @@
           label="Update kind"
           variant="outlined"
           density="compact"
+          prepend-inner-icon="mdi-tag-outline"
         ></v-select>
       </v-col>
-
       <v-col cols="12" sm="6" md="3">
         <v-autocomplete
           label="Group by label"
@@ -47,41 +121,12 @@
           clearable
           variant="outlined"
           density="compact"
-        >
-        </v-autocomplete>
-      </v-col>
-      <v-col cols="6" sm="6" md="3">
-        <v-switch
-          class="switch-top"
-          label="Update available"
-          v-model="updateAvailableLocal"
-          @update:modelValue="emitUpdateAvailableChanged"
           :hide-details="true"
-          density="compact"
-        />
-      </v-col>
-      <v-col cols="6" sm="6" md="3">
-        <v-switch
-          class="switch-top"
-          label="Oldest first"
-          v-model="oldestFirstLocal"
-          @update:modelValue="emitOldestFirstChanged"
-          :hide-details="true"
-          density="compact"
-        />
-      </v-col>
-      <v-col cols="12" sm="12" md="6" class="d-flex justify-center justify-md-end">
-        <v-btn
-          color="secondary"
-          @click.stop="refreshAllContainers"
-          :loading="isRefreshing"
-        >
-          Watch now
-          <v-icon> mdi-refresh</v-icon>
-        </v-btn>
+          prepend-inner-icon="mdi-label-multiple-outline"
+        ></v-autocomplete>
       </v-col>
     </v-row>
-  </v-container>
+  </div>
 </template>
 
 <script lang="ts">
@@ -90,6 +135,14 @@ import { defineComponent } from "vue";
 
 export default defineComponent({
   props: {
+    totalCount: {
+      type: Number,
+      required: false,
+    },
+    filteredCount: {
+      type: Number,
+      required: false,
+    },
     registries: {
       type: Array,
       required: true,
@@ -144,6 +197,19 @@ export default defineComponent({
     };
   },
 
+  computed: {
+    hasActiveFilters(): boolean {
+      return Boolean(
+        this.registrySelected ||
+        this.watcherSelected ||
+        this.updateKindSelected ||
+        this.groupByLabelLocal ||
+        this.updateAvailableLocal ||
+        this.oldestFirstLocal
+      );
+    },
+  },
+
   methods: {
     emitRegistryChanged() {
       this.$emit("registry-changed", this.registrySelected ?? "");
@@ -162,6 +228,19 @@ export default defineComponent({
     },
     emitGroupByLabelChanged(newLabel: string) {
       this.$emit("group-by-label-changed", newLabel ?? "");
+    },
+    resetFilters() {
+      this.registrySelected = "";
+      this.watcherSelected = "";
+      this.updateKindSelected = "";
+      this.groupByLabelLocal = "";
+      this.updateAvailableLocal = false;
+      this.oldestFirstLocal = false;
+      this.emitRegistryChanged();
+      this.emitWatcherChanged();
+      this.emitUpdateKindChanged();
+      this.emitGroupByLabelChanged("");
+      this.$emit("reset-filters");
     },
     async refreshAllContainers() {
       this.isRefreshing = true;
@@ -193,7 +272,20 @@ export default defineComponent({
 </script>
 
 <style scoped>
-.switch-top {
-  margin-top: 4px;
+.gap-2 {
+  gap: 8px;
+}
+.gap-3 {
+  gap: 12px;
+}
+.switch-compact {
+  display: inline-flex;
+  align-items: center;
+}
+:deep(.v-switch .v-selection-control) {
+  min-height: auto;
+}
+:deep(.v-switch .v-label) {
+  font-size: 0.8125rem;
 }
 </style>

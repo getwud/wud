@@ -112,10 +112,7 @@ describe('ContainersView', () => {
     wrapper.vm.groupByLabel = 'app';
     await wrapper.vm.$nextTick();
 
-    const filtered = wrapper.vm.containersFiltered;
-    // Should be sorted by label value
-    expect(filtered[0].labels.app).toBe('api');
-    expect(filtered[1].labels.app).toBe('web');
+    expect(wrapper.vm.groupBy).toEqual([{ key: 'labels.app', order: 'asc' }]);
   });
 
   it('handles registry filter change', async () => {
@@ -150,13 +147,13 @@ describe('ContainersView', () => {
     expect(wrapper.vm.groupByLabel).toBe('env');
   });
 
-  it('removes container from list when deleted', async () => {
+  it('confirms container for deletion', async () => {
     const containerToDelete = mockContainers[0];
     
-    wrapper.vm.removeContainerFromList(containerToDelete);
+    wrapper.vm.confirmDelete(containerToDelete);
 
-    expect(wrapper.vm.containers).toHaveLength(1);
-    expect(wrapper.vm.containers[0].id).toBe('2');
+    expect(wrapper.vm.containerToDelete).toEqual(containerToDelete);
+    expect(wrapper.vm.dialogDelete).toBe(true);
   });
 
   it('deletes container successfully', async () => {
@@ -164,21 +161,28 @@ describe('ContainersView', () => {
     deleteContainer.mockResolvedValue();
 
     const containerToDelete = mockContainers[0];
-    await wrapper.vm.deleteContainer(containerToDelete);
+    wrapper.vm.confirmDelete(containerToDelete);
+    await wrapper.vm.executeDelete();
 
     expect(deleteContainer).toHaveBeenCalledWith('1');
     expect(wrapper.vm.containers).toHaveLength(1);
+    expect(wrapper.vm.containerToDelete).toBeNull();
   });
 
   it('handles delete container error', async () => {
     const { deleteContainer } = require('@/services/container');
     deleteContainer.mockRejectedValue(new Error('Delete failed'));
 
+    wrapper.vm.$eventBus = { emit: jest.fn() };
+
     const containerToDelete = mockContainers[0];
-    await wrapper.vm.deleteContainer(containerToDelete);
+    wrapper.vm.confirmDelete(containerToDelete);
+    await wrapper.vm.executeDelete();
 
     // Container should still be in the list
     expect(wrapper.vm.containers).toHaveLength(2);
+    expect(wrapper.vm.$eventBus.emit).toHaveBeenCalledWith("notify", "Error when trying to delete the container (Delete failed)", "error");
+    expect(wrapper.vm.containerToDelete).toBeNull();
   });
 
   it('shows no containers message when list is empty', async () => {
@@ -186,5 +190,141 @@ describe('ContainersView', () => {
     await wrapper.vm.$nextTick();
 
     expect(wrapper.vm.containersFiltered).toHaveLength(0);
+  });
+
+  describe('slide-over container drawer', () => {
+    it('opens drawer on openContainerDrawer with update tab if result present', () => {
+      const containerWithResult = {
+        ...mockContainers[0],
+        result: { link: 'https://example.com' }
+      };
+
+      wrapper.vm.openContainerDrawer(containerWithResult);
+
+      expect(wrapper.vm.drawerOpen).toBe(true);
+      expect(wrapper.vm.selectedContainer).toEqual(containerWithResult);
+      expect(wrapper.vm.drawerTab).toBe('update');
+    });
+
+    it('opens drawer on openContainerDrawer with triggers tab if no result', () => {
+      const containerWithoutResult = {
+        ...mockContainers[1],
+        result: null
+      };
+
+      wrapper.vm.openContainerDrawer(containerWithoutResult);
+
+      expect(wrapper.vm.drawerOpen).toBe(true);
+      expect(wrapper.vm.selectedContainer).toEqual(containerWithoutResult);
+      expect(wrapper.vm.drawerTab).toBe('triggers');
+    });
+
+    it('handles onRowClick properly', () => {
+      const rowItem = { item: { raw: mockContainers[0] } };
+      wrapper.vm.onRowClick({}, rowItem);
+
+      expect(wrapper.vm.drawerOpen).toBe(true);
+      expect(wrapper.vm.selectedContainer).toEqual(mockContainers[0]);
+    });
+
+    it('closes drawer when the selected container is deleted', async () => {
+      const { deleteContainer } = require('@/services/container');
+      deleteContainer.mockResolvedValue();
+
+      wrapper.vm.openContainerDrawer(mockContainers[0]);
+      expect(wrapper.vm.drawerOpen).toBe(true);
+
+      wrapper.vm.confirmDelete(mockContainers[0]);
+      await wrapper.vm.executeDelete();
+
+      expect(wrapper.vm.drawerOpen).toBe(false);
+      expect(wrapper.vm.selectedContainer).toBeNull();
+    });
+  });
+
+  describe('table headers and sorting', () => {
+    it('defines sortable headers for all columns', () => {
+      const headers = wrapper.vm.headers;
+      expect(headers).toHaveLength(5);
+      
+      const keys = headers.map((h: any) => h.key);
+      expect(keys).toEqual(['watcher', 'registry', 'displayName', 'currentVersion', 'update']);
+
+      headers.forEach((header: any) => {
+        expect(header.sortable).toBe(true);
+      });
+    });
+
+    it('resolves header values correctly for nested properties', () => {
+      const headers = wrapper.vm.headers;
+      const sampleItem = {
+        name: 'test-name',
+        displayName: 'Test Display',
+        watcher: 'docker-local',
+        image: {
+          registry: { name: 'quay' },
+          tag: { value: '1.2.3' }
+        },
+        updateAvailable: true,
+        updateKind: { remoteValue: '1.3.0' }
+      };
+
+      const watcherHeader = headers.find((h: any) => h.key === 'watcher');
+      const registryHeader = headers.find((h: any) => h.key === 'registry');
+      const containerHeader = headers.find((h: any) => h.key === 'displayName');
+      const versionHeader = headers.find((h: any) => h.key === 'currentVersion');
+      const updateHeader = headers.find((h: any) => h.key === 'update');
+
+      expect(watcherHeader.value(sampleItem)).toBe('docker-local');
+      expect(registryHeader.value(sampleItem)).toBe('quay');
+      expect(containerHeader.value(sampleItem)).toBe('Test Display');
+      expect(versionHeader.value(sampleItem)).toBe('1.2.3');
+      expect(updateHeader.value(sampleItem)).toBe('1.3.0');
+    });
+
+    it('sorts versions numerically with sortRaw', () => {
+      const versionHeader = wrapper.vm.headers.find((h: any) => h.key === 'currentVersion');
+      const item1 = { image: { tag: { value: '1.2.0' } } };
+      const item2 = { image: { tag: { value: '1.10.0' } } };
+
+      // 1.2.0 should come before 1.10.0 in numeric order (negative result)
+      expect(versionHeader.sortRaw(item1, item2)).toBeLessThan(0);
+      expect(versionHeader.sortRaw(item2, item1)).toBeGreaterThan(0);
+    });
+
+    it('sorts updates with sortRaw prioritizing available updates', () => {
+      const updateHeader = wrapper.vm.headers.find((h: any) => h.key === 'update');
+      const itemWithUpdate = {
+        displayName: 'b',
+        updateAvailable: true,
+        updateKind: { remoteValue: '2.0.0' }
+      };
+      const itemWithoutUpdate = {
+        displayName: 'a',
+        updateAvailable: false
+      };
+
+      // Item with update should come before item without update
+      expect(updateHeader.sortRaw(itemWithUpdate, itemWithoutUpdate)).toBeLessThan(0);
+      expect(updateHeader.sortRaw(itemWithoutUpdate, itemWithUpdate)).toBeGreaterThan(0);
+    });
+
+    it('resets all filter state and updates query params on onResetFilters', () => {
+      wrapper.vm.registrySelected = 'hub';
+      wrapper.vm.watcherSelected = 'local';
+      wrapper.vm.updateKindSelected = 'minor';
+      wrapper.vm.groupByLabel = 'app';
+      wrapper.vm.updateAvailableSelected = true;
+      wrapper.vm.oldestFirst = true;
+
+      wrapper.vm.onResetFilters();
+
+      expect(wrapper.vm.registrySelected).toBe('');
+      expect(wrapper.vm.watcherSelected).toBe('');
+      expect(wrapper.vm.updateKindSelected).toBe('');
+      expect(wrapper.vm.groupByLabel).toBe('');
+      expect(wrapper.vm.updateAvailableSelected).toBe(false);
+      expect(wrapper.vm.oldestFirst).toBe(false);
+    });
   });
 });
