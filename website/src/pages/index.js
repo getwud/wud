@@ -22,7 +22,7 @@ const FEATURES = [
   },
   {
     icon: 'mdi-bell-ring',
-    title: '15+ Triggers',
+    title: '30+ Triggers',
     description:
       'Receive instant update notifications or execute actions via Discord, Telegram, Slack, Gotify, Ntfy, Pushover, Apprise, Webhooks, MQTT, Kafka, or SMTP email.',
   },

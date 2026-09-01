@@ -9,6 +9,21 @@ description: Unreleased changes and upcoming features in What's Up Docker (WUD).
 
 ---
 
+- 🚀 `TRIGGER` Add AMQP / RabbitMQ trigger (AMQP 0-9-1 broker support)
+- 🚀 `TRIGGER` Add NATS trigger (NATS messaging system)
+- 🚀 `TRIGGER` Add GitHub Actions trigger (repository_dispatch events)
+- 🚀 `TRIGGER` Add GitLab CI trigger (Pipeline Trigger API)
+- 🚀 `TRIGGER` Add Opsgenie trigger (Atlassian Alerts API)
+- 🚀 `TRIGGER` Add PagerDuty trigger (Events API v2)
+- 🚀 `TRIGGER` Add Uptime Kuma trigger (Push Monitors)
+- 🚀 `TRIGGER` Add Signal trigger (via signal-cli REST API)
+- 🚀 `TRIGGER` Add WhatsApp trigger (via Meta WhatsApp Cloud API)
+- 🚀 `TRIGGER` Add Bark trigger (iOS Push Notifications)
+- 🚀 `TRIGGER` Add Home Assistant webhook trigger
+- 🚀 `TRIGGER` Add Prowl trigger (iOS Push Notifications)
+- 🚀 `TRIGGER` Add Matrix trigger (Client-Server API)
+- 🚀 `TRIGGER` Add Mattermost trigger (Incoming Webhooks)
+- 🚀 `TRIGGER` Add Zulip trigger (Streams and Direct Messages API)
 - 🚀 Skip tag listing for non-semver images
 - 🚀 `MQTT` Add customizable Home Assistant device ID and device name
 - 🚀 `NOMAD` Add Nomad trigger

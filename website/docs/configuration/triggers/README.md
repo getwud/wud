@@ -25,11 +25,11 @@ You can configure multiple triggers of the same type (for example, multiple SMTP
 
 ## 📂 Trigger Categories
 
-WUD supports 17+ triggers organized into three functional categories:
+WUD supports 30+ triggers organized into three functional categories:
 
 - **⚡ [Auto-Update & Orchestration](./docker/README.md)**: Automatically pull new images and recreate containers or trigger orchestrator restarts ([Docker](./docker/README.md), [Docker Compose](./docker-compose/README.md), [Nomad](./nomad/README.md)).
-- **🔔 [Notifications & Chat](./discord/README.md)**: Send rich alert messages with update details ([Apprise](./apprise/README.md), [Discord](./discord/README.md), [Gotify](./gotify/README.md), [IFTTT](./ifttt/README.md), [Ntfy](./ntfy/README.md), [Pushover](./pushover/README.md), [Rocket.Chat](./rocketchat/README.md), [Slack](./slack/README.md), [SMTP Email](./smtp/README.md), [Telegram](./telegram/README.md)).
-- **🛠 [Webhooks & Automation Pipelines](./http/README.md)**: Integrate with custom automation flows, Home Assistant, and message brokers ([Command](./command/README.md), [HTTP Webhooks](./http/README.md), [Kafka](./kafka/README.md), [MQTT](./mqtt/README.md)).
+- **🔔 [Notifications & Chat](./discord/README.md)**: Send rich alert messages with update details ([Apprise](./apprise/README.md), [Bark](./bark/README.md), [Discord](./discord/README.md), [Gotify](./gotify/README.md), [IFTTT](./ifttt/README.md), [Matrix](./matrix/README.md), [Mattermost](./mattermost/README.md), [Ntfy](./ntfy/README.md), [Opsgenie](./opsgenie/README.md), [PagerDuty](./pagerduty/README.md), [Prowl](./prowl/README.md), [Pushover](./pushover/README.md), [Rocket.Chat](./rocketchat/README.md), [Signal](./signal/README.md), [Slack](./slack/README.md), [SMTP Email](./smtp/README.md), [Telegram](./telegram/README.md), [WhatsApp](./whatsapp/README.md), [Zulip](./zulip/README.md)).
+- **🛠 [Webhooks & Automation Pipelines](./http/README.md)**: Integrate with custom automation flows, Home Assistant, and message brokers ([AMQP (RabbitMQ)](./amqp/README.md), [Command](./command/README.md), [GitHub Actions](./githubactions/README.md), [GitLab CI](./gitlabci/README.md), [Home Assistant](./homeassistant/README.md), [HTTP Webhooks](./http/README.md), [Kafka](./kafka/README.md), [MQTT](./mqtt/README.md), [NATS](./nats/README.md), [Uptime Kuma](./uptimekuma/README.md)).
 
 ---
 
