@@ -1,7 +1,6 @@
 import express from 'express';
 import request from 'supertest';
 import * as auth from './auth';
-import * as registry from '../registry';
 
 jest.mock('../store', () => {
     const Loki = require('lokijs');
@@ -103,7 +102,7 @@ describe('API Auth', () => {
         const tempApp = express();
         tempApp.use(express.json());
         auth.init(tempApp);
-        tempApp.use((err: any, req: any, res: any, next: any) => {
+        tempApp.use((err: any, req: any, res: any) => {
             console.error(err);
             res.status(500).json({ error: err.message });
         });
