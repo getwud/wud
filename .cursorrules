@@ -1,0 +1,13 @@
+# Cursor AI Rules
+
+You are assisting development on WUD (What's Up Docker?).
+Always consult the master guidelines in [AGENTS.md](./AGENTS.md).
+
+## Core Directives
+- **Architecture**: Modular monorepo with `app/` (Backend Node.js/TypeScript/Express/LokiJS), `ui/` (Frontend Vue 3/Vuetify/TypeScript), `e2e/` (Cucumber tests), `ui-e2e/` (Playwright tests), and `website/` (Docusaurus).
+- **TypeScript**: Strict typing; do not use `any`. Validate configurations using Joi schemas.
+- **Testing**: Unit tests are required for all changes (`npm test` in `app/`, `npm run test:unit` in `ui/`).
+- **Linting**: Ensure code passes ESLint and Prettier (`npm run lint` / `npm run lint:fix`).
+- **Documentation**: Update documentation in `website/docs/` when adding features or configurations. Ensure `website` builds (`npm run build`).
+- **Changelog**: Add unreleased release notes to `website/docs/changelog/next.md`.
+- **Integrity**: Never break backward compatibility of existing environment variables or configuration keys.
