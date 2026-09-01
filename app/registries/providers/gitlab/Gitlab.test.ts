@@ -49,10 +49,13 @@ test('validatedConfiguration should initialize when configuration is valid', asy
     });
 });
 
-test('validatedConfiguration should throw error when no pam', async () => {
-    expect(() => {
-        gitlab.validateConfiguration({});
-    }).toThrow('"token" is required');
+test('validatedConfiguration should allow anonymous configuration for public projects', async () => {
+    expect(gitlab.validateConfiguration({})).toStrictEqual({
+        url: 'https://registry.gitlab.com',
+        authurl: 'https://gitlab.com',
+        username: '',
+        token: '',
+    });
 });
 
 test('maskConfiguration should mask configuration secrets', async () => {
@@ -92,6 +95,40 @@ test('authenticate should perform authenticate request', async () => {
             },
         ),
     ).resolves.toEqual({ headers: { Authorization: 'Bearer token' } });
+});
+
+test('authenticate should not send basic credentials when none are configured', async () => {
+    const gitlabAnonymous = new Gitlab();
+    gitlabAnonymous.configuration = {
+        url: 'https://registry.gitlab.com',
+        authurl: 'https://gitlab.com',
+        username: '',
+        token: '',
+    };
+    axios.mockClear();
+    axios.mockImplementation(() => ({
+        data: {
+            token: 'anonymous-token',
+        },
+    }));
+
+    await expect(
+        gitlabAnonymous.authenticate(
+            { name: 'test/image' },
+            {
+                headers: {},
+            },
+        ),
+    ).resolves.toEqual({
+        headers: { Authorization: 'Bearer anonymous-token' },
+    });
+    expect(axios).toHaveBeenCalledWith({
+        method: 'GET',
+        url: 'https://gitlab.com/jwt/auth?service=container_registry&scope=repository:test/image:pull',
+        headers: {
+            Accept: 'application/json',
+        },
+    });
 });
 
 test('authenticate should use custom username when configured', async () => {

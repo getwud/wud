@@ -13,8 +13,8 @@ class Gitlab extends DockerRegistryV2 {
         return this.joi.object().keys({
             url: this.joi.string().uri().default('https://registry.gitlab.com'),
             authurl: this.joi.string().uri().default('https://gitlab.com'),
-            username: this.joi.string().optional().default(''),
-            token: this.joi.string().required(),
+            username: this.joi.string().allow('').optional().default(''),
+            token: this.joi.string().allow('').optional().default(''),
         });
     }
 
@@ -30,9 +30,19 @@ class Gitlab extends DockerRegistryV2 {
             url: `${this.configuration.authurl}/jwt/auth?service=container_registry&scope=repository:${image.name}:pull`,
             headers: {
                 Accept: 'application/json',
-                Authorization: `Basic ${Gitlab.base64Encode(this.configuration.username, this.configuration.token)}`,
-            },
+            } as Record<string, string>,
         };
+        // Gitlab rejects invalid credentials with 401 even for public projects,
+        // so only send Basic credentials when they are configured.
+        if (
+            this.configuration.username !== '' ||
+            this.configuration.token !== ''
+        ) {
+            request.headers.Authorization = `Basic ${Gitlab.base64Encode(
+                this.configuration.username,
+                this.configuration.token,
+            )}`;
+        }
         const response = await axios(request);
         const requestOptionsWithAuth = requestOptions;
         requestOptionsWithAuth.headers.Authorization = `Bearer ${response.data.token}`;
