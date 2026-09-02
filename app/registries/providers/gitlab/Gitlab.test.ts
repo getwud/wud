@@ -23,6 +23,7 @@ test('validatedConfiguration should initialize when configuration is valid', asy
         authurl: 'https://gitlab.com',
         username: '',
         token: 'abcdef',
+        concurrency: 2,
     });
     expect(
         gitlab.validateConfiguration({
@@ -35,6 +36,7 @@ test('validatedConfiguration should initialize when configuration is valid', asy
         authurl: 'https://custom.com',
         username: '',
         token: 'abcdef',
+        concurrency: 2,
     });
     expect(
         gitlab.validateConfiguration({
@@ -46,6 +48,7 @@ test('validatedConfiguration should initialize when configuration is valid', asy
         authurl: 'https://gitlab.com',
         username: 'custom-user',
         token: 'abcdef',
+        concurrency: 2,
     });
 });
 
@@ -55,6 +58,7 @@ test('validatedConfiguration should allow anonymous configuration for public pro
         authurl: 'https://gitlab.com',
         username: '',
         token: '',
+        concurrency: 2,
     });
 });
 

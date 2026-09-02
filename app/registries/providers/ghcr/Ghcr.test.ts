@@ -39,6 +39,35 @@ describe('GitHub Container Registry specific tests', () => {
         expect(result.headers.Authorization).toBe(`Bearer ${expectedBearer}`);
     });
 
+    test('should apply registry concurrency configuration', async () => {
+        const authenticated = new Ghcr();
+        await authenticated.register('registry', 'ghcr', 'authenticated', {
+            username: 'testuser',
+            token: 'testtoken',
+            concurrency: '2',
+        });
+        expect(authenticated.configuration.concurrency).toBe(2);
+
+        const anonymous = new Ghcr();
+        await anonymous.register('registry', 'ghcr', 'public', {
+            concurrency: '3',
+        });
+        expect(anonymous.configuration).toEqual({ concurrency: 3 });
+    });
+
+    test.each([0, -1, 1.5, 'many'])(
+        'should reject invalid concurrency %s',
+        (concurrency) => {
+            expect(() =>
+                ghcr.validateConfiguration({
+                    username: 'testuser',
+                    token: 'testtoken',
+                    concurrency,
+                }),
+            ).toThrow();
+        },
+    );
+
     test('should return undefined auth pull when missing username', async () => {
         ghcr.configuration = { token: 'test-token' };
         const auth = await ghcr.getAuthPull();

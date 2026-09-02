@@ -1,4 +1,5 @@
 // @ts-nocheck
+import axios from 'axios';
 import log from '../log';
 
 jest.mock('axios');
@@ -339,7 +340,6 @@ test('getImageManifestDigest should throw when no digest found', async () => {
 });
 
 test('callRegistry should call authenticate', async () => {
-    const { default: axios } = await import('axios');
     axios.mockResolvedValue({ data: {} });
     const registryMocked = new Registry();
     registryMocked.log = log;
@@ -350,6 +350,264 @@ test('callRegistry should call authenticate', async () => {
         method: 'get',
     });
     expect(spyAuthenticate).toHaveBeenCalledTimes(1);
+});
+
+describe('registry request throttling', () => {
+    const request = (registryMocked: Registry, url = 'url') =>
+        registryMocked.callRegistry({
+            image: {},
+            url,
+            method: 'get',
+        });
+    const rateLimitError = (retryAfter?: string) => ({
+        response: {
+            status: 429,
+            headers: { get: () => retryAfter },
+        },
+    });
+    const runTimeoutsImmediately = () =>
+        jest.spyOn(global, 'setTimeout').mockImplementation((callback) => {
+            callback();
+            return 0;
+        });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    test('should default concurrency to two and validate overrides', () => {
+        const registryMocked = new Registry();
+
+        expect(registryMocked.validateConfiguration({})).toEqual({
+            concurrency: 2,
+        });
+        expect(
+            registryMocked.validateConfiguration({ concurrency: '2' }),
+        ).toEqual({ concurrency: 2 });
+        expect(() =>
+            registryMocked.validateConfiguration({ concurrency: 0 }),
+        ).toThrow();
+        expect(() =>
+            registryMocked.validateConfiguration({ concurrency: 1.5 }),
+        ).toThrow();
+    });
+
+    test('should limit concurrent requests', async () => {
+        const registryMocked = new Registry();
+        await registryMocked.register('registry', 'test', 'test', {
+            concurrency: 2,
+        });
+        let active = 0;
+        let maximumActive = 0;
+        let releaseRequests;
+        const requestsBlocked = new Promise((resolve) => {
+            releaseRequests = resolve;
+        });
+        axios.mockImplementation(async () => {
+            active += 1;
+            maximumActive = Math.max(maximumActive, active);
+            await requestsBlocked;
+            active -= 1;
+            return { data: {} };
+        });
+
+        const requests = [
+            request(registryMocked),
+            request(registryMocked),
+            request(registryMocked),
+        ];
+        await new Promise(setImmediate);
+
+        expect(axios).toHaveBeenCalledTimes(2);
+        releaseRequests();
+        await Promise.all(requests);
+        expect(axios).toHaveBeenCalledTimes(3);
+        expect(maximumActive).toBe(2);
+    });
+
+    test('should start queued requests in FIFO order', async () => {
+        const registryMocked = new Registry();
+        await registryMocked.register('registry', 'test', 'test', {
+            concurrency: 1,
+        });
+        const started = [];
+        const releases = {};
+        axios.mockImplementation(
+            (options) =>
+                new Promise((resolve) => {
+                    started.push(options.url);
+                    releases[options.url] = () => resolve({ data: {} });
+                }),
+        );
+
+        const requests = [
+            request(registryMocked, 'first'),
+            request(registryMocked, 'second'),
+            request(registryMocked, 'third'),
+        ];
+        await new Promise(setImmediate);
+        expect(started).toEqual(['first']);
+
+        releases.first();
+        await new Promise(setImmediate);
+        expect(started).toEqual(['first', 'second']);
+
+        releases.second();
+        await new Promise(setImmediate);
+        expect(started).toEqual(['first', 'second', 'third']);
+
+        releases.third();
+        await Promise.all(requests);
+    });
+
+    test('should isolate concurrency limits by registry instance', async () => {
+        const firstRegistry = new Registry();
+        const secondRegistry = new Registry();
+        await firstRegistry.register('registry', 'test', 'first', {
+            concurrency: 1,
+        });
+        await secondRegistry.register('registry', 'test', 'second', {
+            concurrency: 1,
+        });
+        let maximumActive = 0;
+        let active = 0;
+        let releaseRequests;
+        const requestsBlocked = new Promise((resolve) => {
+            releaseRequests = resolve;
+        });
+        axios.mockImplementation(async () => {
+            active += 1;
+            maximumActive = Math.max(maximumActive, active);
+            await requestsBlocked;
+            active -= 1;
+            return { data: {} };
+        });
+
+        const requests = [
+            request(firstRegistry, 'first-1'),
+            request(firstRegistry, 'first-2'),
+            request(secondRegistry, 'second-1'),
+            request(secondRegistry, 'second-2'),
+        ];
+        await new Promise(setImmediate);
+
+        expect(axios.mock.calls.map(([options]) => options.url)).toEqual([
+            'first-1',
+            'second-1',
+        ]);
+        expect(maximumActive).toBe(2);
+
+        releaseRequests();
+        await Promise.all(requests);
+        expect(axios).toHaveBeenCalledTimes(4);
+    });
+
+    test('should honor Retry-After seconds and reuse authentication', async () => {
+        const registryMocked = new Registry();
+        const error = rateLimitError('2');
+        axios.mockRejectedValueOnce(error).mockResolvedValueOnce({
+            data: { ok: true },
+        });
+        const timeout = runTimeoutsImmediately();
+        const authenticate = jest.spyOn(registryMocked, 'authenticate');
+
+        await expect(request(registryMocked)).resolves.toEqual({ ok: true });
+
+        expect(timeout).toHaveBeenCalledWith(expect.any(Function), 2000);
+        expect(axios).toHaveBeenCalledTimes(2);
+        expect(authenticate).toHaveBeenCalledTimes(1);
+    });
+
+    test('should honor an HTTP-date Retry-After header', async () => {
+        const registryMocked = new Registry();
+        const now = Date.parse('2026-08-20T12:00:00Z');
+        jest.spyOn(Date, 'now').mockReturnValue(now);
+        axios
+            .mockRejectedValueOnce(
+                rateLimitError(new Date(now + 5000).toUTCString()),
+            )
+            .mockResolvedValueOnce({ data: {} });
+        const timeout = runTimeoutsImmediately();
+
+        await request(registryMocked);
+
+        expect(timeout).toHaveBeenCalledWith(expect.any(Function), 5000);
+    });
+
+    test('should use exponential backoff with jitter without Retry-After', async () => {
+        const registryMocked = new Registry();
+        axios
+            .mockRejectedValueOnce(rateLimitError())
+            .mockRejectedValueOnce(rateLimitError())
+            .mockResolvedValueOnce({ data: {} });
+        jest.spyOn(Math, 'random').mockReturnValue(0.5);
+        const timeout = runTimeoutsImmediately();
+
+        await request(registryMocked);
+
+        expect(timeout.mock.calls.map((call) => call[1])).toEqual([1500, 3000]);
+        expect(axios).toHaveBeenCalledTimes(3);
+    });
+
+    test('should stop after two retries and preserve the original error', async () => {
+        const registryMocked = new Registry();
+        const error = rateLimitError();
+        axios.mockRejectedValue(error);
+        runTimeoutsImmediately();
+
+        await expect(request(registryMocked)).rejects.toBe(error);
+
+        expect(axios).toHaveBeenCalledTimes(3);
+    });
+
+    test('should not retry non-429 errors or a Retry-After over one minute', async () => {
+        const registryMocked = new Registry();
+        const timeout = jest.spyOn(global, 'setTimeout');
+        const serverError = { response: { status: 500, headers: {} } };
+        axios.mockRejectedValueOnce(serverError);
+
+        await expect(request(registryMocked)).rejects.toBe(serverError);
+        expect(axios).toHaveBeenCalledTimes(1);
+
+        const longRateLimit = rateLimitError('61');
+        axios.mockRejectedValueOnce(longRateLimit);
+        await expect(request(registryMocked)).rejects.toBe(longRateLimit);
+        expect(axios).toHaveBeenCalledTimes(2);
+        expect(timeout).not.toHaveBeenCalled();
+    });
+
+    test('should release the permit while a throttled request waits', async () => {
+        const registryMocked = new Registry();
+        await registryMocked.register('registry', 'test', 'test', {
+            concurrency: 1,
+        });
+        let releaseRetry;
+        jest.spyOn(global, 'setTimeout').mockImplementation((callback) => {
+            releaseRetry = callback;
+            return 0;
+        });
+        axios.mockImplementation((options) => {
+            if (options.url === 'throttled' && axios.mock.calls.length === 1) {
+                return Promise.reject(rateLimitError());
+            }
+            return Promise.resolve({ data: { url: options.url } });
+        });
+
+        const throttled = request(registryMocked, 'throttled');
+        const successful = request(registryMocked, 'successful');
+        await expect(successful).resolves.toEqual({ url: 'successful' });
+        expect(axios.mock.calls.map(([options]) => options.url)).toEqual([
+            'throttled',
+            'successful',
+        ]);
+
+        releaseRetry();
+        await expect(throttled).resolves.toEqual({ url: 'throttled' });
+    });
 });
 
 describe('shouldWatchDigest', () => {

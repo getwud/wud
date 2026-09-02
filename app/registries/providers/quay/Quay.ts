@@ -43,7 +43,10 @@ class Quay extends DockerRegistryV2 {
             try {
                 const response = await axios<{ token: string }>(request);
                 token = response.data.token;
-            } catch (e) {
+            } catch (e: any) {
+                if (e?.response?.status === 429) {
+                    throw e;
+                }
                 this.log.warn(
                     `Error when trying to get an access token (${e.message})`,
                 );

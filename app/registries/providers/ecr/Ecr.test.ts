@@ -46,6 +46,7 @@ test('validatedConfiguration should initialize when configuration is valid', asy
         secretaccesskey: 'secretaccesskey',
         region: 'region',
         public: false,
+        concurrency: 2,
     });
 });
 

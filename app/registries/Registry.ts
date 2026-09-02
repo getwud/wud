@@ -1,8 +1,13 @@
 import axios, { AxiosRequestConfig, Method, AxiosResponse } from 'axios';
 import log from '../log';
-import Component from '../registry/Component';
+import Component, { ComponentConfiguration } from '../registry/Component';
 import { getSummaryTags } from '../prometheus/registry';
 import { ContainerImage } from '../model/container';
+
+const DEFAULT_CONCURRENCY = 2;
+const MAX_RATE_LIMIT_RETRIES = 2;
+const RATE_LIMIT_BACKOFF_BASE_MS = 2000;
+const MAX_RETRY_AFTER_MS = 60000;
 
 export interface RegistryManifest {
     digest?: string;
@@ -40,6 +45,59 @@ export interface RegistryManifestResponse {
  * Docker Registry Abstract class.
  */
 export class Registry extends Component {
+    private activeRequests = 0;
+    private readonly pendingRequests: (() => void)[] = [];
+
+    validateConfiguration(
+        configuration: ComponentConfiguration,
+    ): ComponentConfiguration {
+        const isObjectConfiguration =
+            configuration !== null &&
+            typeof configuration === 'object' &&
+            !Array.isArray(configuration);
+        const { concurrency, ...providerConfiguration } = isObjectConfiguration
+            ? configuration
+            : { concurrency: undefined };
+
+        const concurrencyValidated = this.joi
+            .number()
+            .integer()
+            .min(1)
+            .default(DEFAULT_CONCURRENCY)
+            .validate(concurrency);
+        if (concurrencyValidated.error) {
+            throw concurrencyValidated.error;
+        }
+
+        const providerSchema = this.getConfigurationSchema();
+        let providerConfigurationValidated = providerSchema.validate(
+            isObjectConfiguration ? providerConfiguration : configuration,
+        );
+        if (
+            providerConfigurationValidated.error &&
+            isObjectConfiguration &&
+            Object.hasOwn(configuration, 'concurrency') &&
+            Object.keys(providerConfiguration).length === 0
+        ) {
+            const anonymousConfigurationValidated = providerSchema.validate('');
+            if (!anonymousConfigurationValidated.error) {
+                providerConfigurationValidated =
+                    anonymousConfigurationValidated;
+            }
+        }
+        if (providerConfigurationValidated.error) {
+            throw providerConfigurationValidated.error;
+        }
+
+        return {
+            ...(providerConfigurationValidated.value !== null &&
+            typeof providerConfigurationValidated.value === 'object'
+                ? providerConfigurationValidated.value
+                : {}),
+            concurrency: concurrencyValidated.value,
+        };
+    }
+
     /**
      * Encode Bse64(login:password)
      */
@@ -311,8 +369,6 @@ export class Registry extends Component {
         headers?: any;
         resolveWithFullResponse?: boolean;
     }): Promise<T | AxiosResponse<T>> {
-        const start = new Date().getTime();
-
         // Request options
         const axiosOptions: AxiosRequestConfig = {
             url,
@@ -320,23 +376,104 @@ export class Registry extends Component {
             headers,
             responseType: 'json',
         };
+        let axiosOptionsWithAuth: AxiosRequestConfig | undefined;
 
-        const axiosOptionsWithAuth = await this.authenticate(
-            image,
-            axiosOptions,
-        );
+        for (let retry = 0; ; retry += 1) {
+            try {
+                const response = await this.withRequestPermit(async () => {
+                    const start = new Date().getTime();
+                    try {
+                        axiosOptionsWithAuth =
+                            axiosOptionsWithAuth ||
+                            (await this.authenticate(image, axiosOptions));
+                        return (await axios(
+                            axiosOptionsWithAuth,
+                        )) as AxiosResponse<T>;
+                    } finally {
+                        this.observePrometheusSummaryTags(start);
+                    }
+                });
+                return resolveWithFullResponse ? response : response.data;
+            } catch (error: any) {
+                if (
+                    error?.response?.status !== 429 ||
+                    retry >= MAX_RATE_LIMIT_RETRIES
+                ) {
+                    throw error;
+                }
+
+                const retryAfter = this.getRetryAfterMs(error);
+                if (
+                    retryAfter !== undefined &&
+                    retryAfter > MAX_RETRY_AFTER_MS
+                ) {
+                    this.log.warn(
+                        `Registry rate limited; Retry-After exceeds ${MAX_RETRY_AFTER_MS}ms, deferring until the next check`,
+                    );
+                    throw error;
+                }
+
+                const delay = retryAfter ?? this.getRateLimitBackoffMs(retry);
+                this.log.warn(
+                    `Registry rate limited; retry ${retry + 1}/${MAX_RATE_LIMIT_RETRIES} in ${delay}ms`,
+                );
+                await new Promise((resolve) => setTimeout(resolve, delay));
+            }
+        }
+    }
+
+    private async withRequestPermit<T>(request: () => Promise<T>): Promise<T> {
+        if (
+            this.activeRequests >=
+            (this.configuration.concurrency ?? DEFAULT_CONCURRENCY)
+        ) {
+            await new Promise<void>((resolve) =>
+                this.pendingRequests.push(resolve),
+            );
+        } else {
+            this.activeRequests += 1;
+        }
 
         try {
-            const response = (await axios(
-                axiosOptionsWithAuth,
-            )) as AxiosResponse<T>;
-            this.observePrometheusSummaryTags(start);
-            return resolveWithFullResponse ? response : response.data;
-        } catch (error) {
-            const end = new Date().getTime();
-            this.observePrometheusSummaryTags(start);
-            throw error;
+            return await request();
+        } finally {
+            const next = this.pendingRequests.shift();
+            if (next) {
+                next();
+            } else {
+                this.activeRequests -= 1;
+            }
         }
+    }
+
+    private getRetryAfterMs(error: any): number | undefined {
+        const headers = error?.response?.headers;
+        const retryAfter =
+            typeof headers?.get === 'function'
+                ? headers.get('retry-after')
+                : headers?.['retry-after'];
+
+        if (retryAfter === undefined || retryAfter === null) {
+            return undefined;
+        }
+
+        const retryAfterString = String(retryAfter).trim();
+        if (/^\d+$/.test(retryAfterString)) {
+            return Number(retryAfterString) * 1000;
+        }
+
+        const retryAt = Date.parse(retryAfterString);
+        if (Number.isNaN(retryAt) || retryAt <= Date.now()) {
+            return undefined;
+        }
+        return retryAt - Date.now();
+    }
+
+    private getRateLimitBackoffMs(retry: number) {
+        const exponentialDelay = RATE_LIMIT_BACKOFF_BASE_MS * 2 ** retry;
+        return Math.round(
+            exponentialDelay / 2 + (Math.random() * exponentialDelay) / 2,
+        );
     }
 
     observePrometheusSummaryTags(start: number) {

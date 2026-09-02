@@ -4,6 +4,7 @@ description: Overview of container registry integrations and authentication in W
 ---
 
 import { RegistryGrid, RegistryCard } from '@site/src/components/RegistryCard';
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 
 # Registries
 
@@ -12,6 +13,27 @@ WUD inspects remote container registries to discover image tags, digest hashes, 
 :::tip[How WUD Resolves Registries]
 When WUD monitors a container (e.g. `redis:7-alpine` or `ghcr.io/owner/app:1.2.0`), it parses the image name to detect the target registry domain automatically.
 :::
+
+---
+
+## Request Throttling
+
+WUD limits requests independently for each configured registry instance. Requests above the limit wait in FIFO order, so one registry cannot consume the capacity of another.
+
+<ConfigList>
+  <ConfigOption
+    name="WUD_REGISTRY_{REGISTRY_TYPE}_{REGISTRY_NAME}_CONCURRENCY"
+    required={false}
+    type="integer"
+    defaultValue="2"
+    supported="Any integer greater than or equal to 1">
+    Maximum number of active requests for this registry instance. An invalid value prevents the registry from registering.
+  </ConfigOption>
+</ConfigList>
+
+When a registry returns HTTP 429, WUD retries twice. It honors `Retry-After` values up to 60 seconds; otherwise it waits for a jittered 1–2 seconds before the first retry and 2–4 seconds before the second. Request slots are released during these delays. Longer retry windows are deferred to the next normal scan, and non-429 failures are not retried.
+
+Retry timing is fixed and is not separately configurable.
 
 ---
 
