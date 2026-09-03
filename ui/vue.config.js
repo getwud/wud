@@ -20,12 +20,12 @@ module.exports = defineConfig({
 
   pwa: {
     name: "WUD",
-    themeColor: "#00355E",
-    msTileColor: "#00355E",
+    themeColor: "#2563eb",
+    msTileColor: "#0f172a",
     mobileWebAppCapable: "yes",
     manifestOptions: {
       short_name: "WUD",
-      background_color: "#00355E",
+      background_color: "#0f172a",
     },
     workboxOptions: {
       // index.html is generated dynamically per-request (basepath injection),
