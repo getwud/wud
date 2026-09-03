@@ -15,10 +15,12 @@ export default function Demo() {
       <main className={styles.demoContainer}>
         <div className={styles.demoHeader}>
           <div className={styles.demoInfo}>
-            <h1 className={styles.demoTitle}>🎮 WUD UI Simulator</h1>
-            <span className={styles.demoBadge}>
-              ● Interactive Homelab Mock
-            </span>
+            <h1 className={styles.demoTitle}>
+              <svg className={styles.playIcon} viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5.14v14.72a1 1 0 0 0 1.5.86l11-7.36a1 1 0 0 0 0-1.72l-11-7.36a1 1 0 0 0-1.5.86z"/>
+              </svg>
+              Live Demo
+            </h1>
           </div>
           <div className={styles.demoActions}>
             <a

@@ -26,19 +26,16 @@
   font-size: 1.25rem;
   font-weight: 700;
   margin: 0;
-}
-
-.demoBadge {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.2rem 0.6rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  gap: 0.5rem;
+}
+
+.playIcon {
+  width: 1.15rem;
+  height: 1.15rem;
+  color: var(--ifm-color-primary);
+  flex-shrink: 0;
 }
 
 .demoActions {
