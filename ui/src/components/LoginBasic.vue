@@ -21,16 +21,24 @@
         label="Password"
         :type="showPassword ? 'text' : 'password'"
         prepend-inner-icon="mdi-lock-outline"
-        :append-inner-icon="showPassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
         :rules="[rules.required]"
         autocomplete="current-password"
         variant="outlined"
         density="comfortable"
         rounded="lg"
         class="mb-4"
-        @click:append-inner="showPassword = !showPassword"
         @input="errorMessage = ''"
-      />
+      >
+        <template #append-inner>
+          <v-icon
+            :icon="showPassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
+            aria-label="Toggle password visibility"
+            role="button"
+            tabindex="0"
+            @click="showPassword = !showPassword"
+          />
+        </template>
+      </v-text-field>
 
       <v-btn
         block

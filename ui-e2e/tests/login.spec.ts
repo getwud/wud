@@ -9,7 +9,7 @@ test.describe('Login Flow', () => {
 
     // Use getByLabel for better reliability with Vuetify inputs
     await page.getByLabel('Username').fill('john');
-    await page.getByLabel('Password').fill('doe');
+    await page.getByLabel('Password', { exact: true }).fill('doe');
     await page.getByRole('button', { name: 'Login' }).click();
 
     // Verify redirect to home
@@ -22,11 +22,11 @@ test.describe('Login Flow', () => {
     await page.goto('/containers');
 
     // Should be intercepted and redirected to login with next query parameter
-    await expect(page).toHaveURL(/.*login\?next=%2Fcontainers/);
+    await expect(page).toHaveURL(/.*login\?next=(%2F|\/)containers/);
 
     // Log in
     await page.getByLabel('Username').fill('john');
-    await page.getByLabel('Password').fill('doe');
+    await page.getByLabel('Password', { exact: true }).fill('doe');
     await page.getByRole('button', { name: 'Login' }).click();
 
     // Should be redirected to initially targeted page
@@ -37,7 +37,7 @@ test.describe('Login Flow', () => {
     await page.goto('/');
 
     await page.getByLabel('Username').fill('wrong');
-    await page.getByLabel('Password').fill('pass');
+    await page.getByLabel('Password', { exact: true }).fill('pass');
     await page.getByRole('button', { name: 'Login' }).click();
 
     // Verify still on login page
