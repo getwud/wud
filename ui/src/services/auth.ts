@@ -2,6 +2,7 @@
  * Authentication service.
  */
 import { url } from "./base";
+import { isDemoMode, mockService } from "./mock";
 
 // Current logged user
 let user = undefined;
@@ -11,6 +12,9 @@ let user = undefined;
  * @returns {Promise<any>}
  */
 async function getStrategies() {
+  if (isDemoMode()) {
+    return mockService.getStrategies();
+  }
   const response = await fetch(url("auth/strategies"), { credentials: "include" });
   if (!response.ok) {
     throw new Error(`Server returned HTTP ${response.status}`);
@@ -23,6 +27,10 @@ async function getStrategies() {
  * @returns {Promise<*>}
  */
 async function getUser() {
+  if (isDemoMode()) {
+    user = await mockService.getUser();
+    return user;
+  }
   try {
     const response = await fetch(url("auth/user"), {
       redirect: "manual",
@@ -48,6 +56,10 @@ async function getUser() {
  * @returns {Promise<*>}
  */
 async function loginBasic(username, password) {
+  if (isDemoMode()) {
+    user = await mockService.loginBasic(username, password);
+    return user;
+  }
   const base64 = btoa(`${username}:${password}`);
   const response = await fetch(url("auth/login"), {
     method: "POST",
@@ -72,6 +84,9 @@ async function loginBasic(username, password) {
  * @returns {Promise<*>}
  */
 async function getOidcRedirection(name, nextPath?: string) {
+  if (isDemoMode()) {
+    return mockService.getOidcRedirection(name, nextPath);
+  }
   const query = nextPath ? `?next=${encodeURIComponent(nextPath)}` : "";
   const response = await fetch(url(`auth/oidc/${name}/redirect${query}`), {
     credentials: "include",
@@ -88,6 +103,10 @@ async function getOidcRedirection(name, nextPath?: string) {
  * @returns {Promise<any>}
  */
 async function logout() {
+  if (isDemoMode()) {
+    user = undefined;
+    return mockService.logout();
+  }
   const response = await fetch(url("auth/logout"), {
     method: "POST",
     credentials: "include",

@@ -58,11 +58,25 @@ Many container registries are supported out of the box:
 [Self-hosted registries are also supported](./configuration/registries/custom/README.md)
 :::
 
-## UI / API
+## UI & Live Simulator
 
-A web UI provides container insights and allows you to manually run triggers.
+WUD comes with a modern, responsive web dashboard allowing you to inspect monitored containers, check available updates, and trigger manual automations.
 
-![image](assets/ui.png)
+:::tip[Try it without installing!]
+Explore the **[Interactive Live Demo](/demo)** right in your browser with simulated homelab containers!
+:::
+
+### Containers Overview
+
+![Containers Overview](assets/screenshots/containers-list.png)
+
+### Home Dashboard
+
+![Home Dashboard](assets/screenshots/home-dashboard.png)
+
+### Container Details & Update Insights
+
+![Container Details](assets/screenshots/containers-detail-update.png)
 
 ## Integrations
 

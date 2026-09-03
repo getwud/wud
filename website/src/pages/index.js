@@ -86,6 +86,9 @@ function HeroBanner() {
           <Link className={styles.btnPrimary} to="/docs/quickstart">
             Get Started →
           </Link>
+          <Link className={styles.btnSecondary} to="/demo">
+            🎮 Live Demo
+          </Link>
           <Link className={styles.btnSecondary} to="/docs">
             Documentation
           </Link>

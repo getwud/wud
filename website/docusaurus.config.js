@@ -132,6 +132,11 @@ const config = {
             label: 'API',
           },
           {
+            to: '/demo',
+            label: 'Live Demo',
+            position: 'left',
+          },
+          {
             to: '/docs/changelog',
             label: 'Changelog',
             position: 'right',

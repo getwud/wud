@@ -1,5 +1,6 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHistory, createWebHashHistory } from "vue-router";
 import { getUser } from "@/services/auth";
+import { isDemoMode } from "@/services/mock";
 import { nextTick } from "vue";
 
 const routes = [
@@ -46,7 +47,9 @@ const routes = [
 ];
 
 const router = createRouter({
-  history: createWebHistory((window as any).__WUD_BASE_PATH__ || '/'),
+  history: isDemoMode()
+    ? createWebHashHistory()
+    : createWebHistory((window as any).__WUD_BASE_PATH__ || '/'),
   routes,
 });
 

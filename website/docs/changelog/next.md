@@ -9,5 +9,7 @@ description: Unreleased changes and upcoming features in What's Up Docker (WUD).
 
 ---
 
-*(No unreleased changes yet)*
+- 🚀 [DOCS] Add interactive UI live demo simulator with homelab mock data
+- 🚀 [CI] Add automated UI screenshot capture pipeline with Playwright and dark mode support
+- 🚀 [UI] Add demo mode with mock services for static deployment
 

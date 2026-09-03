@@ -3,6 +3,7 @@
 
 # Production
 /build
+/static/demo-app
 
 # Generated files
 .docusaurus

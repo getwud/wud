@@ -59,10 +59,15 @@ function getRegistryProviderIcon(provider) {
  * @returns {Promise<any>}
  */
 import { url } from "./base";
+import { isDemoMode, mockService } from "./mock";
 
 async function getAllRegistries() {
+  if (isDemoMode()) {
+    return mockService.getAllRegistries();
+  }
   const response = await fetch(url("api/registries"), { credentials: "include" });
   return response.json();
 }
 
 export { getRegistryIcon, getRegistryProviderIcon, getAllRegistries };
+
