@@ -12,6 +12,7 @@ description: Unreleased changes and upcoming features in What's Up Docker (WUD).
 - 🚀 `AUTH` Complete login screen redesign: modern layout with rounded cards, fluid input styles, password visibility toggle, and responsive themes consistent with the rest of the application
 - 🚀 `AUTH` Add automatic redirect to OIDC provider when only OIDC authentication is configured
 - 🚀 `AUTH` Preserve and restore the initially requested URL (`next`) across both Basic and OIDC authentication flows
+- 🚀 `DOCS` Expand OpenID Connect documentation with integration guides for Keycloak, Okta, Authentik, Authelia, Auth0, and generic OIDC providers
 - 🚀 `TRIGGER` Add AMQP / RabbitMQ trigger (AMQP 0-9-1 broker support)
 - 🚀 `TRIGGER` Add NATS trigger (NATS messaging system)
 - 🚀 `TRIGGER` Add GitHub Actions trigger (repository_dispatch events)

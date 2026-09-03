@@ -7,8 +7,19 @@ import TabItem from '@theme/TabItem';
 
 <DocHero
   icon="oidc"
-  description="The oidc authentication module lets you protect WUD access using the OpenID Connect standard with providers such as Authelia, Auth0, Authentik, Keycloak, or Okta."
+  description="The OIDC authentication module protects WUD using the standard OpenID Connect (OIDC) protocol. Because it conforms to standard OIDC discovery and OAuth 2.0 specifications, WUD is compatible with any OpenID Connect compliant identity provider (IdP)."
 />
+
+### Supported Identity Providers
+
+WUD supports any compliant OpenID Connect Identity Provider. Step-by-step guides are provided below for the most popular systems:
+
+- **[Keycloak](#how-to-integrate-with-keycloak)** (Self-hosted & Cloud)
+- **[Authentik](#how-to-integrate-with-authentik)** (Self-hosted)
+- **[Authelia](#how-to-integrate-with-authelia)** (Self-hosted)
+- **[Okta](#how-to-integrate-with-okta)** (Cloud IAM)
+- **[Auth0](#how-to-integrate-with-auth0)** (Cloud IAM)
+- **[Other Providers (Google, Microsoft Entra ID, GitLab, Zitadel...)](#other-oidc-providers)**
 
 ### Variables
 
@@ -243,3 +254,148 @@ docker run \
 
 </TabItem>
 </Tabs>
+
+### How to integrate with [Keycloak](https://www.keycloak.org/)
+
+<div style={{ marginBottom: '1rem' }}><BrandIcon name="keycloak" size={40} /></div>
+
+#### 1. In Keycloak Admin Console, configure a Client
+
+Select your Realm (e.g. `master` or a dedicated realm like `homelab`):
+1. Navigate to **Clients** > **Create client**.
+2. **General Settings**:
+   - **Client type**: `OpenID Connect`
+   - **Client ID**: `wud` (or your preferred client identifier)
+   - **Name**: `What's Up Docker`
+3. **Capability config**:
+   - **Client authentication**: `On` (this creates a Confidential client with a client secret)
+   - **Authentication flow**: Check `Standard flow` (Authorization Code Flow)
+4. **Login settings**:
+   - **Root URL**: `https://<your_wud_public_domain>`
+   - **Home URL**: `https://<your_wud_public_domain>`
+   - **Valid redirect URIs**: `https://<your_wud_public_domain>/auth/oidc/keycloak/cb`
+   - **Valid post logout redirect URIs**: `https://<your_wud_public_domain>/*`
+   - **Web origins**: `+` (or `https://<your_wud_public_domain>`)
+5. Click **Save**.
+
+#### 2. Retrieve Credentials
+
+Go to the **Credentials** tab of the created client and copy the **Client Secret**.
+
+#### 3. Configure WUD
+
+:::tip
+Keycloak standard discovery URL follows the format:  
+`https://<your_keycloak_domain>/realms/<your_realm>/.well-known/openid-configuration`
+
+By default, Keycloak provides `preferred_username` and `email` claims. You can customize the username displayed in WUD by setting `WUD_AUTH_OIDC_KEYCLOAK_USERNAMECLAIM=preferred_username`.
+:::
+
+<Tabs>
+<TabItem value="docker-compose" label="Docker Compose">
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    ...
+    environment:
+      - WUD_AUTH_OIDC_KEYCLOAK_CLIENTID=wud
+      - WUD_AUTH_OIDC_KEYCLOAK_CLIENTSECRET=<paste-your-client-secret>
+      - WUD_AUTH_OIDC_KEYCLOAK_DISCOVERY=https://<your_keycloak_domain>/realms/<your_realm>/.well-known/openid-configuration
+      - WUD_AUTH_OIDC_KEYCLOAK_USERNAMECLAIM=preferred_username # or email
+      - WUD_AUTH_OIDC_KEYCLOAK_REDIRECT=true # optional (to skip internal login page)
+```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+```bash
+docker run \
+  -e WUD_AUTH_OIDC_KEYCLOAK_CLIENTID="wud" \
+  -e WUD_AUTH_OIDC_KEYCLOAK_CLIENTSECRET="<paste-your-client-secret>" \
+  -e WUD_AUTH_OIDC_KEYCLOAK_DISCOVERY="https://<your_keycloak_domain>/realms/<your_realm>/.well-known/openid-configuration" \
+  -e WUD_AUTH_OIDC_KEYCLOAK_USERNAMECLAIM="preferred_username" \
+  -e WUD_AUTH_OIDC_KEYCLOAK_REDIRECT=true \
+  ...
+  getwud/wud
+```
+
+</TabItem>
+</Tabs>
+
+### How to integrate with [Okta](https://www.okta.com/)
+
+<div style={{ marginBottom: '1rem' }}><BrandIcon name="okta" size={40} /></div>
+
+#### 1. In Okta Admin Console, create an App Integration
+
+1. In your Okta Admin dashboard, navigate to **Applications** > **Applications** > **Create App Integration**.
+2. Select **OIDC - OpenID Connect** as the Sign-in method.
+3. Select **Web Application** as the Application type, then click **Next**.
+4. Configure the app settings:
+   - **App integration name**: `What's Up Docker`
+   - **Grant type**: Check **Authorization Code**.
+   - **Sign-in redirect URIs**: `https://<your_wud_public_domain>/auth/oidc/okta/cb`
+   - **Sign-out redirect URIs**: `https://<your_wud_public_domain>/`
+   - **Assignments**: Choose user/group access (e.g. *Allow everyone in your organization to access*).
+5. Click **Save**.
+
+#### 2. Retrieve Credentials
+
+Under the application's **General** tab:
+- Copy the **Client ID**.
+- Copy the **Client Secret** under the *Client Credentials* section.
+
+#### 3. Configure WUD
+
+:::info
+- For Okta API Access Management / Custom Authorization Server, the discovery URL is:  
+  `https://<your-okta-domain>/oauth2/default/.well-known/openid-configuration`
+- For an Okta Org Authorization Server, the discovery URL is:  
+  `https://<your-okta-domain>/.well-known/openid-configuration`
+:::
+
+<Tabs>
+<TabItem value="docker-compose" label="Docker Compose">
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    ...
+    environment:
+      - WUD_AUTH_OIDC_OKTA_CLIENTID=<paste-your-client-id>
+      - WUD_AUTH_OIDC_OKTA_CLIENTSECRET=<paste-your-client-secret>
+      - WUD_AUTH_OIDC_OKTA_DISCOVERY=https://<your-okta-domain>/oauth2/default/.well-known/openid-configuration
+      - WUD_AUTH_OIDC_OKTA_USERNAMECLAIM=email
+```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+```bash
+docker run \
+  -e WUD_AUTH_OIDC_OKTA_CLIENTID="<paste-your-client-id>" \
+  -e WUD_AUTH_OIDC_OKTA_CLIENTSECRET="<paste-your-client-secret>" \
+  -e WUD_AUTH_OIDC_OKTA_DISCOVERY="https://<your-okta-domain>/oauth2/default/.well-known/openid-configuration" \
+  ...
+  getwud/wud
+```
+
+</TabItem>
+</Tabs>
+
+### Other OIDC Providers
+
+Because WUD strictly adheres to OpenID Connect discovery specifications, you can connect any other compliant provider by pointing to its discovery endpoint.
+
+| Provider | Discovery Endpoint Format | Suggested `USERNAMECLAIM` | Callback URI Format |
+|---|---|---|---|
+| **Google** | `https://accounts.google.com/.well-known/openid-configuration` | `email` | `https://<wud-domain>/auth/oidc/google/cb` |
+| **Microsoft Entra ID (Azure AD)** | `https://login.microsoftonline.com/<tenant-id>/v2.0/.well-known/openid-configuration` | `preferred_username` or `email` | `https://<wud-domain>/auth/oidc/entra/cb` |
+| **GitLab** | `https://gitlab.com/.well-known/openid-configuration` | `email` or `nickname` | `https://<wud-domain>/auth/oidc/gitlab/cb` |
+| **Zitadel** | `https://<your-instance>.zitadel.cloud/.well-known/openid-configuration` | `preferred_username` or `email` | `https://<wud-domain>/auth/oidc/zitadel/cb` |
+| **PocketID** | `https://<your-pocket-id-domain>/.well-known/openid-configuration` | `username` or `email` | `https://<wud-domain>/auth/oidc/pocketid/cb` |
+| **Kanidm** | `https://<your-kanidm-domain>/oauth2/openid/<client_id>/.well-known/openid-configuration` | `preferred_username` | `https://<wud-domain>/auth/oidc/kanidm/cb` |
+
