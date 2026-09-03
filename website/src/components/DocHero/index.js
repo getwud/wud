@@ -69,6 +69,8 @@ const BRAND_CONFIG = {
   auth0: { icon: 'logos:auth0-icon' },
   authelia: { icon: 'selfhst:authelia' },
   authentik: { icon: 'selfhst:authentik' },
+  keycloak: { icon: 'selfhst:keycloak' },
+  okta: { icon: 'logos:okta-icon' },
   grafana: { icon: 'logos:grafana' },
   prometheus: { icon: 'logos:prometheus' },
 };

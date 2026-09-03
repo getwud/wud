@@ -83,7 +83,7 @@ async function applyAuthNavigationGuard(to) {
       return {
         name: "login",
         query: {
-          next: to.path,
+          next: to.fullPath,
         },
       };
     }

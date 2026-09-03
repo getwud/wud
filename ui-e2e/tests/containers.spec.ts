@@ -4,7 +4,7 @@ test.describe('Containers View', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.getByLabel('Username').fill('john');
-    await page.getByLabel('Password').fill('doe');
+    await page.getByLabel('Password', { exact: true }).fill('doe');
     await page.getByRole('button', { name: 'Login' }).click();
     await page.locator('nav').getByRole('link', { name: 'Containers' }).click();
   });

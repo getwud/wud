@@ -12,6 +12,9 @@ let user = undefined;
  */
 async function getStrategies() {
   const response = await fetch(url("auth/strategies"), { credentials: "include" });
+  if (!response.ok) {
+    throw new Error(`Server returned HTTP ${response.status}`);
+  }
   return response.json();
 }
 
@@ -64,12 +67,20 @@ async function loginBasic(username, password) {
 
 /**
  * Get Oidc redirection url.
+ * @param name
+ * @param nextPath
  * @returns {Promise<*>}
  */
-async function getOidcRedirection(name) {
-  const response = await fetch(url(`auth/oidc/${name}/redirect`), { credentials: "include" });
-  user = await response.json();
-  return user;
+async function getOidcRedirection(name, nextPath?: string) {
+  const query = nextPath ? `?next=${encodeURIComponent(nextPath)}` : "";
+  const response = await fetch(url(`auth/oidc/${name}/redirect${query}`), {
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(errorBody?.error || `Server returned HTTP ${response.status}`);
+  }
+  return response.json();
 }
 
 /**

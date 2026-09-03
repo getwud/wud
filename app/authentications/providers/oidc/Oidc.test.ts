@@ -209,3 +209,97 @@ test('getUserFromAccessToken should check the subject when called with a claim (
         'abc',
     );
 });
+
+test('redirect should store next url in session when valid relative path provided', async () => {
+    oidc.configuration = { ...configurationValid, ttl: -1 };
+    (oidc as any).cachedConfig = mockConfig;
+    (client.randomPKCECodeVerifier as jest.Mock).mockReturnValue('verifier');
+    (client.calculatePKCECodeChallenge as jest.Mock).mockResolvedValue(
+        'challenge',
+    );
+    (client.randomState as jest.Mock).mockReturnValue('state123');
+    (client.buildAuthorizationUrl as jest.Mock).mockReturnValue(
+        new URL('https://idp/auth'),
+    );
+
+    const req: any = {
+        protocol: 'http',
+        headers: { host: 'localhost:3000' },
+        session: {},
+        query: { next: '/containers?update=true' },
+    };
+    const res: any = {
+        json: jest.fn(),
+    };
+
+    await oidc.redirect(req, res);
+
+    expect(req.session.oidc.next).toEqual('/containers?update=true');
+    expect(res.json).toHaveBeenCalledWith({ url: new URL('https://idp/auth') });
+});
+
+test('redirect should ignore next url when not a relative path', async () => {
+    oidc.configuration = { ...configurationValid, ttl: -1 };
+    (oidc as any).cachedConfig = mockConfig;
+    (client.randomPKCECodeVerifier as jest.Mock).mockReturnValue('verifier');
+    (client.calculatePKCECodeChallenge as jest.Mock).mockResolvedValue(
+        'challenge',
+    );
+    (client.randomState as jest.Mock).mockReturnValue('state123');
+    (client.buildAuthorizationUrl as jest.Mock).mockReturnValue(
+        new URL('https://idp/auth'),
+    );
+
+    const req: any = {
+        protocol: 'http',
+        headers: { host: 'localhost:3000' },
+        session: {},
+        query: { next: 'https://attacker.com' },
+    };
+    const res: any = {
+        json: jest.fn(),
+    };
+
+    await oidc.redirect(req, res);
+
+    expect(req.session.oidc.next).toBeUndefined();
+});
+
+test('callback should redirect to next url when authenticated', async () => {
+    oidc.configuration = { ...configurationValid, ttl: -1 };
+    (oidc as any).cachedConfig = mockConfig;
+    (client.authorizationCodeGrant as jest.Mock).mockResolvedValue({
+        access_token: 'token123',
+        claims: () => ({ sub: 'user-sub' }),
+    });
+    (client.fetchUserInfo as jest.Mock).mockResolvedValue({
+        email: 'user@example.com',
+    });
+
+    const req: any = {
+        protocol: 'http',
+        headers: { host: 'localhost:3000' },
+        originalUrl: '/auth/oidc/oidc/cb?code=123',
+        session: {
+            oidc: {
+                codeVerifier: 'verifier',
+                state: 'state123',
+                next: '/containers',
+            },
+        },
+        query: {},
+        login: jest.fn((user, cb) => cb(null)),
+    };
+    const res: any = {
+        redirect: jest.fn(),
+        status: jest.fn().mockReturnThis(),
+        send: jest.fn(),
+    };
+
+    await oidc.callback(req, res);
+
+    expect(res.redirect).toHaveBeenCalledWith(
+        'http://localhost:3000/containers',
+    );
+    expect(req.session.oidc.next).toBeUndefined();
+});

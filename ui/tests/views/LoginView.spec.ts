@@ -108,15 +108,15 @@ describe('LoginView', () => {
           window.location = originalLocation;
       });
 
-      it('filters supported strategies and populates vm', async () => {
+      it('filters supported strategies and populates vm when multiple strategies exist', async () => {
           (getStrategies as jest.Mock).mockResolvedValue([
-              { type: 'basic' },
-              { type: 'oidc' },
+              { type: 'basic', name: 'local' },
+              { type: 'oidc', name: 'google' },
               { type: 'unsupported' }
           ]);
           const next = jest.fn();
           
-          await LoginView.beforeRouteEnter.call(LoginView, {}, {}, next);
+          await LoginView.beforeRouteEnter.call(LoginView, { query: {} }, {}, next);
           
           expect(next).toHaveBeenCalledWith(expect.any(Function));
           const vm = { strategies: [], isSupportedStrategy: LoginView.methods.isSupportedStrategy };
@@ -126,6 +126,40 @@ describe('LoginView', () => {
           expect(vm.strategies).toHaveLength(2);
           expect(vm.strategies[0].type).toBe('basic');
           expect(vm.strategies[1].type).toBe('oidc');
+      });
+
+      it('automatically redirects to OIDC when only OIDC strategy is available', async () => {
+          (getStrategies as jest.Mock).mockResolvedValue([
+              { type: 'oidc', name: 'authentik', redirect: false }
+          ]);
+          (getOidcRedirection as jest.Mock).mockResolvedValue({ url: 'http://authentik.com/auth' });
+
+          const originalLocation = window.location;
+          delete (window as any).location;
+          (window as any).location = { href: '' };
+
+          const next = jest.fn();
+          const to = { query: { next: '/containers' } };
+          await LoginView.beforeRouteEnter.call(LoginView, to, {}, next);
+
+          expect(getOidcRedirection).toHaveBeenCalledWith('authentik', '/containers');
+          expect(window.location.href).toBe('http://authentik.com/auth');
+          expect(next).not.toHaveBeenCalled();
+
+          window.location = originalLocation;
+      });
+  });
+
+  describe('formatStrategyName', () => {
+      it('formats basic login name', () => {
+          mountComponent();
+          expect(wrapper.vm.formatStrategyName({ type: 'basic', name: 'Login' })).toBe('Credentials');
+          expect(wrapper.vm.formatStrategyName({ type: 'basic', name: 'admin' })).toBe('admin');
+      });
+
+      it('formats oidc provider name', () => {
+          mountComponent();
+          expect(wrapper.vm.formatStrategyName({ type: 'oidc', name: 'keycloak' })).toBe('Keycloak');
       });
   });
 });
