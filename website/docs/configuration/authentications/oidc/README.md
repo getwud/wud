@@ -36,7 +36,7 @@ import TabItem from '@theme/TabItem';
     required={false}
     type="boolean"
     defaultValue="false">
-    Skip internal login page and automatically redirect to the OIDC provider
+    Skip internal login page and automatically redirect to this OIDC provider (note: when only a single OIDC provider is configured without Basic auth, WUD automatically redirects to it by default)
   </ConfigOption>
 
   <ConfigOption name="WUD_AUTH_OIDC_{auth_name}_TIMEOUT"

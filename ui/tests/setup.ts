@@ -123,8 +123,8 @@ config.global.stubs = {
     emits: ['update:modelValue']
   },
   'v-snackbar': { 
-    template: '<div class="v-snackbar" v-if="modelValue"><slot />{{ text }}<button v-if="$slots.action || closable" data-testid="close-button" @click="$emit(\'update:modelValue\', false)">Close</button></div>', 
-    props: ['modelValue', 'timeout', 'color', 'text', 'closable'],
+    template: '<div class="v-snackbar" :data-color="color" :data-location="location" v-if="modelValue"><slot />{{ text }}<slot name="actions" /><button v-if="$slots.action || closable" data-testid="close-button" @click="$emit(\'update:modelValue\', false)">Close</button></div>', 
+    props: ['modelValue', 'timeout', 'color', 'text', 'closable', 'location'],
     emits: ['update:modelValue']
   },
   'v-tabs': { template: '<div class="v-tabs"><slot /></div>' },

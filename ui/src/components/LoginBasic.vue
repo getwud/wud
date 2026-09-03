@@ -1,28 +1,52 @@
 <template>
-  <v-form @keyup.enter="login">
-    <v-card-text>
+  <v-form @submit.prevent="login">
+    <div class="py-2">
       <v-text-field
-        label="Username"
         v-model="username"
-        append-icon="mdi-account"
+        label="Username"
+        prepend-inner-icon="mdi-account-outline"
         :rules="[rules.required]"
         autocomplete="username"
         variant="outlined"
+        density="comfortable"
+        rounded="lg"
         autofocus
+        class="mb-2"
+        :error-messages="errorMessage ? [errorMessage] : []"
+        @input="errorMessage = ''"
       />
+
       <v-text-field
-        label="Password"
-        type="password"
         v-model="password"
-        append-icon="mdi-lock"
+        label="Password"
+        :type="showPassword ? 'text' : 'password'"
+        prepend-inner-icon="mdi-lock-outline"
+        :append-inner-icon="showPassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
         :rules="[rules.required]"
         autocomplete="current-password"
         variant="outlined"
+        density="comfortable"
+        rounded="lg"
+        class="mb-4"
+        @click:append-inner="showPassword = !showPassword"
+        @input="errorMessage = ''"
       />
-      <v-btn block color="primary" :disabled="!valid" @click="login">
+
+      <v-btn
+        block
+        color="primary"
+        size="large"
+        rounded="lg"
+        variant="flat"
+        :disabled="!valid"
+        :loading="loading"
+        class="font-weight-bold text-none"
+        prepend-icon="mdi-login"
+        type="submit"
+      >
         Login
       </v-btn>
-    </v-card-text>
+    </div>
   </v-form>
 </template>
 
@@ -35,6 +59,9 @@ export default defineComponent({
     return {
       username: "",
       password: "",
+      showPassword: false,
+      loading: false,
+      errorMessage: "",
       rules: {
         required: (value: any) => !!value || "Required",
       },
@@ -58,11 +85,20 @@ export default defineComponent({
      */
     async login() {
       if (this.valid) {
+        this.loading = true;
+        this.errorMessage = "";
         try {
           await loginBasic(this.username, this.password);
           this.$emit("authentication-success");
-        } catch (e) {
-          (this as any).$eventBus.emit("notify", "Username or password error", "error");
+        } catch (e: any) {
+          this.errorMessage = "Invalid username or password";
+          (this as any).$eventBus?.emit(
+            "notify",
+            "Username or password error",
+            "error",
+          );
+        } finally {
+          this.loading = false;
         }
       }
     },

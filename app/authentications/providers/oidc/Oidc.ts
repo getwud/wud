@@ -10,6 +10,7 @@ declare module 'express-session' {
         oidc: {
             codeVerifier: string;
             state?: string;
+            next?: string;
         };
     }
 }
@@ -54,15 +55,23 @@ class Oidc extends Authentication {
             `Discovering configuration from ${this.configuration.discovery}`,
         );
 
+        const discoveryUrl = new URL(this.configuration.discovery);
+        const isHttp = discoveryUrl.protocol === 'http:';
+        const execute = isHttp ? [client.allowInsecureRequests] : undefined;
+
         this.cachedConfig = await client.discovery(
-            new URL(this.configuration.discovery),
+            discoveryUrl,
             this.configuration.clientid,
             this.configuration.clientsecret,
             undefined,
             {
                 timeout: this.configuration.timeout,
+                execute,
             },
         );
+        if (isHttp) {
+            client.allowInsecureRequests(this.cachedConfig);
+        }
         this.discoveryCachedAt = Date.now();
 
         try {
@@ -145,12 +154,22 @@ class Oidc extends Authentication {
      * @param app
      */
     getStrategy(app: Express) {
-        app.get(`/auth/oidc/${this.name}/redirect`, async (req, res) =>
-            this.redirect(req, res),
-        );
-        app.get(`/auth/oidc/${this.name}/cb`, async (req, res) =>
-            this.callback(req, res),
-        );
+        app.get(`/auth/oidc/${this.name}/redirect`, async (req, res) => {
+            try {
+                await this.redirect(req, res);
+            } catch (e: any) {
+                this.log.warn(`Error during OIDC redirection (${e.message})`);
+                res.status(500).json({ error: e.message });
+            }
+        });
+        app.get(`/auth/oidc/${this.name}/cb`, async (req, res) => {
+            try {
+                await this.callback(req, res);
+            } catch (e: any) {
+                this.log.warn(`Error during OIDC callback (${e.message})`);
+                res.status(500).send(e.message);
+            }
+        });
         const strategy = new OidcStrategy(
             {
                 config: this.cachedConfig,
@@ -189,9 +208,18 @@ class Oidc extends Authentication {
             state: state,
         };
 
+        const rawNext = req.query.next;
+        const next =
+            typeof rawNext === 'string' &&
+            rawNext.startsWith('/') &&
+            !rawNext.startsWith('//')
+                ? rawNext
+                : undefined;
+
         req.session.oidc = {
             codeVerifier,
             state,
+            next,
         };
 
         const authUrl = client.buildAuthorizationUrl(config, parameters);
@@ -206,7 +234,13 @@ class Oidc extends Authentication {
             const config = await this.ensureDiscovered();
             this.log.debug('Validate callback data');
 
-            const oidcChecks = req.session.oidc;
+            const oidcChecks = req.session?.oidc;
+            if (!oidcChecks) {
+                throw new Error('OIDC session state not found');
+            }
+            const nextUrl = oidcChecks.next;
+            delete req.session.oidc.next;
+
             const currentUrl = new URL(
                 `${getPublicUrl(req)}${req.originalUrl}`,
             );
@@ -241,8 +275,14 @@ class Oidc extends Authentication {
                     );
                     res.status(401).send(err.message);
                 } else {
-                    this.log.debug('User authenticated => redirect to app');
-                    res.redirect(`${getPublicUrl(req)}`);
+                    const publicUrl = getPublicUrl(req).replace(/\/$/, '');
+                    const destination = nextUrl
+                        ? `${publicUrl}${nextUrl}`
+                        : getPublicUrl(req);
+                    this.log.debug(
+                        `User authenticated => redirect to app [${destination}]`,
+                    );
+                    res.redirect(destination);
                 }
             });
         } catch (err) {

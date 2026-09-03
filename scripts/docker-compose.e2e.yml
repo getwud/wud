@@ -39,6 +39,22 @@ services:
       - WUD_REGISTRY_LINODE_PRIVATE_PASSWORD=${LINODE_PASSWORD:-dummy}
       - WUD_AUTH_BASIC_JOHN_USER=john
       - WUD_AUTH_BASIC_JOHN_HASH=$$apr1$$8zDVtSAY$$62WBh9DspNbUKMZXYRsjS/
+      - WUD_AUTH_OIDC_MOCK_CLIENTID=test-client
+      - WUD_AUTH_OIDC_MOCK_CLIENTSECRET=test-secret
+      - WUD_AUTH_OIDC_MOCK_DISCOVERY=http://mock-oidc:8080/.well-known/openid-configuration
+    depends_on:
+      - mock-oidc
+
+  mock-oidc:
+    image: node:24-alpine
+    container_name: mock-oidc
+    command: node /scripts/mock-oidc.mjs
+    environment:
+      - AUTH_ENDPOINT=http://localhost:8089/authorize
+    ports:
+      - "8089:8080"
+    volumes:
+      - ./mock-oidc.mjs:/scripts/mock-oidc.mjs:ro
 
   ecr_sub_sub_test:
     image: 229211676173.dkr.ecr.eu-west-1.amazonaws.com/sub/sub/test:1.0.0
