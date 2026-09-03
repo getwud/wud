@@ -82,6 +82,7 @@ export function init() {
             'result_digest',
             'result_link',
             'result_tag',
+            'result_version',
             'status',
             'transform_tags',
             'trigger_exclude',

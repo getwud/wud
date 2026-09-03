@@ -115,6 +115,45 @@ curl http://wud:3000/api/containers/31a61a8305ef1fc9a71fa4f20a68d7ec88b28e32303b
 }
 ```
 
+## The `result` object
+
+`result` describes what the registry currently offers for the watched container.
+
+| Field | Description |
+|---|---|
+| `tag` | The tag WUD would update to. |
+| `digest` | The remote manifest digest, when the container is watched by digest. |
+| `created` | Build date of the remote image. |
+| `version` | The remote image's `org.opencontainers.image.version` label, when it carries one. |
+| `link` | Link to the image on the registry, when a link template is available. |
+
+For a container watched by digest, `version` and `created` are read from the remote
+image config once per remote digest, and only once an update has been found — so they
+describe *what changed*, where the tag alone (typically `latest`) says nothing:
+
+```json
+{
+  "result":{
+    "tag":"latest",
+    "digest":"sha256:3eb277accfc7d36706b60365c9f14da711c7070bddb9d078004350c2aa7d1692",
+    "created":"2026-09-02T05:35:35.550Z",
+    "version":"2.3.7"
+  },
+  "updateAvailable": true
+}
+```
+
+Notes:
+
+- `version` is only present when the remote image carries an
+  `org.opencontainers.image.version` label. Images whose label is a floating value such
+  as `latest` or `nightly` report that value verbatim, so compare `created` against the
+  local `image.created` in that case.
+- Timestamps are normalized to millisecond precision, even where the registry reports
+  more. `image.created` is normalized the same way, so the two stay comparable.
+- For legacy schemaVersion 1 manifests, `created` comes from the manifest itself rather
+  than the image config, and is set whenever the container is watched by digest.
+
 ## Get all triggers associated with the container
 
 This endpoint returns the list of triggers associated with the container.

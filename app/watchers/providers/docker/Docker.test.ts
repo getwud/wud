@@ -769,7 +769,10 @@ describe('Docker Watcher', () => {
             registry.getState.mockReturnValue({
                 registry: { hub: mockRegistry },
             });
-            const mockLogChild = { error: jest.fn() };
+            mockRegistry.getImageConfig = jest
+                .fn()
+                .mockResolvedValue({ created: undefined, version: undefined });
+            const mockLogChild = { error: jest.fn(), debug: jest.fn() };
 
             const result = await docker.findNewVersion(container, mockLogChild);
 
@@ -777,7 +780,215 @@ describe('Docker Watcher', () => {
                 2,
             );
             expect(result.digest).toBe('sha256:def456');
+            // A config blob carrying no created date must not erase the value
+            // already resolved from the manifest.
             expect(result.created).toBe('2023-01-01');
+        });
+
+        test('should resolve the remote version and build date when the digest moved', async () => {
+            const container = {
+                image: {
+                    id: 'image123',
+                    registry: { name: 'hub' },
+                    tag: { value: '1.0.0' },
+                    digest: { watch: true, repo: 'sha256:abc123' },
+                },
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['1.0.0']),
+                getImageManifestDigest: jest
+                    .fn()
+                    .mockResolvedValueOnce({
+                        digest: 'sha256:remote',
+                        version: 2,
+                    })
+                    .mockResolvedValueOnce({ digest: 'sha256:local' }),
+                getImageConfig: jest.fn().mockResolvedValue({
+                    created: '2026-09-02T05:35:35.550810335Z',
+                    version: '2.3.7',
+                }),
+                shouldWatchDigest: jest.fn(() => true),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const mockLogChild = { error: jest.fn(), debug: jest.fn() };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            // The config is resolved from the REMOTE manifest digest.
+            expect(mockRegistry.getImageConfig).toHaveBeenCalledTimes(1);
+            expect(mockRegistry.getImageConfig).toHaveBeenCalledWith(
+                expect.anything(),
+                'sha256:remote',
+                undefined,
+            );
+            expect(result.created).toBe('2026-09-02T05:35:35.550810335Z');
+            expect(result.version).toBe('2.3.7');
+        });
+
+        test('should reuse an already resolved image config instead of re-fetching it', async () => {
+            const container = {
+                id: 'container123',
+                image: {
+                    id: 'image123',
+                    registry: { name: 'hub' },
+                    tag: { value: '1.0.0' },
+                    digest: { watch: true, repo: 'sha256:abc123' },
+                },
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['1.0.0']),
+                getImageManifestDigest: jest
+                    .fn()
+                    .mockResolvedValueOnce({
+                        digest: 'sha256:remote',
+                        version: 2,
+                    })
+                    .mockResolvedValueOnce({ digest: 'sha256:local' }),
+                getImageConfig: jest.fn(),
+                shouldWatchDigest: jest.fn(() => true),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            // Same remote digest already resolved on an earlier cycle.
+            storeContainer.getContainer.mockReturnValueOnce({
+                id: 'container123',
+                result: {
+                    digest: 'sha256:remote',
+                    created: '2026-09-02T05:35:35.550Z',
+                    version: '2.3.7',
+                },
+            });
+            const mockLogChild = { error: jest.fn(), debug: jest.fn() };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            // A pending update must not cost a registry round-trip every scan.
+            expect(mockRegistry.getImageConfig).not.toHaveBeenCalled();
+            expect(result.version).toBe('2.3.7');
+            expect(result.created).toBe('2026-09-02T05:35:35.550Z');
+        });
+
+        test('should re-resolve the image config when the remote digest changed again', async () => {
+            const container = {
+                id: 'container123',
+                image: {
+                    id: 'image123',
+                    registry: { name: 'hub' },
+                    tag: { value: '1.0.0' },
+                    digest: { watch: true, repo: 'sha256:abc123' },
+                },
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['1.0.0']),
+                getImageManifestDigest: jest
+                    .fn()
+                    .mockResolvedValueOnce({
+                        digest: 'sha256:newer',
+                        version: 2,
+                        configDigest: 'sha256:config',
+                    })
+                    .mockResolvedValueOnce({ digest: 'sha256:local' }),
+                getImageConfig: jest
+                    .fn()
+                    .mockResolvedValue({ created: 'c', version: '2.3.8' }),
+                shouldWatchDigest: jest.fn(() => true),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            // Stored result is for a DIFFERENT (older) remote digest.
+            storeContainer.getContainer.mockReturnValueOnce({
+                id: 'container123',
+                result: {
+                    digest: 'sha256:remote',
+                    created: '2026-09-02T05:35:35.550Z',
+                    version: '2.3.7',
+                },
+            });
+            const mockLogChild = { error: jest.fn(), debug: jest.fn() };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            // The known config digest is passed through, saving a manifest request.
+            expect(mockRegistry.getImageConfig).toHaveBeenCalledWith(
+                expect.anything(),
+                'sha256:newer',
+                'sha256:config',
+            );
+            expect(result.version).toBe('2.3.8');
+        });
+
+        test('should not fetch the image config when the digest has not moved', async () => {
+            const container = {
+                image: {
+                    id: 'image123',
+                    registry: { name: 'hub' },
+                    tag: { value: '1.0.0' },
+                    digest: { watch: true, repo: 'sha256:abc123' },
+                },
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['1.0.0']),
+                getImageManifestDigest: jest
+                    .fn()
+                    .mockResolvedValueOnce({
+                        digest: 'sha256:same',
+                        version: 2,
+                    })
+                    .mockResolvedValueOnce({ digest: 'sha256:same' }),
+                getImageConfig: jest.fn(),
+                shouldWatchDigest: jest.fn(() => true),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const mockLogChild = { error: jest.fn(), debug: jest.fn() };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            // Steady state: no update, so no extra registry request. This keeps
+            // the request count unchanged for registries that rate limit pulls.
+            expect(mockRegistry.getImageConfig).not.toHaveBeenCalled();
+            expect(result.version).toBeUndefined();
+        });
+
+        test('should ignore a failure to resolve the image config', async () => {
+            const container = {
+                image: {
+                    id: 'image123',
+                    registry: { name: 'hub' },
+                    tag: { value: '1.0.0' },
+                    digest: { watch: true, repo: 'sha256:abc123' },
+                },
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['1.0.0']),
+                getImageManifestDigest: jest
+                    .fn()
+                    .mockResolvedValueOnce({
+                        digest: 'sha256:remote',
+                        version: 2,
+                    })
+                    .mockResolvedValueOnce({ digest: 'sha256:local' }),
+                getImageConfig: jest.fn().mockRejectedValue(new Error('Boom!')),
+                shouldWatchDigest: jest.fn(() => true),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const mockLogChild = { error: jest.fn(), debug: jest.fn() };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            // Update detection must not depend on the extra request succeeding.
+            expect(result.digest).toBe('sha256:remote');
+            expect(result.version).toBeUndefined();
+            expect(mockLogChild.debug).toHaveBeenCalledWith(
+                'Cannot get remote image config (Boom!)',
+            );
         });
 
         test('should handle digest watching with v1 manifest', async () => {

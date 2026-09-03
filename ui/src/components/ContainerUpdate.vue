@@ -29,6 +29,24 @@
           </v-tooltip>
         </v-list-item-subtitle>
       </v-list-item>
+      <v-list-item v-if="result.version">
+        <template v-slot:prepend>
+          <v-icon color="secondary">mdi-package-variant</v-icon>
+        </template>
+        <v-list-item-title>Version</v-list-item-title>
+        <v-list-item-subtitle>
+          {{ result.version }}
+        </v-list-item-subtitle>
+      </v-list-item>
+      <v-list-item v-if="result.created">
+        <template v-slot:prepend>
+          <v-icon color="secondary">mdi-calendar-clock</v-icon>
+        </template>
+        <v-list-item-title>Built</v-list-item-title>
+        <v-list-item-subtitle>
+          {{ $filters.dateTime(result.created) }}
+        </v-list-item-subtitle>
+      </v-list-item>
       <v-list-item v-if="result.link">
         <template v-slot:prepend>
           <v-icon color="secondary">mdi-link</v-icon>
