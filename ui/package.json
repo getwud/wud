@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",
+    "serve:demo": "vue-cli-service serve --mode demo",
     "build": "vue-cli-service build",
+    "build:demo": "vue-cli-service build --mode demo --dest ../website/static/demo-app",
     "lint": "vue-cli-service lint",
     "test:unit": "jest --coverage",
     "test:unit:watch": "jest --watch"

@@ -30,7 +30,7 @@ import {
   watch,
   defineComponent,
 } from "vue";
-import { url } from "@/services/base";
+import { getUser } from "@/services/auth";
 import NavigationDrawer from "@/components/NavigationDrawer.vue";
 import SnackBar from "@/components/SnackBar.vue";
 import { getServer } from "@/services/server";
@@ -94,20 +94,15 @@ export default defineComponent({
       } else if (!user.value) {
         // Fallback auth check if user not set by router guard
         try {
-          const response = await fetch(url("auth/user"), {
-            credentials: "include",
-          });
-          if (response.ok) {
-            const currentUser = await response.json();
-            if (currentUser && currentUser.username) {
-              onAuthenticated(currentUser);
-            }
+          const currentUser = await getUser();
+          if (currentUser && currentUser.username) {
+            onAuthenticated(currentUser);
           }
         } catch {
           // Ignore: user remains unauthenticated
         }
       }
-    });
+    }, { immediate: true });
 
     onUpdated(async () => {
       if (

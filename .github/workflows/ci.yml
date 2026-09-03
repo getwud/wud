@@ -77,9 +77,15 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: website/package-lock.json
+          cache-dependency-path: |
+            ui/package-lock.json
+            website/package-lock.json
       - name: Install dependencies
-        run: (cd website && npm ci)
+        run: |
+          (cd ui && npm ci)
+          (cd website && npm ci)
+      - name: Build demo UI
+        run: (cd ui && npm run build:demo)
       - name: Build website
         run: (cd website && npm run build)
       - name: Upload docs artifact
@@ -88,6 +94,35 @@ jobs:
           name: docusaurus-build
           path: website/build
           retention-days: 1
+
+  update-screenshots:
+    name: Update Documentation Screenshots
+    needs: [build-docs]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            ui/package-lock.json
+            ui-e2e/package-lock.json
+      - name: Install dependencies
+        run: |
+          (cd ui && npm ci)
+          (cd ui-e2e && npm ci)
+      - name: Install Playwright Browsers
+        run: (cd ui-e2e && npx playwright install --with-deps chromium)
+      - name: Generate Screenshots
+        run: ./scripts/generate-screenshots.sh
+      - name: Commit updated screenshots
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "docs: update UI screenshots [automated]"
+          file_pattern: "website/docs/assets/screenshots/*.png website/docs/assets/ui.png"
 
   e2e-test:
     name: E2E Tests

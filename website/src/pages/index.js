@@ -86,6 +86,12 @@ function HeroBanner() {
           <Link className={styles.btnPrimary} to="/docs/quickstart">
             Get Started →
           </Link>
+          <Link className={styles.btnSecondary} to="/demo">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5.14v14.72a1 1 0 0 0 1.5.86l11-7.36a1 1 0 0 0 0-1.72l-11-7.36a1 1 0 0 0-1.5.86z"/>
+            </svg>
+            Live Demo
+          </Link>
           <Link className={styles.btnSecondary} to="/docs">
             Documentation
           </Link>
