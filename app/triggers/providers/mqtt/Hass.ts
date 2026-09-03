@@ -172,6 +172,13 @@ class Hass {
                 name: container.displayName,
                 icon: sanitizeIcon(container.displayIcon),
                 options: {
+                    // Home Assistant's "Updates" page prints the DEVICE name as
+                    // the headline and falls back to the entity name only when
+                    // the entity has no device. Every wud container shares one
+                    // device, so without a title every row reads "wud" followed
+                    // by a bare version. `title` puts the container name into
+                    // the supporting text, making the rows distinguishable.
+                    title: container.displayName,
                     force_update: true,
                     value_template: HASS_ENTITY_VALUE_TEMPLATE,
                     latest_version_topic: containerStateSensor.topic,

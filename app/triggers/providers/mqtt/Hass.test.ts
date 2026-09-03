@@ -151,6 +151,23 @@ test('addContainerSensor must publish sensor discovery message expected by HA', 
     );
 });
 
+test('addContainerSensor must publish the container display name as title', async () => {
+    await hass.addContainerSensor({
+        name: 'container-name',
+        displayName: 'my-container',
+        watcher: 'watcher-name',
+        displayIcon: 'mdi:docker',
+    });
+    const discoveryPayload = JSON.parse(
+        mqttClientMock.publish.mock.calls[0][1],
+    );
+
+    // `name` drives the entity name; `title` is what the HA Updates page shows
+    // as supporting text, since the headline is the (shared) device name.
+    expect(discoveryPayload.name).toEqual('my-container');
+    expect(discoveryPayload.title).toEqual('my-container');
+});
+
 test.each(containerData)(
     'removeContainerSensor must publish sensor discovery message expected by HA',
     async ({ containerName, data }) => {
