@@ -14,6 +14,18 @@ const config = {
   tagline: "What's up Docker? Keep your containers up-to-date!",
   favicon: 'img/favicon.ico',
 
+  // SVG favicon for modern browsers (preferred over ICO)
+  headTags: [
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'icon',
+        type: 'image/svg+xml',
+        href: '/wud/img/wud-logo.svg',
+      },
+    },
+  ],
+
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
     v4: true, // Improve compatibility with the upcoming Docusaurus v4
