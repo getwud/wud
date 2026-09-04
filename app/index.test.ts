@@ -9,7 +9,9 @@ jest.mock('./log', () => ({
 }));
 
 jest.mock('./store', () => ({
-    init: jest.fn().mockResolvedValue(),
+    store: {
+        init: jest.fn().mockResolvedValue(),
+    },
 }));
 
 jest.mock('./registry', () => ({
@@ -50,7 +52,7 @@ describe('Main Application', () => {
         expect(log.info).toHaveBeenCalledWith(
             'WUD is starting (version = 1.0.0)',
         );
-        expect(store.init).toHaveBeenCalled();
+        expect(store.store.init).toHaveBeenCalled();
         expect(prometheus.init).toHaveBeenCalled();
         expect(registry.init).toHaveBeenCalled();
         expect(api.init).toHaveBeenCalled();

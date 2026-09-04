@@ -1,27 +1,27 @@
-// @ts-nocheck
 import express from 'express';
 import session from 'express-session';
-import ConnectLoki from 'connect-loki';
-const LokiStore = ConnectLoki(session);
 import passport from 'passport';
 import { v5 as uuidV5 } from 'uuid';
 import getmac from 'getmac';
-import * as store from '../store';
+import { store } from '../store';
 import * as registry from '../registry';
 import log from '../log';
 import { getVersion } from '../configuration';
+import LokiSessionStore from './LokiSessionStore';
+import Authentication, {
+    StrategyDescription,
+} from '../authentications/providers/Authentication';
 
 const router = express.Router();
 
 // The configured strategy ids.
-const STRATEGY_IDS = [];
+const STRATEGY_IDS: string[] = [];
 
 // Constant WUD namespace for uuid v5 bound sessions.
 const WUD_NAMESPACE = 'dee41e92-5fc4-460e-beec-528c9ea7d760';
 
 /**
  * Get all strategies id.
- * @returns {[]}
  */
 export function getAllIds() {
     return STRATEGY_IDS;
@@ -29,10 +29,6 @@ export function getAllIds() {
 
 /**
  * Express middleware to protect routes.
- * @param req
- * @param res
- * @param next
- * @returns {*}
  */
 export function requireAuthentication(req, res, next): any {
     if (req.isAuthenticated()) {
@@ -47,16 +43,13 @@ export function requireAuthentication(req, res, next): any {
 
 /**
  * Get cookie max age.
- * @param days
- * @returns {number}
  */
-function getCookieMaxAge(days) {
+function getCookieMaxAge(days: number) {
     return 3600 * 1000 * 24 * days;
 }
 
 /**
  * Get session secret key (bound to wud version).
- * @returns {string}
  */
 function getSessionSecretKey() {
     const stringToHash = `wud.${getVersion()}.${getmac()}`;
@@ -65,10 +58,8 @@ function getSessionSecretKey() {
 
 /**
  * Register a strategy to passport.
- * @param authentication
- * @param app
  */
-function useStrategy(authentication, app) {
+function useStrategy(authentication: Authentication, app) {
     try {
         const strategy = authentication.getStrategy(app);
         passport.use(authentication.getId(), strategy);
@@ -84,7 +75,7 @@ function getUniqueStrategies() {
     const strategies = Object.values(registry.getState().authentication).map(
         (authentication) => authentication.getStrategyDescription(),
     );
-    const uniqueStrategies = [];
+    const uniqueStrategies: StrategyDescription[] = [];
     strategies.forEach((strategy) => {
         if (
             !uniqueStrategies.find(
@@ -100,8 +91,6 @@ function getUniqueStrategies() {
 
 /**
  * Return the registered strategies from the registry.
- * @param req
- * @param res
  */
 function getStrategies(req, res) {
     res.json(getUniqueStrategies());
@@ -119,8 +108,6 @@ function getLogoutRedirectUrl() {
 
 /**
  * Get current user.
- * @param req
- * @param res
  */
 function getUser(req, res) {
     const user = req.user || { username: 'anonymous' };
@@ -129,8 +116,6 @@ function getUser(req, res) {
 
 /**
  * Login user (and return it).
- * @param req
- * @param res
  */
 function login(req, res) {
     return getUser(req, res);
@@ -138,8 +123,6 @@ function login(req, res) {
 
 /**
  * Logout current user.
- * @param req
- * @param res
  */
 function logout(req, res) {
     req.logout(() => {});
@@ -148,18 +131,16 @@ function logout(req, res) {
     });
 }
 
+let lokiStore: LokiSessionStore | undefined;
 /**
  * Init auth (passport.js).
- * @returns {*}
  */
 export function init(app) {
+    lokiStore = new LokiSessionStore(store.getDb());
     // Init express session
     app.use(
         session({
-            store: new LokiStore({
-                path: `${store.getConfiguration().path}/${store.getConfiguration().file}`,
-                ttl: 604800, // 7 days
-            }),
+            store: lokiStore,
             secret: getSessionSecretKey(),
             resave: false,
             saveUninitialized: false,
@@ -183,7 +164,7 @@ export function init(app) {
         done(null, JSON.stringify(user));
     });
 
-    passport.deserializeUser((user, done) => {
+    passport.deserializeUser((user: string, done) => {
         done(null, JSON.parse(user));
     });
 

@@ -4,9 +4,11 @@ import * as storeApi from './store';
 import * as store from '../store';
 
 jest.mock('../store', () => ({
-    getConfiguration: jest.fn(() => ({
-        someConfig: 'value',
-    })),
+    store: {
+        getConfiguration: jest.fn(() => ({
+            someConfig: 'value',
+        })),
+    },
 }));
 
 describe('API Store', () => {

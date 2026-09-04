@@ -24,9 +24,15 @@ class Authentication extends Component {
         throw new Error('getStrategy must be implemented');
     }
 
-    getStrategyDescription() {
+    getStrategyDescription(): StrategyDescription {
         throw new Error('getStrategyDescription must be implemented');
     }
 }
 
 export default Authentication;
+
+export interface StrategyDescription {
+    type: string;
+    name: string;
+    logoutUrl?: string;
+}

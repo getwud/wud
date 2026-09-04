@@ -1,15 +1,21 @@
 import express from 'express';
 import request from 'supertest';
 import * as auth from './auth';
-import * as store from '../store';
-import * as registry from '../registry';
 
-jest.mock('../store', () => ({
-    getConfiguration: jest.fn(() => ({
-        path: '/tmp',
-        file: 'test.db',
-    })),
-}));
+jest.mock('../store', () => {
+    const Loki = require('lokijs');
+    const db = new Loki('test.db');
+
+    return {
+        store: {
+            getDb: jest.fn(() => db),
+            getConfiguration: jest.fn(() => ({
+                path: '/tmp',
+                file: 'test.db',
+            })),
+        },
+    };
+});
 
 jest.mock('../registry', () => ({
     getState: jest.fn(() => ({
@@ -96,7 +102,7 @@ describe('API Auth', () => {
         const tempApp = express();
         tempApp.use(express.json());
         auth.init(tempApp);
-        tempApp.use((err: any, req: any, res: any, next: any) => {
+        tempApp.use((err: any, req: any, res: any) => {
             console.error(err);
             res.status(500).json({ error: err.message });
         });

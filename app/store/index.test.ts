@@ -1,6 +1,6 @@
 // @ts-nocheck
 import fs from 'fs';
-import * as store from './index';
+import { store } from './index';
 
 // Mock dependencies
 jest.mock('lokijs', () => {
@@ -85,7 +85,8 @@ describe('Store Module', () => {
             }));
         });
 
-        const storeWithError = await import('./index');
+        const { store: storeWithError } = await import('./index');
+
         await expect(storeWithError.init()).rejects.toThrow(
             'Database load failed',
         );
