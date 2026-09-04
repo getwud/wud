@@ -12,6 +12,7 @@ description: Unreleased changes and upcoming features in What's Up Docker (WUD).
 - 🚀 [DOCS] Add interactive UI live demo simulator with homelab mock data
 - 🚀 [CI] Add automated UI screenshot capture pipeline with Playwright and dark mode support
 - 🚀 [UI] Add demo mode with mock services for static deployment
+- 🚀 [REGISTRY] Enable anonymous access by default for LSCR and TrueForge public registries
 
 - 🐛 [WATCHER] Fix docker watcher crashing on startup when `watchdigestdefault` is configured by restoring the property and passing it to registries (fixes #1150)
 - 🐛 [WATCHER] Fix docker watcher ignoring container labels when registry provider is unknown (fixes #1124)
