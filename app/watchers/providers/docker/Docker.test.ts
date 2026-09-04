@@ -931,6 +931,41 @@ describe('Docker Watcher', () => {
             expect(container.image.digest.value).toBe(result.digest);
         });
 
+        test('should list tags for non-semver images if watch digest is true and includeTags is set', async () => {
+            const arm64ManifestDigest =
+                'sha256:1234000000000000000000000000000000000000000000000000000000000000';
+
+            const ghcrRegistry = new Registry();
+            ghcrRegistry.shouldWatchDigest = jest.fn().mockReturnValue(true);
+            ghcrRegistry.getTags = jest.fn().mockResolvedValue(['24-alpine']);
+            ghcrRegistry.getImageManifestDigest = jest.fn().mockResolvedValue({
+                digest: arm64ManifestDigest,
+                created: '2023-01-01T00:00:00Z',
+                version: 2,
+            });
+
+            const container = {
+                includeTags: '24-alpine',
+                image: {
+                    id: 'image123',
+                    registry: { name: 'ghcr' },
+                    name: 'tricked-dev/kanidm-oauth2-manager',
+                    tag: { value: 'latest', semver: false },
+                    architecture: 'arm64',
+                    os: 'linux',
+                    digest: { watch: true, repo: arm64ManifestDigest },
+                },
+            };
+            registry.getState.mockReturnValue({
+                registry: { ghcr: ghcrRegistry },
+            });
+            const mockLogChild = { error: jest.fn(), warn: jest.fn() };
+
+            await docker.findNewVersion(container, mockLogChild);
+
+            expect(ghcrRegistry.getTags).toHaveBeenCalled();
+        });
+
         test('should handle tag candidates with semver', async () => {
             const container = {
                 includeTags: '^v\\d+',
