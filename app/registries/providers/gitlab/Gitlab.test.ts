@@ -62,6 +62,16 @@ test('validatedConfiguration should allow anonymous configuration for public pro
     });
 });
 
+test('init should initialize defaults even if configuration is an empty string', async () => {
+    const gitlabEmpty = new Gitlab();
+    gitlabEmpty.configuration = '';
+    await gitlabEmpty.init();
+    expect(gitlabEmpty.configuration.url).toBe('https://registry.gitlab.com');
+    expect(gitlabEmpty.configuration.authurl).toBe('https://gitlab.com');
+    expect(gitlabEmpty.configuration.username).toBe('');
+    expect(gitlabEmpty.configuration.token).toBe('');
+});
+
 test('maskConfiguration should mask configuration secrets', async () => {
     expect(gitlab.maskConfiguration()).toEqual({
         url: 'https://registry.gitlab.com',

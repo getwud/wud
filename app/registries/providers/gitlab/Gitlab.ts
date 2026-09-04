@@ -7,6 +7,9 @@ import { ContainerImage } from '../../../model/container';
  */
 class Gitlab extends DockerRegistryV2 {
     async init() {
+        if (typeof this.configuration === 'string') {
+            this.configuration = {};
+        }
         if (!this.configuration.url) {
             this.configuration.url = 'https://registry.gitlab.com';
         }
