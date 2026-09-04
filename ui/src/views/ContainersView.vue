@@ -35,7 +35,50 @@
         class="bg-surface"
         @click:row="onRowClick"
       >
-            <template #[`item.watcher`]="{ item }">
+        <template #group-header="{ item, columns, toggleGroup, isGroupOpen }">
+          <tr class="v-data-table-group-header-row" @click="toggleGroup(item)">
+            <td :colspan="columns.length" class="py-2.5 px-4 group-header-cell">
+              <div class="d-flex align-center">
+                <v-btn
+                  :icon="isGroupOpen(item) ? 'mdi-chevron-down' : 'mdi-chevron-right'"
+                  size="x-small"
+                  variant="tonal"
+                  color="primary"
+                  density="comfortable"
+                  class="mr-3 group-chevron"
+                  @click.stop="toggleGroup(item)"
+                />
+                
+                <v-icon size="small" color="primary" class="mr-1.5 opacity-80">mdi-tag-outline</v-icon>
+                
+                <span class="group-label-name text-caption font-weight-bold text-uppercase">
+                  {{ groupByLabel }}
+                </span>
+                
+                <span class="mx-2 text-disabled font-weight-light">/</span>
+                
+                <span 
+                  class="group-label-value font-weight-bold text-body-2"
+                  :class="item.value === '(empty)' ? 'text-disabled font-italic' : ''"
+                >
+                  {{ item.value }}
+                </span>
+                
+                <v-chip
+                  size="x-small"
+                  variant="tonal"
+                  color="primary"
+                  class="ml-3 font-weight-medium"
+                >
+                  <v-icon start size="x-small">mdi-docker</v-icon>
+                  {{ item.items.length }} {{ item.items.length > 1 ? 'containers' : 'container' }}
+                </v-chip>
+              </div>
+            </td>
+          </tr>
+        </template>
+
+        <template #[`item.watcher`]="{ item }">
               <v-chip label color="primary" variant="tonal" size="small">
                 <v-icon start size="small">mdi-update</v-icon>
                 {{ item.raw ? item.raw.watcher : item.watcher }}
@@ -306,7 +349,7 @@ export default defineComponent({
     },
     groupBy() {
       if (this.groupByLabel) {
-        return [{ key: `labels.${this.groupByLabel}`, order: 'asc' }];
+        return [{ key: "containerGroup", order: "asc" }];
       }
       return [];
     },
@@ -334,14 +377,29 @@ export default defineComponent({
     },
     containersFiltered() {
       return this.containers
-        .filter((c) => this.registrySelected ? this.registrySelected === c.image.registry.name : true)
-        .filter((c) => this.watcherSelected ? this.watcherSelected === c.watcher : true)
-        .filter((c) => this.updateKindSelected ? this.updateKindSelected === (c.updateKind?.semverDiff) : true)
-        .filter((c) => this.updateAvailableSelected ? c.updateAvailable : true)
+        .filter((c) => (this.registrySelected ? this.registrySelected === c.image.registry.name : true))
+        .filter((c) => (this.watcherSelected ? this.watcherSelected === c.watcher : true))
+        .filter((c) => (this.updateKindSelected ? this.updateKindSelected === c.updateKind?.semverDiff : true))
+        .filter((c) => (this.updateAvailableSelected ? c.updateAvailable : true))
+        .map((c) => ({
+          ...c,
+          containerGroup: this.groupByLabel
+            ? (c.labels && c.labels[this.groupByLabel] !== undefined && c.labels[this.groupByLabel] !== null && c.labels[this.groupByLabel] !== ""
+                ? String(c.labels[this.groupByLabel])
+                : "(empty)")
+            : "",
+        }))
         .sort((a, b) => {
-          const getImageDate = (item: any) => new Date(item.image.created);
+          if (this.groupByLabel) {
+            if (a.containerGroup !== b.containerGroup) {
+              if (a.containerGroup === "(empty)") return 1;
+              if (b.containerGroup === "(empty)") return -1;
+              return a.containerGroup.localeCompare(b.containerGroup);
+            }
+          }
+          const getImageDate = (item: any) => new Date(item.image?.created || 0);
           if (this.oldestFirst) return (getImageDate(a) as any) - (getImageDate(b) as any);
-          return a.displayName.localeCompare(b.displayName);
+          return (a.displayName || a.name || "").localeCompare(b.displayName || b.name || "");
         });
     },
   },
@@ -485,13 +543,49 @@ export default defineComponent({
   cursor: pointer;
 }
 
-/* Add micro-animation and pointer cursor for hover on rows */
-:deep(.v-data-table tbody tr) {
+/* Group header styling with theme-aware accent and gradient */
+.group-header-cell {
+  background: linear-gradient(90deg, rgba(var(--v-theme-primary), 0.08) 0%, rgba(var(--v-theme-primary), 0.02) 100%);
+  border-left: 3px solid rgb(var(--v-theme-primary)) !important;
+  border-bottom: 1px solid rgba(var(--v-theme-primary), 0.12) !important;
+  transition: background 0.2s ease;
+  user-select: none;
+}
+
+.group-label-name {
+  color: rgb(var(--v-theme-primary));
+  letter-spacing: 0.04em;
+  opacity: 0.9;
+}
+
+.group-label-value {
+  color: rgba(var(--v-theme-on-surface), 0.95);
+}
+
+.group-chevron {
+  transition: transform 0.2s ease;
+}
+
+:deep(.v-data-table tbody tr.v-data-table-group-header-row) {
+  cursor: pointer;
+}
+
+:deep(.v-data-table tbody tr.v-data-table-group-header-row:hover) {
+  transform: none;
+  box-shadow: none;
+}
+
+:deep(.v-data-table tbody tr.v-data-table-group-header-row:hover .group-header-cell) {
+  background: linear-gradient(90deg, rgba(var(--v-theme-primary), 0.15) 0%, rgba(var(--v-theme-primary), 0.05) 100%);
+}
+
+/* Add micro-animation and pointer cursor for hover on standard rows */
+:deep(.v-data-table tbody tr:not(.v-data-table-group-header-row)) {
   cursor: pointer;
   transition: background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s ease;
 }
 
-:deep(.v-data-table tbody tr:hover) {
+:deep(.v-data-table tbody tr:not(.v-data-table-group-header-row):hover) {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   z-index: 1;

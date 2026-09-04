@@ -109,10 +109,52 @@ describe('ContainersView', () => {
   });
 
   it('groups containers by label', async () => {
+    expect(wrapper.vm.groupBy).toEqual([]);
+
     wrapper.vm.groupByLabel = 'app';
     await wrapper.vm.$nextTick();
 
-    expect(wrapper.vm.groupBy).toEqual([{ key: 'labels.app', order: 'asc' }]);
+    expect(wrapper.vm.groupBy).toEqual([{ key: 'containerGroup', order: 'asc' }]);
+  });
+
+  it('correctly sets containerGroup and sorts items with dotted labels (e.g. com.docker.compose.project)', async () => {
+    wrapper.vm.containers = [
+      {
+        id: '1',
+        displayName: 'Container Z',
+        image: { registry: { name: 'hub' } },
+        labels: { 'com.docker.compose.project': 'project-z' }
+      },
+      {
+        id: '2',
+        displayName: 'Container A',
+        image: { registry: { name: 'hub' } },
+        labels: { 'com.docker.compose.project': 'project-a' }
+      },
+      {
+        id: '3',
+        displayName: 'Container No Label',
+        image: { registry: { name: 'hub' } },
+        labels: {}
+      }
+    ];
+
+    wrapper.vm.groupByLabel = 'com.docker.compose.project';
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.groupBy).toEqual([{ key: 'containerGroup', order: 'asc' }]);
+
+    const filtered = wrapper.vm.containersFiltered;
+    expect(filtered).toHaveLength(3);
+    // Group 'project-a' comes first
+    expect(filtered[0].id).toBe('2');
+    expect(filtered[0].containerGroup).toBe('project-a');
+    // Group 'project-z' comes second
+    expect(filtered[1].id).toBe('1');
+    expect(filtered[1].containerGroup).toBe('project-z');
+    // Containers with missing label group under '(empty)' and come last
+    expect(filtered[2].id).toBe('3');
+    expect(filtered[2].containerGroup).toBe('(empty)');
   });
 
   it('handles registry filter change', async () => {

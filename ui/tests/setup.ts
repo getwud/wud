@@ -138,6 +138,11 @@ config.global.stubs = {
   'v-form': { template: '<form class="v-form" @keyup.enter="() => {}"><slot /></form>' },
   'v-list': { template: '<div class="v-list"><slot /></div>' },
   'v-list-item': { template: '<div class="v-list-item"><slot /></div>' },
+  'v-data-table': { 
+    template: '<div class="v-data-table"><slot name="top" /><slot /><slot name="body" /><slot name="bottom" /></div>', 
+    props: ['headers', 'items', 'itemValue', 'groupBy', 'hover', 'search'],
+    name: 'v-data-table'
+  },
   'v-list-item-title': { template: '<div class="v-list-item-title"><slot /></div>' },
   'v-list-item-subtitle': { template: '<div class="v-list-item-subtitle"><slot /></div>' },
   'v-toolbar-title': { template: '<div class="v-toolbar-title"><slot /></div>' },
