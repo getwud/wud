@@ -679,9 +679,10 @@ export class Docker extends Watcher {
             }
 
             // Get all available tags for semver update checks
-            const tags = container.image.tag.semver
-                ? await registryProvider.getTags(container.image)
-                : [];
+            const tags =
+                container.image.tag.semver || container.includeTags
+                    ? await registryProvider.getTags(container.image)
+                    : [];
 
             // Get candidate tags (based on tag name)
             const tagsCandidates = getTagCandidates(
