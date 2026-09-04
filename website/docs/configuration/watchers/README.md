@@ -118,6 +118,14 @@ To customize how WUD monitors specific containers (opt-in/opt-out, tag filtering
   </ConfigOption>
 
   <ConfigOption
+    name="WUD_WATCHER_{watcher_name}_WATCHDIGESTDEFAULT"
+    required={false}
+    type="boolean"
+    defaultValue="false (Hub), true (others)">
+    Whether WUD should watch digest for tags that are not semantic versions, acting as a fallback when not defined in registry config.
+  </ConfigOption>
+
+  <ConfigOption
     name="WUD_WATCHER_{watcher_name}_WATCHEVENTS"
     required={false}
     type="boolean"

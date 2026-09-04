@@ -24,17 +24,26 @@ class Hub extends Custom {
                 password: this.joi.string(),
                 token: this.joi.string(),
                 auth: this.joi.string().base64(),
-                watchdigest: this.joi.bool().default(false),
+                watchdigest: this.joi.bool().optional(),
                 suppressdigestwatchwarning: this.joi.bool().default(false),
             }),
         ]);
     }
 
-    shouldWatchDigest(wudWatchDigestLabelValue: string, image: string) {
-        const shouldWatch =
-            (wudWatchDigestLabelValue &&
-                wudWatchDigestLabelValue.toLowerCase() === 'true') ||
-            this.configuration.watchdigest === true;
+    shouldWatchDigest(
+        wudWatchDigestLabelValue: string,
+        image: string,
+        watchDigestDefault?: boolean,
+    ) {
+        let shouldWatch: boolean;
+        if (wudWatchDigestLabelValue !== undefined) {
+            shouldWatch = wudWatchDigestLabelValue.toLowerCase() === 'true';
+        } else if (this.configuration.watchdigest !== undefined) {
+            shouldWatch = this.configuration.watchdigest === true;
+        } else {
+            shouldWatch =
+                watchDigestDefault !== undefined ? watchDigestDefault : false;
+        }
         if (shouldWatch && !this.configuration.suppressdigestwatchwarning) {
             this.log.warn(
                 `Watching digest for image ${image} may result in throttled requests`,

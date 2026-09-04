@@ -177,6 +177,41 @@ describe('Docker Hub Registry tests', () => {
             expect(result).toBe(true);
         });
 
+        test('should return false when label is false despite watchdigest config', async () => {
+            const hubWithWatchDigest = new Hub();
+            await hubWithWatchDigest.register('registry', 'hub', 'test', {
+                watchdigest: true,
+            });
+            const result = hubWithWatchDigest.shouldWatchDigest(
+                'false',
+                'library/nginx',
+            );
+            expect(result).toBe(false);
+        });
+
+        test('should return watchDigestDefault if no label and no watchdigest config', () => {
+            expect(
+                hub.shouldWatchDigest(undefined, 'library/nginx', false),
+            ).toBe(false);
+            expect(
+                hub.shouldWatchDigest(undefined, 'library/nginx', true),
+            ).toBe(true);
+        });
+
+        test('should prefer watchdigest config over watchDigestDefault', async () => {
+            const hubWithWatchDigest = new Hub();
+            await hubWithWatchDigest.register('registry', 'hub', 'test', {
+                watchdigest: false,
+            });
+            expect(
+                hubWithWatchDigest.shouldWatchDigest(
+                    undefined,
+                    'library/nginx',
+                    true,
+                ),
+            ).toBe(false);
+        });
+
         test('should log warning when watching digest without suppressdigestwatchwarning', async () => {
             const hubWithWatchDigest = new Hub();
             await hubWithWatchDigest.register('registry', 'hub', 'test', {
