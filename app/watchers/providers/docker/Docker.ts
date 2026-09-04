@@ -322,8 +322,9 @@ export class Docker extends Watcher {
             { maxRandomDelay: this.configuration.jitter },
         );
 
-        // Force watchatstart value based on the state store (empty or not)
+        // Only watch at start if the feature is enabled AND the state store is empty
         this.configuration.watchatstart =
+            this.configuration.watchatstart &&
             storeContainer.getContainers().length === 0;
 
         // watch at startup if enabled (after all components have been registered)

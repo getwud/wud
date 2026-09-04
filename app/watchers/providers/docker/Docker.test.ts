@@ -223,6 +223,15 @@ describe('Docker Watcher', () => {
             docker.init();
             expect(docker.configuration.watchatstart).toBe(false);
         });
+
+        test('should respect watchatstart=false even if store is empty', async () => {
+            storeContainer.getContainers.mockReturnValue([]);
+            await docker.register('watcher', 'docker', 'test', {
+                watchatstart: false,
+            });
+            docker.init();
+            expect(docker.configuration.watchatstart).toBe(false);
+        });
     });
 
     describe('Deregistration', () => {
