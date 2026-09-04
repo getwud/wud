@@ -271,6 +271,7 @@ async function registerRegistries() {
         forgejo: { public: '' },
         gcr: { public: '' },
         ghcr: { public: '' },
+        gitlab: { public: '' },
         harbor: { public: '' },
         hub: { public: '' },
         icr: { public: '' },

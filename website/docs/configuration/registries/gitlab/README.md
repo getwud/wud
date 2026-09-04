@@ -12,8 +12,8 @@ import TabItem from '@theme/TabItem';
 
 <DocHero
   icon="gitlab"
-  badge="🔐 Setup Required"
-  badgeType="setup"
+  badge="⚡ Active by Default"
+  badgeType="default"
   description="The gitlab registry module authenticates against GitLab Container Registries (GitLab.com and self-hosted instances)."
 />
 
