@@ -37,7 +37,12 @@ export function isGreater(version1, version2) {
     if (version1Semver === null || version2Semver === null) {
         return false;
     }
-    return semver.gte(version1Semver, version2Semver);
+    // If semver versions are exactly equal, fallback to string comparison.
+    // This allows tags like 'YYYY-MM-DD' (which all coerce to YYYY.0.0) to be correctly ordered.
+    if (semver.eq(version1Semver, version2Semver)) {
+        return version1 > version2;
+    }
+    return semver.gt(version1Semver, version2Semver);
 }
 
 /**

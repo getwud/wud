@@ -63,7 +63,21 @@ describe('parse', () => {
 describe('isGreater', () => {
     const comparisonTests = [
         // Equal versions
-        { v1: '1.2.3', v2: '1.2.3', expected: true, desc: 'equal versions' },
+        { v1: '1.2.3', v2: '1.2.3', expected: false, desc: 'equal versions' },
+
+        // Dates (fallback to string comparison)
+        {
+            v1: '2025-09-01',
+            v2: '2025-08-05',
+            expected: true,
+            desc: 'newer date',
+        },
+        {
+            v1: '2025-06-03',
+            v2: '2025-08-05',
+            expected: false,
+            desc: 'older date',
+        },
 
         // Major version differences
         {

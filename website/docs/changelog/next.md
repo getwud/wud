@@ -14,3 +14,4 @@ description: Unreleased changes and upcoming features in What's Up Docker (WUD).
 - 🚀 [UI] Add demo mode with mock services for static deployment
 
 - 🐛 [WATCHER] Fix WUD_WATCHER_LOCAL_WATCHATSTART=false being ignored on empty store (fixes #1184)
+- 🐛 [TAG] Fix tag comparison when coerced semver versions are equal by falling back to string comparison (fixes #1183)
