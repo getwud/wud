@@ -825,17 +825,35 @@ export class Docker extends Watcher {
             this.log.warn(
                 `${container.Image} - ${parsedImage.domain} - No Registry Provider found`,
             );
-            return;
         }
         const parsedTag = parseSemver(transformTag(transformTags, tagName));
         const isSemver = parsedTag !== null && parsedTag !== undefined;
-        const watchDigest =
-            !isSemver &&
-            registryProvider.shouldWatchDigest(
-                container.Labels[wudWatchDigest],
-                parsedImage.path,
-                this.configuration.watchdigestdefault,
-            );
+        let watchDigest = false;
+
+        if (!isSemver) {
+            if (registryProvider) {
+                watchDigest = registryProvider.shouldWatchDigest(
+                    container.Labels[wudWatchDigest],
+                    parsedImage.path,
+                    this.configuration.watchdigestdefault,
+                );
+            } else {
+                const watchDigestLabel = container.Labels[wudWatchDigest];
+                if (
+                    watchDigestLabel !== undefined &&
+                    watchDigestLabel.toLowerCase() === 'true'
+                ) {
+                    watchDigest = true;
+                } else if (
+                    watchDigestLabel !== undefined &&
+                    watchDigestLabel.toLowerCase() === 'false'
+                ) {
+                    watchDigest = false;
+                } else {
+                    watchDigest = this.configuration.watchdigestdefault;
+                }
+            }
+        }
 
         return this.normalizeContainer({
             id: containerId,

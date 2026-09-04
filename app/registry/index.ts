@@ -276,11 +276,13 @@ async function registerRegistries() {
         icr: { public: '' },
         jfrog: { public: '' },
         linode: { public: '' },
+        lscr: { public: '' },
         nexus: { public: '' },
         ocir: { public: '' },
         proget: { public: '' },
         quay: { public: '' },
         scaleway: { public: '' },
+        trueforge: { public: '' },
     };
     const registriesToRegister = {
         ...defaultRegistries,

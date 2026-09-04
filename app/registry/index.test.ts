@@ -112,11 +112,13 @@ test('registerRegistries should register all registries', async () => {
         'icr.public',
         'jfrog.public',
         'linode.public',
+        'lscr.public',
         'nexus.public',
         'ocir.public',
         'proget.public',
         'quay.public',
         'scaleway.public',
+        'trueforge.public',
     ]);
 });
 
@@ -135,11 +137,13 @@ test('registerRegistries should register all anonymous registries by default', a
         'icr.public',
         'jfrog.public',
         'linode.public',
+        'lscr.public',
         'nexus.public',
         'ocir.public',
         'proget.public',
         'quay.public',
         'scaleway.public',
+        'trueforge.public',
     ]);
 });
 
@@ -319,11 +323,13 @@ test('init should register all components', async () => {
         'icr.public',
         'jfrog.public',
         'linode.public',
+        'lscr.public',
         'nexus.public',
         'ocir.public',
         'proget.public',
         'quay.public',
         'scaleway.public',
+        'trueforge.public',
     ]);
     expect(Object.keys(registry.getState().trigger)).toEqual([
         'mock.mock1',
