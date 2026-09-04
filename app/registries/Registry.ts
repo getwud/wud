@@ -108,8 +108,12 @@ export class Registry extends Component {
     /**
      * Check if the digest label value is to be watched for this registry (to be overridden).
      */
-    shouldWatchDigest(_wudWatchDigestLabelValue: string, _image: string) {
-        return true;
+    shouldWatchDigest(
+        _wudWatchDigestLabelValue: string,
+        _image: string,
+        watchDigestDefault?: boolean,
+    ) {
+        return watchDigestDefault !== undefined ? watchDigestDefault : true;
     }
 
     /**

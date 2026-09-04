@@ -630,4 +630,13 @@ describe('shouldWatchDigest', () => {
         const result = registry.shouldWatchDigest('', 'image/name');
         expect(result).toBe(true);
     });
+
+    test('should return watchDigestDefault if passed', () => {
+        expect(registry.shouldWatchDigest(undefined, 'image/name', false)).toBe(
+            false,
+        );
+        expect(registry.shouldWatchDigest(undefined, 'image/name', true)).toBe(
+            true,
+        );
+    });
 });

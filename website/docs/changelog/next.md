@@ -13,6 +13,7 @@ description: Unreleased changes and upcoming features in What's Up Docker (WUD).
 - 🚀 [CI] Add automated UI screenshot capture pipeline with Playwright and dark mode support
 - 🚀 [UI] Add demo mode with mock services for static deployment
 
+- 🐛 [WATCHER] Fix docker watcher crashing on startup when `watchdigestdefault` is configured by restoring the property and passing it to registries (fixes #1150)
 - 🐛 [WATCHER] Fix tag listing exclusion for non-semver tags breaking digest updates when `wud.tag.include` is used (fixes #1164)
 - 🐛 [WATCHER] Fix WUD_WATCHER_LOCAL_WATCHATSTART=false being ignored on empty store (fixes #1184)
 - 🐛 [TAG] Fix tag comparison when coerced semver versions are equal by falling back to string comparison (fixes #1183)

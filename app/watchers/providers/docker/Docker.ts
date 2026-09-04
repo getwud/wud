@@ -48,6 +48,7 @@ export interface DockerWatcherConfiguration extends ComponentConfiguration {
     watchbydefault: boolean;
     watchall: boolean;
     watchdigest?: any;
+    watchdigestdefault?: boolean;
     watchevents: boolean;
     watchatstart: boolean;
 }
@@ -300,6 +301,7 @@ export class Docker extends Watcher {
             watchbydefault: this.joi.boolean().default(true),
             watchall: this.joi.boolean().default(false),
             watchdigest: this.joi.any(),
+            watchdigestdefault: this.joi.boolean().optional(),
             watchevents: this.joi.boolean().default(true),
             watchatstart: this.joi.boolean().default(true),
         });
@@ -670,6 +672,7 @@ export class Docker extends Watcher {
                 registryProvider.shouldWatchDigest(
                     container.labels?.[wudWatchDigest],
                     container.image.name,
+                    this.configuration.watchdigestdefault,
                 );
 
             if (!container.image.tag.semver && !watchDigest) {
@@ -831,6 +834,7 @@ export class Docker extends Watcher {
             registryProvider.shouldWatchDigest(
                 container.Labels[wudWatchDigest],
                 parsedImage.path,
+                this.configuration.watchdigestdefault,
             );
 
         return this.normalizeContainer({
