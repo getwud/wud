@@ -12,8 +12,8 @@ import TabItem from '@theme/TabItem';
 
 <DocHero
   icon="gitea"
-  badge="⚡ Active by Default"
-  badgeType="default"
+  badge="🔐 Setup Required"
+  badgeType="setup"
   description="The gitea registry module connects to self-hosted or public Gitea container registries."
 />
 

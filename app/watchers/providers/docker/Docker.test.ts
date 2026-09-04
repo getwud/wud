@@ -1297,6 +1297,80 @@ describe('Docker Watcher', () => {
             expect(result).toBeDefined();
         });
 
+        test('should fallback to wud.watch.digest label for watchDigest when no registry provider is found', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = { warn: jest.fn(), debug: jest.fn() };
+            docker.log = mockLog;
+            const container = {
+                Id: '123',
+                Image: 'nginx:latest',
+                Names: ['/test'],
+                State: 'running',
+                Labels: { 'wud.watch.digest': 'true' },
+            };
+            const imageDetails = {
+                Id: 'image123',
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+            };
+            mockImage.inspect.mockResolvedValue(imageDetails);
+            mockTag.parse.mockReturnValue(null);
+
+            // Simulate no registry provider being found
+            registry.getState.mockReturnValue({
+                registry: {},
+            });
+
+            const containerModule = await import('../../../model/container');
+            const validateContainer = containerModule.validate;
+            // @ts-ignore
+            validateContainer.mockImplementation((c) => c);
+
+            const result = await docker.addImageDetailsToContainer(container);
+
+            expect(result).toBeDefined();
+            expect(result.image.digest.watch).toBe(true);
+        });
+
+        test('should fallback to watchdigestdefault when no registry provider is found and label is absent', async () => {
+            await docker.register('watcher', 'docker', 'test', {
+                watchdigestdefault: true,
+            });
+            const mockLog = { warn: jest.fn(), debug: jest.fn() };
+            docker.log = mockLog;
+            const container = {
+                Id: '123',
+                Image: 'nginx:latest',
+                Names: ['/test'],
+                State: 'running',
+                Labels: {},
+            };
+            const imageDetails = {
+                Id: 'image123',
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+            };
+            mockImage.inspect.mockResolvedValue(imageDetails);
+            mockTag.parse.mockReturnValue(null);
+
+            // Simulate no registry provider being found
+            registry.getState.mockReturnValue({
+                registry: {},
+            });
+
+            const containerModule = await import('../../../model/container');
+            const validateContainer = containerModule.validate;
+            // @ts-ignore
+            validateContainer.mockImplementation((c) => c);
+
+            const result = await docker.addImageDetailsToContainer(container);
+
+            expect(result).toBeDefined();
+            expect(result.image.digest.watch).toBe(true);
+        });
+
         test('should warn when displayIcon uses deprecated hl prefix', async () => {
             await docker.register('watcher', 'docker', 'test', {});
             const container = {

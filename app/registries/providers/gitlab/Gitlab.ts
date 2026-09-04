@@ -6,16 +6,40 @@ import { ContainerImage } from '../../../model/container';
  * Docker Gitlab integration.
  */
 class Gitlab extends DockerRegistryV2 {
+    async init() {
+        if (typeof this.configuration === 'string') {
+            this.configuration = {};
+        }
+        if (!this.configuration.url) {
+            this.configuration.url = 'https://registry.gitlab.com';
+        }
+        if (!this.configuration.authurl) {
+            this.configuration.authurl = 'https://gitlab.com';
+        }
+        if (!this.configuration.username) {
+            this.configuration.username = '';
+        }
+        if (!this.configuration.token) {
+            this.configuration.token = '';
+        }
+    }
+
     /**
      * Get the Gitlab configuration schema.
      */
     getConfigurationSchema() {
-        return this.joi.object().keys({
-            url: this.joi.string().uri().default('https://registry.gitlab.com'),
-            authurl: this.joi.string().uri().default('https://gitlab.com'),
-            username: this.joi.string().allow('').optional().default(''),
-            token: this.joi.string().allow('').optional().default(''),
-        });
+        return this.joi.alternatives([
+            this.joi.string().allow(''),
+            this.joi.object().keys({
+                url: this.joi
+                    .string()
+                    .uri()
+                    .default('https://registry.gitlab.com'),
+                authurl: this.joi.string().uri().default('https://gitlab.com'),
+                username: this.joi.string().allow('').optional().default(''),
+                token: this.joi.string().allow('').optional().default(''),
+            }),
+        ]);
     }
 
     /**

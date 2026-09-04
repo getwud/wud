@@ -12,8 +12,8 @@ import TabItem from '@theme/TabItem';
 
 <DocHero
   icon="gcr"
-  badge="🔐 Setup Required"
-  badgeType="setup"
+  badge="⚡ Active by Default"
+  badgeType="default"
   description="The gcr registry module authenticates against Google Container Registry (GCR) and Google Artifact Registry (GAR)."
 />
 

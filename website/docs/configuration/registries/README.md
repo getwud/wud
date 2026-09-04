@@ -97,6 +97,13 @@ You only need to configure environment variables if you want to:
   />
 
   <RegistryCard
+    title="GitLab"
+    href="/docs/configuration/registries/gitlab"
+    defaultSupport={true}
+    description="Monitors public images anonymously on registry.gitlab.com by default. Configure a GitLab Personal Access Token for private repositories or self-hosted instances."
+  />
+
+  <RegistryCard
     title="Google Container Registry (GCR)"
     href="/docs/configuration/registries/gcr"
     defaultSupport={true}
@@ -186,13 +193,6 @@ These registries host private images or custom infrastructure and **require expl
     href="/docs/configuration/registries/gitea"
     defaultSupport={false}
     description="Requires your Gitea instance URL and an access token to inspect private or self-hosted Gitea package registries."
-  />
-
-  <RegistryCard
-    title="GitLab"
-    href="/docs/configuration/registries/gitlab"
-    defaultSupport={false}
-    description="Requires a GitLab Personal Access Token or Deploy Token. Supports both gitlab.com and self-hosted GitLab CE/EE instances."
   />
 
   <RegistryCard
