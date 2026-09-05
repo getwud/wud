@@ -38,6 +38,7 @@ RUN chmod +x /usr/bin/entrypoint.sh
 COPY --from=app-build /home/node/app/node_modules ./node_modules
 COPY --from=app-build /home/node/app/dist ./dist
 COPY --from=app-build /home/node/app/package.json ./package.json
+COPY app/.pino-prettyrc.json ./.pino-prettyrc.json
 
 # Copy UI build output
 COPY --from=ui-build /home/node/ui/dist ./ui

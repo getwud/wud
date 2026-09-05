@@ -7,7 +7,7 @@ const mockLogger: any = {
     fatal: jest.fn(),
     child: jest.fn(),
     level: 'info',
-    bindings: jest.fn(() => ({ name: 'whats-up-docker' })),
+    bindings: jest.fn(() => ({ name: 'wud' })),
 };
 mockLogger.child.mockReturnValue(mockLogger);
 

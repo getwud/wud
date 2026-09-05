@@ -1,0 +1,5 @@
+{
+  "translateTime": "SYS:yyyy-mm-dd HH:MM:ss.l",
+  "ignore": "pid,hostname,name,component",
+  "messageFormat": "{if component}[{component}] {end}{msg}"
+}
