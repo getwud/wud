@@ -108,7 +108,7 @@ function getTagCandidates(
         // Prefix is almost-always standardized around "must stay the same" for tags
         if (!container.includeTags) {
             const currentTag = container.image.tag.value;
-            const match = currentTag.match(/^(.*?)(\d+.*)$/);
+            const match = currentTag.match(/^(.*?)(\d+\.\d+\.\d+.*)$/);
             const currentPrefix = match ? match[1] : '';
 
             if (currentPrefix) {
