@@ -5,7 +5,7 @@
     "main": "dist/index.js",
     "scripts": {
         "build": "tsc",
-        "start": "nodemon --exec ts-node index.ts | bunyan -L -o short | sed -u 's/whats-up-docker\\///'",
+        "start": "nodemon --exec ts-node index.ts | bunyan -L -o short",
         "doc": ".docsify serve ./docs",
         "format": "prettier --write .",
         "lint:fix": "prettier --write . && eslint '**/*.ts'",
