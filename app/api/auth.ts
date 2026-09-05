@@ -7,7 +7,7 @@ import { store } from '../store';
 import * as registry from '../registry';
 import log from '../log';
 import { getVersion } from '../configuration';
-import LokiSessionStore from './LokiSessionStore';
+import SqliteSessionStore from './SqliteSessionStore';
 import Authentication, {
     StrategyDescription,
 } from '../authentications/providers/Authentication';
@@ -131,16 +131,16 @@ function logout(req, res) {
     });
 }
 
-let lokiStore: LokiSessionStore | undefined;
+let sessionStore: SqliteSessionStore | undefined;
 /**
  * Init auth (passport.js).
  */
 export function init(app) {
-    lokiStore = new LokiSessionStore(store.getDb());
+    sessionStore = new SqliteSessionStore();
     // Init express session
     app.use(
         session({
-            store: lokiStore,
+            store: sessionStore,
             secret: getSessionSecretKey(),
             resave: false,
             saveUninitialized: false,

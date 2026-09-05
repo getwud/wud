@@ -1,41 +1,34 @@
-// @ts-nocheck
-/**
- * App store.
- */
 import logger from '../log';
-const log = logger.child({ component: 'store' });
-import * as migrate from './migrate';
-const { migrate: migrateData } = migrate;
 import { getVersion } from '../configuration';
+import * as schema from './db/schema';
+import { getDb } from './db';
 
-let app;
+const log = logger.child({ component: 'store-app' });
 
-function saveAppInfosAndMigrate() {
+export function saveAppInfosAndMigrate() {
+    const db = getDb();
+    const currentVersion = getVersion();
     const appInfosCurrent = {
         name: 'wud',
-        version: getVersion(),
+        version: currentVersion,
     };
-    const appInfosSaved = app.findOne({});
-    const versionFromStore = appInfosSaved ? appInfosSaved.version : undefined;
-    const currentVersion = appInfosCurrent.version;
-    if (currentVersion !== versionFromStore) {
-        migrateData(versionFromStore, currentVersion);
-    }
-    if (appInfosSaved) {
-        app.remove(appInfosSaved);
-    }
-    app.insert(appInfosCurrent);
+
+    db.insert(schema.appInfo).values(appInfosCurrent).run();
 }
 
-export function createCollections(db) {
-    app = db.getCollection('app');
-    if (app === null) {
-        log.info('Create Collection app');
-        app = db.addCollection('app');
-    }
+export function createCollections() {
+    log.debug('Using SQLite store: app_info collection initialized');
     saveAppInfosAndMigrate();
 }
 
 export function getAppInfos() {
-    return app.findOne({});
+    const db = getDb();
+    const info = db
+        .select()
+        .from(schema.appInfo)
+        .orderBy(schema.appInfo.id)
+        .limit(1)
+        .get();
+
+    return info ? { name: info.name, version: info.version } : undefined;
 }

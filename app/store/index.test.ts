@@ -1,16 +1,5 @@
-// @ts-nocheck
 import fs from 'fs';
 import { store } from './index';
-
-// Mock dependencies
-jest.mock('lokijs', () => {
-    return jest.fn().mockImplementation(() => ({
-        loadDatabase: jest.fn((options, callback) => {
-            // Simulate successful database load
-            callback(null);
-        }),
-    }));
-});
 
 jest.mock('fs', () => ({
     existsSync: jest.fn(),
@@ -20,8 +9,10 @@ jest.mock('fs', () => ({
 jest.mock('../configuration', () => ({
     getStoreConfiguration: jest.fn(() => ({
         path: '/test/store',
-        file: 'test.json',
+        file: 'test.sqlite',
     })),
+    getVersion: jest.fn(() => '1.0.0'),
+    getLogLevel: jest.fn(() => 'info'),
 }));
 
 jest.mock('./app', () => ({
@@ -32,63 +23,64 @@ jest.mock('./container', () => ({
     createCollections: jest.fn(),
 }));
 
-jest.mock('../log', () => ({
-    child: jest.fn(() => ({
-        info: jest.fn(),
+jest.mock('./db', () => ({
+    initDatabase: jest.fn(() => ({
+        sqlite: {},
+        db: {},
     })),
+    getDb: jest.fn(),
+    getSqlite: jest.fn(),
+    closeDatabase: jest.fn(),
+}));
+
+jest.mock('./migrate_loki', () => ({
+    migrateLokiToSqlite: jest.fn(),
 }));
 
 describe('Store Module', () => {
-    beforeEach(async () => {
+    beforeEach(() => {
         jest.clearAllMocks();
     });
 
-    test('should initialize store successfully', async () => {
-        fs.existsSync.mockReturnValue(true);
+    test('should initialize store successfully and create directory if missing', async () => {
+        (fs.existsSync as jest.Mock).mockReturnValue(false);
 
         await store.init();
 
+        expect(fs.mkdirSync).toHaveBeenCalledWith('/test/store', {
+            recursive: true,
+        });
         const app = await import('./app');
         const container = await import('./container');
-
         expect(app.createCollections).toHaveBeenCalled();
         expect(container.createCollections).toHaveBeenCalled();
     });
 
-    test('should create directory if it does not exist', async () => {
-        fs.existsSync.mockReturnValue(false);
-
-        await store.init();
-
-        expect(fs.mkdirSync).toHaveBeenCalledWith('/test/store');
-    });
-
-    test('should return configuration', async () => {
+    test('should return configuration', () => {
         const config = store.getConfiguration();
-
         expect(config).toEqual({
             path: '/test/store',
-            file: 'test.json',
+            file: 'test.sqlite',
         });
     });
 
-    test('should handle database load error', async () => {
-        // Reset modules to get a fresh instance
-        jest.resetModules();
-
-        // Mock Loki to simulate error
-        jest.doMock('lokijs', () => {
-            return jest.fn().mockImplementation(() => ({
-                loadDatabase: jest.fn((options, callback) => {
-                    callback(new Error('Database load failed'));
-                }),
-            }));
+    test('should trigger loki migration if legacy file exists', async () => {
+        (fs.existsSync as jest.Mock).mockImplementation((filePath: string) => {
+            if (filePath.endsWith('wud.json')) {
+                return true;
+            }
+            return true;
         });
 
-        const { store: storeWithError } = await import('./index');
+        const { migrateLokiToSqlite } = await import('./migrate_loki');
+        await store.init();
 
-        await expect(storeWithError.init()).rejects.toThrow(
-            'Database load failed',
-        );
+        expect(migrateLokiToSqlite).toHaveBeenCalled();
+    });
+
+    test('should dispose store and close database', () => {
+        const { closeDatabase: mockClose } = require('./db');
+        store.dispose();
+        expect(mockClose).toHaveBeenCalled();
     });
 });
