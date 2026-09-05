@@ -1,10 +1,11 @@
-// @ts-nocheck
 import { getVersion } from './configuration';
-import log from './log';
+import logger from './log';
 import { store } from './store';
 import * as registry from './registry';
 import * as api from './api';
 import * as prometheus from './prometheus';
+
+const log = logger.child({ component: 'app' });
 
 async function main() {
     log.info(`WUD is starting (version = ${getVersion()})`);
