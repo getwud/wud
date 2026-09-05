@@ -2,7 +2,6 @@ import * as container from './container';
 import * as event from '../event';
 import { initDatabase, closeDatabase } from './db';
 
-jest.mock('./migrate');
 jest.mock('../event');
 
 describe('Container Store (SQLite)', () => {
