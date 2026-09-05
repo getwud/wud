@@ -2,20 +2,19 @@ import express from 'express';
 import request from 'supertest';
 import * as auth from './auth';
 
-jest.mock('../store', () => {
-    const Loki = require('lokijs');
-    const db = new Loki('test.db');
-
-    return {
-        store: {
-            getDb: jest.fn(() => db),
-            getConfiguration: jest.fn(() => ({
-                path: '/tmp',
-                file: 'test.db',
-            })),
-        },
-    };
+jest.mock('./SqliteSessionStore', () => {
+    const session = require('express-session');
+    return jest.fn().mockImplementation(() => new session.MemoryStore());
 });
+
+jest.mock('../store', () => ({
+    store: {
+        getConfiguration: jest.fn(() => ({
+            path: '/tmp',
+            file: 'wud.sqlite',
+        })),
+    },
+}));
 
 jest.mock('../registry', () => ({
     getState: jest.fn(() => ({

@@ -11,8 +11,8 @@ curl http://wud:3000/api/store
 
 {
    "configuration":{
-      "path":".store",
-      "file":"wud.json"
+      "path":"/store",
+      "file":"wud.sqlite"
    }
 }
 ```

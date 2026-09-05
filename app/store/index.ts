@@ -1,22 +1,22 @@
 import joi from 'joi';
-import Loki from 'lokijs';
 import fs from 'fs';
+import path from 'path';
 import logger from '../log';
 import bunyan from 'bunyan';
 import { getStoreConfiguration } from '../configuration';
-
+import { initDatabase, getDb, getSqlite, closeDatabase } from './db';
+import { migrateLokiToSqlite } from './migrate_loki';
 import * as app from './app';
 import * as container from './container';
 
 class Store {
-    private db: Loki;
-
     private readonly configuration: {
         path: string;
         file: string;
     };
 
     private log: bunyan;
+
     constructor() {
         this.log = logger.child({ component: 'store' });
 
@@ -28,7 +28,7 @@ class Store {
             }>()
             .keys({
                 path: joi.string().default('/store'),
-                file: joi.string().default('wud.json'),
+                file: joi.string().default('wud.sqlite'),
             });
 
         // Validate Configuration
@@ -38,37 +38,24 @@ class Store {
         if (configurationToValidate.error) {
             throw configurationToValidate.error;
         }
-        this.configuration = configurationToValidate.value;
 
-        // Loki DB
-        this.db = new Loki(
-            `${this.configuration.path}/${this.configuration.file}`,
-            {
-                autosave: true,
-                serializationMethod: 'pretty',
-            },
-        );
+        let validatedConfig = configurationToValidate.value;
+        // If file was explicitly set to legacy wud.json, migrate target to wud.sqlite
+        if (validatedConfig.file.endsWith('.json')) {
+            this.log.warn(
+                `Configured store file (${validatedConfig.file}) ends with .json. Using wud.sqlite for SQL database.`,
+            );
+            validatedConfig = {
+                ...validatedConfig,
+                file: 'wud.sqlite',
+            };
+        }
+        this.configuration = validatedConfig;
     }
 
     createCollections() {
-        app.createCollections(this.db);
-        container.createCollections(this.db);
-    }
-    /**
-     * Load DB.
-     */
-    async loadDb(
-        err: any,
-        resolve: (value: void) => void,
-        reject: (reason?: any) => void,
-    ) {
-        if (err) {
-            reject(err);
-        } else {
-            // Create collections
-            this.createCollections();
-            resolve();
-        }
+        app.createCollections();
+        container.createCollections();
     }
 
     /**
@@ -80,14 +67,31 @@ class Store {
         );
         if (!fs.existsSync(this.configuration.path)) {
             this.log.info(`Create folder ${this.configuration.path}`);
-            fs.mkdirSync(this.configuration.path);
+            fs.mkdirSync(this.configuration.path, { recursive: true });
         }
 
-        return new Promise<void>((resolve, reject) => {
-            this.db.loadDatabase({}, (err) =>
-                this.loadDb(err, resolve, reject),
-            );
-        });
+        const dbFilePath = path.join(
+            this.configuration.path,
+            this.configuration.file,
+        );
+
+        // 1. Initialize SQLite connection and apply DDL migrations
+        const { db } = initDatabase(dbFilePath);
+
+        // 2. Automatic migration from legacy LokiJS file if present
+        const legacyLokiPath = path.join(this.configuration.path, 'wud.json');
+        if (fs.existsSync(legacyLokiPath)) {
+            try {
+                migrateLokiToSqlite(legacyLokiPath, db);
+            } catch (e: any) {
+                this.log.error(
+                    `Failed migrating legacy LokiJS database: ${e.message}`,
+                );
+            }
+        }
+
+        // 3. Initialize app collections / records
+        this.createCollections();
     }
 
     /**
@@ -98,12 +102,16 @@ class Store {
     }
 
     public getDb() {
-        return this.db;
+        return getDb();
+    }
+
+    public getSqlite() {
+        return getSqlite();
     }
 
     public dispose() {
         this.log.info('Disposing db store');
-        this.db.close();
+        closeDatabase();
     }
 }
 
