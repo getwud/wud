@@ -736,6 +736,49 @@ export class Docker extends Watcher {
                     container.image.digest.value =
                         image.Config.Image || image.Id;
                 }
+
+                // An update was found? Resolve what is actually IN it.
+                // A digest-only update is unreadable on its own ("sha A -> sha B"),
+                // but the remote version label and build date both live in the
+                // image config blob.
+                if (
+                    remoteDigest.version === 2 &&
+                    result.digest !== undefined &&
+                    container.image.digest.value !== result.digest
+                ) {
+                    // A pending update stays pending until the user applies it,
+                    // so resolve each remote digest ONCE and reuse it afterwards.
+                    // Without this, every scan would re-request the config of an
+                    // update that is already known -- unwanted traffic against
+                    // registries that rate limit anonymous pulls (Docker Hub
+                    // allows 100 per 6h per IP, and manifest GETs count).
+                    const previousResult = storeContainer.getContainer(
+                        container.id,
+                    )?.result;
+                    if (
+                        previousResult?.digest === result.digest &&
+                        previousResult.created !== undefined
+                    ) {
+                        result.created = previousResult.created;
+                        result.version = previousResult.version;
+                    } else {
+                        try {
+                            const remoteConfig =
+                                await registryProvider.getImageConfig(
+                                    imageToGetDigestFrom,
+                                    result.digest,
+                                    remoteDigest.configDigest,
+                                );
+                            result.created =
+                                remoteConfig.created ?? result.created;
+                            result.version = remoteConfig.version;
+                        } catch (e: any) {
+                            logContainer.debug(
+                                `Cannot get remote image config (${e.message})`,
+                            );
+                        }
+                    }
+                }
             }
 
             // The first one in the array is the highest

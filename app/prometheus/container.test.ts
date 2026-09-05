@@ -90,6 +90,49 @@ test('gauge must be populated on init when containers are in the store', async (
     );
 });
 
+test('gauge must accept a container carrying a remote version and build date', async () => {
+    let onAdded;
+    event.registerContainerAdded.mockImplementation((handler) => {
+        onAdded = handler;
+        return jest.fn();
+    });
+    event.registerContainerUpdated.mockImplementation(() => jest.fn());
+    event.registerContainerRemoved.mockImplementation(() => jest.fn());
+
+    // result.created / result.version are resolved from the remote image config
+    // for digest-watched containers. Both must be declared label names, or
+    // prom-client rejects the whole label set and the container silently
+    // disappears from the metrics.
+    const withRemoteConfig = {
+        ...sampleContainers[0],
+        result: {
+            tag: 'latest',
+            digest: 'sha256:remote',
+            created: '2026-09-02T05:35:35.550810335Z',
+            version: '2.3.7',
+        },
+    };
+    store.getContainers = jest.fn(() => [withRemoteConfig]);
+
+    const spyLog = jest.spyOn(log, 'warn');
+    const gauge = container.init();
+    const spySet = jest.spyOn(gauge, 'set');
+    spySet.mockClear();
+    spyLog.mockClear();
+
+    onAdded(withRemoteConfig);
+    jest.advanceTimersByTime(5000);
+
+    expect(spyLog).not.toHaveBeenCalled();
+    expect(spySet).toHaveBeenCalledWith(
+        expect.objectContaining({
+            result_created: '2026-09-02T05:35:35.550810335Z',
+            result_version: '2.3.7',
+        }),
+        1,
+    );
+});
+
 test("gauge must warn when data don't match expected labels", async () => {
     event.registerContainerAdded.mockImplementation(() => jest.fn());
     event.registerContainerUpdated.mockImplementation(() => jest.fn());

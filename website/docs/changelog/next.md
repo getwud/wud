@@ -18,6 +18,7 @@ description: Unreleased changes and upcoming features in What's Up Docker (WUD).
 - 🚀 [REGISTRY] Enable anonymous access by default for Gitlab public registry
 - 🚀 [REGISTRY] Enable anonymous access by default for LSCR and TrueForge public registries
 - 🚀 [REGISTRY] Support direct bearer-token authentication for custom registries
+- 🚀 [WATCHER] Report the remote version label and build date of a digest update: `result.version` (from `org.opencontainers.image.version`) and `result.created` are now resolved from the remote image config, so the API, Prometheus and triggers can describe a digest update as `2.3.6 -> 2.3.7` instead of `sha256:8978d2f5 -> sha256:3eb277ac`. Each remote digest is resolved at most once and reused while the update stays pending, and the config digest already known from the manifest is reused where possible, so an up-to-date container costs no extra registry request and a pending one costs a single blob fetch
 
 - 🐛 [WATCHER] Fix docker watcher crashing on startup when `watchdigestdefault` is configured by restoring the property and passing it to registries (fixes #1150)
 - 🐛 [REGISTRY] Fix Gitlab registry provider ignoring configuration defaults (fixes Gitlab registry integration)

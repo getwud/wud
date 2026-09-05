@@ -30,6 +30,7 @@ export interface ContainerResult {
     tag?: string;
     digest?: string;
     created?: string;
+    version?: string;
     link?: string;
 }
 
@@ -113,6 +114,7 @@ const schema = joi.object({
         tag: joi.string().min(1),
         digest: joi.string(),
         created: joi.string().isoDate(),
+        version: joi.string(),
         link: joi.string(),
     }),
     error: joi.object({
