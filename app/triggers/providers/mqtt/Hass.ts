@@ -14,7 +14,7 @@ import {
     MqqtConfiguration,
     MqqtConfiguration as MqttConfiguration,
 } from './Mqtt';
-import Logger from 'bunyan';
+import { Logger } from 'pino';
 
 const HASS_MANUFACTURER = 'wud';
 const HASS_ENTITY_VALUE_TEMPLATE = '{{ value_json.image_tag_value }}';

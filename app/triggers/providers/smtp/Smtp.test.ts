@@ -1,20 +1,12 @@
 // @ts-nocheck
 import { ValidationError } from 'joi';
 import Smtp from './Smtp';
-import bunyan from 'bunyan';
+import pino from 'pino';
 
-const loggerBuffer = new bunyan.RingBuffer({ limit: 5 });
-const log = bunyan.createLogger({
-    name: 'Smtp.Tests',
-    streams: [{ stream: loggerBuffer }],
-});
+const log = pino({ name: 'Smtp.Tests' });
 
 const smtp = new Smtp();
 smtp.log = log;
-
-beforeEach(() => {
-    loggerBuffer.records = [];
-});
 
 const configurationValid = {
     allowcustomtld: false,
@@ -79,13 +71,13 @@ test('trigger from value provided as string address is correctly transformed to 
         from: fromAddress,
     };
 
+    const warnSpy = jest.spyOn(smtp.log, 'warn').mockImplementation(() => {});
     const validatedConfiguration = smtp.validateConfiguration(config);
 
-    expect(
-        loggerBuffer.records.find((m) =>
-            m.includes(Smtp.fromDeprecationWarningMessage),
-        ),
-    ).toBeDefined();
+    expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining(Smtp.fromDeprecationWarningMessage),
+    );
+    warnSpy.mockRestore();
     expect(validatedConfiguration).toStrictEqual({
         ...configurationValid,
         port: 465,

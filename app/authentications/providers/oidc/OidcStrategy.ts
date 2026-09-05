@@ -1,6 +1,6 @@
 import { Strategy } from 'passport';
 import * as client from 'openid-client';
-import Logger from 'bunyan';
+import { Logger } from 'pino';
 import { Request } from 'express';
 
 export interface User {

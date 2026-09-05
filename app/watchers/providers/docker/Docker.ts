@@ -34,7 +34,7 @@ import * as registry from '../../../registry';
 import { getWatchContainerGauge } from '../../../prometheus/watcher';
 import Watcher from '../../Watcher';
 import { ComponentConfiguration } from '../../../registry/Component';
-import Logger from 'bunyan';
+import { Logger } from 'pino';
 
 export interface DockerWatcherConfiguration extends ComponentConfiguration {
     socket: string;

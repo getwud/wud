@@ -10,7 +10,7 @@ WUD is a modular monorepo structured as follows:
 
 ```text
 wud/
-├── app/          # Backend engine: Node.js (v24), Express, TypeScript, LokiJS, Dockerode, Bunyan, Joi
+├── app/          # Backend engine: Node.js (v24), Express, TypeScript, LokiJS, Dockerode, Pino, Joi
 ├── ui/           # Frontend SPA: Vue 3, Vuetify 3, TypeScript, Iconify (@iconify/vue)
 ├── e2e/          # Backend E2E API tests: Cucumber / Gherkin against live Docker containers
 ├── ui-e2e/       # Frontend UI E2E tests: Playwright
@@ -34,7 +34,7 @@ wud/
 ```bash
 cd app
 npm ci                 # Install dependencies
-npm start              # Run development server with auto-reload (nodemon + ts-node + bunyan)
+npm start              # Run development server with auto-reload (nodemon + ts-node + pino-pretty)
 npm run build          # Compile TypeScript to dist/
 npm test               # Run Jest unit tests with coverage
 npm run lint           # Run ESLint

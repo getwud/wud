@@ -10,6 +10,7 @@ description: Unreleased changes and upcoming features in What's Up Docker (WUD).
 ---
 
 - 🚀 [STORE] Migrate persistence layer from LokiJS to SQL (SQLite) with Drizzle ORM, automatic schema migrations, and transparent legacy data migration
+- 🚀 [LOG] Migrate logger from unmaintained Bunyan to Pino with Pino-pretty formatting
 - 🚀 [DOCS] Add interactive UI live demo simulator with homelab mock data
 - 🚀 [CI] Add automated UI screenshot capture pipeline with Playwright and dark mode support
 - 🚀 [UI] Add demo mode with mock services for static deployment

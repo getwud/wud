@@ -2,7 +2,7 @@ import joi from 'joi';
 import fs from 'fs';
 import path from 'path';
 import logger from '../log';
-import bunyan from 'bunyan';
+import { Logger } from 'pino';
 import { getStoreConfiguration } from '../configuration';
 import { initDatabase, getDb, getSqlite, closeDatabase } from './db';
 import { migrateLokiToSqlite } from './migrate_loki';
@@ -15,7 +15,7 @@ class Store {
         file: string;
     };
 
-    private log: bunyan;
+    private log: Logger;
 
     constructor() {
         this.log = logger.child({ component: 'store' });

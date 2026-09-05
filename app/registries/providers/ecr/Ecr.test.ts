@@ -11,7 +11,7 @@ jest.mock('@aws-sdk/client-ecr', () => {
     };
 });
 
-import Logger from 'bunyan';
+import { Logger } from 'pino';
 import { ContainerImage } from '../../../model/container';
 import { Ecr } from './Ecr';
 import { testRegistryProvider } from '../RegistryTestHelper';

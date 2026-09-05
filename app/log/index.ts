@@ -1,9 +1,9 @@
-import bunyan from 'bunyan';
+import pino from 'pino';
 import { getLogLevel } from '../configuration';
 
-// Init Bunyan logger
-const logger = bunyan.createLogger({
-    name: 'whats-up-docker',
+// Init Pino logger
+const logger = pino({
+    name: 'wud',
     level: getLogLevel(),
 });
 
