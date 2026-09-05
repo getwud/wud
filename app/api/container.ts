@@ -247,3 +247,22 @@ export async function watchContainer(req, res) {
         res.sendStatus(404);
     }
 }
+
+/**
+ * Init Router.
+ * @returns {*}
+ */
+export function init() {
+    router.use(nocache());
+    router.get('/', getContainers);
+    router.post('/watch', watchContainers);
+    router.get('/:id', getContainer);
+    router.delete('/:id', deleteContainer);
+    router.get('/:id/triggers', getContainerTriggers);
+    router.post(
+        '/:id/triggers/:triggerType/:triggerName',
+        runTriggerForContainer,
+    );
+    router.post('/:id/watch', watchContainer);
+    return router;
+}

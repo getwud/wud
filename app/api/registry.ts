@@ -8,3 +8,11 @@ export function getRegistries(req, res) {
 export function getRegistry(req, res) {
     return component.getById(req, res, 'registry');
 }
+
+/**
+ * Init Router.
+ * @returns {*}
+ */
+export function init() {
+    return component.init('registry');
+}

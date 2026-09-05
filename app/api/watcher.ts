@@ -8,3 +8,11 @@ export function getWatchers(req, res) {
 export function getWatcher(req, res) {
     return component.getById(req, res, 'watcher');
 }
+
+/**
+ * Init Router.
+ * @returns {*}
+ */
+export function init() {
+    return component.init('watcher');
+}

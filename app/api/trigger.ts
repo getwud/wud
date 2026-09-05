@@ -60,3 +60,13 @@ export async function runTrigger(req, res) {
         });
     }
 }
+
+/**
+ * Init Router.
+ * @returns {*}
+ */
+export function init() {
+    const router = component.init('trigger');
+    router.post('/:type/:name', runTrigger);
+    return router;
+}

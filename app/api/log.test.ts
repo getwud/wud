@@ -13,7 +13,7 @@ describe('API Log', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         app = express();
-        app.get('/', log.getLog);
+        app.use(log.init());
     });
 
     test('should return log level', async () => {

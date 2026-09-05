@@ -521,7 +521,49 @@ paths:
                                 additionalProperties: true
                 '404':
                     description: Not Found
-            x-eov-operation-handler: app
+    /api/authentications:
+        get:
+            tags:
+                - Authentication
+            summary: Get all authentication providers
+            operationId: getAuthentications
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    type: object
+                                    additionalProperties: true
+    /api/authentications/{type}/{name}:
+        get:
+            tags:
+                - Authentication
+            summary: Get specific authentication provider
+            operationId: getAuthentication
+            parameters:
+                - in: path
+                  name: type
+                  required: true
+                  schema:
+                      type: string
+                - in: path
+                  name: name
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                additionalProperties: true
+                '404':
+                    description: Not Found
 components:
     schemas:
         User:

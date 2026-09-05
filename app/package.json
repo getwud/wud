@@ -4,7 +4,8 @@
     "description": "What'up Docker? the app",
     "main": "dist/index.js",
     "scripts": {
-        "build": "tsc",
+        "build": "tsc && npm run copy:openapi",
+        "copy:openapi": "node -e \"const fs=require('fs'); fs.mkdirSync('dist/api', {recursive: true}); fs.copyFileSync('api/openapi.yaml', 'dist/api/openapi.yaml')\"",
         "start": "nodemon --exec ts-node index.ts | pino-pretty",
         "doc": ".docsify serve ./docs",
         "format": "prettier --write .",

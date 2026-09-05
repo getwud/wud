@@ -4,11 +4,16 @@ import nocache from 'nocache';
 import { getLogLevel } from '../configuration';
 import { logEmitter, logHistory } from '../log';
 
+const router = express.Router();
+
+/**
+ * Get log infos.
+ * @param req
+ * @param res
+ */
 export function getLog(req, res) {
-    nocache()(req, res, () => {
-        res.status(200).json({
-            level: getLogLevel(),
-        });
+    res.status(200).json({
+        level: getLogLevel(),
     });
 }
 
@@ -37,4 +42,15 @@ export function streamLogs(req, res) {
     req.on('close', () => {
         logEmitter.off('log', onLog);
     });
+}
+
+/**
+ * Init Router.
+ * @returns {*}
+ */
+export function init() {
+    router.use(nocache());
+    router.get('/', getLog);
+    router.get('/stream', streamLogs);
+    return router;
 }

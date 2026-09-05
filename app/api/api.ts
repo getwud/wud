@@ -1,9 +1,17 @@
 // @ts-nocheck
 import express from 'express';
 import path from 'path';
-import * as OpenApiValidator from 'express-openapi-validator';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
+import * as appRouter from './app';
+import * as containerRouter from './container';
+import * as watcherRouter from './watcher';
+import * as triggerRouter from './trigger';
+import * as registryRouter from './registry';
+import * as authenticationRouter from './authentication';
+import * as logRouter from './log';
+import * as storeRouter from './store';
+import * as serverRouter from './server';
 import { requireAuthentication } from './auth';
 
 /**
@@ -14,7 +22,12 @@ export function init() {
     const router = express.Router();
 
     const specPath = path.join(__dirname, 'openapi.yaml');
-    const swaggerDocument = YAML.load(specPath);
+    let swaggerDocument;
+    try {
+        swaggerDocument = YAML.load(specPath);
+    } catch (e) {
+        swaggerDocument = {};
+    }
 
     // Provide the OpenAPI spec for Docusaurus or download
     router.get('/openapi.yaml', (req, res) => {
@@ -24,41 +37,37 @@ export function init() {
     // Swagger UI
     router.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-    // WUD's original authentication middleware logic for protected routes.
-    // In OpenAPI, /app (and docs) are public. We can conditionally require authentication
-    // or just let it intercept API routes.
-    // To match original behavior exactly: we authenticate everything EXCEPT /app and docs.
-    router.use((req, res, next) => {
-        if (
-            req.path.startsWith('/app') ||
-            req.path.startsWith('/docs') ||
-            req.path === '/openapi.yaml'
-        ) {
-            return next();
-        }
-        return requireAuthentication(req, res, next);
-    });
+    // Mount app router
+    router.use('/app', appRouter.init());
 
-    // Mount express-openapi-validator
-    router.use(
-        OpenApiValidator.middleware({
-            apiSpec: specPath,
-            validateRequests: true,
-            validateResponses: true,
-            operationHandlers: path.join(__dirname),
-        }),
-    );
+    // Routes to protect after this line
+    router.use(requireAuthentication);
 
-    // Default error handler for OpenAPI Validator
-    router.use((err, req, res, next) => {
-        res.status(err.status || 500).json({
-            error: err.name || 'Error',
-            message: err.message,
-            errors: err.errors,
-        });
-    });
+    // Mount log router
+    router.use('/log', logRouter.init());
 
-    // All other API routes => 404 (already handled by validator if not in spec, but fallback)
+    // Mount store router
+    router.use('/store', storeRouter.init());
+
+    // Mount server router
+    router.use('/server', serverRouter.init());
+
+    // Mount container router
+    router.use('/containers', containerRouter.init());
+
+    // Mount trigger router
+    router.use('/triggers', triggerRouter.init());
+
+    // Mount watcher router
+    router.use('/watchers', watcherRouter.init());
+
+    // Mount registry router
+    router.use('/registries', registryRouter.init());
+
+    // Mount auth
+    router.use('/authentications', authenticationRouter.init());
+
+    // All other API routes => 404
     router.use('/*', (req, res) => res.sendStatus(404));
 
     return router;

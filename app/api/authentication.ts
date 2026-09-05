@@ -8,3 +8,11 @@ export function getAuthentications(req, res) {
 export function getAuthentication(req, res) {
     return component.getById(req, res, 'authentication');
 }
+
+/**
+ * Init Router.
+ * @returns {*}
+ */
+export function init() {
+    return component.init('authentication');
+}
