@@ -14,7 +14,7 @@ You can adjust the log level and output format using environment variables.
     required={false}
     defaultValue="text"
     supported="`text`, `json`">
-    Log format
+    Log format (Applies only to console output, UI always shows structured logs)
   </ConfigOption>
 
   <ConfigOption name="WUD_LOG_LEVEL"
@@ -25,6 +25,12 @@ You can adjust the log level and output format using environment variables.
     Log level
   </ConfigOption>
 </ConfigList>
+
+### UI Live Logs
+
+You can view the logs in real-time directly from the WUD User Interface. 
+Navigate to **Monitoring** > **Logs** in the sidebar menu to see a live stream of the application logs. The UI displays the logs in a formatted table regardless of the `WUD_LOG_FORMAT` setting.
+
 ### Examples
 
 #### Set log level to debug
