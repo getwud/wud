@@ -1,9 +1,9 @@
-import { createRouter, createWebHistory, createWebHashHistory } from "vue-router";
+import { createRouter, createWebHistory, createWebHashHistory, RouteRecordRaw } from "vue-router";
 import { getUser } from "@/services/auth";
 import { isDemoMode } from "@/services/mock";
 import { nextTick } from "vue";
 
-const routes = [
+const routes: RouteRecordRaw[] = [
   {
     path: "/",
     name: "home",
@@ -33,6 +33,15 @@ const routes = [
     path: "/configuration/server",
     name: "server",
     component: () => import("../views/ConfigurationServerView.vue"),
+  },
+  {
+    path: "/logs",
+    name: "logs",
+    component: () => import("../views/LogsView.vue"),
+  },
+  {
+    path: "/configuration/logs",
+    redirect: "/logs",
   },
   {
     path: "/configuration/triggers",

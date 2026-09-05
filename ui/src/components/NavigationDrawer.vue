@@ -52,6 +52,22 @@
         <v-tooltip activator="parent" location="right" v-if="mini">Containers</v-tooltip>
       </v-list-item>
 
+      <!-- Section Label: Monitoring -->
+      <div v-if="!mini" class="section-label px-3 mt-4 mb-1 text-overline text-medium-emphasis">
+        Monitoring
+      </div>
+      <v-divider v-else class="my-3 mx-2 opacity-50" />
+
+      <v-list-item
+        to="/logs"
+        class="nav-item mb-1 rounded-lg"
+        :prepend-icon="logIcon"
+        color="primary"
+      >
+        <v-list-item-title class="font-weight-medium">Logs</v-list-item-title>
+        <v-tooltip activator="parent" location="right" v-if="mini">Logs</v-tooltip>
+      </v-list-item>
+
       <!-- Section Label: Configuration -->
       <div v-if="!mini" class="section-label px-3 mt-4 mb-1 text-overline text-medium-emphasis">
         Configuration
@@ -207,6 +223,7 @@ import { getTriggerIcon } from "@/services/trigger";
 import { getServerIcon } from "@/services/server";
 import { getWatcherIcon } from "@/services/watcher";
 import { getAuthenticationIcon } from "@/services/authentication";
+import { getLogIcon } from "@/services/log";
 import { logout } from "@/services/auth";
 import { getAppInfos } from "@/services/app";
 
@@ -314,6 +331,7 @@ export default defineComponent({
       mini,
       darkMode,
       containerIcon: getContainerIcon(),
+      logIcon: getLogIcon(),
       configurationItemsSorted: configurationItems,
       toggleDarkMode,
       logout: performLogout,
