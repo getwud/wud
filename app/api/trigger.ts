@@ -4,13 +4,21 @@ import * as registry from '../registry';
 import logger from '../log';
 const log = logger.child({ component: 'trigger' });
 
+export function getTriggers(req, res) {
+    return component.getAll(req, res, 'trigger');
+}
+
+export function getTrigger(req, res) {
+    return component.getById(req, res, 'trigger');
+}
+
 /**
  * Run a specific trigger on a specific container provided in the payload.
  * @param {*} req
  * @param {*} res
  * @returns
  */
-async function runTrigger(req, res) {
+export async function runTrigger(req, res) {
     const triggerType = req.params.type;
     const triggerName = req.params.name;
     const containerToTrigger = req.body;
@@ -20,7 +28,8 @@ async function runTrigger(req, res) {
     if (!triggerToRun) {
         log.warn(`No trigger found(type=${triggerType}, name=${triggerName})`);
         res.status(404).json({
-            error: `Error when running trigger ${triggerType}.${triggerName} (trigger not found)`,
+            error: 'Not found',
+            message: `Error when running trigger ${triggerType}.${triggerName} (trigger not found)`,
         });
         return;
     }
@@ -29,7 +38,8 @@ async function runTrigger(req, res) {
             `Trigger cannot be executed without container (type=${triggerType}, name=${triggerName})`,
         );
         res.status(400).json({
-            error: `Error when running trigger ${triggerType}.${triggerName} (container is undefined)`,
+            error: 'Bad Request',
+            message: `Error when running trigger ${triggerType}.${triggerName} (container is undefined)`,
         });
         return;
     }
@@ -45,7 +55,8 @@ async function runTrigger(req, res) {
             `Error when running trigger ${triggerType}.${triggerName} (${e.message})`,
         );
         res.status(500).json({
-            error: `Error when running trigger ${triggerType}.${triggerName} (${e.message})`,
+            error: 'Trigger execution failed',
+            message: `Error when running trigger ${triggerType}.${triggerName} (${e.message})`,
         });
     }
 }
@@ -56,6 +67,6 @@ async function runTrigger(req, res) {
  */
 export function init() {
     const router = component.init('trigger');
-    router.post('/:type/:name', (req, res) => runTrigger(req, res));
+    router.post('/:type/:name', runTrigger);
     return router;
 }

@@ -6,11 +6,11 @@ import { getServerConfiguration } from '../configuration';
 const router = express.Router();
 
 /**
- * Get store infos.
+ * Get server infos.
  * @param req
  * @param res
  */
-function getServer(req, res) {
+export function getServer(req, res) {
     res.status(200).json({
         configuration: getServerConfiguration(),
     });

@@ -1,0 +1,665 @@
+openapi: 3.0.3
+info:
+    title: WUD REST API
+    version: 1.0.0
+    description: |
+        Welcome to the *WUD* REST API documentation.
+
+        WUD exposes a comprehensive RESTful API allowing you to inspect monitored containers, check registry updates, trigger notifications manually, and automate container updates from your own scripts, CI/CD pipelines, or homelab dashboards.
+
+        ### 🚀 Interactive Playground ("Try it out")
+
+        You can execute live requests against any endpoint directly from this documentation:
+        1. In the **Server** selector on the right panel, select your target Base URL (default is `http://localhost:3000`).
+        2. Fill in the required path, query, or body parameters.
+        3. If your WUD instance has authentication enabled, click **Authorize** and input your credentials.
+        4. Click **Send API Request** to execute the call and inspect the real response.
+
+        ### 🌐 Base URL Configuration
+
+        The documentation supports multiple server targets:
+        - **Local instance** (`http://localhost:3000`): Default local instance when WUD is running on the standard port.
+        - **Custom instance URL** (`{url}`): Select this option and enter the full base URL of your remote instance (e.g. `http://192.168.1.50:3000` or `https://wud.myhomelab.net`).
+
+        > 💡 **CORS Note**: When testing from your browser against an instance running on a different port or domain, ensure CORS is allowed or access WUD via your reverse proxy.
+
+        ### 🔐 Authentication
+
+        By default, WUD does not enforce authentication unless configured:
+        - **HTTP Basic**: When `WUD_AUTH_BASIC_*` is enabled, authenticate using HTTP Basic credentials.
+
+        ### 📦 Standard Error Responses
+
+        All error responses follow a consistent JSON format:
+        ```json
+        {
+          "error": "NotFound",
+          "message": "Container not found"
+        }
+        ```
+servers:
+    - url: http://localhost:3000
+      description: Default local WUD instance (http://localhost:3000)
+    - url: '{url}'
+      description: Custom WUD instance URL
+      variables:
+          url:
+              default: http://localhost:3000
+              description: Base URL of your WUD instance (e.g. http://192.168.1.50:3000 or https://wud.mydomain.com)
+security:
+    - {}
+    - basicAuth: []
+tags:
+    - name: Authentication
+      description: Authentication strategies, user session, login, and logout.
+    - name: Containers
+      description: Inspect, monitor, update, and manage containers.
+    - name: Triggers
+      description: Inspect and manually execute notification and action triggers.
+    - name: Watchers
+      description: Inspect and manage container watchers.
+    - name: Registries
+      description: Inspect and manage container registries.
+    - name: App
+      description: Application metadata and health.
+    - name: Server
+      description: Server configuration and status.
+    - name: Store
+      description: Persistent storage management and inspection.
+    - name: Logs
+      description: Application logs and diagnostics.
+paths:
+    /auth/strategies:
+        get:
+            tags:
+                - Authentication
+            summary: Get authentication strategies
+            operationId: getStrategies
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/AuthStrategy'
+            x-eov-operation-handler: app
+    /auth/login:
+        post:
+            tags:
+                - Authentication
+            summary: Login user
+            operationId: login
+            responses:
+                '200':
+                    description: Logged in user
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/User'
+            x-eov-operation-handler: app
+    /auth/logout:
+        post:
+            tags:
+                - Authentication
+            summary: Logout user
+            operationId: logout
+            responses:
+                '200':
+                    description: OK
+            x-eov-operation-handler: app
+    /auth/user:
+        get:
+            tags:
+                - Authentication
+            summary: Get current user
+            operationId: getUser
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/User'
+            x-eov-operation-handler: app
+    /api/app:
+        get:
+            tags:
+                - App
+            summary: Get application info
+            operationId: getAppInfos
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                additionalProperties: true
+            x-eov-operation-handler: app
+    /api/server:
+        get:
+            tags:
+                - Server
+            summary: Get server configuration
+            operationId: getServer
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                additionalProperties: true
+            x-eov-operation-handler: app
+    /api/store:
+        get:
+            tags:
+                - Store
+            summary: Get store configuration
+            operationId: getStore
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                additionalProperties: true
+            x-eov-operation-handler: app
+    /api/log:
+        get:
+            tags:
+                - Logs
+            summary: Get logs
+            operationId: getLog
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    type: string
+            x-eov-operation-handler: app
+    /api/containers:
+        get:
+            tags:
+                - Containers
+            summary: Get all containers
+            operationId: getContainers
+            parameters:
+                - in: query
+                  name: status
+                  schema:
+                      type: string
+                - in: query
+                  name: watcher
+                  schema:
+                      type: string
+                - in: query
+                  name: tag
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/Container'
+            x-eov-operation-handler: app
+    /api/containers/watch:
+        post:
+            tags:
+                - Containers
+            summary: Watch all containers
+            operationId: watchContainers
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/Container'
+                '500':
+                    description: Internal Server Error
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+            x-eov-operation-handler: app
+    '/api/containers/{id}':
+        get:
+            tags:
+                - Containers
+            summary: Get container by ID
+            operationId: getContainer
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Container'
+                '404':
+                    description: Not Found
+            x-eov-operation-handler: app
+        delete:
+            tags:
+                - Containers
+            summary: Delete container
+            operationId: deleteContainer
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                '204':
+                    description: No Content
+                '403':
+                    description: Forbidden
+                '404':
+                    description: Not Found
+            x-eov-operation-handler: app
+    '/api/containers/{id}/watch':
+        post:
+            tags:
+                - Containers
+            summary: Watch a specific container
+            operationId: watchContainer
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Container'
+                '404':
+                    description: Not Found
+                '500':
+                    description: Internal Server Error
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+            x-eov-operation-handler: app
+    '/api/containers/{id}/triggers':
+        get:
+            tags:
+                - Containers
+            summary: Get triggers for a container
+            operationId: getContainerTriggers
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    type: object
+                                    additionalProperties: true
+                '404':
+                    description: Not Found
+            x-eov-operation-handler: app
+    '/api/containers/{id}/triggers/{triggerType}/{triggerName}':
+        post:
+            tags:
+                - Containers
+            summary: Run a specific trigger on a container
+            operationId: runTriggerForContainer
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: string
+                - in: path
+                  name: triggerType
+                  required: true
+                  schema:
+                      type: string
+                - in: path
+                  name: triggerName
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: OK
+                '404':
+                    description: Not Found
+                '500':
+                    description: Internal Server Error
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+            x-eov-operation-handler: app
+    /api/triggers:
+        get:
+            tags:
+                - Triggers
+            summary: Get all triggers
+            operationId: getTriggers
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    type: object
+                                    additionalProperties: true
+            x-eov-operation-handler: app
+    '/api/triggers/{type}/{name}':
+        get:
+            tags:
+                - Triggers
+            summary: Get specific trigger
+            operationId: getTrigger
+            parameters:
+                - in: path
+                  name: type
+                  required: true
+                  schema:
+                      type: string
+                - in: path
+                  name: name
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                additionalProperties: true
+                '404':
+                    description: Not Found
+            x-eov-operation-handler: app
+        post:
+            tags:
+                - Triggers
+            summary: Run specific trigger
+            operationId: runTrigger
+            parameters:
+                - in: path
+                  name: type
+                  required: true
+                  schema:
+                      type: string
+                - in: path
+                  name: name
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: OK
+                '404':
+                    description: Not Found
+                '500':
+                    description: Internal Server Error
+            x-eov-operation-handler: app
+    /api/watchers:
+        get:
+            tags:
+                - Watchers
+            summary: Get all watchers
+            operationId: getWatchers
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    type: object
+                                    additionalProperties: true
+            x-eov-operation-handler: app
+    '/api/watchers/{type}/{name}':
+        get:
+            tags:
+                - Watchers
+            summary: Get specific watcher
+            operationId: getWatcher
+            parameters:
+                - in: path
+                  name: type
+                  required: true
+                  schema:
+                      type: string
+                - in: path
+                  name: name
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                additionalProperties: true
+                '404':
+                    description: Not Found
+            x-eov-operation-handler: app
+    /api/registries:
+        get:
+            tags:
+                - Registries
+            summary: Get all registries
+            operationId: getRegistries
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    type: object
+                                    additionalProperties: true
+            x-eov-operation-handler: app
+    '/api/registries/{type}/{name}':
+        get:
+            tags:
+                - Registries
+            summary: Get specific registry
+            operationId: getRegistry
+            parameters:
+                - in: path
+                  name: type
+                  required: true
+                  schema:
+                      type: string
+                - in: path
+                  name: name
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                additionalProperties: true
+                '404':
+                    description: Not Found
+    /api/authentications:
+        get:
+            tags:
+                - Authentication
+            summary: Get all authentication providers
+            operationId: getAuthentications
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    type: object
+                                    additionalProperties: true
+    /api/authentications/{type}/{name}:
+        get:
+            tags:
+                - Authentication
+            summary: Get specific authentication provider
+            operationId: getAuthentication
+            parameters:
+                - in: path
+                  name: type
+                  required: true
+                  schema:
+                      type: string
+                - in: path
+                  name: name
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                additionalProperties: true
+                '404':
+                    description: Not Found
+components:
+    schemas:
+        User:
+            type: object
+            properties:
+                username:
+                    type: string
+            required:
+                - username
+        AuthStrategy:
+            type: object
+            properties:
+                type:
+                    type: string
+                name:
+                    type: string
+                logoutUrl:
+                    type: string
+            required:
+                - type
+                - name
+        Container:
+            type: object
+            properties:
+                id:
+                    type: string
+                name:
+                    type: string
+                displayName:
+                    type: string
+                displayIcon:
+                    type: string
+                status:
+                    type: string
+                watcher:
+                    type: string
+                includeTags:
+                    type: string
+                excludeTags:
+                    type: string
+                transformTags:
+                    type: string
+                linkTemplate:
+                    type: string
+                link:
+                    type: string
+                triggerInclude:
+                    type: string
+                triggerExclude:
+                    type: string
+                image:
+                    type: object
+                    additionalProperties: true
+                updateAvailable:
+                    type: boolean
+                updateKind:
+                    type: object
+                    properties:
+                        kind:
+                            type: string
+                        localValue:
+                            type: string
+                        remoteValue:
+                            type: string
+                result:
+                    type: object
+                    additionalProperties: true
+                created:
+                    type: string
+                architecture:
+                    type: string
+                os:
+                    type: string
+                size:
+                    type: number
+                error:
+                    type: object
+                    properties:
+                        message:
+                            type: string
+            required:
+                - id
+                - name
+                - watcher
+                - image
+        ErrorResponse:
+            type: object
+            properties:
+                error:
+                    type: string
+                message:
+                    type: string
+            required:
+                - error
+    securitySchemes:
+        basicAuth:
+            type: http
+            scheme: basic
+            description: HTTP Basic Authentication (when WUD_AUTH_BASIC is enabled)

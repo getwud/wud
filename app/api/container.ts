@@ -43,7 +43,7 @@ export function getContainersFromStore(query) {
  * @param req
  * @param res
  */
-function getContainers(req, res) {
+export function getContainers(req, res) {
     const { query } = req;
     res.status(200).json(getContainersFromStore(query));
 }
@@ -53,7 +53,7 @@ function getContainers(req, res) {
  * @param req
  * @param res
  */
-function getContainer(req, res) {
+export function getContainer(req, res) {
     const { id } = req.params;
     const container = storeContainer.getContainer(id);
     if (container) {
@@ -68,7 +68,7 @@ function getContainer(req, res) {
  * @param req
  * @param res
  */
-function deleteContainer(req, res) {
+export function deleteContainer(req, res) {
     if (!serverConfiguration.feature.delete) {
         res.sendStatus(403);
     } else {
@@ -89,7 +89,7 @@ function deleteContainer(req, res) {
  * @param res
  * @returns {Promise<void>}
  */
-async function watchContainers(req, res) {
+export async function watchContainers(req, res) {
     try {
         await Promise.all(
             Object.values(getWatchers()).map((watcher) => watcher.watch()),
@@ -98,11 +98,12 @@ async function watchContainers(req, res) {
     } catch (e) {
         res.status(500).json({
             error: `Error when watching images (${e.message})`,
+            message: e.message,
         });
     }
 }
 
-async function getContainerTriggers(req, res) {
+export async function getContainerTriggers(req, res) {
     const { id } = req.params;
 
     const container = storeContainer.getContainer(id);
@@ -161,11 +162,11 @@ async function getContainerTriggers(req, res) {
 }
 
 /**
- * Run trigger.
+ * Run trigger for a specific container.
  * @param {*} req
  * @param {*} res
  */
-async function runTrigger(req, res) {
+export async function runTriggerForContainer(req, res) {
     const { id, triggerType, triggerName } = req.params;
 
     const containerToTrigger = storeContainer.getContainer(id);
@@ -183,17 +184,20 @@ async function runTrigger(req, res) {
                     `Error when running trigger (type=${triggerType}, name=${triggerName}) (${e.message})`,
                 );
                 res.status(500).json({
-                    error: `Error when running trigger (type=${triggerType}, name=${triggerName}) (${e.message})`,
+                    error: 'Trigger execution failed',
+                    message: `Error when running trigger (type=${triggerType}, name=${triggerName}) (${e.message})`,
                 });
             }
         } else {
             res.status(404).json({
-                error: 'Trigger not found',
+                error: 'Not found',
+                message: 'Trigger not found',
             });
         }
     } else {
         res.status(404).json({
-            error: 'Container not found',
+            error: 'Not found',
+            message: 'Container not found',
         });
     }
 }
@@ -204,7 +208,7 @@ async function runTrigger(req, res) {
  * @param res
  * @returns {Promise<void>}
  */
-async function watchContainer(req, res) {
+export async function watchContainer(req, res) {
     const { id } = req.params;
 
     const container = storeContainer.getContainer(id);
@@ -212,7 +216,8 @@ async function watchContainer(req, res) {
         const watcher = getWatchers()[`docker.${container.watcher}`];
         if (!watcher) {
             res.status(500).json({
-                error: `No provider found for container ${id} and provider ${container.watcher}`,
+                error: 'Provider not found',
+                message: `No provider found for container ${id} and provider ${container.watcher}`,
             });
         } else {
             try {
@@ -233,7 +238,8 @@ async function watchContainer(req, res) {
                 }
             } catch (e) {
                 res.status(500).json({
-                    error: `Error when watching container ${id} (${e.message})`,
+                    error: 'Watch failed',
+                    message: `Error when watching container ${id} (${e.message})`,
                 });
             }
         }
@@ -253,7 +259,10 @@ export function init() {
     router.get('/:id', getContainer);
     router.delete('/:id', deleteContainer);
     router.get('/:id/triggers', getContainerTriggers);
-    router.post('/:id/triggers/:triggerType/:triggerName', runTrigger);
+    router.post(
+        '/:id/triggers/:triggerType/:triggerName',
+        runTriggerForContainer,
+    );
     router.post('/:id/watch', watchContainer);
     return router;
 }

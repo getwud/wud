@@ -10,7 +10,7 @@ const router = express.Router();
  * @param req
  * @param res
  */
-function getStore(req, res) {
+export function getStore(req, res) {
     res.status(200).json({
         configuration: store.getConfiguration(),
     });

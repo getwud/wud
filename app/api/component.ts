@@ -41,7 +41,7 @@ export function mapComponentsToList(components) {
  * @param req
  * @param res
  */
-function getAll(req, res, kind) {
+export function getAll(req, res, kind) {
     res.status(200).json(mapComponentsToList(registry.getState()[kind]));
 }
 

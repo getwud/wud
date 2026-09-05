@@ -16,7 +16,12 @@ description: Unreleased changes and upcoming features in What's Up Docker (WUD).
 - 🚀 [CI] Add automated UI screenshot capture pipeline with Playwright and dark mode support
 - 🚀 [UI] Add demo mode with mock services for static deployment
 - 🚀 [REGISTRY] Enable anonymous access by default for Gitlab public registry
-- 🚀 [REGISTRY] Enable anonymous access by default for LSCR and TrueForge public registries
+- 🚀 [API] Refactor REST API to a Design-First / Top-Down architecture:
+  - Establish `openapi.yaml` as the authoritative single source of truth for the entire API contract
+  - Integrate `express-openapi-validator` for automated server-side request, parameter, and schema validation
+  - Standardize API error payload format (`{ error, message }`) across all endpoints
+  - Decouple controllers into standalone route handlers automatically bound by OpenAPI operation IDs
+- 🚀 [DOCS] Integrate interactive OpenAPI API Reference in Docusaurus with "Try it out" explorer, request/response schema inspector, and code samples
 - 🚀 [REGISTRY] Support direct bearer-token authentication for custom registries
 
 - 🐛 [WATCHER] Fix docker watcher crashing on startup when `watchdigestdefault` is configured by restoring the property and passing it to registries (fixes #1150)
