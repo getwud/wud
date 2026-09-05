@@ -2,6 +2,7 @@ import fs from 'fs';
 import { store } from './index';
 
 jest.mock('fs', () => ({
+    ...jest.requireActual('fs'),
     existsSync: jest.fn(),
     mkdirSync: jest.fn(),
 }));

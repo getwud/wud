@@ -1,6 +1,6 @@
 import joi from 'joi';
 import log from '../log';
-import Logger from 'bunyan';
+import { Logger } from 'pino';
 
 export interface ComponentConfiguration {
     [key: string]: any;

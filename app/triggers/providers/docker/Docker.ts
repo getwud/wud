@@ -5,7 +5,7 @@ import { getState } from '../../../registry';
 import { Container, ContainerImage, fullName } from '../../../model/container';
 import { Docker as DockerWatcher } from '../../../watchers/providers/docker/Docker';
 import Registry from '../../../registries/Registry';
-import Logger from 'bunyan';
+import { Logger } from 'pino';
 
 /**
  * Replace a Docker container with an updated one.

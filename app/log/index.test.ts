@@ -7,7 +7,7 @@ jest.mock('../configuration', () => ({
 }));
 
 describe('Logger', () => {
-    test('should export a bunyan logger instance', async () => {
+    test('should export a pino logger instance', async () => {
         expect(log).toBeDefined();
         expect(typeof log.info).toBe('function');
         expect(typeof log.warn).toBe('function');
@@ -16,10 +16,10 @@ describe('Logger', () => {
     });
 
     test('should have correct logger name', async () => {
-        expect(log.fields.name).toBe('whats-up-docker');
+        expect(log.bindings().name).toBe('wud');
     });
 
     test('should have correct log level', async () => {
-        expect(log.level()).toBe(30); // INFO level in bunyan
+        expect(log.level).toBe('info');
     });
 });

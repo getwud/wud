@@ -85,7 +85,7 @@ The backend engine is written in **TypeScript** using **Express**, **LokiJS**, a
 ```bash
 cd app
 
-# Run backend with auto-reload (ts-node + nodemon + bunyan logger)
+# Run backend with auto-reload (ts-node + nodemon + pino logger)
 npm start
 
 # Compile TypeScript to JavaScript (dist/)
