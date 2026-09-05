@@ -22,7 +22,8 @@ describe('API Authentication', () => {
         jest.clearAllMocks();
         app = express();
         app.use(express.json());
-        app.use(authApi.init());
+        app.get('/', authApi.getAuthentications);
+        app.get('/:type/:name', authApi.getAuthentication);
     });
 
     test('should get all authentications', async () => {

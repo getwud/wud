@@ -29,6 +29,7 @@
         "drizzle-orm": "^0.45.2",
         "express": "^4.22.2",
         "express-healthcheck": "0.1.0",
+        "express-openapi-validator": "^5.6.2",
         "express-session": "1.18.2",
         "flat": "5.0.2",
         "getmac": "6.6.0",
@@ -59,8 +60,10 @@
         "snake-case": "3.0.4",
         "socks-proxy-agent": "^8.0.5",
         "sort-es": "1.7.17",
+        "swagger-ui-express": "^5.0.1",
         "uuid": "^11.1.1",
-        "yaml": "^2.9.0"
+        "yaml": "^2.9.0",
+        "yamljs": "^0.3.0"
     },
     "devDependencies": {
         "@types/amqplib": "^0.10.8",
@@ -76,8 +79,10 @@
         "@types/passport": "^1.0.17",
         "@types/semver": "^7.7.1",
         "@types/supertest": "^7.2.1",
+        "@types/swagger-ui-express": "^4.1.8",
         "@types/uuid": "^10.0.0",
         "@types/yaml": "^1.9.6",
+        "@types/yamljs": "^0.2.34",
         "babel-jest": "29.7.0",
         "drizzle-kit": "^0.31.10",
         "eslint": "9.39.1",

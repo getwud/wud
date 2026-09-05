@@ -1,4 +1,12 @@
 // @ts-check
+import fs from 'fs';
+import path from 'path';
+
+const apiReferenceSidebarPath = path.resolve(__dirname, 'docs/api/reference/sidebar.ts');
+const apiReferenceItems = fs.existsSync(apiReferenceSidebarPath)
+  // @ts-ignore
+  ? require('./docs/api/reference/sidebar.ts').default
+  : [];
 
 /**
  * Multi-Sidebar configuration for WUD documentation.
@@ -468,48 +476,16 @@ const sidebars = {
     },
   ],
 
-  apiSidebar: [
-    {
-      type: 'doc',
-      id: 'api/README',
-      label: 'Overview',
-    },
-    {
-      type: 'doc',
-      id: 'api/app',
-      label: 'Application',
-    },
-    {
-      type: 'doc',
-      id: 'api/container',
-      label: 'Container',
-    },
-    {
-      type: 'doc',
-      id: 'api/log',
-      label: 'Log',
-    },
-    {
-      type: 'doc',
-      id: 'api/registry',
-      label: 'Registry',
-    },
-    {
-      type: 'doc',
-      id: 'api/store',
-      label: 'Store',
-    },
-    {
-      type: 'doc',
-      id: 'api/trigger',
-      label: 'Trigger',
-    },
-    {
-      type: 'doc',
-      id: 'api/watcher',
-      label: 'Watcher',
-    },
-  ],
+  apiSidebar:
+    apiReferenceItems.length > 0
+      ? apiReferenceItems
+      : [
+          {
+            type: 'doc',
+            id: 'README',
+            label: 'Documentation',
+          },
+        ],
 };
 
 export default sidebars;

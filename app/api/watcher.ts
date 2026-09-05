@@ -1,10 +1,10 @@
 // @ts-nocheck
 import * as component from './component';
 
-/**
- * Init Router.
- * @returns {*}
- */
-export function init() {
-    return component.init('watcher');
+export function getWatchers(req, res) {
+    return component.getAll(req, res, 'watcher');
+}
+
+export function getWatcher(req, res) {
+    return component.getById(req, res, 'watcher');
 }

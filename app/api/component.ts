@@ -41,7 +41,7 @@ export function mapComponentsToList(components) {
  * @param req
  * @param res
  */
-function getAll(req, res, kind) {
+export function getAll(req, res, kind) {
     res.status(200).json(mapComponentsToList(registry.getState()[kind]));
 }
 
@@ -60,17 +60,4 @@ export function getById(req, res, kind) {
     } else {
         res.sendStatus(404);
     }
-}
-
-/**
- * Init the component router.
- * @param kind
- * @returns {*|Router}
- */
-export function init(kind) {
-    const router = express.Router();
-    router.use(nocache());
-    router.get('/', (req, res) => getAll(req, res, kind));
-    router.get('/:type/:name', (req, res) => getById(req, res, kind));
-    return router;
 }

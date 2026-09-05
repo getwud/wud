@@ -17,7 +17,7 @@ describe('API Store', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         app = express();
-        app.use(storeApi.init());
+        app.get('/', storeApi.getStore);
     });
 
     test('should return store configuration', async () => {

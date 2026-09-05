@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "docusaurus": "docusaurus",
-    "start": "docusaurus start",
-    "build": "docusaurus build",
+    "start": "npm run gen:api-docs && docusaurus start",
+    "copy:openapi": "node -e \"const fs = require('fs'); fs.copyFileSync('../app/api/openapi.yaml', './static/openapi.yaml');\"",
+    "gen:api-docs": "npm run copy:openapi && docusaurus clean-api-docs wud && docusaurus gen-api-docs wud",
+    "build": "npm run gen:api-docs && docusaurus build",
     "build:demo": "cd ../ui && npm run build:demo",
     "build:all": "npm run build:demo && npm run build",
     "swizzle": "docusaurus swizzle",
@@ -28,10 +30,14 @@
     "@iconify/react": "^6.0.2",
     "@mdi/font": "^7.4.47",
     "@mdx-js/react": "^3.0.0",
+    "@reduxjs/toolkit": "^2.12.0",
     "clsx": "^2.0.0",
+    "docusaurus-plugin-openapi-docs": "^5.2.0",
+    "docusaurus-theme-openapi-docs": "^5.2.0",
     "prism-react-renderer": "^2.3.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-redux": "^9.3.0"
   },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "3.10.2",

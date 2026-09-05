@@ -103,3 +103,5 @@ typings/
 *.DS_Store
 app/dist/
 dist/
+website/docs/api/reference/
+website/static/openapi.yaml
