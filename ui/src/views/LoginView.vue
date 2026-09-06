@@ -61,6 +61,7 @@
 <script lang="ts">
 import { inject, defineComponent } from "vue";
 import { getOidcRedirection, getStrategies } from "@/services/auth";
+import { isDemoMode } from "@/services/mock";
 import LoginBasic from "@/components/LoginBasic.vue";
 import LoginOidc from "@/components/LoginOidc.vue";
 import logo from "@/assets/wud-logo.svg";
@@ -129,6 +130,9 @@ export default defineComponent({
    * @returns {Promise<void>}
    */
   async beforeRouteEnter(to: any, from: any, next: any) {
+    if (isDemoMode()) {
+      return next("/");
+    }
     try {
       const strategies = await getStrategies();
 

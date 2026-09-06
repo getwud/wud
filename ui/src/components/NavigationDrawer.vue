@@ -167,8 +167,23 @@
               <div class="overflow-hidden">
                 <div class="text-subtitle-2 font-weight-bold text-truncate">{{ userName }}</div>
                 <div class="text-caption text-medium-emphasis">{{ userSubtitle }}</div>
+                <div v-if="userRole" class="mt-1">
+                  <v-chip size="x-small" :color="roleColor" variant="flat" class="font-weight-bold text-uppercase">
+                    {{ userRole }}
+                  </v-chip>
+                </div>
               </div>
             </div>
+
+            <v-divider class="my-2 opacity-50" />
+
+            <!-- Profile Item -->
+            <v-list-item rounded="md" class="px-3" to="/profile">
+              <template v-slot:prepend>
+                <v-icon icon="mdi-account-circle-outline" class="mr-2" size="20" />
+              </template>
+              <v-list-item-title class="text-body-2">My Profile</v-list-item-title>
+            </v-list-item>
 
             <v-divider class="my-2 opacity-50" />
 
@@ -191,8 +206,41 @@
               </template>
             </v-list-item>
 
-            <!-- Logout Item -->
-            <template v-if="user && user.username !== 'anonymous'">
+            <!-- Demo Role Switcher -->
+            <template v-if="isDemo">
+              <v-divider class="my-2 opacity-50" />
+              <div class="px-3 py-1 text-caption font-weight-bold text-medium-emphasis d-flex align-center">
+                <v-icon size="small" class="mr-1 text-primary">mdi-swap-horizontal-bold</v-icon>
+                Switch Demo Role:
+              </div>
+              <v-list-item rounded="md" class="px-3" @click="switchDemoUser('homelab-admin')">
+                <template v-slot:prepend>
+                  <v-icon icon="mdi-shield-crown-outline" color="error" class="mr-2" size="18" />
+                </template>
+                <v-list-item-title class="text-caption">
+                  Admin <span class="text-disabled font-weight-light">(homelab-admin)</span>
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item rounded="md" class="px-3" @click="switchDemoUser('developer')">
+                <template v-slot:prepend>
+                  <v-icon icon="mdi-pencil-outline" color="primary" class="mr-2" size="18" />
+                </template>
+                <v-list-item-title class="text-caption">
+                  Read/Write <span class="text-disabled font-weight-light">(developer)</span>
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item rounded="md" class="px-3" @click="switchDemoUser('viewer-oidc')">
+                <template v-slot:prepend>
+                  <v-icon icon="mdi-eye-outline" color="grey" class="mr-2" size="18" />
+                </template>
+                <v-list-item-title class="text-caption">
+                  Read-Only <span class="text-disabled font-weight-light">(viewer-oidc)</span>
+                </v-list-item-title>
+              </v-list-item>
+            </template>
+
+            <!-- Logout Item (hidden in demo mode) -->
+            <template v-if="user && user.username !== 'anonymous' && !isDemo">
               <v-divider class="my-2 opacity-50" />
               <v-list-item rounded="md" class="px-3 text-error" @click="logout">
                 <template v-slot:prepend>
@@ -223,9 +271,12 @@ import { getTriggerIcon } from "@/services/trigger";
 import { getServerIcon } from "@/services/server";
 import { getWatcherIcon } from "@/services/watcher";
 import { getAuthenticationIcon } from "@/services/authentication";
+import { getUserIcon } from "@/services/user";
+import { updatePreferences } from "@/services/profile";
 import { getLogIcon } from "@/services/log";
 import { logout } from "@/services/auth";
 import { getAppInfos } from "@/services/app";
+import { isDemoMode, mockService } from "@/services/mock";
 
 export default defineComponent({
   props: {
@@ -269,12 +320,30 @@ export default defineComponent({
         name: "auth",
         icon: getAuthenticationIcon(),
       },
+      {
+        to: "/configuration/users",
+        name: "users",
+        icon: getUserIcon(),
+        adminOnly: true,
+      },
     ];
+
+    const configurationItemsSorted = computed(() => {
+      return configurationItems.filter((item) => {
+        if ((item as any).adminOnly) {
+          return props.user && props.user.role === "admin";
+        }
+        return true;
+      });
+    });
 
     const toggleDarkMode = (value: boolean) => {
       darkMode.value = value;
       localStorage.darkMode = String(darkMode.value);
       theme.global.name.value = darkMode.value ? "dark" : "light";
+      if (props.user) {
+        updatePreferences({ theme: darkMode.value ? "dark" : "light" }).catch(() => {});
+      }
     };
 
     const performLogout = async () => {
@@ -296,11 +365,35 @@ export default defineComponent({
       }
     };
 
+    const isDemo = computed(() => isDemoMode());
+
+    const switchDemoUser = async (targetUsername: string) => {
+      const newUser = await mockService.loginBasic(targetUsername);
+      eventBus?.emit("authenticated", newUser);
+      eventBus?.emit("notify", `Switched to demo user: ${newUser.username} (${newUser.role})`, "info");
+      if (newUser.role !== "admin" && router.currentRoute.value.path.startsWith("/configuration/users")) {
+        router.push("/");
+      }
+    };
+
     const userName = computed(() => {
       if (props.user && props.user.username) {
         return props.user.username;
       }
       return "Settings";
+    });
+
+    const userRole = computed(() => {
+      if (props.user && props.user.role) {
+        return props.user.role;
+      }
+      return "";
+    });
+
+    const roleColor = computed(() => {
+      if (userRole.value === "admin") return "error";
+      if (userRole.value === "rw") return "primary";
+      return "grey-darken-1";
     });
 
     const userSubtitle = computed(() => {
@@ -332,13 +425,17 @@ export default defineComponent({
       darkMode,
       containerIcon: getContainerIcon(),
       logIcon: getLogIcon(),
-      configurationItemsSorted: configurationItems,
+      configurationItemsSorted,
       toggleDarkMode,
       logout: performLogout,
       userName,
+      userRole,
+      roleColor,
       userSubtitle,
       userInitial,
       version,
+      isDemo,
+      switchDemoUser,
     };
   },
 });

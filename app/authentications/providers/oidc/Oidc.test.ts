@@ -2,9 +2,16 @@ import { ValidationError } from 'joi';
 import express from 'express';
 import * as client from 'openid-client';
 import Oidc from './Oidc';
+import * as userStore from '../../../store/user';
 
 // Mock the openid-client module
 jest.mock('openid-client');
+
+jest.mock('../../../store/user', () => ({
+    getUserByUsername: jest.fn(),
+    createUser: jest.fn(),
+    updateUser: jest.fn(),
+}));
 
 const app = express();
 
@@ -16,6 +23,7 @@ const configurationValid = {
     timeout: 5000,
     ttl: 60,
     usernameclaim: 'email',
+    groupsclaim: 'groups',
 };
 
 const mockConfig = {
@@ -28,11 +36,32 @@ let oidc: any;
 
 beforeEach(async () => {
     jest.resetAllMocks();
+    (userStore.getUserByUsername as jest.Mock).mockResolvedValue(null);
+    (userStore.createUser as jest.Mock).mockImplementation((data) =>
+        Promise.resolve({
+            id: 'oidc-user-id',
+            username: data.username,
+            role: data.role || 'ro',
+            provider: 'oidc',
+            preferences: { theme: 'light' },
+        }),
+    );
+    (userStore.updateUser as jest.Mock).mockImplementation((id, data) =>
+        Promise.resolve({
+            id,
+            username: 'mocked',
+            role: data.role || 'ro',
+            provider: 'oidc',
+            preferences: { theme: 'light' },
+        }),
+    );
+
     oidc = new Oidc();
     oidc.configuration = configurationValid;
     // Access private config property for testing
     (oidc as any).config = mockConfig;
     (oidc as any).discoveryCachedAt = Date.now();
+    oidc.log = { debug: jest.fn(), warn: jest.fn(), info: jest.fn() };
 });
 
 test('validateConfiguration should return validated configuration when valid', async () => {
@@ -62,6 +91,7 @@ test('maskConfiguration should mask configuration secrets', async () => {
         timeout: 5000,
         ttl: 60,
         usernameclaim: 'email',
+        groupsclaim: 'groups',
     });
 });
 
@@ -81,7 +111,7 @@ test('initAuthentication should not throw when discovery fails', async () => {
     (client.discovery as jest.Mock).mockRejectedValue(
         new Error('Authority unavailable'),
     );
-    oidc.log = { debug: jest.fn(), warn: jest.fn() };
+    oidc.log = { debug: jest.fn(), warn: jest.fn(), info: jest.fn() };
 
     await expect(oidc.initAuthentication()).resolves.toBeUndefined();
     expect(client.discovery).toHaveBeenCalledTimes(1);
@@ -95,13 +125,15 @@ test('getUserFromAccessToken should retry discovery after initial failure', asyn
     (client.fetchUserInfo as jest.Mock).mockResolvedValue({
         email: 'retry@example.com',
     });
-    oidc.log = { debug: jest.fn(), warn: jest.fn() };
+    oidc.log = { debug: jest.fn(), warn: jest.fn(), info: jest.fn() };
 
     await oidc.initAuthentication();
     const user = await oidc.getUserFromAccessToken('token');
 
     expect(client.discovery).toHaveBeenCalledTimes(2);
-    expect(user).toEqual({ username: 'retry@example.com' });
+    expect(user).toEqual(
+        expect.objectContaining({ username: 'retry@example.com' }),
+    );
 });
 
 test('getUserFromAccessToken should rediscover when cache ttl expires', async () => {
@@ -118,7 +150,9 @@ test('getUserFromAccessToken should rediscover when cache ttl expires', async ()
     const user = await oidc.getUserFromAccessToken('token');
 
     expect(client.discovery).toHaveBeenCalledTimes(2);
-    expect(user).toEqual({ username: 'ttl@example.com' });
+    expect(user).toEqual(
+        expect.objectContaining({ username: 'ttl@example.com' }),
+    );
 });
 
 test('getUserFromAccessToken should keep discovery cache when ttl is unlimited', async () => {
@@ -132,7 +166,9 @@ test('getUserFromAccessToken should keep discovery cache when ttl is unlimited',
     const user = await oidc.getUserFromAccessToken('token');
 
     expect(client.discovery).not.toHaveBeenCalled();
-    expect(user).toEqual({ username: 'unlimited@example.com' });
+    expect(user).toEqual(
+        expect.objectContaining({ username: 'unlimited@example.com' }),
+    );
 });
 
 test('verify should return user on valid token', async () => {
@@ -144,14 +180,17 @@ test('verify should return user on valid token', async () => {
     const done = jest.fn();
     await oidc.verify('valid-token', done);
 
-    expect(done).toHaveBeenCalledWith(null, { username: 'test@example.com' });
+    expect(done).toHaveBeenCalledWith(
+        null,
+        expect.objectContaining({ username: 'test@example.com' }),
+    );
 });
 
 test('verify should return false on invalid token', async () => {
     (client.fetchUserInfo as jest.Mock).mockRejectedValue(
         new Error('Invalid token'),
     );
-    oidc.log = { warn: jest.fn() };
+    oidc.log = { warn: jest.fn(), info: jest.fn(), debug: jest.fn() };
 
     const done = jest.fn();
     await oidc.verify('invalid-token', done);
@@ -165,7 +204,9 @@ test('getUserFromAccessToken should return user with email', async () => {
     (client.fetchUserInfo as jest.Mock).mockResolvedValue(mockUserInfo);
 
     const user = await oidc.getUserFromAccessToken('token');
-    expect(user).toEqual({ username: 'user@example.com' });
+    expect(user).toEqual(
+        expect.objectContaining({ username: 'user@example.com' }),
+    );
 });
 
 test('getUserFromAccessToken should return unknown for missing email', async () => {
@@ -175,7 +216,7 @@ test('getUserFromAccessToken should return unknown for missing email', async () 
     (client.fetchUserInfo as jest.Mock).mockResolvedValue(mockUserInfo);
 
     const user = await oidc.getUserFromAccessToken('token');
-    expect(user).toEqual({ username: 'unknown' });
+    expect(user).toEqual(expect.objectContaining({ username: 'unknown' }));
 });
 
 test('getUserFromAccessToken should skip the subject check when called without a claim (bearer token path)', async () => {
@@ -302,4 +343,96 @@ test('callback should redirect to next url when authenticated', async () => {
         'http://localhost:3000/containers',
     );
     expect(req.session.oidc.next).toBeUndefined();
+});
+
+test('getEffectiveScope should return base scopes when no groups configured', () => {
+    oidc.configuration = { ...configurationValid };
+    expect(oidc.getEffectiveScope()).toEqual('openid email profile');
+});
+
+test('getEffectiveScope should include groups when admingroup is configured and no server metadata', () => {
+    oidc.configuration = { ...configurationValid, admingroup: 'admins' };
+    expect(oidc.getEffectiveScope()).toEqual('openid email profile groups');
+});
+
+test('getEffectiveScope should include groups when IdP declares groups in scopes_supported (Authelia/Authentik)', () => {
+    oidc.configuration = { ...configurationValid, admingroup: 'admins' };
+    const configWithGroups = {
+        serverMetadata: () => ({
+            scopes_supported: ['openid', 'email', 'profile', 'groups'],
+        }),
+    };
+    expect(oidc.getEffectiveScope(configWithGroups as any)).toEqual(
+        'openid email profile groups',
+    );
+});
+
+test('getEffectiveScope should NOT include groups when IdP does NOT declare groups in scopes_supported (Entra ID/Google)', () => {
+    oidc.configuration = { ...configurationValid, admingroup: 'admins' };
+    const configWithoutGroups = {
+        serverMetadata: () => ({
+            scopes_supported: ['openid', 'email', 'profile', 'offline_access'],
+        }),
+    };
+    expect(oidc.getEffectiveScope(configWithoutGroups as any)).toEqual(
+        'openid email profile',
+    );
+});
+
+test('getEffectiveScope should return explicitly configured scope regardless of metadata', () => {
+    oidc.configuration = {
+        ...configurationValid,
+        scope: 'openid email profile custom',
+    };
+    expect(oidc.getEffectiveScope()).toEqual('openid email profile custom');
+});
+
+test('redirect should use effective scope with groups when admingroup is set', async () => {
+    oidc.configuration = {
+        ...configurationValid,
+        admingroup: 'wud-admin',
+        ttl: -1,
+    };
+    (oidc as any).cachedConfig = mockConfig;
+    (client.randomPKCECodeVerifier as jest.Mock).mockReturnValue('verifier');
+    (client.calculatePKCECodeChallenge as jest.Mock).mockResolvedValue(
+        'challenge',
+    );
+    (client.randomState as jest.Mock).mockReturnValue('state123');
+    (client.buildAuthorizationUrl as jest.Mock).mockReturnValue(
+        new URL('https://idp/auth'),
+    );
+
+    const req: any = {
+        protocol: 'http',
+        headers: { host: 'localhost:3000' },
+        session: {},
+        query: {},
+    };
+    const res: any = { json: jest.fn() };
+
+    await oidc.redirect(req, res);
+
+    expect(client.buildAuthorizationUrl).toHaveBeenCalledWith(
+        mockConfig,
+        expect.objectContaining({
+            scope: 'openid email profile groups',
+        }),
+    );
+});
+
+test('getUserFromAccessToken should assign admin role when group matches admingroup', async () => {
+    oidc.configuration = {
+        ...configurationValid,
+        admingroup: 'wud-admin',
+        ttl: -1,
+    };
+    (oidc as any).cachedConfig = mockConfig;
+    (client.fetchUserInfo as jest.Mock).mockResolvedValue({
+        email: 'admin@example.com',
+        groups: ['other-group', 'wud-admin'],
+    });
+
+    const user = await oidc.getUserFromAccessToken('token');
+    expect(user.role).toEqual('admin');
 });

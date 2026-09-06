@@ -36,5 +36,11 @@ export const mockStrategies = [
 ];
 
 export const mockUser = {
+  id: "user-admin-1",
   username: "homelab-admin",
+  role: "admin",
+  provider: "local",
+  preferences: {
+    theme: "light",
+  },
 };

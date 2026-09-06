@@ -44,6 +44,17 @@ const routes: RouteRecordRaw[] = [
     redirect: "/logs",
   },
   {
+    path: "/configuration/users",
+    name: "users",
+    component: () => import("../views/ConfigurationUsersView.vue"),
+    meta: { roles: ["admin"] },
+  },
+  {
+    path: "/profile",
+    name: "profile",
+    component: () => import("../views/ProfileView.vue"),
+  },
+  {
     path: "/configuration/triggers",
     name: "triggers",
     component: () => import("../views/ConfigurationTriggersView.vue"),
@@ -69,6 +80,9 @@ const router = createRouter({
  * @returns {Promise<void>}
  */
 async function applyAuthNavigationGuard(to) {
+  if (isDemoMode() && to.name === "login") {
+    return { name: "home" };
+  }
   if (to.name === "login") {
     return true;
   } else {
@@ -77,6 +91,13 @@ async function applyAuthNavigationGuard(to) {
 
     // User is authenticated => go to route
     if (user !== undefined) {
+      // Check required roles
+      if (to.meta?.roles && Array.isArray(to.meta.roles)) {
+        if (!to.meta.roles.includes(user.role)) {
+          return { name: "home" };
+        }
+      }
+
       // Emit authenticated event after navigation
       nextTick(() => {
         if ((router as any).app?.config?.globalProperties?.$eventBus) {

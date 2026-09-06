@@ -15,6 +15,9 @@ services:
   whatsupdocker:
     image: getwud/wud
     container_name: wud
+    environment:
+      - WUD_AUTH_ADMIN_USER=admin
+      - WUD_AUTH_ADMIN_PASSWORD=MySecurePassword123
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
@@ -26,6 +29,8 @@ services:
 
 ```bash
 docker run -d --name wud \
+  -e WUD_AUTH_ADMIN_USER="admin" \
+  -e WUD_AUTH_ADMIN_PASSWORD="MySecurePassword123" \
   -v "/var/run/docker.sock:/var/run/docker.sock" \
   -p 3000:3000 \
   getwud/wud

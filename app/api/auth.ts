@@ -1,9 +1,9 @@
 import express from 'express';
 import session from 'express-session';
 import passport from 'passport';
+import { Strategy as BearerStrategy } from 'passport-http-bearer';
 import { v5 as uuidV5 } from 'uuid';
 import getmac from 'getmac';
-import { store } from '../store';
 import * as registry from '../registry';
 import log from '../log';
 import { getVersion } from '../configuration';
@@ -11,6 +11,8 @@ import SqliteSessionStore from './SqliteSessionStore';
 import Authentication, {
     StrategyDescription,
 } from '../authentications/providers/Authentication';
+import { getUserById } from '../store/user';
+import { verifyToken } from '../store/token';
 
 const router = express.Router();
 
@@ -33,6 +35,14 @@ export function getAllIds() {
 export function requireAuthentication(req, res, next): any {
     if (req.isAuthenticated()) {
         return next();
+    }
+    const authHeader = req.headers?.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        return passport.authenticate('bearer', { session: false })(
+            req,
+            res,
+            next,
+        );
     }
     return passport.authenticate(getAllIds(), { session: true })(
         req,
@@ -110,8 +120,11 @@ function getLogoutRedirectUrl() {
  * Get current user.
  */
 function getUser(req, res) {
-    const user = req.user || { username: 'anonymous' };
-    res.status(200).json(user);
+    if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const { passwordHash, ...safeUser } = req.user;
+    res.status(200).json(safeUser);
 }
 
 /**
@@ -155,6 +168,26 @@ export function init(app) {
     app.use(passport.initialize());
     app.use(passport.session());
 
+    // Register Bearer strategy for API Tokens
+    passport.use(
+        'bearer',
+        new BearerStrategy(async (token, done) => {
+            try {
+                const result = await verifyToken(token);
+                if (!result) {
+                    return done(null, false);
+                }
+                const userWithToken = {
+                    ...result.user,
+                    token: result.token,
+                };
+                return done(null, userWithToken);
+            } catch (err) {
+                return done(err);
+            }
+        }),
+    );
+
     // Register all authentications
     Object.values(registry.getState().authentication).forEach(
         (authentication) => useStrategy(authentication, app),
@@ -164,8 +197,25 @@ export function init(app) {
         done(null, JSON.stringify(user));
     });
 
-    passport.deserializeUser((user: string, done) => {
-        done(null, JSON.parse(user));
+    passport.deserializeUser(async (serialized: string, done) => {
+        try {
+            const parsed = JSON.parse(serialized);
+            if (parsed.id) {
+                const dbUser = await getUserById(parsed.id);
+                if (dbUser) {
+                    return done(null, {
+                        id: dbUser.id,
+                        username: dbUser.username,
+                        role: dbUser.role,
+                        provider: dbUser.provider,
+                        preferences: dbUser.preferences,
+                    });
+                }
+            }
+            return done(null, parsed);
+        } catch (e) {
+            return done(e);
+        }
     });
 
     // Return strategies

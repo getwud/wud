@@ -90,14 +90,14 @@ docker run \
 ### 1. Create a Service Principal
 Follow the [official Azure guide](https://docs.microsoft.com/azure/active-directory/develop/howto-create-service-principal-portal) to register an application and generate a client secret in Microsoft Entra ID.
 
-![image](acr_01.png)
+![Azure portal register application](./acr_01.png)
 
 ### 2. Open Access Control (IAM)
 Navigate to your Container Registry in the Azure Portal and select **Access Control (IAM)**.
 
-![image](acr_02.png)
+![Azure portal access control](./acr_02.png)
 
 ### 3. Assign the AcrPull Role
 Click **Add role assignment**, select the **AcrPull** role, and assign it to your newly created Service Principal.
 
-![image](acr_03.png)
+![Azure portal add role assignment](./acr_03.png)

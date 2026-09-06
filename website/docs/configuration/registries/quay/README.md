@@ -90,11 +90,11 @@ docker run \
 1. Open your Quay.io Organization or User Settings and select **Robot Accounts**.
 2. Click **Create Robot Account**, name it (e.g. `wud`), and grant read permissions to the appropriate repositories.
 
-![image](quay_01.png)
+![Quay.io create robot account](./quay_01.png)
 
 3. Robot account names follow the format `<namespace>+<account>`.
    - Set the part before the `+` as `WUD_REGISTRY_QUAY_{registry_name}_NAMESPACE`.
    - Set the part after the `+` as `WUD_REGISTRY_QUAY_{registry_name}_ACCOUNT`.
    - Copy the generated token string into `WUD_REGISTRY_QUAY_{registry_name}_TOKEN`.
 
-![image](quay_02.png)
+![Quay.io robot account token](./quay_02.png)

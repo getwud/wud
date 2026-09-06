@@ -35,6 +35,7 @@ import NavigationDrawer from "@/components/NavigationDrawer.vue";
 import SnackBar from "@/components/SnackBar.vue";
 import { getServer } from "@/services/server";
 import { useRoute } from "vue-router";
+import { useTheme } from "vuetify";
 
 export default defineComponent({
   components: {
@@ -43,6 +44,10 @@ export default defineComponent({
   },
   setup() {
     const route = useRoute();
+    const theme = useTheme();
+    if (localStorage.darkMode === "true") {
+      theme.global.name.value = "dark";
+    }
     const eventBus = inject("eventBus") as any;
     const instance = getCurrentInstance();
 
@@ -68,6 +73,10 @@ export default defineComponent({
 
     const onAuthenticated = (userData: any) => {
       user.value = userData;
+      if (userData?.preferences?.theme) {
+        theme.global.name.value = userData.preferences.theme;
+        localStorage.darkMode = String(userData.preferences.theme === "dark");
+      }
     };
 
     const notify = (message: string, level = "info") => {

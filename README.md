@@ -66,8 +66,8 @@ flowchart LR
   Clean, responsive web dashboard to inspect container statuses, trigger manual update checks, and query data via a full-featured REST API.
 - 📊 **Prometheus & Grafana Ready**  
   Built-in Prometheus `/metrics` endpoint and pre-built Grafana dashboards for observability.
-- 🔒 **Enterprise-Grade Authentication**  
-  Secure your WUD dashboard with **OpenID Connect (OIDC)** (Keycloak, Authentik, Authelia, Google, etc.) or **HTTP Basic Auth**.
+- 🔒 **Enterprise-Grade Authentication & RBAC**  
+  Role-Based Access Control (`admin`, `rw`, `ro`), database-backed user management, personal API tokens, and single sign-on with **OpenID Connect (OIDC)** (Keycloak, Authentik, Authelia, etc.) or local accounts.
 
 ---
 
@@ -79,6 +79,8 @@ flowchart LR
 docker run -d \
   --name wud \
   -p 3000:3000 \
+  -e WUD_AUTH_ADMIN_USER="admin" \
+  -e WUD_AUTH_ADMIN_PASSWORD="MySecurePassword123" \
   -v /var/run/docker.sock:/var/run/docker.sock \
   getwud/wud:latest
 ```
@@ -92,12 +94,15 @@ services:
     container_name: wud
     ports:
       - "3000:3000"
+    environment:
+      - WUD_AUTH_ADMIN_USER=admin
+      - WUD_AUTH_ADMIN_PASSWORD=MySecurePassword123
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
 ```
 
-> 🌐 **Access the Web UI**: Open [`http://localhost:3000`](http://localhost:3000) in your browser.
+> 🌐 **Access the Web UI**: Open [`http://localhost:3000`](http://localhost:3000) in your browser (login with `admin` / `MySecurePassword123`).
 
 ---
 

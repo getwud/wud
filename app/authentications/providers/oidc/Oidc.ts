@@ -3,6 +3,12 @@ import Authentication from '../Authentication';
 import OidcStrategy from './OidcStrategy';
 import { getPublicUrl } from '../../../configuration';
 import { Express, Request, Response } from 'express';
+import {
+    getUserByUsername,
+    createUser,
+    updateUser,
+    UserRole,
+} from '../../../store/user';
 
 // Extend express-session to store OIDC data in session
 declare module 'express-session' {
@@ -31,6 +37,10 @@ class Oidc extends Authentication {
             timeout: this.joi.number().greater(500).default(5000),
             ttl: this.joi.number().min(-1).default(60),
             usernameclaim: this.joi.string().default('email'),
+            admingroup: this.joi.string().optional(),
+            rwgroup: this.joi.string().optional(),
+            groupsclaim: this.joi.string().default('groups'),
+            scope: this.joi.string().optional(),
         });
     }
 
@@ -150,6 +160,28 @@ class Oidc extends Authentication {
     }
 
     /**
+     * Compute effective OIDC scopes to request.
+     */
+    getEffectiveScope(config?: client.Configuration): string {
+        if (this.configuration.scope) {
+            return this.configuration.scope;
+        }
+        const scopes = ['openid', 'email', 'profile'];
+        if (this.configuration.admingroup || this.configuration.rwgroup) {
+            const scopesSupported = config?.serverMetadata()?.scopes_supported;
+            // Only request 'groups' scope if the IdP explicitly declares supporting it (or if no discovery metadata available)
+            if (
+                !scopesSupported ||
+                (Array.isArray(scopesSupported) &&
+                    scopesSupported.includes('groups'))
+            ) {
+                scopes.push('groups');
+            }
+        }
+        return scopes.join(' ');
+    }
+
+    /**
      * Return passport strategy.
      * @param app
      */
@@ -174,7 +206,7 @@ class Oidc extends Authentication {
             {
                 config: this.cachedConfig,
                 params: {
-                    scope: 'openid email profile',
+                    scope: this.getEffectiveScope(this.cachedConfig),
                 },
             },
             async (accessToken, done) => this.verify(accessToken, done),
@@ -202,7 +234,7 @@ class Oidc extends Authentication {
 
         const parameters: Record<string, string> = {
             redirect_uri: `${getPublicUrl(req)}/auth/oidc/${this.name}/cb`,
-            scope: 'openid email profile',
+            scope: this.getEffectiveScope(config),
             code_challenge: codeChallenge,
             code_challenge_method: 'S256',
             state: state,
@@ -323,8 +355,81 @@ class Oidc extends Authentication {
             username = userInfo.email?.toString();
         }
 
+        const validUsername = username || 'unknown';
+
+        // Extract groups claim
+        const groupsClaimKey = this.configuration.groupsclaim || 'groups';
+        const rawGroups =
+            userInfo[groupsClaimKey] || (claim as any)?.[groupsClaimKey];
+        let userGroups: string[] = [];
+        if (Array.isArray(rawGroups)) {
+            userGroups = rawGroups.map(String);
+        } else if (typeof rawGroups === 'string') {
+            userGroups = rawGroups.split(',').map((g) => g.trim());
+        }
+
+        // Determine role from groups if configured
+        let determinedRole: UserRole = 'ro';
+        const hasGroupConfig = Boolean(
+            this.configuration.admingroup || this.configuration.rwgroup,
+        );
+
+        if (hasGroupConfig) {
+            this.log.debug(
+                `Extracted user groups for '${validUsername}' via claim '${groupsClaimKey}': [${userGroups.join(', ')}]`,
+            );
+        }
+
+        if (
+            this.configuration.admingroup &&
+            userGroups.includes(this.configuration.admingroup)
+        ) {
+            determinedRole = 'admin';
+        } else if (
+            this.configuration.rwgroup &&
+            userGroups.includes(this.configuration.rwgroup)
+        ) {
+            determinedRole = 'rw';
+        }
+
+        // Check if user exists in database
+        const existingUser = await getUserByUsername(validUsername);
+        if (existingUser) {
+            if (hasGroupConfig) {
+                // If group claims are configured on OIDC, sync role from IDP
+                if (existingUser.role !== determinedRole) {
+                    this.log.info(
+                        `Syncing OIDC user role for '${validUsername}' from '${existingUser.role}' to '${determinedRole}'`,
+                    );
+                    await updateUser(existingUser.id, { role: determinedRole });
+                    existingUser.role = determinedRole;
+                }
+            }
+            return {
+                id: existingUser.id,
+                username: existingUser.username,
+                role: existingUser.role,
+                provider: existingUser.provider,
+                preferences: existingUser.preferences,
+            };
+        }
+
+        // User onboarding: create new OIDC user in database
+        this.log.info(
+            `Onboarding new OIDC user '${validUsername}' with role '${determinedRole}'`,
+        );
+        const newUser = await createUser({
+            username: validUsername,
+            role: determinedRole,
+            provider: 'oidc',
+        });
+
         return {
-            username: username || 'unknown',
+            id: newUser.id,
+            username: newUser.username,
+            role: newUser.role,
+            provider: newUser.provider,
+            preferences: newUser.preferences,
         };
     }
 }

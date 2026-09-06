@@ -14,6 +14,7 @@
         :groupLabels="allContainerLabels"
         :total-count="containers.length"
         :filtered-count="containersFiltered.length"
+        :can-write="canWrite"
         @registry-changed="onRegistryChanged"
         @watcher-changed="onWatcherChanged"
         @update-available-changed="onUpdateAvailableChanged"
@@ -174,7 +175,7 @@
             </div>
           </div>
           <v-btn
-            v-if="deleteEnabled"
+            v-if="deleteEnabled && canWrite"
             icon="mdi-delete"
             color="error"
             variant="text"
@@ -262,6 +263,7 @@ import ContainerUpdate from "@/components/ContainerUpdate.vue";
 import IconRenderer from "@/components/IconRenderer.vue";
 import { deleteContainer, getAllContainers } from "@/services/container";
 import { getRegistryProviderIcon } from "@/services/registry";
+import { getUser } from "@/services/auth";
 import { defineComponent } from "vue";
 
 export default defineComponent({
@@ -284,6 +286,7 @@ export default defineComponent({
       updateAvailableSelected: false,
       groupByLabel: "",
       oldestFirst: false,
+      currentUser: null as any,
       
       drawerOpen: false,
       selectedContainer: null as any,
@@ -295,11 +298,20 @@ export default defineComponent({
     };
   },
 
-  mounted() {
+  async mounted() {
     this.deleteEnabled = (this as any).$serverConfig?.feature?.delete || false;
+    try {
+      this.currentUser = await getUser();
+    } catch {
+      // ignore
+    }
   },
 
   computed: {
+    canWrite(): boolean {
+      if (!this.currentUser) return true;
+      return this.currentUser.role === "admin" || this.currentUser.role === "rw";
+    },
     headers() {
       return [
         {

@@ -14,6 +14,7 @@
       </v-list-item-subtitle>
       <template v-slot:append>
         <v-btn
+          v-if="canWrite"
           variant="outlined"
           color="accent"
           :disabled="!updateAvailable"
@@ -30,6 +31,7 @@
 
 <script lang="ts">
 import { runTrigger } from "@/services/container";
+import { getUser } from "@/services/auth";
 import { defineComponent } from "vue";
 
 export default defineComponent({
@@ -50,9 +52,22 @@ export default defineComponent({
   data() {
     return {
       isTriggering: false,
+      currentUser: null as any,
     };
   },
-  computed: {},
+  computed: {
+    canWrite(): boolean {
+      if (!this.currentUser) return true;
+      return this.currentUser.role === "admin" || this.currentUser.role === "rw";
+    },
+  },
+  async mounted() {
+    try {
+      this.currentUser = await getUser();
+    } catch {
+      // ignore
+    }
+  },
 
   methods: {
     async runTrigger() {

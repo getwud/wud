@@ -90,6 +90,35 @@ export const migrations: Migration[] = [
             );`,
         ],
     },
+    {
+        id: 1,
+        name: '0001_users_and_tokens',
+        sql: [
+            `CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY NOT NULL,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT,
+                provider TEXT DEFAULT 'local' NOT NULL,
+                role TEXT DEFAULT 'ro' NOT NULL,
+                preferences TEXT,
+                created_at TEXT DEFAULT (CURRENT_TIMESTAMP),
+                updated_at TEXT DEFAULT (CURRENT_TIMESTAMP)
+            );`,
+            `CREATE TABLE IF NOT EXISTS api_tokens (
+                id TEXT PRIMARY KEY NOT NULL,
+                token_hash TEXT NOT NULL UNIQUE,
+                user_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                scopes TEXT NOT NULL,
+                expires_at INTEGER,
+                created_at TEXT DEFAULT (CURRENT_TIMESTAMP),
+                last_used_at TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE CASCADE
+            );`,
+            `CREATE INDEX IF NOT EXISTS idx_api_tokens_user ON api_tokens (user_id);`,
+            `CREATE INDEX IF NOT EXISTS idx_api_tokens_hash ON api_tokens (token_hash);`,
+        ],
+    },
 ];
 
 export function runMigrations(sqlite: Database.Database) {
