@@ -27,8 +27,10 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
   - Standardize API error payload format (`{ error, message }`) across all endpoints
 - 🚀 [DOCS] Integrate interactive OpenAPI API Reference in Docusaurus with "Try it out" explorer, request/response schema inspector, and code samples
 - 🚀 [REGISTRY] Support direct bearer-token authentication for custom registries
+- 🔧 [DOCS] Refresh OpenID Connect (OIDC) and container registry documentation with modern Vue 3 UI screenshots and fix relative asset paths
 
 - ⚠️ [AUTH] Anonymous authentication removed: WUD now enforces mandatory authentication. At least one administrator account must be provisioned (via `WUD_AUTH_ADMIN_USER`/`WUD_AUTH_ADMIN_PASSWORD`, legacy `WUD_AUTH_BASIC_*`, or an OIDC provider with an admin group). WUD will fail-fast on startup if no administrator is available.
+- ⚠️ [AUTH] Deprecate static Basic Authentication environment variables (`WUD_AUTH_BASIC_*`): Administrators should be bootstrapped via `WUD_AUTH_ADMIN_USER`/`WUD_AUTH_ADMIN_PASSWORD` (or via OIDC admin groups), and local users should be managed dynamically via the Web UI (Configuration > Users).
 
 - ⚠️ [API] Standardize REST API contract and error responses:
   - **Structured Error Payloads**: All error responses now consistently return `{ "error": "<ErrorType>", "message": "<Details>" }`. Custom scripts or integrations parsing legacy flat error strings (e.g. `{ "error": "Error description..." }`) need to be updated to read `message`.

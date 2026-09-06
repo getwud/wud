@@ -10,6 +10,15 @@ import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
   description="The basic authentication module lets you protect WUD access using the HTTP Basic authentication standard."
 />
 
+:::warning[Deprecation Notice: Static Basic Auth Environment Variables]
+Configuring users via static environment variables (`WUD_AUTH_BASIC_{auth_name}_*`) is **deprecated** and will be removed in a future release.
+
+- **To bootstrap your administrator account**: Use `WUD_AUTH_ADMIN_USER` and `WUD_AUTH_ADMIN_PASSWORD`.
+- **To manage local users**: Manage users and their roles (`admin`, `rw`, `ro`) directly in the Web UI under **Configuration > Users**.
+- **For external scripts and CI/CD automation**: Use **Personal API Tokens** (`Authorization: Bearer wud_...`) generated from **My Profile** instead of sharing static credentials.
+- **For Single Sign-On**: Use [**OpenID Connect (OIDC)**](../oidc/README.md).
+:::
+
 ### Variables
 
 <ConfigList>

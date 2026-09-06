@@ -80,6 +80,9 @@ const router = createRouter({
  * @returns {Promise<void>}
  */
 async function applyAuthNavigationGuard(to) {
+  if (isDemoMode() && to.name === "login") {
+    return { name: "home" };
+  }
   if (to.name === "login") {
     return true;
   } else {

@@ -206,8 +206,41 @@
               </template>
             </v-list-item>
 
-            <!-- Logout Item -->
-            <template v-if="user && user.username !== 'anonymous'">
+            <!-- Demo Role Switcher -->
+            <template v-if="isDemo">
+              <v-divider class="my-2 opacity-50" />
+              <div class="px-3 py-1 text-caption font-weight-bold text-medium-emphasis d-flex align-center">
+                <v-icon size="small" class="mr-1 text-primary">mdi-swap-horizontal-bold</v-icon>
+                Switch Demo Role:
+              </div>
+              <v-list-item rounded="md" class="px-3" @click="switchDemoUser('homelab-admin')">
+                <template v-slot:prepend>
+                  <v-icon icon="mdi-shield-crown-outline" color="error" class="mr-2" size="18" />
+                </template>
+                <v-list-item-title class="text-caption">
+                  Admin <span class="text-disabled font-weight-light">(homelab-admin)</span>
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item rounded="md" class="px-3" @click="switchDemoUser('developer')">
+                <template v-slot:prepend>
+                  <v-icon icon="mdi-pencil-outline" color="primary" class="mr-2" size="18" />
+                </template>
+                <v-list-item-title class="text-caption">
+                  Read/Write <span class="text-disabled font-weight-light">(developer)</span>
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item rounded="md" class="px-3" @click="switchDemoUser('viewer-oidc')">
+                <template v-slot:prepend>
+                  <v-icon icon="mdi-eye-outline" color="grey" class="mr-2" size="18" />
+                </template>
+                <v-list-item-title class="text-caption">
+                  Read-Only <span class="text-disabled font-weight-light">(viewer-oidc)</span>
+                </v-list-item-title>
+              </v-list-item>
+            </template>
+
+            <!-- Logout Item (hidden in demo mode) -->
+            <template v-if="user && user.username !== 'anonymous' && !isDemo">
               <v-divider class="my-2 opacity-50" />
               <v-list-item rounded="md" class="px-3 text-error" @click="logout">
                 <template v-slot:prepend>
@@ -243,6 +276,7 @@ import { updatePreferences } from "@/services/profile";
 import { getLogIcon } from "@/services/log";
 import { logout } from "@/services/auth";
 import { getAppInfos } from "@/services/app";
+import { isDemoMode, mockService } from "@/services/mock";
 
 export default defineComponent({
   props: {
@@ -331,6 +365,17 @@ export default defineComponent({
       }
     };
 
+    const isDemo = computed(() => isDemoMode());
+
+    const switchDemoUser = async (targetUsername: string) => {
+      const newUser = await mockService.loginBasic(targetUsername);
+      eventBus?.emit("authenticated", newUser);
+      eventBus?.emit("notify", `Switched to demo user: ${newUser.username} (${newUser.role})`, "info");
+      if (newUser.role !== "admin" && router.currentRoute.value.path.startsWith("/configuration/users")) {
+        router.push("/");
+      }
+    };
+
     const userName = computed(() => {
       if (props.user && props.user.username) {
         return props.user.username;
@@ -389,6 +434,8 @@ export default defineComponent({
       userSubtitle,
       userInitial,
       version,
+      isDemo,
+      switchDemoUser,
     };
   },
 });

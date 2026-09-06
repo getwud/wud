@@ -102,6 +102,13 @@ When a user logs in through OIDC, WUD automatically creates an account in the in
 - If `ADMINGROUP` or `RWGROUP` is configured, the user's role is automatically synchronized with their IDP groups on each login (granting `admin`, `rw`, or falling back to `ro`).
 - If no groups are configured, new OIDC users default to `ro` (Read-Only), and a local administrator can promote their role directly in the WUD Web UI.
 :::
+
+:::tip[Zero Local Credentials: Omit Local Administrator with OIDC]
+If you define `WUD_AUTH_OIDC_{name}_ADMINGROUP` (or the global `WUD_AUTH_OIDC_ADMIN_GROUP`), **you do not need to configure any local administrator** (`WUD_AUTH_ADMIN_USER` / `WUD_AUTH_ADMIN_PASSWORD`).
+
+WUD's startup verification recognizes that your Identity Provider provides administrative users, allowing the container to start cleanly without local credentials. When a user in the admin group logs in via OIDC for the first time, WUD automatically provisions their account and grants them full `admin` permissions. This enables a 100% SSO-driven, zero-local-credentials deployment!
+:::
+
 :::info[The callback URL to configure in your IdP is formatted as: `${wud_public_url}/auth/oidc/${auth_name}/cb`]
 :::
 
@@ -138,6 +145,7 @@ identity_providers:
           - openid
           - profile
           - email
+          - groups
         redirect_uris:
           - https://<your_wud_public_domain>/auth/oidc/authelia/cb
         grant_types:
@@ -166,6 +174,10 @@ services:
       - WUD_AUTH_OIDC_AUTHELIA_CLIENTID=my-wud-client-id
       - WUD_AUTH_OIDC_AUTHELIA_CLIENTSECRET=this-is-a-very-secure-secret
       - WUD_AUTH_OIDC_AUTHELIA_DISCOVERY=https://<your_authelia_public_domain>/.well-known/openid-configuration
+      # Role synchronization from Authelia groups claim:
+      - WUD_AUTH_OIDC_AUTHELIA_GROUPSCLAIM=groups
+      - WUD_AUTH_OIDC_AUTHELIA_ADMINGROUP=admins # grants WUD admin role
+      - WUD_AUTH_OIDC_AUTHELIA_RWGROUP=devs      # grants WUD rw role
 ```
 
 </TabItem>
@@ -176,6 +188,9 @@ docker run \
   -e WUD_AUTH_OIDC_AUTHELIA_CLIENTID="my-wud-client-id" \
   -e WUD_AUTH_OIDC_AUTHELIA_CLIENTSECRET="this-is-a-very-secure-secret" \
   -e WUD_AUTH_OIDC_AUTHELIA_DISCOVERY="https://<your_authelia_public_domain>/.well-known/openid-configuration" \
+  -e WUD_AUTH_OIDC_AUTHELIA_GROUPSCLAIM="groups" \
+  -e WUD_AUTH_OIDC_AUTHELIA_ADMINGROUP="admins" \
+  -e WUD_AUTH_OIDC_AUTHELIA_RWGROUP="devs" \
   ...
   getwud/wud
 ```
@@ -183,9 +198,9 @@ docker run \
 </TabItem>
 </Tabs>
 
-![image](authelia_00.png)
+![WUD login with Authelia](./authelia_00.png)
 
-![image](authelia_01.png)
+![Authelia consent request](./authelia_01.png)
 
 ### How to integrate with [Auth0](https://auth0.com)
 
@@ -226,9 +241,9 @@ docker run \
 </TabItem>
 </Tabs>
 
-![image](auth0_00.png)
+![WUD login with Auth0](./auth0_00.png)
 
-![image](auth0_01.png)
+![Auth0 login screen](./auth0_01.png)
 
 ### How to integrate with [Authentik](https://goauthentik.io/)
 
@@ -236,7 +251,7 @@ docker run \
 
 #### In Authentik, create a provider of type `OAuth2/OpenID` (or configure an existing one)
 
-![image](authentik_00.png)
+![Authentik create provider](./authentik_00.png)
 
 #### Important settings:
 
@@ -244,11 +259,11 @@ docker run \
 - Client ID: `<generated value>`
 - Client Secret: `<generated value>`
 - Redirect URIs/Origins: `https://<your_wud_public_domain>/auth/oidc/authentik/cb`
-- Scopes: `email`, `openid`, `profile`
+- Scopes: `email`, `openid`, `profile`, and ensure the **`authentik default OAuth Mapping: OpenID 'groups'`** mapping (or `groups` scope) is included in **Selected Property Mappings**.
 
 #### In Authentik, create an application associated with the provider
 
-![image](authentik_01.png)
+![Authentik create application](./authentik_01.png)
 
 #### Configure WUD
 
@@ -265,6 +280,10 @@ services:
       - WUD_AUTH_OIDC_AUTHENTIK_CLIENTSECRET=<paste the Client Secret from authentik wud_oidc provider>
       - WUD_AUTH_OIDC_AUTHENTIK_DISCOVERY=<authentik_url>/application/o/<authentik_application_name>/.well-known/openid-configuration
       - WUD_AUTH_OIDC_AUTHENTIK_REDIRECT=true # optional (to skip internal login page)
+      # Role synchronization from Authentik groups:
+      - WUD_AUTH_OIDC_AUTHENTIK_GROUPSCLAIM=groups
+      - WUD_AUTH_OIDC_AUTHENTIK_ADMINGROUP=authentik Admins # or your custom admin group
+      - WUD_AUTH_OIDC_AUTHENTIK_RWGROUP=wud-users          # optional rw group
 ```
 
 </TabItem>
@@ -276,12 +295,17 @@ docker run \
   -e WUD_AUTH_OIDC_AUTHENTIK_CLIENTSECRET="<paste the Client Secret from authentik wud_oidc provider>" \
   -e WUD_AUTH_OIDC_AUTHENTIK_DISCOVERY="<authentik_url>/application/o/<authentik_application_name>/.well-known/openid-configuration" \
   -e WUD_AUTH_OIDC_AUTHENTIK_REDIRECT=true \
+  -e WUD_AUTH_OIDC_AUTHENTIK_GROUPSCLAIM="groups" \
+  -e WUD_AUTH_OIDC_AUTHENTIK_ADMINGROUP="authentik Admins" \
+  -e WUD_AUTH_OIDC_AUTHENTIK_RWGROUP="wud-users" \
   ...
   getwud/wud
 ```
 
 </TabItem>
 </Tabs>
+
+![WUD login with Authentik](./authentik_02.png)
 
 ### How to integrate with [Keycloak](https://www.keycloak.org/)
 
@@ -310,7 +334,21 @@ Select your Realm (e.g. `master` or a dedicated realm like `homelab`):
 
 Go to the **Credentials** tab of the created client and copy the **Client Secret**.
 
-#### 3. Configure WUD
+#### 3. Map Groups Claim in Keycloak
+
+To automatically synchronize Keycloak groups with WUD roles:
+1. Under your `wud` Client, navigate to the **Client scopes** tab.
+2. Click the dedicated client scope (e.g., `wud-dedicated`).
+3. Click **Add mapper** > **By configuration** > select **Group Membership**.
+4. Configure the mapper:
+   - **Name**: `groups`
+   - **Token Claim Name**: `groups`
+   - **Add to ID token**: `On`
+   - **Add to userinfo**: `On`
+   - **Full group path**: `Off` (produces simple group names like `wud-admins` instead of `/wud-admins`)
+5. Click **Save**.
+
+#### 4. Configure WUD
 
 :::tip
 Keycloak standard discovery URL follows the format:  
@@ -333,6 +371,10 @@ services:
       - WUD_AUTH_OIDC_KEYCLOAK_DISCOVERY=https://<your_keycloak_domain>/realms/<your_realm>/.well-known/openid-configuration
       - WUD_AUTH_OIDC_KEYCLOAK_USERNAMECLAIM=preferred_username # or email
       - WUD_AUTH_OIDC_KEYCLOAK_REDIRECT=true # optional (to skip internal login page)
+      # Role synchronization from Keycloak groups:
+      - WUD_AUTH_OIDC_KEYCLOAK_GROUPSCLAIM=groups
+      - WUD_AUTH_OIDC_KEYCLOAK_ADMINGROUP=wud-admins # grants WUD admin role
+      - WUD_AUTH_OIDC_KEYCLOAK_RWGROUP=wud-editors   # grants WUD rw role
 ```
 
 </TabItem>
@@ -345,12 +387,17 @@ docker run \
   -e WUD_AUTH_OIDC_KEYCLOAK_DISCOVERY="https://<your_keycloak_domain>/realms/<your_realm>/.well-known/openid-configuration" \
   -e WUD_AUTH_OIDC_KEYCLOAK_USERNAMECLAIM="preferred_username" \
   -e WUD_AUTH_OIDC_KEYCLOAK_REDIRECT=true \
+  -e WUD_AUTH_OIDC_KEYCLOAK_GROUPSCLAIM="groups" \
+  -e WUD_AUTH_OIDC_KEYCLOAK_ADMINGROUP="wud-admins" \
+  -e WUD_AUTH_OIDC_KEYCLOAK_RWGROUP="wud-editors" \
   ...
   getwud/wud
 ```
 
 </TabItem>
 </Tabs>
+
+![WUD login with Keycloak](./keycloak_00.png)
 
 ### How to integrate with [Okta](https://www.okta.com/)
 
@@ -375,7 +422,19 @@ Under the application's **General** tab:
 - Copy the **Client ID**.
 - Copy the **Client Secret** under the *Client Credentials* section.
 
-#### 3. Configure WUD
+#### 3. Configure Groups Claim in Okta
+
+To synchronize Okta user groups with WUD roles:
+1. In your Okta Admin dashboard, navigate to **Security** > **API** > **Authorization Servers**.
+2. Select your authorization server (e.g. `default`).
+3. Under the **Claims** tab, click **Add Claim**:
+   - **Name**: `groups`
+   - **Include in token type**: `ID Token` / `Always`
+   - **Value type**: `Groups`
+   - **Filter**: `Matches regex` with `.*` (or your specific group prefix)
+4. Click **Create**.
+
+#### 4. Configure WUD
 
 :::info
 - For Okta API Access Management / Custom Authorization Server, the discovery URL is:  
@@ -397,6 +456,10 @@ services:
       - WUD_AUTH_OIDC_OKTA_CLIENTSECRET=<paste-your-client-secret>
       - WUD_AUTH_OIDC_OKTA_DISCOVERY=https://<your-okta-domain>/oauth2/default/.well-known/openid-configuration
       - WUD_AUTH_OIDC_OKTA_USERNAMECLAIM=email
+      # Role synchronization from Okta groups:
+      - WUD_AUTH_OIDC_OKTA_GROUPSCLAIM=groups
+      - WUD_AUTH_OIDC_OKTA_ADMINGROUP=wud-admins # grants WUD admin role
+      - WUD_AUTH_OIDC_OKTA_RWGROUP=wud-users     # grants WUD rw role
 ```
 
 </TabItem>
@@ -407,12 +470,18 @@ docker run \
   -e WUD_AUTH_OIDC_OKTA_CLIENTID="<paste-your-client-id>" \
   -e WUD_AUTH_OIDC_OKTA_CLIENTSECRET="<paste-your-client-secret>" \
   -e WUD_AUTH_OIDC_OKTA_DISCOVERY="https://<your-okta-domain>/oauth2/default/.well-known/openid-configuration" \
+  -e WUD_AUTH_OIDC_OKTA_USERNAMECLAIM="email" \
+  -e WUD_AUTH_OIDC_OKTA_GROUPSCLAIM="groups" \
+  -e WUD_AUTH_OIDC_OKTA_ADMINGROUP="wud-admins" \
+  -e WUD_AUTH_OIDC_OKTA_RWGROUP="wud-users" \
   ...
   getwud/wud
 ```
 
 </TabItem>
 </Tabs>
+
+![WUD login with Okta](./okta_00.png)
 
 ### Other OIDC Providers
 
@@ -426,4 +495,17 @@ Because WUD strictly adheres to OpenID Connect discovery specifications, you can
 | **Zitadel** | `https://<your-instance>.zitadel.cloud/.well-known/openid-configuration` | `preferred_username` or `email` | `https://<wud-domain>/auth/oidc/zitadel/cb` |
 | **PocketID** | `https://<your-pocket-id-domain>/.well-known/openid-configuration` | `username` or `email` | `https://<wud-domain>/auth/oidc/pocketid/cb` |
 | **Kanidm** | `https://<your-kanidm-domain>/oauth2/openid/<client_id>/.well-known/openid-configuration` | `preferred_username` | `https://<wud-domain>/auth/oidc/kanidm/cb` |
+
+#### Example: Microsoft Entra ID (Azure AD) with Security Groups
+In the Azure Portal under your App registration > **Token configuration**, click **Add groups claim** (select *Security groups*). In WUD, configure:
+```yaml
+environment:
+  - WUD_AUTH_OIDC_ENTRA_CLIENTID=<azure-app-client-id>
+  - WUD_AUTH_OIDC_ENTRA_CLIENTSECRET=<azure-app-client-secret>
+  - WUD_AUTH_OIDC_ENTRA_DISCOVERY=https://login.microsoftonline.com/<tenant-id>/v2.0/.well-known/openid-configuration
+  - WUD_AUTH_OIDC_ENTRA_USERNAMECLAIM=preferred_username
+  - WUD_AUTH_OIDC_ENTRA_GROUPSCLAIM=groups
+  - WUD_AUTH_OIDC_ENTRA_ADMINGROUP=<admin-group-object-id>
+  - WUD_AUTH_OIDC_ENTRA_RWGROUP=<rw-group-object-id>
+```
 

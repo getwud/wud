@@ -54,12 +54,56 @@
       >
         Login
       </v-btn>
+
+      <!-- Demo Mode Quick Login Helpers -->
+      <div v-if="isDemo" class="mt-4 pt-3 border-t">
+        <div class="d-flex align-center text-caption font-weight-bold text-medium-emphasis mb-2">
+          <v-icon size="small" class="mr-1 text-primary">mdi-lightning-bolt</v-icon>
+          Demo Quick Sign-In:
+        </div>
+        <div class="d-flex flex-column gap-2">
+          <v-btn
+            size="small"
+            variant="tonal"
+            color="error"
+            class="text-none justify-start mb-1"
+            prepend-icon="mdi-shield-crown-outline"
+            @click="quickLogin('homelab-admin')"
+          >
+            Admin <span class="text-medium-emphasis ml-1 font-weight-regular">(homelab-admin)</span>
+          </v-btn>
+          <v-btn
+            size="small"
+            variant="tonal"
+            color="primary"
+            class="text-none justify-start mb-1"
+            prepend-icon="mdi-pencil-outline"
+            @click="quickLogin('developer')"
+          >
+            Read / Write <span class="text-medium-emphasis ml-1 font-weight-regular">(developer)</span>
+          </v-btn>
+          <v-btn
+            size="small"
+            variant="tonal"
+            color="grey-darken-1"
+            class="text-none justify-start mb-1"
+            prepend-icon="mdi-eye-outline"
+            @click="quickLogin('viewer-oidc')"
+          >
+            Read-Only <span class="text-medium-emphasis ml-1 font-weight-regular">(viewer-oidc)</span>
+          </v-btn>
+        </div>
+        <div class="text-caption text-grey mt-2 text-center">
+          Any password accepted in demo mode.
+        </div>
+      </div>
     </div>
   </v-form>
 </template>
 
 <script lang="ts">
 import { loginBasic } from "@/services/auth";
+import { isDemoMode } from "@/services/mock";
 import { defineComponent } from "vue";
 
 export default defineComponent({
@@ -70,6 +114,7 @@ export default defineComponent({
       showPassword: false,
       loading: false,
       errorMessage: "",
+      isDemo: isDemoMode(),
       rules: {
         required: (value: any) => !!value || "Required",
       },
@@ -86,7 +131,23 @@ export default defineComponent({
     },
   },
 
+  mounted() {
+    if (this.isDemo && !this.username) {
+      this.username = "homelab-admin";
+      this.password = "demo";
+    }
+  },
+
   methods: {
+    /**
+     * Quick login helper for demo mode.
+     */
+    quickLogin(demoUsername: string) {
+      this.username = demoUsername;
+      this.password = "demo";
+      this.login();
+    },
+
     /**
      * Perform login.
      * @returns {Promise<void>}

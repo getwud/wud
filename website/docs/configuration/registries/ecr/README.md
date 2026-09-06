@@ -108,14 +108,14 @@ docker run \
 ### 1. Create an IAM User
 Open the [AWS IAM Console](https://console.aws.amazon.com/iam) and create a new IAM user.
 
-![image](ecr_01.png)
+![AWS IAM create user](./ecr_01.png)
 
 ### 2. Attach the Read-Only Policy
 Attach the `AmazonEC2ContainerRegistryReadOnly` managed policy to the user.
 
-![image](ecr_02.png)
+![AWS IAM attach policy](./ecr_02.png)
 
 ### 3. Generate Access Keys
 Create an **Access Key** under **Security credentials**, and copy the Access Key ID and Secret Access Key.
 
-![image](ecr_03.png)
+![AWS IAM generate access keys](./ecr_03.png)

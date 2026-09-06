@@ -45,6 +45,9 @@ export default defineComponent({
   setup() {
     const route = useRoute();
     const theme = useTheme();
+    if (localStorage.darkMode === "true") {
+      theme.global.name.value = "dark";
+    }
     const eventBus = inject("eventBus") as any;
     const instance = getCurrentInstance();
 

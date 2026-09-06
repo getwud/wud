@@ -41,6 +41,45 @@ export function isDemoMode(): boolean {
 let containersState = JSON.parse(JSON.stringify(mockContainers));
 let currentUser: any = { ...mockUser };
 
+const initialMockUsers: UserItem[] = [
+  {
+    id: "user-admin-1",
+    username: "homelab-admin",
+    role: "admin",
+    provider: "local",
+    preferences: { theme: "light" },
+  },
+  {
+    id: "user-rw-2",
+    username: "developer",
+    role: "rw",
+    provider: "local",
+    preferences: { theme: "dark" },
+  },
+  {
+    id: "user-ro-3",
+    username: "viewer-oidc",
+    role: "ro",
+    provider: "oidc",
+    preferences: { theme: "light" },
+  },
+];
+
+const initialMockTokens: ApiTokenItem[] = [
+  {
+    id: "token-1",
+    userId: "user-admin-1",
+    name: "Home Assistant",
+    scopes: ["read"],
+    expiresAt: null,
+    createdAt: new Date().toISOString(),
+    lastUsedAt: new Date().toISOString(),
+  },
+];
+
+let usersState: UserItem[] = JSON.parse(JSON.stringify(initialMockUsers));
+let tokensState: ApiTokenItem[] = JSON.parse(JSON.stringify(initialMockTokens));
+
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -66,7 +105,29 @@ export const mockService = {
   /* eslint-disable @typescript-eslint/no-unused-vars */
   async loginBasic(username: string, _password?: string) {
     await delay(300);
-    currentUser = { username: username || "homelab-admin" };
+    const uname = username?.trim() || "homelab-admin";
+    const existing = usersState.find(
+      (u) => u.username.toLowerCase() === uname.toLowerCase()
+    );
+    if (existing) {
+      currentUser = { ...existing };
+    } else {
+      let role: "admin" | "rw" | "ro" = "admin";
+      const lower = uname.toLowerCase();
+      if (lower.includes("ro") || lower.includes("viewer") || lower.includes("read")) {
+        role = "ro";
+      } else if (lower.includes("rw") || lower.includes("editor") || lower.includes("write")) {
+        role = "rw";
+      }
+      currentUser = {
+        id: `user-${Date.now()}`,
+        username: uname,
+        role,
+        provider: "local",
+        preferences: { theme: "light" },
+      };
+      usersState.push({ ...currentUser });
+    }
     return { ...currentUser };
   },
 
@@ -176,44 +237,29 @@ export const mockService = {
   // Users (Admin)
   async listUsers(): Promise<UserItem[]> {
     await delay(100);
-    return [
-      {
-        id: "user-admin-1",
-        username: "homelab-admin",
-        role: "admin",
-        provider: "local",
-        preferences: { theme: "light" },
-      },
-      {
-        id: "user-rw-2",
-        username: "developer",
-        role: "rw",
-        provider: "local",
-        preferences: { theme: "dark" },
-      },
-      {
-        id: "user-ro-3",
-        username: "viewer-oidc",
-        role: "ro",
-        provider: "oidc",
-        preferences: { theme: "light" },
-      },
-    ];
+    return JSON.parse(JSON.stringify(usersState));
   },
 
   async createUser(data: any): Promise<UserItem> {
     await delay(100);
-    return {
+    const newUser: UserItem = {
       id: `user-${Date.now()}`,
       username: data.username,
       role: (data.role as "admin" | "rw" | "ro") || "ro",
       provider: "local",
       preferences: { theme: "light" },
     };
+    usersState.push(newUser);
+    return { ...newUser };
   },
 
   async updateUser(id: string, data: any): Promise<UserItem> {
     await delay(100);
+    const found = usersState.find((u) => u.id === id);
+    if (found) {
+      if (data.role) found.role = data.role;
+      return { ...found };
+    }
     return {
       id,
       username: "updated-user",
@@ -223,8 +269,8 @@ export const mockService = {
   },
 
   async deleteUser(id: string) {
-    void id;
     await delay(100);
+    usersState = usersState.filter((u) => u.id !== id);
   },
 
   // Profile & Tokens
@@ -236,6 +282,10 @@ export const mockService = {
   async updatePreferences(preferences: any): Promise<UserItem> {
     await delay(50);
     currentUser.preferences = { ...currentUser.preferences, ...preferences };
+    const found = usersState.find((u) => u.id === currentUser.id);
+    if (found) {
+      found.preferences = { ...currentUser.preferences };
+    }
     return { ...currentUser };
   },
 
@@ -248,43 +298,39 @@ export const mockService = {
 
   async listTokens(): Promise<ApiTokenItem[]> {
     await delay(100);
-    return [
-      {
-        id: "token-1",
-        userId: currentUser.id,
-        name: "Home Assistant",
-        scopes: ["read"],
-        expiresAt: null,
-        createdAt: new Date().toISOString(),
-        lastUsedAt: new Date().toISOString(),
-      },
-    ];
+    const currentId = currentUser?.id || "user-admin-1";
+    return JSON.parse(JSON.stringify(tokensState.filter((t) => t.userId === currentId)));
   },
 
   async createToken(data: any): Promise<{ token: ApiTokenItem; rawSecret: string }> {
     await delay(100);
+    const currentId = currentUser?.id || "user-admin-1";
+    const newToken: ApiTokenItem = {
+      id: `token-${Date.now()}`,
+      userId: currentId,
+      name: data.name,
+      scopes: (data.scopes as ("read" | "write")[]) || ["read"],
+      expiresAt: data.expiresAt || null,
+      createdAt: new Date().toISOString(),
+      lastUsedAt: null,
+    };
+    tokensState.push(newToken);
     return {
-      token: {
-        id: `token-${Date.now()}`,
-        userId: currentUser.id,
-        name: data.name,
-        scopes: (data.scopes as ("read" | "write")[]) || ["read"],
-        expiresAt: data.expiresAt || null,
-        createdAt: new Date().toISOString(),
-        lastUsedAt: null,
-      },
-      rawSecret: `wud_demo_${Math.random().toString(36).substring(2)}`,
+      token: { ...newToken },
+      rawSecret: `wud_demo_${Math.random().toString(36).substring(2)}${Math.random().toString(36).substring(2)}`,
     };
   },
 
   async deleteToken(id: string) {
-    void id;
     await delay(100);
+    tokensState = tokensState.filter((t) => t.id !== id);
   },
 
   // Reset demo state if needed
   resetState() {
     containersState = JSON.parse(JSON.stringify(mockContainers));
     currentUser = { ...mockUser };
+    usersState = JSON.parse(JSON.stringify(initialMockUsers));
+    tokensState = JSON.parse(JSON.stringify(initialMockTokens));
   },
 };

@@ -53,6 +53,9 @@ export async function bootstrapAuth(): Promise<void> {
 
     // 2. Check for legacy basic authentication configs (single or multi-user: WUD_AUTH_BASIC_{name}_USER / HASH)
     if (authConfigs.basic && typeof authConfigs.basic === 'object') {
+        log.warn(
+            'Configuring users via WUD_AUTH_BASIC_* environment variables is deprecated and will be removed in a future release. Please use WUD_AUTH_ADMIN_USER / WUD_AUTH_ADMIN_PASSWORD for initial admin bootstrapping, and manage users directly via the Web UI (Configuration > Users).',
+        );
         const entries: Array<{
             user: string;
             password?: string;
