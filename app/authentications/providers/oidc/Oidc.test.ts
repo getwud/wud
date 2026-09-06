@@ -344,3 +344,95 @@ test('callback should redirect to next url when authenticated', async () => {
     );
     expect(req.session.oidc.next).toBeUndefined();
 });
+
+test('getEffectiveScope should return base scopes when no groups configured', () => {
+    oidc.configuration = { ...configurationValid };
+    expect(oidc.getEffectiveScope()).toEqual('openid email profile');
+});
+
+test('getEffectiveScope should include groups when admingroup is configured and no server metadata', () => {
+    oidc.configuration = { ...configurationValid, admingroup: 'admins' };
+    expect(oidc.getEffectiveScope()).toEqual('openid email profile groups');
+});
+
+test('getEffectiveScope should include groups when IdP declares groups in scopes_supported (Authelia/Authentik)', () => {
+    oidc.configuration = { ...configurationValid, admingroup: 'admins' };
+    const configWithGroups = {
+        serverMetadata: () => ({
+            scopes_supported: ['openid', 'email', 'profile', 'groups'],
+        }),
+    };
+    expect(oidc.getEffectiveScope(configWithGroups as any)).toEqual(
+        'openid email profile groups',
+    );
+});
+
+test('getEffectiveScope should NOT include groups when IdP does NOT declare groups in scopes_supported (Entra ID/Google)', () => {
+    oidc.configuration = { ...configurationValid, admingroup: 'admins' };
+    const configWithoutGroups = {
+        serverMetadata: () => ({
+            scopes_supported: ['openid', 'email', 'profile', 'offline_access'],
+        }),
+    };
+    expect(oidc.getEffectiveScope(configWithoutGroups as any)).toEqual(
+        'openid email profile',
+    );
+});
+
+test('getEffectiveScope should return explicitly configured scope regardless of metadata', () => {
+    oidc.configuration = {
+        ...configurationValid,
+        scope: 'openid email profile custom',
+    };
+    expect(oidc.getEffectiveScope()).toEqual('openid email profile custom');
+});
+
+test('redirect should use effective scope with groups when admingroup is set', async () => {
+    oidc.configuration = {
+        ...configurationValid,
+        admingroup: 'wud-admin',
+        ttl: -1,
+    };
+    (oidc as any).cachedConfig = mockConfig;
+    (client.randomPKCECodeVerifier as jest.Mock).mockReturnValue('verifier');
+    (client.calculatePKCECodeChallenge as jest.Mock).mockResolvedValue(
+        'challenge',
+    );
+    (client.randomState as jest.Mock).mockReturnValue('state123');
+    (client.buildAuthorizationUrl as jest.Mock).mockReturnValue(
+        new URL('https://idp/auth'),
+    );
+
+    const req: any = {
+        protocol: 'http',
+        headers: { host: 'localhost:3000' },
+        session: {},
+        query: {},
+    };
+    const res: any = { json: jest.fn() };
+
+    await oidc.redirect(req, res);
+
+    expect(client.buildAuthorizationUrl).toHaveBeenCalledWith(
+        mockConfig,
+        expect.objectContaining({
+            scope: 'openid email profile groups',
+        }),
+    );
+});
+
+test('getUserFromAccessToken should assign admin role when group matches admingroup', async () => {
+    oidc.configuration = {
+        ...configurationValid,
+        admingroup: 'wud-admin',
+        ttl: -1,
+    };
+    (oidc as any).cachedConfig = mockConfig;
+    (client.fetchUserInfo as jest.Mock).mockResolvedValue({
+        email: 'admin@example.com',
+        groups: ['other-group', 'wud-admin'],
+    });
+
+    const user = await oidc.getUserFromAccessToken('token');
+    expect(user.role).toEqual('admin');
+});

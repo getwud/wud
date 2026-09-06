@@ -95,6 +95,14 @@ WUD supports any compliant OpenID Connect Identity Provider. Step-by-step guides
     type="string">
     Identity provider group or role name that grants WUD `rw` (Read / Write) privileges upon login
   </ConfigOption>
+
+  <ConfigOption
+    name="WUD_AUTH_OIDC_{auth_name}_SCOPE"
+    required={false}
+    type="string"
+    defaultValue="openid email profile">
+    OpenID Connect scopes to request during authorization flow. Automatically appends `groups` when `ADMINGROUP` or `RWGROUP` is configured unless overridden.
+  </ConfigOption>
 </ConfigList>
 
 :::tip[Automatic User Onboarding & Role Sync]

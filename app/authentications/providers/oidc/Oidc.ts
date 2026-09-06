@@ -40,6 +40,7 @@ class Oidc extends Authentication {
             admingroup: this.joi.string().optional(),
             rwgroup: this.joi.string().optional(),
             groupsclaim: this.joi.string().default('groups'),
+            scope: this.joi.string().optional(),
         });
     }
 
@@ -159,6 +160,28 @@ class Oidc extends Authentication {
     }
 
     /**
+     * Compute effective OIDC scopes to request.
+     */
+    getEffectiveScope(config?: client.Configuration): string {
+        if (this.configuration.scope) {
+            return this.configuration.scope;
+        }
+        const scopes = ['openid', 'email', 'profile'];
+        if (this.configuration.admingroup || this.configuration.rwgroup) {
+            const scopesSupported = config?.serverMetadata()?.scopes_supported;
+            // Only request 'groups' scope if the IdP explicitly declares supporting it (or if no discovery metadata available)
+            if (
+                !scopesSupported ||
+                (Array.isArray(scopesSupported) &&
+                    scopesSupported.includes('groups'))
+            ) {
+                scopes.push('groups');
+            }
+        }
+        return scopes.join(' ');
+    }
+
+    /**
      * Return passport strategy.
      * @param app
      */
@@ -183,7 +206,7 @@ class Oidc extends Authentication {
             {
                 config: this.cachedConfig,
                 params: {
-                    scope: 'openid email profile',
+                    scope: this.getEffectiveScope(this.cachedConfig),
                 },
             },
             async (accessToken, done) => this.verify(accessToken, done),
@@ -211,7 +234,7 @@ class Oidc extends Authentication {
 
         const parameters: Record<string, string> = {
             redirect_uri: `${getPublicUrl(req)}/auth/oidc/${this.name}/cb`,
-            scope: 'openid email profile',
+            scope: this.getEffectiveScope(config),
             code_challenge: codeChallenge,
             code_challenge_method: 'S256',
             state: state,
@@ -350,6 +373,12 @@ class Oidc extends Authentication {
         const hasGroupConfig = Boolean(
             this.configuration.admingroup || this.configuration.rwgroup,
         );
+
+        if (hasGroupConfig) {
+            this.log.debug(
+                `Extracted user groups for '${validUsername}' via claim '${groupsClaimKey}': [${userGroups.join(', ')}]`,
+            );
+        }
 
         if (
             this.configuration.admingroup &&
