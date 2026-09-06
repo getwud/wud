@@ -18,6 +18,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [LOG] Migrate logger from unmaintained Bunyan to Pino with Pino-pretty formatting
 - 🚀 [UI] Add live logs viewer via Server-Sent Events (SSE)
 - 🚀 [DOCS] Add interactive UI live demo simulator with homelab mock data
+- 🚀 [TESTS] Add end-to-end Cucumber API scenarios and Playwright UI tests covering user management, personal API tokens, and full RBAC enforcement
 - 🚀 [CI] Add automated UI screenshot capture pipeline with Playwright and dark mode support
 - 🚀 [UI] Add demo mode with mock services for static deployment
 - 🚀 [REGISTRY] Enable anonymous access by default for Gitlab public registry
