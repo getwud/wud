@@ -1,10 +1,11 @@
 // @ts-nocheck
-import passJs from 'pass';
 import BasicStrategy from './BasicStrategy';
 import Authentication from '../Authentication';
+import { getUserByUsername, verifyPassword } from '../../../store/user';
+import log from '../../../log';
 
 /**
- * Htpasswd authentication.
+ * Local / Basic authentication backed by database.
  */
 class Basic extends Authentication {
     /**
@@ -13,8 +14,8 @@ class Basic extends Authentication {
      */
     getConfigurationSchema() {
         return this.joi.object().keys({
-            user: this.joi.string().required(),
-            hash: this.joi.string().required(),
+            user: this.joi.string().optional(),
+            hash: this.joi.string().optional(),
         });
     }
 
@@ -25,7 +26,9 @@ class Basic extends Authentication {
     maskConfiguration() {
         return {
             user: this.configuration.user,
-            hash: Basic.mask(this.configuration.hash),
+            hash: this.configuration.hash
+                ? Basic.mask(this.configuration.hash)
+                : undefined,
         };
     }
 
@@ -45,23 +48,36 @@ class Basic extends Authentication {
         };
     }
 
-    authenticate(user, pass, done) {
-        // No user or different user? => reject
-        if (!user || user !== this.configuration.user) {
+    async authenticate(user, pass, done) {
+        if (!user || !pass) {
             done(null, false);
             return;
         }
 
-        // Different password? => reject
-        passJs.validate(pass, this.configuration.hash, (err, success) => {
-            if (success) {
+        try {
+            const dbUser = await getUserByUsername(user);
+            if (
+                dbUser &&
+                dbUser.provider === 'local' &&
+                dbUser.passwordHash &&
+                (await verifyPassword(pass, dbUser.passwordHash))
+            ) {
                 done(null, {
-                    username: this.configuration.user,
+                    id: dbUser.id,
+                    username: dbUser.username,
+                    role: dbUser.role,
+                    provider: dbUser.provider,
+                    preferences: dbUser.preferences,
                 });
             } else {
                 done(null, false);
             }
-        });
+        } catch (e) {
+            log.warn(
+                `Error during local authentication for '${user}': ${e.message}`,
+            );
+            done(null, false);
+        }
     }
 }
 

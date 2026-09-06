@@ -258,14 +258,14 @@ test('registerAuthentications should warn when registration errors occur', async
     };
     await registry.testable_registerAuthentications();
     expect(spyLog).toHaveBeenCalledWith(
-        'Some authentications failed to register (Error when registering component basic ("user" is required))',
+        'Some authentications failed to register (Error when registering component basic ("fail" is not allowed))',
     );
 });
 
-test('registerAuthentications should register anonymous auth by default', async () => {
+test('registerAuthentications should register basic auth by default', async () => {
     await registry.testable_registerAuthentications();
     expect(Object.keys(registry.getState().authentication)).toEqual([
-        'anonymous.anonymous',
+        'basic.basic',
     ]);
 });
 

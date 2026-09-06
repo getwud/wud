@@ -26,6 +26,10 @@ jest.mock('./prometheus', () => ({
     init: jest.fn(),
 }));
 
+jest.mock('./store/auth_bootstrap', () => ({
+    bootstrapAuth: jest.fn().mockResolvedValue(undefined),
+}));
+
 describe('Main Application', () => {
     beforeEach(async () => {
         jest.clearAllMocks();
@@ -38,6 +42,7 @@ describe('Main Application', () => {
         const store = await import('./store');
         const registry = await import('./registry');
         const api = await import('./api');
+        const { bootstrapAuth } = await import('./store/auth_bootstrap');
         const prometheus = await import('./prometheus');
         const { getVersion } = await import('./configuration');
 
@@ -53,6 +58,7 @@ describe('Main Application', () => {
             'WUD is starting (version = 1.0.0)',
         );
         expect(store.store.init).toHaveBeenCalled();
+        expect(bootstrapAuth).toHaveBeenCalled();
         expect(prometheus.init).toHaveBeenCalled();
         expect(registry.init).toHaveBeenCalled();
         expect(api.init).toHaveBeenCalled();

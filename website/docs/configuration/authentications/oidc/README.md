@@ -73,7 +73,35 @@ WUD supports any compliant OpenID Connect Identity Provider. Step-by-step guides
     defaultValue="email">
     User claim to use as the username
   </ConfigOption>
+
+  <ConfigOption
+    name="WUD_AUTH_OIDC_{auth_name}_GROUPSCLAIM"
+    required={false}
+    type="string"
+    defaultValue="groups">
+    Claim in ID token / userinfo containing the user's groups or roles array
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_AUTH_OIDC_{auth_name}_ADMINGROUP"
+    required={false}
+    type="string">
+    Identity provider group or role name that grants WUD `admin` (Administrator) privileges upon login
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_AUTH_OIDC_{auth_name}_RWGROUP"
+    required={false}
+    type="string">
+    Identity provider group or role name that grants WUD `rw` (Read / Write) privileges upon login
+  </ConfigOption>
 </ConfigList>
+
+:::tip[Automatic User Onboarding & Role Sync]
+When a user logs in through OIDC, WUD automatically creates an account in the internal database.
+- If `ADMINGROUP` or `RWGROUP` is configured, the user's role is automatically synchronized with their IDP groups on each login (granting `admin`, `rw`, or falling back to `ro`).
+- If no groups are configured, new OIDC users default to `ro` (Read-Only), and a local administrator can promote their role directly in the WUD Web UI.
+:::
 :::info[The callback URL to configure in your IdP is formatted as: `${wud_public_url}/auth/oidc/${auth_name}/cb`]
 :::
 

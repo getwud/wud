@@ -46,6 +46,12 @@ jest.mock('./store', () => ({
 jest.mock('./server', () => ({
     init: jest.fn(() => ({ use: jest.fn(), get: jest.fn() })),
 }));
+jest.mock('./user', () => ({
+    init: jest.fn(() => ({ use: jest.fn(), get: jest.fn() })),
+}));
+jest.mock('./profile', () => ({
+    init: jest.fn(() => ({ use: jest.fn(), get: jest.fn() })),
+}));
 
 import * as api from './api';
 import swaggerUi from 'swagger-ui-express';
@@ -76,6 +82,8 @@ describe('API Router', () => {
         const logRouter = await import('./log');
         const storeRouter = await import('./store');
         const serverRouter = await import('./server');
+        const userRouter = await import('./user');
+        const profileRouter = await import('./profile');
 
         expect(appRouter.init).toHaveBeenCalled();
         expect(containerRouter.init).toHaveBeenCalled();
@@ -86,6 +94,8 @@ describe('API Router', () => {
         expect(logRouter.init).toHaveBeenCalled();
         expect(storeRouter.init).toHaveBeenCalled();
         expect(serverRouter.init).toHaveBeenCalled();
+        expect(userRouter.init).toHaveBeenCalled();
+        expect(profileRouter.init).toHaveBeenCalled();
     });
 
     test('should use requireAuthentication middleware', async () => {

@@ -14,20 +14,39 @@ import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 
 <ConfigList>
   <ConfigOption
-    name="WUD_AUTH_BASIC_{auth_name}_HASH"
-    required={true}
+    name="WUD_AUTH_ADMIN_USER"
+    required={false}
     type="string"
-    supported="htpasswd-compliant Apache hash (MD5, SHA1, Crypt, APR1, Bcrypt)">
-    htpasswd-compliant password hash ([see htpasswd documentation](https://httpd.apache.org/docs/current/programs/htpasswd.html)).
+    defaultValue="admin">
+    Username for the bootstrap administrator account created on initial startup.
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_AUTH_ADMIN_PASSWORD"
+    required={false}
+    type="string">
+    Password for the bootstrap administrator account. Automatically hashed using bcrypt when seeded into the database.
   </ConfigOption>
 
   <ConfigOption
     name="WUD_AUTH_BASIC_{auth_name}_USER"
-    required={true}
+    required={false}
     type="string">
-    Username for the authorized user.
+    Legacy variable: username for an authorized user seeded at startup.
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_AUTH_BASIC_{auth_name}_HASH"
+    required={false}
+    type="string"
+    supported="htpasswd-compliant Apache hash (MD5, SHA1, Crypt, APR1, Bcrypt)">
+    Legacy variable: htpasswd-compliant password hash ([see htpasswd documentation](https://httpd.apache.org/docs/current/programs/htpasswd.html)).
   </ConfigOption>
 </ConfigList>
+
+:::tip[Database Persistence]
+User accounts and their hashed passwords are now persisted directly in the WUD database. Environment variables are used to automatically seed or update administrator access upon startup. You can also create and manage subsequent users directly through the WUD Web UI.
+:::
 
 :::warning[Password hashes typically contain `$` characters; make sure to escape or quote them appropriately:]
 

@@ -12,6 +12,8 @@ import * as authenticationRouter from './authentication';
 import * as logRouter from './log';
 import * as storeRouter from './store';
 import * as serverRouter from './server';
+import * as userRouter from './user';
+import * as profileRouter from './profile';
 import { requireAuthentication } from './auth';
 
 /**
@@ -42,6 +44,12 @@ export function init() {
 
     // Routes to protect after this line
     router.use(requireAuthentication);
+
+    // Mount user router (Admin only)
+    router.use('/users', userRouter.init());
+
+    // Mount profile & tokens router (all authenticated users)
+    router.use('/profile', profileRouter.init());
 
     // Mount log router
     router.use('/log', logRouter.init());

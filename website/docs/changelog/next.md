@@ -10,6 +10,11 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 ---
 
 - 🚀 [STORE] Migrate persistence layer from LokiJS to SQL (SQLite) with Drizzle ORM, automatic schema migrations, and transparent legacy data migration
+- 🚀 [AUTH] Add Role-Based Access Control (RBAC) with 3 roles: Administrator (`admin`), Read/Write (`rw`), and Read-Only (`ro`)
+- 🚀 [AUTH] Add Database-backed User Management in Web UI (Configuration > Users) with role management and secure password resets
+- 🚀 [AUTH] Add Personal API Tokens with granular scopes (`read`, `write`) and optional expiration dates for programmatic REST API access
+- 🚀 [OIDC] Add automatic user onboarding and role synchronization from Identity Provider group claims (`admingroup`, `rwgroup`, `groupsclaim`)
+- 🚀 [PROFILE] Add User Profile page with theme preference synchronization (dark/light) across sessions, password change, and API token management
 - 🚀 [LOG] Migrate logger from unmaintained Bunyan to Pino with Pino-pretty formatting
 - 🚀 [UI] Add live logs viewer via Server-Sent Events (SSE)
 - 🚀 [DOCS] Add interactive UI live demo simulator with homelab mock data
@@ -21,6 +26,8 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
   - Standardize API error payload format (`{ error, message }`) across all endpoints
 - 🚀 [DOCS] Integrate interactive OpenAPI API Reference in Docusaurus with "Try it out" explorer, request/response schema inspector, and code samples
 - 🚀 [REGISTRY] Support direct bearer-token authentication for custom registries
+
+- ⚠️ [AUTH] Anonymous authentication removed: WUD now enforces mandatory authentication. At least one administrator account must be provisioned (via `WUD_AUTH_ADMIN_USER`/`WUD_AUTH_ADMIN_PASSWORD`, legacy `WUD_AUTH_BASIC_*`, or an OIDC provider with an admin group). WUD will fail-fast on startup if no administrator is available.
 
 - ⚠️ [API] Standardize REST API contract and error responses:
   - **Structured Error Payloads**: All error responses now consistently return `{ "error": "<ErrorType>", "message": "<Details>" }`. Custom scripts or integrations parsing legacy flat error strings (e.g. `{ "error": "Error description..." }`) need to be updated to read `message`.

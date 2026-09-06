@@ -1,6 +1,6 @@
-// @ts-nocheck
 import * as component from './component';
 import * as registry from '../registry';
+import { requireRole } from './rbac';
 import logger from '../log';
 const log = logger.child({ component: 'trigger' });
 
@@ -67,6 +67,10 @@ export async function runTrigger(req, res) {
  */
 export function init() {
     const router = component.init('trigger');
-    router.post('/:type/:name', runTrigger);
+    router.post(
+        '/:type/:name',
+        requireRole(['admin', 'rw'], 'write'),
+        runTrigger,
+    );
     return router;
 }

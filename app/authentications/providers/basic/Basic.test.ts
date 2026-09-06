@@ -1,10 +1,17 @@
 // @ts-nocheck
 import Basic from './Basic';
+import * as userStore from '../../../store/user';
+
+jest.mock('../../../store/user', () => ({
+    getUserByUsername: jest.fn(),
+    verifyPassword: jest.fn(),
+}));
 
 describe('Basic Authentication', () => {
     let basic;
 
     beforeEach(async () => {
+        jest.clearAllMocks();
         basic = new Basic();
     });
 
@@ -14,7 +21,6 @@ describe('Basic Authentication', () => {
     });
 
     test('should return basic strategy', async () => {
-        // Mock configuration to avoid validation errors
         basic.configuration = {
             user: 'testuser',
             hash: '$2b$10$test.hash.value',
@@ -33,7 +39,7 @@ describe('Basic Authentication', () => {
         });
     });
 
-    test('should mask configuration hash', async () => {
+    test('should mask configuration hash if present', async () => {
         basic.configuration = {
             user: 'testuser',
             hash: '$2b$10$test.hash.value',
@@ -43,30 +49,33 @@ describe('Basic Authentication', () => {
         expect(masked.hash).toBe('$********************e');
     });
 
-    test('should authenticate valid user', async () => {
-        const { default: passJs } = await import('pass');
-        basic.configuration = {
-            user: 'testuser',
-            hash: '$2b$10$test.hash.value',
-        };
-
-        passJs.validate = jest.fn((pass, hash, callback) => {
-            callback(null, true);
+    test('should authenticate valid user against database', async () => {
+        (userStore.getUserByUsername as jest.Mock).mockResolvedValue({
+            id: 'u1',
+            username: 'testuser',
+            role: 'admin',
+            provider: 'local',
+            passwordHash: '$2b$10$hashed',
+            preferences: { theme: 'dark' },
         });
+        (userStore.verifyPassword as jest.Mock).mockResolvedValue(true);
 
         await new Promise<void>((resolve) => {
             basic.authenticate('testuser', 'password', (err, result) => {
-                expect(result).toEqual({ username: 'testuser' });
+                expect(result).toEqual({
+                    id: 'u1',
+                    username: 'testuser',
+                    role: 'admin',
+                    provider: 'local',
+                    preferences: { theme: 'dark' },
+                });
                 resolve();
             });
         });
     });
 
-    test('should reject invalid user', async () => {
-        basic.configuration = {
-            user: 'testuser',
-            hash: '$2b$10$test.hash.value',
-        };
+    test('should reject invalid user not found in database', async () => {
+        (userStore.getUserByUsername as jest.Mock).mockResolvedValue(null);
 
         await new Promise<void>((resolve) => {
             basic.authenticate('wronguser', 'password', (err, result) => {
@@ -77,15 +86,14 @@ describe('Basic Authentication', () => {
     });
 
     test('should reject invalid password', async () => {
-        const { default: passJs } = await import('pass');
-        basic.configuration = {
-            user: 'testuser',
-            hash: '$2b$10$test.hash.value',
-        };
-
-        passJs.validate = jest.fn((pass, hash, callback) => {
-            callback(null, false);
+        (userStore.getUserByUsername as jest.Mock).mockResolvedValue({
+            id: 'u1',
+            username: 'testuser',
+            role: 'ro',
+            provider: 'local',
+            passwordHash: '$2b$10$hashed',
         });
+        (userStore.verifyPassword as jest.Mock).mockResolvedValue(false);
 
         await new Promise<void>((resolve) => {
             basic.authenticate('testuser', 'wrongpassword', (err, result) => {

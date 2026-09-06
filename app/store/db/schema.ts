@@ -99,3 +99,36 @@ export const sessions = sqliteTable('sessions', {
     updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
     expiresAt: integer('expires_at', { mode: 'timestamp' }),
 });
+
+// Users table
+export const users = sqliteTable('users', {
+    id: text('id').primaryKey(),
+    username: text('username').notNull().unique(),
+    passwordHash: text('password_hash'),
+    provider: text('provider').notNull().default('local'),
+    role: text('role').notNull().default('ro'),
+    preferences: text('preferences', { mode: 'json' }),
+    createdAt: text('created_at').default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text('updated_at').default(sql`(CURRENT_TIMESTAMP)`),
+});
+
+// API Tokens table
+export const apiTokens = sqliteTable(
+    'api_tokens',
+    {
+        id: text('id').primaryKey(),
+        tokenHash: text('token_hash').notNull().unique(),
+        userId: text('user_id')
+            .notNull()
+            .references(() => users.id, { onDelete: 'cascade' }),
+        name: text('name').notNull(),
+        scopes: text('scopes', { mode: 'json' }).notNull(),
+        expiresAt: integer('expires_at', { mode: 'timestamp' }),
+        createdAt: text('created_at').default(sql`(CURRENT_TIMESTAMP)`),
+        lastUsedAt: text('last_used_at'),
+    },
+    (table) => [
+        index('idx_api_tokens_user').on(table.userId),
+        index('idx_api_tokens_hash').on(table.tokenHash),
+    ],
+);

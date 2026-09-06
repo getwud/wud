@@ -6,6 +6,7 @@ import * as registry from '../registry';
 import { getServerConfiguration } from '../configuration';
 import { mapComponentsToList } from './component';
 import Trigger from '../triggers/providers/Trigger';
+import { requireRole } from './rbac';
 import logger from '../log';
 const log = logger.child({ component: 'container' });
 
@@ -254,15 +255,36 @@ export async function watchContainer(req, res) {
  */
 export function init() {
     router.use(nocache());
-    router.get('/', getContainers);
-    router.post('/watch', watchContainers);
-    router.get('/:id', getContainer);
-    router.delete('/:id', deleteContainer);
-    router.get('/:id/triggers', getContainerTriggers);
+    router.get('/', requireRole(['admin', 'rw', 'ro'], 'read'), getContainers);
+    router.post(
+        '/watch',
+        requireRole(['admin', 'rw'], 'write'),
+        watchContainers,
+    );
+    router.get(
+        '/:id',
+        requireRole(['admin', 'rw', 'ro'], 'read'),
+        getContainer,
+    );
+    router.delete(
+        '/:id',
+        requireRole(['admin', 'rw'], 'write'),
+        deleteContainer,
+    );
+    router.get(
+        '/:id/triggers',
+        requireRole(['admin', 'rw', 'ro'], 'read'),
+        getContainerTriggers,
+    );
     router.post(
         '/:id/triggers/:triggerType/:triggerName',
+        requireRole(['admin', 'rw'], 'write'),
         runTriggerForContainer,
     );
-    router.post('/:id/watch', watchContainer);
+    router.post(
+        '/:id/watch',
+        requireRole(['admin', 'rw'], 'write'),
+        watchContainer,
+    );
     return router;
 }

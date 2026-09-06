@@ -11,6 +11,8 @@ import {
   mockStrategies,
   mockUser,
 } from "./data/server";
+import type { UserItem } from "../user";
+import type { ApiTokenItem } from "../profile";
 
 export function isDemoMode(): boolean {
   if (process.env.VUE_APP_DEMO_MODE === "true") {
@@ -169,6 +171,115 @@ export const mockService = {
   async getStore() {
     await delay(100);
     return JSON.parse(JSON.stringify(mockStore));
+  },
+
+  // Users (Admin)
+  async listUsers(): Promise<UserItem[]> {
+    await delay(100);
+    return [
+      {
+        id: "user-admin-1",
+        username: "homelab-admin",
+        role: "admin",
+        provider: "local",
+        preferences: { theme: "light" },
+      },
+      {
+        id: "user-rw-2",
+        username: "developer",
+        role: "rw",
+        provider: "local",
+        preferences: { theme: "dark" },
+      },
+      {
+        id: "user-ro-3",
+        username: "viewer-oidc",
+        role: "ro",
+        provider: "oidc",
+        preferences: { theme: "light" },
+      },
+    ];
+  },
+
+  async createUser(data: any): Promise<UserItem> {
+    await delay(100);
+    return {
+      id: `user-${Date.now()}`,
+      username: data.username,
+      role: (data.role as "admin" | "rw" | "ro") || "ro",
+      provider: "local",
+      preferences: { theme: "light" },
+    };
+  },
+
+  async updateUser(id: string, data: any): Promise<UserItem> {
+    await delay(100);
+    return {
+      id,
+      username: "updated-user",
+      role: (data.role as "admin" | "rw" | "ro") || "ro",
+      provider: "local",
+    };
+  },
+
+  async deleteUser(id: string) {
+    void id;
+    await delay(100);
+  },
+
+  // Profile & Tokens
+  async getProfile(): Promise<UserItem> {
+    await delay(50);
+    return { ...currentUser };
+  },
+
+  async updatePreferences(preferences: any): Promise<UserItem> {
+    await delay(50);
+    currentUser.preferences = { ...currentUser.preferences, ...preferences };
+    return { ...currentUser };
+  },
+
+  async updatePassword(currentPassword?: string, newPassword?: string) {
+    void currentPassword;
+    void newPassword;
+    await delay(100);
+    return { message: "Password updated successfully" };
+  },
+
+  async listTokens(): Promise<ApiTokenItem[]> {
+    await delay(100);
+    return [
+      {
+        id: "token-1",
+        userId: currentUser.id,
+        name: "Home Assistant",
+        scopes: ["read"],
+        expiresAt: null,
+        createdAt: new Date().toISOString(),
+        lastUsedAt: new Date().toISOString(),
+      },
+    ];
+  },
+
+  async createToken(data: any): Promise<{ token: ApiTokenItem; rawSecret: string }> {
+    await delay(100);
+    return {
+      token: {
+        id: `token-${Date.now()}`,
+        userId: currentUser.id,
+        name: data.name,
+        scopes: (data.scopes as ("read" | "write")[]) || ["read"],
+        expiresAt: data.expiresAt || null,
+        createdAt: new Date().toISOString(),
+        lastUsedAt: null,
+      },
+      rawSecret: `wud_demo_${Math.random().toString(36).substring(2)}`,
+    };
+  },
+
+  async deleteToken(id: string) {
+    void id;
+    await delay(100);
   },
 
   // Reset demo state if needed

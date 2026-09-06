@@ -306,14 +306,17 @@ async function registerRegistries() {
  * Register authentications.
  */
 async function registerAuthentications() {
-    const configurations = getAuthenticationConfigurations();
+    const configurations = (getAuthenticationConfigurations() || {}) as Record<
+        string,
+        any
+    >;
     try {
-        if (Object.keys(configurations).length === 0) {
-            log.info('No authentication configured => Allow anonymous access');
+        // Register local/basic auth if not already provided in configurations
+        if (!configurations.basic) {
             await registerComponent(
                 'authentication',
-                'anonymous',
-                'anonymous',
+                'basic',
+                'basic',
                 {},
                 '../authentications/providers',
             );
