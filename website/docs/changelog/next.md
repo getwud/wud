@@ -9,6 +9,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 ---
 
+- 🚀 [DOCS] Enable documentation versioning in Docusaurus with version selector and add automated release script (`scripts/release.sh`)
 - 🚀 [STORE] Migrate persistence layer from LokiJS to SQL (SQLite) with Drizzle ORM, automatic schema migrations, and transparent legacy data migration
 - 🚀 [AUTH] Add Role-Based Access Control (RBAC) with 3 roles: Administrator (`admin`), Read/Write (`rw`), and Read-Only (`ro`)
 - 🚀 [AUTH] Add Database-backed User Management in Web UI (Configuration > Users) with role management and secure password resets

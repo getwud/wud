@@ -81,6 +81,12 @@ npm start              # Start local Docusaurus preview server
 npm run build          # Build static documentation (must pass cleanly)
 ```
 
+### Release Automation (`scripts/`)
+```bash
+# Prepare and tag a release (updates packages, changelogs, doc snapshots, and git tag):
+./scripts/release.sh <version>
+```
+
 ---
 
 ## 🌟 Golden Rules for AI Agents
