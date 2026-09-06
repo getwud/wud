@@ -53,8 +53,11 @@ export async function bootstrapAuth(): Promise<void> {
 
     // 2. Check for legacy basic authentication configs (single or multi-user: WUD_AUTH_BASIC_{name}_USER / HASH)
     if (authConfigs.basic && typeof authConfigs.basic === 'object') {
-        const entries: Array<{ user: string; password?: string; hash?: string }> =
-            [];
+        const entries: Array<{
+            user: string;
+            password?: string;
+            hash?: string;
+        }> = [];
         if (authConfigs.basic.user) {
             entries.push({
                 user: authConfigs.basic.user,
