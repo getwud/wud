@@ -1,6 +1,6 @@
 ---
 title: HTTP Webhooks
-description: Send container update webhook notifications to custom HTTP/HTTPS endpoints in What's Up Docker (WUD).
+description: Send container update webhook notifications to custom HTTP/HTTPS endpoints in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

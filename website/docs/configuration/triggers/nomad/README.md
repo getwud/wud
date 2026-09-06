@@ -1,6 +1,6 @@
 ---
 title: Nomad
-description: Update HashiCorp Nomad-managed containers cleanly via the Nomad API in What's Up Docker (WUD).
+description: Update HashiCorp Nomad-managed containers cleanly via the Nomad API in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

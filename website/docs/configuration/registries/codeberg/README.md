@@ -1,6 +1,6 @@
 ---
 title: Codeberg
-description: Configure authentication for private Codeberg Container Registries in What's Up Docker (WUD).
+description: Configure authentication for private Codeberg Container Registries in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

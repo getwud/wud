@@ -1,6 +1,6 @@
 ---
 title: IBM Cloud Container Registry (ICR)
-description: Configure authentication for IBM Cloud Container Registry in What's Up Docker (WUD).
+description: Configure authentication for IBM Cloud Container Registry in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

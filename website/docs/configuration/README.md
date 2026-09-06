@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: Comprehensive configuration reference for What's Up Docker (WUD).
+description: Comprehensive configuration reference for WUD (What's Up Docker?).
 ---
 
 import { NavigationGrid, NavigationCard } from '@site/src/components/NavigationCard';

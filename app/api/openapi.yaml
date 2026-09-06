@@ -37,6 +37,12 @@ info:
           "message": "Container not found"
         }
         ```
+
+        ### ⚠️ Breaking Changes & Migration Notes
+
+        > ⚠️ **API Contract Redesign**:
+        > - **Standardized Error Format**: In previous versions, error responses were inconsistent (sometimes raw strings, flat objects, or empty responses). All error responses now strictly return a structured JSON object with `{ "error": "<ErrorType>", "message": "<Details>" }`.
+        > - **Authentication**: External REST API requests now use standard HTTP Basic Authentication (`Authorization: Basic ...`). Cookie-based session authentication is no longer exposed as an external API authentication scheme.
 servers:
     - url: http://localhost:3000
       description: Default local WUD instance (http://localhost:3000)

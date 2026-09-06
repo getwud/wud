@@ -1,6 +1,6 @@
 ---
 title: Docker
-description: Automatically update standalone Docker containers in What's Up Docker (WUD).
+description: Automatically update standalone Docker containers in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

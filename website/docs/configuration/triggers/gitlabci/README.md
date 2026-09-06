@@ -1,6 +1,6 @@
 ---
 title: GitLab CI
-description: Trigger GitLab CI/CD pipelines on container updates in What's Up Docker (WUD).
+description: Trigger GitLab CI/CD pipelines on container updates in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

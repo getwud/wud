@@ -1,6 +1,6 @@
 ---
 title: Inedo ProGet
-description: Configure authentication for Inedo ProGet container feeds in What's Up Docker (WUD).
+description: Configure authentication for Inedo ProGet container feeds in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

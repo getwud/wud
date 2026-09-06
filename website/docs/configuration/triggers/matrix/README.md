@@ -1,6 +1,6 @@
 ---
 title: Matrix
-description: Send container update notifications to Matrix rooms in What's Up Docker (WUD).
+description: Send container update notifications to Matrix rooms in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

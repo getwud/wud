@@ -1,6 +1,6 @@
 ---
 title: IFTTT
-description: Send container update notifications to IFTTT applets using Webhooks in What's Up Docker (WUD).
+description: Send container update notifications to IFTTT applets using Webhooks in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

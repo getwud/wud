@@ -1,6 +1,6 @@
 ---
 title: MQTT
-description: Publish container update notifications to MQTT brokers and Home Assistant in What's Up Docker (WUD).
+description: Publish container update notifications to MQTT brokers and Home Assistant in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

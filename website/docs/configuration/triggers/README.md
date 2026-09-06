@@ -1,6 +1,6 @@
 ---
 title: Triggers
-description: Overview of container update triggers, notification providers, and automations in What's Up Docker (WUD).
+description: Overview of container update triggers, notification providers, and automations in WUD (What's Up Docker?).
 ---
 
 import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';

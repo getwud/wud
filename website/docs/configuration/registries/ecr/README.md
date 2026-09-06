@@ -1,6 +1,6 @@
 ---
 title: AWS Elastic Container Registry (ECR)
-description: Configure authentication for Amazon ECR Private and Public Registries in What's Up Docker (WUD).
+description: Configure authentication for Amazon ECR Private and Public Registries in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

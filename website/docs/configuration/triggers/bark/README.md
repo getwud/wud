@@ -1,6 +1,6 @@
 ---
 title: Bark
-description: Send container update push notifications to iOS devices via Bark in What's Up Docker (WUD).
+description: Send container update push notifications to iOS devices via Bark in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

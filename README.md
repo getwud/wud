@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="website/docs/assets/wud-logo.svg" alt="What's Up Docker (WUD) Logo" width="220" />
+<img src="website/docs/assets/wud-logo.svg" alt="WUD (What's Up Docker? Logo" width="220" />
 
 # What's Up Docker? (WUD)
 

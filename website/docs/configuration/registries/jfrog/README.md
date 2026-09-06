@@ -1,6 +1,6 @@
 ---
 title: JFrog Container Registry (Artifactory)
-description: Configure authentication for JFrog Artifactory container registries in What's Up Docker (WUD).
+description: Configure authentication for JFrog Artifactory container registries in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

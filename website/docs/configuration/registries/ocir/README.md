@@ -1,6 +1,6 @@
 ---
 title: Oracle Cloud Infrastructure Registry (OCIR)
-description: Configure authentication for Oracle Cloud Infrastructure Registry in What's Up Docker (WUD).
+description: Configure authentication for Oracle Cloud Infrastructure Registry in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

@@ -1,6 +1,6 @@
 ---
 title: Next (Unreleased)
-description: Unreleased changes and upcoming features in What's Up Docker (WUD).
+description: Unreleased changes and upcoming features in WUD (What's Up Docker?).
 ---
 
 # Next (Unreleased)
@@ -16,13 +16,16 @@ description: Unreleased changes and upcoming features in What's Up Docker (WUD).
 - 🚀 [CI] Add automated UI screenshot capture pipeline with Playwright and dark mode support
 - 🚀 [UI] Add demo mode with mock services for static deployment
 - 🚀 [REGISTRY] Enable anonymous access by default for Gitlab public registry
-- 🚀 [API] Refactor REST API to a Design-First / Top-Down architecture:
+- 🚀 [API] Refactor REST API to a Design-First architecture:
   - Establish `openapi.yaml` as the authoritative single source of truth for the entire API contract
-  - Integrate `express-openapi-validator` for automated server-side request, parameter, and schema validation
   - Standardize API error payload format (`{ error, message }`) across all endpoints
-  - Decouple controllers into standalone route handlers automatically bound by OpenAPI operation IDs
 - 🚀 [DOCS] Integrate interactive OpenAPI API Reference in Docusaurus with "Try it out" explorer, request/response schema inspector, and code samples
 - 🚀 [REGISTRY] Support direct bearer-token authentication for custom registries
+
+- ⚠️ [API] Standardize REST API contract and error responses:
+  - **Structured Error Payloads**: All error responses now consistently return `{ "error": "<ErrorType>", "message": "<Details>" }`. Custom scripts or integrations parsing legacy flat error strings (e.g. `{ "error": "Error description..." }`) need to be updated to read `message`.
+  - **OpenAPI Schema Alignment**: Endpoints and payloads are now strictly aligned with the OpenAPI specification (`/api/openapi.yaml`).
+  - **Authentication**: External REST API requests now use standard HTTP Basic Authentication (`basicAuth`). Direct cookie-based session authentication is no longer exposed as an external API authentication scheme.
 
 - 🐛 [WATCHER] Fix docker watcher crashing on startup when `watchdigestdefault` is configured by restoring the property and passing it to registries (fixes #1150)
 - 🐛 [REGISTRY] Fix Gitlab registry provider ignoring configuration defaults (fixes Gitlab registry integration)

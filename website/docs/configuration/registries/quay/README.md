@@ -1,6 +1,6 @@
 ---
 title: Quay (Red Hat Quay)
-description: Configure authentication for Red Hat Quay and Quay.io registries in What's Up Docker (WUD).
+description: Configure authentication for Red Hat Quay and Quay.io registries in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

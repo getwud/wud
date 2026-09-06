@@ -1,6 +1,6 @@
 ---
 title: Rocket.Chat
-description: Post container update notifications to Rocket.Chat channels or direct messages in What's Up Docker (WUD).
+description: Post container update notifications to Rocket.Chat channels or direct messages in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

@@ -1,6 +1,6 @@
 ---
 title: Home Assistant (Webhook)
-description: Send container update webhooks to Home Assistant automations in What's Up Docker (WUD).
+description: Send container update webhooks to Home Assistant automations in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

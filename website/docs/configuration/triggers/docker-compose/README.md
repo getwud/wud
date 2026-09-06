@@ -1,6 +1,6 @@
 ---
 title: Docker Compose
-description: Automatically update Docker Compose services and files in What's Up Docker (WUD).
+description: Automatically update Docker Compose services and files in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

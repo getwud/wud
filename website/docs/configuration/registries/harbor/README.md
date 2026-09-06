@@ -1,6 +1,6 @@
 ---
 title: Harbor
-description: Configure authentication for self-hosted CNCF Harbor registries in What's Up Docker (WUD).
+description: Configure authentication for self-hosted CNCF Harbor registries in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';
