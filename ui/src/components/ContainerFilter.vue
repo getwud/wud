@@ -58,6 +58,7 @@
         </v-btn>
 
         <v-btn
+          v-if="canWrite"
           color="primary"
           variant="flat"
           size="small"
@@ -182,6 +183,10 @@ export default defineComponent({
     groupByLabel: {
       type: String,
       required: false,
+    },
+    canWrite: {
+      type: Boolean,
+      default: true,
     },
   },
 

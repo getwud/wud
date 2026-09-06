@@ -108,6 +108,7 @@
             </div>
           </div>
           <v-btn
+            v-if="canWrite"
             color="primary"
             variant="tonal"
             size="small"
@@ -126,7 +127,7 @@
             :item="selectedTrigger"
             :fallback-icon="triggerIcon"
           >
-            <template #actions>
+            <template #actions v-if="canWrite">
               <v-btn
                 variant="outlined"
                 color="primary"
@@ -156,6 +157,7 @@
 import ConfigurationDrawerContent from "@/components/ConfigurationDrawerContent.vue";
 import TriggerTestDialog from "@/components/TriggerTestDialog.vue";
 import { getAllTriggers, getTriggerIcon } from "@/services/trigger";
+import { getUser } from "@/services/auth";
 import { defineComponent } from "vue";
 
 export default defineComponent({
@@ -173,10 +175,23 @@ export default defineComponent({
       selectedTrigger: null as any,
       testDialogOpen: false,
       isLoading: false,
+      currentUser: null as any,
     };
   },
 
+  async mounted() {
+    try {
+      this.currentUser = await getUser();
+    } catch {
+      // ignore
+    }
+  },
+
   computed: {
+    canWrite(): boolean {
+      if (!this.currentUser) return true;
+      return this.currentUser.role === "admin" || this.currentUser.role === "rw";
+    },
     triggerIcon(): string {
       return getTriggerIcon();
     },
