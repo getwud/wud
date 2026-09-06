@@ -22,7 +22,8 @@ describe('API Watcher', () => {
         jest.clearAllMocks();
         app = express();
         app.use(express.json());
-        app.use(watcherApi.init());
+        app.get('/', watcherApi.getWatchers);
+        app.get('/:type/:name', watcherApi.getWatcher);
     });
 
     test('should get all watchers', async () => {

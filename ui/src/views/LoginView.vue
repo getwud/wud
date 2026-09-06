@@ -11,7 +11,7 @@
           <v-img :src="logo" max-width="40" max-height="40" alt="WUD logo" />
         </v-avatar>
         <h1 class="text-h5 font-weight-bold text-high-emphasis mb-1">
-          What's Up Docker
+          What's Up Docker?
         </h1>
         <p class="text-body-2 text-medium-emphasis mb-0">
           Sign in to access your container dashboard

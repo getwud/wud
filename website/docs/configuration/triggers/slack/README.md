@@ -1,6 +1,6 @@
 ---
 title: Slack
-description: Send container update notifications to Slack channels in What's Up Docker (WUD).
+description: Send container update notifications to Slack channels in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

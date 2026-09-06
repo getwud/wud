@@ -10,7 +10,7 @@
             <v-icon size="28" color="primary">mdi-view-dashboard-outline</v-icon>
           </v-avatar>
           <div>
-            <h1 class="text-h5 font-weight-bold mb-1 text-high-emphasis">What's Up Docker</h1>
+            <h1 class="text-h5 font-weight-bold mb-1 text-high-emphasis">What's Up Docker?</h1>
             <p class="text-body-2 text-medium-emphasis mb-0">
               <span v-if="containersToUpdateCount > 0" class="d-inline-flex align-center text-warning font-weight-medium">
                 <v-icon size="16" class="mr-1">mdi-alert-circle</v-icon>

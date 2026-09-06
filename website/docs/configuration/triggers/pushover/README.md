@@ -1,6 +1,6 @@
 ---
 title: Pushover
-description: Send container update push notifications via Pushover in What's Up Docker (WUD).
+description: Send container update push notifications via Pushover in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

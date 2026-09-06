@@ -8,6 +8,8 @@
 # Generated files
 .docusaurus
 .cache-loader
+docs/api/reference/
+static/openapi.yaml
 
 # Misc
 .DS_Store

@@ -56,7 +56,8 @@ const config = {
       /** @type {import('@docusaurus/preset-classic').Options} */
       ({
         docs: {
-          sidebarPath: './sidebars.js',
+          sidebarPath: './sidebars.ts',
+          docItemComponent: '@theme/ApiItem',
           editUrl: 'https://github.com/getwud/wud/tree/main/website/',
         },
         blog: false,
@@ -71,7 +72,43 @@ const config = {
     mermaid: true,
   },
 
+  plugins: [
+    [
+      'docusaurus-plugin-openapi-docs',
+      {
+        id: 'openapi',
+        docsPluginId: 'classic',
+        config: {
+          wud: {
+            specPath: '../app/api/openapi.yaml',
+            outputDir: 'docs/api/reference',
+            downloadUrl: '/wud/openapi.yaml',
+            sidebarOptions: {
+              groupPathsBy: 'tag',
+              categoryLinkSource: 'tag',
+            },
+          },
+        },
+      },
+    ],
+    function (context, options) {
+      return {
+        name: 'custom-webpack-plugin',
+        configureWebpack(config, isServer, utils) {
+          return {
+            resolve: {
+              alias: {
+                'react-redux': require.resolve('react-redux'),
+              },
+            },
+          };
+        },
+      };
+    },
+  ],
+
   themes: [
+    'docusaurus-theme-openapi-docs',
     '@docusaurus/theme-mermaid',
     [
       require.resolve('@easyops-cn/docusaurus-search-local'),

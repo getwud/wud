@@ -5,7 +5,7 @@ description: Historical release notes and changelog for WUD versions 1.x through
 
 # Versions 1.x – 4.x
 
-Historical release history and notes for early versions of **WUD (What's Up Docker)**.
+Historical release history and notes for early versions of **WUD (What's Up Docker?)**.
 
 ---
 
@@ -43,4 +43,4 @@ Historical release history and notes for early versions of **WUD (What's Up Dock
 
 ## [1.0.0](https://github.com/getwud/wud/releases/tag/1.0.0) · <small>January 1, 2020</small>
 
-- 🚀 Initial release of WUD (What's Up Docker)! 🎉
+- 🚀 Initial release of WUD (What's Up Docker?)! 🎉

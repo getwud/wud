@@ -1,6 +1,6 @@
 ---
 title: TrueForge
-description: Configure integration for TrueForge OCI Registry and ContainerForge in What's Up Docker (WUD).
+description: Configure integration for TrueForge OCI Registry and ContainerForge in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

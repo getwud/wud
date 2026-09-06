@@ -7,6 +7,15 @@ jest.mock('express', () => ({
     })),
 }));
 
+jest.mock('swagger-ui-express', () => ({
+    serve: jest.fn(),
+    setup: jest.fn(),
+}));
+
+jest.mock('yamljs', () => ({
+    load: jest.fn(() => ({ mockSpec: true })),
+}));
+
 jest.mock('./app', () => ({
     init: jest.fn(() => ({ use: jest.fn(), get: jest.fn() })),
 }));
@@ -37,11 +46,10 @@ jest.mock('./store', () => ({
 jest.mock('./server', () => ({
     init: jest.fn(() => ({ use: jest.fn(), get: jest.fn() })),
 }));
-jest.mock('./auth', () => ({
-    getAllIds: jest.fn(() => ['basic', 'anonymous']),
-}));
 
 import * as api from './api';
+import swaggerUi from 'swagger-ui-express';
+import YAML from 'yamljs';
 
 describe('API Router', () => {
     let router;
@@ -83,5 +91,15 @@ describe('API Router', () => {
     test('should use requireAuthentication middleware', async () => {
         router = api.init();
         expect(router.use).toHaveBeenCalledWith(auth.requireAuthentication);
+    });
+
+    test('should serve OpenAPI spec and Swagger UI', async () => {
+        router = api.init();
+        expect(YAML.load).toHaveBeenCalled();
+        expect(swaggerUi.setup).toHaveBeenCalledWith({ mockSpec: true });
+        expect(router.get).toHaveBeenCalledWith(
+            '/openapi.yaml',
+            expect.any(Function),
+        );
     });
 });

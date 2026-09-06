@@ -47,7 +47,16 @@ describe('API Container', () => {
         jest.isolateModules(() => {
             containerRouterLocal = require('./container');
         });
-        app.use(containerRouterLocal.init());
+        app.get('/', containerRouterLocal.getContainers);
+        app.post('/watch', containerRouterLocal.watchContainers);
+        app.get('/:id', containerRouterLocal.getContainer);
+        app.delete('/:id', containerRouterLocal.deleteContainer);
+        app.get('/:id/triggers', containerRouterLocal.getContainerTriggers);
+        app.post(
+            '/:id/triggers/:triggerType/:triggerName',
+            containerRouterLocal.runTriggerForContainer,
+        );
+        app.post('/:id/watch', containerRouterLocal.watchContainer);
     });
 
     test('should get all containers', async () => {
@@ -107,7 +116,7 @@ describe('API Container', () => {
         });
         const appDisabled = express();
         appDisabled.use(express.json());
-        appDisabled.use(containerRouterLocal.init());
+        appDisabled.delete('/:id', containerRouterLocal.deleteContainer);
 
         const res = await request(appDisabled).delete('/container1');
         expect(res.status).toBe(403);
@@ -257,7 +266,7 @@ describe('API Container', () => {
 
         const res = await request(app).post('/container1/triggers/mock/test');
         expect(res.status).toBe(500);
-        expect(res.body.error).toContain(
+        expect(res.body.message).toContain(
             'Error when running trigger (type=mock, name=test) (fail trigger)',
         );
     });
@@ -272,7 +281,7 @@ describe('API Container', () => {
 
         const res = await request(app).post('/container1/triggers/mock/test');
         expect(res.status).toBe(404);
-        expect(res.body.error).toEqual('Trigger not found');
+        expect(res.body.message).toEqual('Trigger not found');
     });
 
     test('should return 404 if container not found when running trigger', async () => {
@@ -280,7 +289,7 @@ describe('API Container', () => {
 
         const res = await request(app).post('/container1/triggers/mock/test');
         expect(res.status).toBe(404);
-        expect(res.body.error).toEqual('Container not found');
+        expect(res.body.message).toEqual('Container not found');
     });
 
     test('should watch single container', async () => {
@@ -339,7 +348,7 @@ describe('API Container', () => {
 
         const res = await request(app).post('/container1/watch');
         expect(res.status).toBe(500);
-        expect(res.body.error).toContain('No provider found');
+        expect(res.body.message).toContain('No provider found');
     });
 
     test('should return 500 on watch single container failure', async () => {
@@ -358,7 +367,7 @@ describe('API Container', () => {
 
         const res = await request(app).post('/container1/watch');
         expect(res.status).toBe(500);
-        expect(res.body.error).toContain('Error when watching container');
+        expect(res.body.message).toContain('Error when watching container');
     });
 
     test('should return 404 for unknown container watch', async () => {

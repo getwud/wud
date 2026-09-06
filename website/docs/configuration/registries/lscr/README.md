@@ -1,6 +1,6 @@
 ---
 title: LinuxServer.io (LSCR)
-description: Configure authentication for LinuxServer.io Container Registry (lscr.io) in What's Up Docker (WUD).
+description: Configure authentication for LinuxServer.io Container Registry (lscr.io) in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

@@ -22,7 +22,8 @@ describe('API Registry', () => {
         jest.clearAllMocks();
         app = express();
         app.use(express.json());
-        app.use(registryApi.init());
+        app.get('/', registryApi.getRegistries);
+        app.get('/:type/:name', registryApi.getRegistry);
     });
 
     test('should get all registries', async () => {

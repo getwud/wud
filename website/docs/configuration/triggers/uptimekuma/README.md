@@ -1,6 +1,6 @@
 ---
 title: Uptime Kuma
-description: Push container update statuses and alerts to Uptime Kuma Push Monitors in What's Up Docker (WUD).
+description: Push container update statuses and alerts to Uptime Kuma Push Monitors in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

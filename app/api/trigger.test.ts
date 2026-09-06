@@ -29,7 +29,9 @@ describe('API Trigger', () => {
         jest.clearAllMocks();
         app = express();
         app.use(express.json());
-        app.use(trigger.init());
+        app.get('/', trigger.getTriggers);
+        app.get('/:type/:name', trigger.getTrigger);
+        app.post('/:type/:name', trigger.runTrigger);
     });
 
     test('should get all triggers', async () => {
@@ -80,7 +82,9 @@ describe('API Trigger', () => {
             .send({ containerName: 'test-container' });
         expect(res.status).toBe(404);
         expect(res.body).toEqual({
-            error: 'Error when running trigger mock.unknown (trigger not found)',
+            error: 'Not found',
+            message:
+                'Error when running trigger mock.unknown (trigger not found)',
         });
     });
 
@@ -91,12 +95,14 @@ describe('API Trigger', () => {
             req.body = undefined;
             next();
         });
-        appNoBody.use(trigger.init());
+        appNoBody.post('/:type/:name', trigger.runTrigger);
 
         const res = await request(appNoBody).post('/mock/test');
         expect(res.status).toBe(400);
         expect(res.body).toEqual({
-            error: 'Error when running trigger mock.test (container is undefined)',
+            error: 'Bad Request',
+            message:
+                'Error when running trigger mock.test (container is undefined)',
         });
     });
 
@@ -106,7 +112,8 @@ describe('API Trigger', () => {
             .send({ containerName: 'test-container' });
         expect(res.status).toBe(500);
         expect(res.body).toEqual({
-            error: 'Error when running trigger mock.fail (fail error)',
+            error: 'Trigger execution failed',
+            message: 'Error when running trigger mock.fail (fail error)',
         });
     });
 });

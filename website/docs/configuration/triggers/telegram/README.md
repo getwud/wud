@@ -1,6 +1,6 @@
 ---
 title: Telegram
-description: Send container update notifications via Telegram bots in What's Up Docker (WUD).
+description: Send container update notifications via Telegram bots in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

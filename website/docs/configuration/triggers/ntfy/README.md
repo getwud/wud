@@ -1,6 +1,6 @@
 ---
 title: ntfy
-description: Send container update push notifications via ntfy in What's Up Docker (WUD).
+description: Send container update push notifications via ntfy in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

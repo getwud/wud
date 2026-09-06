@@ -1,6 +1,6 @@
 ---
 title: Command
-description: Run custom shell commands and automation scripts upon container updates in What's Up Docker (WUD).
+description: Run custom shell commands and automation scripts upon container updates in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

@@ -1,5 +1,8 @@
 // @ts-nocheck
 import express from 'express';
+import path from 'path';
+import swaggerUi from 'swagger-ui-express';
+import YAML from 'yamljs';
 import * as appRouter from './app';
 import * as containerRouter from './container';
 import * as watcherRouter from './watcher';
@@ -17,6 +20,22 @@ import { requireAuthentication } from './auth';
  */
 export function init() {
     const router = express.Router();
+
+    const specPath = path.join(__dirname, 'openapi.yaml');
+    let swaggerDocument;
+    try {
+        swaggerDocument = YAML.load(specPath);
+    } catch (e) {
+        swaggerDocument = {};
+    }
+
+    // Provide the OpenAPI spec for Docusaurus or download
+    router.get('/openapi.yaml', (req, res) => {
+        res.sendFile(specPath);
+    });
+
+    // Swagger UI
+    router.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
     // Mount app router
     router.use('/app', appRouter.init());
@@ -49,7 +68,7 @@ export function init() {
     router.use('/authentications', authenticationRouter.init());
 
     // All other API routes => 404
-    router.get('/*', (req, res) => res.sendStatus(404));
+    router.use('/*', (req, res) => res.sendStatus(404));
 
     return router;
 }

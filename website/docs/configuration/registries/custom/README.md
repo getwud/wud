@@ -1,6 +1,6 @@
 ---
 title: Custom / Self-Hosted Registry
-description: Integrate self-hosted Docker Registry v2, Harbor, Nexus, or Artifactory in What's Up Docker (WUD).
+description: Integrate self-hosted Docker Registry v2, Harbor, Nexus, or Artifactory in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

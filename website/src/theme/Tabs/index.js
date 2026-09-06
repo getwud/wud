@@ -2,12 +2,12 @@ import React from 'react';
 import clsx from 'clsx';
 import {ThemeClassNames} from '@docusaurus/theme-common';
 import {
-  useScrollPositionBlocker,
   useTabsContextValue,
   useTabs,
   sanitizeTabsChildren,
   TabsProvider,
-} from '@docusaurus/theme-common/internal';
+} from '@theme/utils/tabsUtils';
+import { useScrollPositionBlocker } from '@theme/utils/scrollUtils';
 import useIsBrowser from '@docusaurus/useIsBrowser';
 import styles from './styles.module.css';
 

@@ -1,6 +1,6 @@
 ---
 title: Zulip
-description: Send container update notifications to Zulip streams or direct messages in What's Up Docker (WUD).
+description: Send container update notifications to Zulip streams or direct messages in WUD (What's Up Docker?).
 ---
 
 import DocHero from '@site/src/components/DocHero';

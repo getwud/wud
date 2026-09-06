@@ -1,6 +1,6 @@
 ---
 title: Changelog
-description: Release history, new features, improvements, and bug fixes for What's Up Docker (WUD).
+description: Release history, new features, improvements, and bug fixes for WUD (What's Up Docker?).
 ---
 
 # Changelog

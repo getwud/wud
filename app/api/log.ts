@@ -11,7 +11,7 @@ const router = express.Router();
  * @param req
  * @param res
  */
-function getLog(req, res) {
+export function getLog(req, res) {
     res.status(200).json({
         level: getLogLevel(),
     });
@@ -22,7 +22,7 @@ function getLog(req, res) {
  * @param req
  * @param res
  */
-function streamLogs(req, res) {
+export function streamLogs(req, res) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');

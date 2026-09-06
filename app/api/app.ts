@@ -14,9 +14,10 @@ const router = express.Router();
  * @param req the request
  * @param res the response
  */
-function getAppInfos(req, res) {
+export function getAppInfos(req, res) {
     res.status(200).json(storeApp.getAppInfos());
 }
+
 /**
  * Init Router.
  * @returns {*}

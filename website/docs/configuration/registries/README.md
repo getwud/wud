@@ -1,6 +1,6 @@
 ---
 title: Registries
-description: Overview of container registry integrations and authentication in What's Up Docker (WUD).
+description: Overview of container registry integrations and authentication in WUD (What's Up Docker?).
 ---
 
 import { RegistryGrid, RegistryCard } from '@site/src/components/RegistryCard';
