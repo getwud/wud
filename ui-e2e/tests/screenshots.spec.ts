@@ -20,7 +20,9 @@ test.describe('Documentation Screenshots Capture', () => {
   });
 
   test('capture login page', async ({ page }) => {
-    await page.goto('/#/login');
+    // Include `screenshots=true` so demo-mode router guard doesn't redirect us
+    // away from the login page while keeping demo data available.
+    await page.goto('/#/login?screenshots=true');
     await expect(page.locator('.login-card')).toBeVisible();
     await page.waitForTimeout(500); // Allow animation to settle
     await page.screenshot({

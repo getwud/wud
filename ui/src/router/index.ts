@@ -80,7 +80,9 @@ const router = createRouter({
  * @returns {Promise<void>}
  */
 async function applyAuthNavigationGuard(to) {
-  if (isDemoMode() && to.name === "login") {
+  // Allow forcing access to the login page when capturing screenshots by
+  // using the `screenshots` query parameter (e.g. #/login?screenshots=true).
+  if (isDemoMode() && to.name === "login" && !to.query?.screenshots) {
     return { name: "home" };
   }
   if (to.name === "login") {
