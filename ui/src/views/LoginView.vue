@@ -130,7 +130,10 @@ export default defineComponent({
    * @returns {Promise<void>}
    */
   async beforeRouteEnter(to: any, from: any, next: any) {
-    if (isDemoMode()) {
+    // In demo mode we normally redirect away from the login page, but allow
+    // access when capturing screenshots by passing `screenshots=true` in the
+    // query (e.g. #/login?screenshots=true).
+    if (isDemoMode() && !to.query?.screenshots) {
       return next("/");
     }
     try {
