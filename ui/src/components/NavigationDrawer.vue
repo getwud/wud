@@ -105,7 +105,7 @@
             density="comfortable"
             size="small"
             color="medium-emphasis"
-            href="https://getwud.github.io/wud/"
+            href="https://getwud.app/"
             target="_blank"
             class="rounded-lg"
           >
@@ -115,7 +115,7 @@
         </div>
         <v-list-item
           v-else
-          href="https://getwud.github.io/wud/"
+          href="https://getwud.app/"
           target="_blank"
           rounded="lg"
           class="nav-item mb-1 text-medium-emphasis"

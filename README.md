@@ -10,16 +10,16 @@
 [![GitHub Stars](https://img.shields.io/github/stars/getwud/wud?style=flat-square&logo=github&color=FFB800)](https://github.com/getwud/wud/stargazers)
 [![CI Status](https://img.shields.io/github/actions/workflow/status/getwud/wud/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white)](https://github.com/getwud/wud/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/getwud/wud?style=flat-square&color=41B883)](https://github.com/getwud/wud/blob/main/LICENSE)
-[![Documentation](https://img.shields.io/badge/docs-getwud.github.io%2Fwud-2563EB?style=flat-square&logo=docusaurus&logoColor=white)](https://getwud.github.io/wud/)
+[![Documentation](https://img.shields.io/badge/docs-getwud.github.io%2Fwud-2563EB?style=flat-square&logo=docusaurus&logoColor=white)](https://getwud.app/)
 [![Buy Me A Coffee](https://img.shields.io/badge/Donate-Buy%20Me%20A%20Coffee-orange?style=flat-square&logo=buy-me-a-coffee)](https://www.buymeacoffee.com/61rUNMm)
 [![Donate PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=flat-square&logo=paypal&logoColor=white)](https://www.paypal.com/donate/?business=ZSDMEC3ZE8DQ8&no_recurring=0&currency_code=EUR)
 
 <p align="center">
-  <a href="https://getwud.github.io/wud/"><b>📖 Documentation</b></a> •
-  <a href="https://getwud.github.io/wud/docs/quickstart/"><b>🚀 Quick Start</b></a> •
-  <a href="https://getwud.github.io/wud/docs/configuration/"><b>⚙️ Configuration</b></a> •
-  <a href="https://getwud.github.io/wud/docs/configuration/triggers/"><b>🔔 Triggers</b></a> •
-  <a href="https://getwud.github.io/wud/docs/configuration/registries/"><b>📦 Registries</b></a> •
+  <a href="https://getwud.app/"><b>📖 Documentation</b></a> •
+  <a href="https://getwud.app/docs/quickstart/"><b>🚀 Quick Start</b></a> •
+  <a href="https://getwud.app/docs/configuration/"><b>⚙️ Configuration</b></a> •
+  <a href="https://getwud.app/docs/configuration/triggers/"><b>🔔 Triggers</b></a> •
+  <a href="https://getwud.app/docs/configuration/registries/"><b>📦 Registries</b></a> •
   <a href="CONTRIBUTING.md"><b>🛠️ Contributing</b></a> •
   <a href="https://github.com/getwud/wud/issues"><b>💬 Issues & Support</b></a>
 </p>
@@ -111,23 +111,23 @@ services:
 ### 📦 Registries
 | Registry | Description | Authentication |
 | :--- | :--- | :---: |
-| [**Docker Hub**](https://getwud.github.io/wud/docs/configuration/registries/hub/) | Public and private Docker Hub images | Anonymous / Token / Password |
-| [**GitHub (GHCR)**](https://getwud.github.io/wud/docs/configuration/registries/ghcr/) | GitHub Container Registry packages | Personal Access Token |
-| [**AWS ECR**](https://getwud.github.io/wud/docs/configuration/registries/ecr/) | Amazon Elastic Container Registry | AWS IAM Keys / IAM Roles |
-| [**Google GCR / Artifact Registry**](https://getwud.github.io/wud/docs/configuration/registries/gcr/) | GCP Container & Artifact Registry | Service Account Key (JSON) |
-| [**Azure ACR**](https://getwud.github.io/wud/docs/configuration/registries/acr/) | Azure Container Registry | Service Principal / Admin Secret |
-| [**GitLab Registry**](https://getwud.github.io/wud/docs/configuration/registries/gitlab/) | GitLab Container Registry | Deploy Token / PAT |
-| [**Quay.io**](https://getwud.github.io/wud/docs/configuration/registries/quay/) | Red Hat Quay | Robot Account / OAuth Token |
-| [**Self-Hosted / OCI**](https://getwud.github.io/wud/docs/configuration/registries/custom/) | Harbor, Nexus, Artifactory, Gitea, Forgejo, Codeberg | Basic Auth / Bearer Token |
+| [**Docker Hub**](https://getwud.app/docs/configuration/registries/hub/) | Public and private Docker Hub images | Anonymous / Token / Password |
+| [**GitHub (GHCR)**](https://getwud.app/docs/configuration/registries/ghcr/) | GitHub Container Registry packages | Personal Access Token |
+| [**AWS ECR**](https://getwud.app/docs/configuration/registries/ecr/) | Amazon Elastic Container Registry | AWS IAM Keys / IAM Roles |
+| [**Google GCR / Artifact Registry**](https://getwud.app/docs/configuration/registries/gcr/) | GCP Container & Artifact Registry | Service Account Key (JSON) |
+| [**Azure ACR**](https://getwud.app/docs/configuration/registries/acr/) | Azure Container Registry | Service Principal / Admin Secret |
+| [**GitLab Registry**](https://getwud.app/docs/configuration/registries/gitlab/) | GitLab Container Registry | Deploy Token / PAT |
+| [**Quay.io**](https://getwud.app/docs/configuration/registries/quay/) | Red Hat Quay | Robot Account / OAuth Token |
+| [**Self-Hosted / OCI**](https://getwud.app/docs/configuration/registries/custom/) | Harbor, Nexus, Artifactory, Gitea, Forgejo, Codeberg | Basic Auth / Bearer Token |
 
 ### 🔔 Triggers & Notifications
 | Category | Supported Channels |
 | :--- | :--- |
-| **Chat & Messaging** | [Discord](https://getwud.github.io/wud/docs/configuration/triggers/discord/), [Matrix](https://getwud.github.io/wud/docs/configuration/triggers/matrix/), [Mattermost](https://getwud.github.io/wud/docs/configuration/triggers/mattermost/), [Signal](https://getwud.github.io/wud/docs/configuration/triggers/signal/), [Telegram](https://getwud.github.io/wud/docs/configuration/triggers/telegram/), [Slack](https://getwud.github.io/wud/docs/configuration/triggers/slack/), [Rocket.Chat](https://getwud.github.io/wud/docs/configuration/triggers/rocketchat/), [WhatsApp](https://getwud.github.io/wud/docs/configuration/triggers/whatsapp/), [Zulip](https://getwud.github.io/wud/docs/configuration/triggers/zulip/) |
-| **Push Notifications & Alerting** | [Bark](https://getwud.github.io/wud/docs/configuration/triggers/bark/), [Gotify](https://getwud.github.io/wud/docs/configuration/triggers/gotify/), [IFTTT](https://getwud.github.io/wud/docs/configuration/triggers/ifttt/), [Ntfy](https://getwud.github.io/wud/docs/configuration/triggers/ntfy/), [Opsgenie](https://getwud.github.io/wud/docs/configuration/triggers/opsgenie/), [PagerDuty](https://getwud.github.io/wud/docs/configuration/triggers/pagerduty/), [Prowl](https://getwud.github.io/wud/docs/configuration/triggers/prowl/), [Pushover](https://getwud.github.io/wud/docs/configuration/triggers/pushover/), [Apprise](https://getwud.github.io/wud/docs/configuration/triggers/apprise/) |
-| **Auto-Update & Orchestration** | [Docker Container](https://getwud.github.io/wud/docs/configuration/triggers/docker/), [Docker Compose](https://getwud.github.io/wud/docs/configuration/triggers/docker-compose/), [HashiCorp Nomad](https://getwud.github.io/wud/docs/configuration/triggers/nomad/) |
-| **IoT & Message Queues** | [AMQP (RabbitMQ)](https://getwud.github.io/wud/docs/configuration/triggers/amqp/), [Apache Kafka](https://getwud.github.io/wud/docs/configuration/triggers/kafka/), [MQTT (Home Assistant auto-discovery)](https://getwud.github.io/wud/docs/configuration/triggers/mqtt/), [NATS](https://getwud.github.io/wud/docs/configuration/triggers/nats/) |
-| **Automation & Custom** | [GitHub Actions](https://getwud.github.io/wud/docs/configuration/triggers/githubactions/), [GitLab CI](https://getwud.github.io/wud/docs/configuration/triggers/gitlabci/), [Home Assistant (Webhook)](https://getwud.github.io/wud/docs/configuration/triggers/homeassistant/), [HTTP Webhooks](https://getwud.github.io/wud/docs/configuration/triggers/http/), [Shell Command Execution](https://getwud.github.io/wud/docs/configuration/triggers/command/), [SMTP Email](https://getwud.github.io/wud/docs/configuration/triggers/smtp/), [Uptime Kuma](https://getwud.github.io/wud/docs/configuration/triggers/uptimekuma/) |
+| **Chat & Messaging** | [Discord](https://getwud.app/docs/configuration/triggers/discord/), [Matrix](https://getwud.app/docs/configuration/triggers/matrix/), [Mattermost](https://getwud.app/docs/configuration/triggers/mattermost/), [Signal](https://getwud.app/docs/configuration/triggers/signal/), [Telegram](https://getwud.app/docs/configuration/triggers/telegram/), [Slack](https://getwud.app/docs/configuration/triggers/slack/), [Rocket.Chat](https://getwud.app/docs/configuration/triggers/rocketchat/), [WhatsApp](https://getwud.app/docs/configuration/triggers/whatsapp/), [Zulip](https://getwud.app/docs/configuration/triggers/zulip/) |
+| **Push Notifications & Alerting** | [Bark](https://getwud.app/docs/configuration/triggers/bark/), [Gotify](https://getwud.app/docs/configuration/triggers/gotify/), [IFTTT](https://getwud.app/docs/configuration/triggers/ifttt/), [Ntfy](https://getwud.app/docs/configuration/triggers/ntfy/), [Opsgenie](https://getwud.app/docs/configuration/triggers/opsgenie/), [PagerDuty](https://getwud.app/docs/configuration/triggers/pagerduty/), [Prowl](https://getwud.app/docs/configuration/triggers/prowl/), [Pushover](https://getwud.app/docs/configuration/triggers/pushover/), [Apprise](https://getwud.app/docs/configuration/triggers/apprise/) |
+| **Auto-Update & Orchestration** | [Docker Container](https://getwud.app/docs/configuration/triggers/docker/), [Docker Compose](https://getwud.app/docs/configuration/triggers/docker-compose/), [HashiCorp Nomad](https://getwud.app/docs/configuration/triggers/nomad/) |
+| **IoT & Message Queues** | [AMQP (RabbitMQ)](https://getwud.app/docs/configuration/triggers/amqp/), [Apache Kafka](https://getwud.app/docs/configuration/triggers/kafka/), [MQTT (Home Assistant auto-discovery)](https://getwud.app/docs/configuration/triggers/mqtt/), [NATS](https://getwud.app/docs/configuration/triggers/nats/) |
+| **Automation & Custom** | [GitHub Actions](https://getwud.app/docs/configuration/triggers/githubactions/), [GitLab CI](https://getwud.app/docs/configuration/triggers/gitlabci/), [Home Assistant (Webhook)](https://getwud.app/docs/configuration/triggers/homeassistant/), [HTTP Webhooks](https://getwud.app/docs/configuration/triggers/http/), [Shell Command Execution](https://getwud.app/docs/configuration/triggers/command/), [SMTP Email](https://getwud.app/docs/configuration/triggers/smtp/), [Uptime Kuma](https://getwud.app/docs/configuration/triggers/uptimekuma/) |
 
 ---
 
@@ -151,7 +151,7 @@ services:
       - "wud.trigger.docker.myupdater.enabled=true"
 ```
 
-Explore all configuration options in the [Configuration Hub](https://getwud.github.io/wud/docs/configuration/).
+Explore all configuration options in the [Configuration Hub](https://getwud.app/docs/configuration/).
 
 ---
 
@@ -159,16 +159,16 @@ Explore all configuration options in the [Configuration Hub](https://getwud.gith
 
 For complete setup guides, advanced configurations, tutorials, and API references, check out our official documentation:
 
-👉 **[https://getwud.github.io/wud/](https://getwud.github.io/wud/)**
+👉 **[https://getwud.app/](https://getwud.app/)**
 
-- 🚀 [Getting Started & Tutorials](https://getwud.github.io/wud/docs/quickstart/)
-- ⚙️ [Configuration Reference](https://getwud.github.io/wud/docs/configuration/)
-- 🔍 [Docker Watcher & TLS](https://getwud.github.io/wud/docs/configuration/watchers/)
-- 📦 [Registry Authentication](https://getwud.github.io/wud/docs/configuration/registries/)
-- 🔔 [Triggers & Automation Setup](https://getwud.github.io/wud/docs/configuration/triggers/)
-- 📊 [Prometheus & Grafana Monitoring](https://getwud.github.io/wud/docs/monitoring/)
-- 🔌 [REST API Reference](https://getwud.github.io/wud/docs/api/)
-- ❓ [Frequently Asked Questions (FAQ)](https://getwud.github.io/wud/docs/faq/)
+- 🚀 [Getting Started & Tutorials](https://getwud.app/docs/quickstart/)
+- ⚙️ [Configuration Reference](https://getwud.app/docs/configuration/)
+- 🔍 [Docker Watcher & TLS](https://getwud.app/docs/configuration/watchers/)
+- 📦 [Registry Authentication](https://getwud.app/docs/configuration/registries/)
+- 🔔 [Triggers & Automation Setup](https://getwud.app/docs/configuration/triggers/)
+- 📊 [Prometheus & Grafana Monitoring](https://getwud.app/docs/monitoring/)
+- 🔌 [REST API Reference](https://getwud.app/docs/api/)
+- ❓ [Frequently Asked Questions (FAQ)](https://getwud.app/docs/faq/)
 
 ---
 

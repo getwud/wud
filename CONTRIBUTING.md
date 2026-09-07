@@ -119,7 +119,7 @@ npm run build
 
 ### 3. Documentation Website (`website/`)
 
-The official documentation at [https://getwud.github.io/wud/](https://getwud.github.io/wud/) is built with **Docusaurus**.
+The official documentation at [https://getwud.app/](https://getwud.app/) is built with **Docusaurus**.
 
 ```bash
 cd website
