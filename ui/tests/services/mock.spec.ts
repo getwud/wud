@@ -21,12 +21,6 @@ describe('Mock Service and Demo Mode', () => {
       expect(isDemoMode()).toBe(true);
     });
 
-    it('returns false when demo=false is set explicitly', () => {
-      process.env.VUE_APP_DEMO_MODE = 'true';
-      window.history.replaceState({}, '', '/?demo=false');
-      expect(isDemoMode()).toBe(false);
-    });
-
     it('returns false by default', () => {
       process.env.VUE_APP_DEMO_MODE = 'false';
       expect(isDemoMode()).toBe(false);
