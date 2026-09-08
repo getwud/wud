@@ -189,6 +189,13 @@ These registries host private images or custom infrastructure and **require expl
   />
 
   <RegistryCard
+    title="Docker Hardened Images (DHI)"
+    href="/docs/configuration/registries/dhi"
+    defaultSupport={false}
+    description="Requires Docker Hub credentials (username and Personal Access Token) to authenticate with dhi.io."
+  />
+
+  <RegistryCard
     title="Gitea"
     href="/docs/configuration/registries/gitea"
     defaultSupport={false}

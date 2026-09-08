@@ -112,6 +112,7 @@ services:
 | Registry | Description | Authentication |
 | :--- | :--- | :---: |
 | [**Docker Hub**](https://getwud.app/docs/configuration/registries/hub/) | Public and private Docker Hub images | Anonymous / Token / Password |
+| [**Docker Hardened Images (DHI)**](https://getwud.app/docs/configuration/registries/dhi/) | Docker Hardened Images (`dhi.io`) | Token / Password |
 | [**GitHub (GHCR)**](https://getwud.app/docs/configuration/registries/ghcr/) | GitHub Container Registry packages | Personal Access Token |
 | [**AWS ECR**](https://getwud.app/docs/configuration/registries/ecr/) | Amazon Elastic Container Registry | AWS IAM Keys / IAM Roles |
 | [**Google GCR / Artifact Registry**](https://getwud.app/docs/configuration/registries/gcr/) | GCP Container & Artifact Registry | Service Account Key (JSON) |
