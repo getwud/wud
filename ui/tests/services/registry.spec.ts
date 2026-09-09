@@ -12,6 +12,7 @@ describe('Registry Service', () => {
     it('returns correct icons for different providers', () => {
       expect(getRegistryProviderIcon('acr.example.com')).toBe('si-microsoftazure');
       expect(getRegistryProviderIcon('custom.registry.com')).toBe('si-opencontainersinitiative');
+      expect(getRegistryProviderIcon('dhi.io')).toBe('si-docker');
       expect(getRegistryProviderIcon('ecr.amazonaws.com')).toBe('si-amazonaws');
       expect(getRegistryProviderIcon('gcr.io')).toBe('si-googlecloud');
       expect(getRegistryProviderIcon('ghcr.io')).toBe('si-github');

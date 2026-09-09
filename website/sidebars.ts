@@ -195,6 +195,11 @@ const sidebars = {
         },
         {
           type: 'doc',
+          id: 'configuration/registries/dhi/README',
+          label: 'Docker Hardened Images (DHI)',
+        },
+        {
+          type: 'doc',
           id: 'configuration/registries/docr/README',
           label: 'DigitalOcean (DOCR)',
         },

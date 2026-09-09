@@ -38,6 +38,7 @@ function getRegistryProviderIcon(provider) {
     case "gitlab":
       icon = "si-gitlab";
       break;
+    case "dhi":
     case "hub":
       icon = "si-docker";
       break;
