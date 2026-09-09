@@ -447,7 +447,11 @@ export class Docker extends Watcher {
             return;
         }
         const action = dockerEvent.Action;
-        const containerId = dockerEvent.id;
+        // The container id lives in `Actor.ID`. The flat `id` field is a
+        // legacy alias that recent daemons (Docker 29.x) no longer send,
+        // which left containerId undefined and silently disabled the
+        // status refresh below.
+        const containerId = dockerEvent.Actor?.ID ?? dockerEvent.id;
 
         // If the container was created or destroyed => perform a watch
         if (action === 'destroy' || action === 'create') {
