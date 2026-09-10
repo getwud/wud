@@ -23,6 +23,8 @@ import {
     wudDisplayIcon,
     wudTriggerInclude,
     wudTriggerExclude,
+    dockerComposeProject,
+    wudStack,
 } from './label';
 import * as storeContainer from '../../../store/container';
 import {
@@ -761,6 +763,12 @@ export class Docker extends Watcher {
         triggerExclude: string,
     ) {
         const containerId = container.Id;
+        const containerLabels = container.Labels || container.labels || {};
+        const stack =
+            containerLabels[wudStack] ||
+            containerLabels[dockerComposeProject] ||
+            containerLabels['com.docker.compose.project'] ||
+            undefined;
 
         // Is container already in store? just return it :)
         const containerInStore = storeContainer.getContainer(containerId);
@@ -769,6 +777,9 @@ export class Docker extends Watcher {
             containerInStore.error === undefined
         ) {
             this.log.debug(`Container ${containerInStore.id} already in store`);
+            if (stack && !containerInStore.stack) {
+                containerInStore.stack = stack;
+            }
             return containerInStore;
         }
 
@@ -860,6 +871,7 @@ export class Docker extends Watcher {
             name: containerName,
             status,
             watcher: this.name,
+            stack,
             includeTags,
             excludeTags,
             transformTags,

@@ -47,6 +47,7 @@ export interface Container {
     displayIcon: string;
     status: string;
     watcher: string;
+    stack?: string;
     includeTags?: string;
     excludeTags?: string;
     transformTags?: string;
@@ -73,6 +74,7 @@ const schema = joi.object({
     displayIcon: joi.string().default('mdi:docker'),
     status: joi.string().default('unknown'),
     watcher: joi.string().min(1).required(),
+    stack: joi.string().allow('').optional(),
     includeTags: joi.string(),
     excludeTags: joi.string(),
     transformTags: joi.string(),

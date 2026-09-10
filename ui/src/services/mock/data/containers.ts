@@ -6,6 +6,7 @@ export const mockContainers = [
     displayIcon: "simple-icons:traefikproxy",
     status: "running",
     watcher: "local",
+    stack: "networking",
     image: {
       id: "sha256:4a8e3d6f1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e",
       registry: {
@@ -50,6 +51,7 @@ export const mockContainers = [
     displayIcon: "simple-icons:pihole",
     status: "running",
     watcher: "local",
+    stack: "networking",
     image: {
       id: "sha256:8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e",
       registry: {
@@ -94,6 +96,7 @@ export const mockContainers = [
     displayIcon: "simple-icons:homeassistant",
     status: "running",
     watcher: "local",
+    stack: "smarthome",
     image: {
       id: "sha256:2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c",
       registry: {
@@ -138,6 +141,7 @@ export const mockContainers = [
     displayIcon: "simple-icons:bitwarden",
     status: "running",
     watcher: "local",
+    stack: "security",
     image: {
       id: "sha256:3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d",
       registry: {
@@ -182,6 +186,7 @@ export const mockContainers = [
     displayIcon: "simple-icons:nextcloud",
     status: "running",
     watcher: "remote-vps",
+    stack: "cloud",
     image: {
       id: "sha256:4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e",
       registry: {
@@ -226,6 +231,7 @@ export const mockContainers = [
     displayIcon: "simple-icons:portainer",
     status: "running",
     watcher: "local",
+    stack: "management",
     image: {
       id: "sha256:5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f",
       registry: {
@@ -270,6 +276,7 @@ export const mockContainers = [
     displayIcon: "simple-icons:jellyfin",
     status: "running",
     watcher: "local",
+    stack: "media",
     image: {
       id: "sha256:7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b",
       registry: {
@@ -310,6 +317,7 @@ export const mockContainers = [
     displayIcon: "mdi:chart-timeline-variant",
     status: "running",
     watcher: "local",
+    stack: "monitoring",
     image: {
       id: "sha256:8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c",
       registry: {
@@ -350,6 +358,7 @@ export const mockContainers = [
     displayIcon: "simple-icons:eclipsemosquitto",
     status: "running",
     watcher: "local",
+    stack: "smarthome",
     image: {
       id: "sha256:9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d",
       registry: {

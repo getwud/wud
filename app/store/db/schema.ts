@@ -28,6 +28,7 @@ export const containers = sqliteTable('containers', {
     displayIcon: text('display_icon').notNull().default('mdi:docker'),
     status: text('status').notNull().default('unknown'),
     watcher: text('watcher').notNull(),
+    stack: text('stack'),
     includeTags: text('include_tags'),
     excludeTags: text('exclude_tags'),
     transformTags: text('transform_tags'),

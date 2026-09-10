@@ -30,6 +30,13 @@
       <v-list-item-title>Name</v-list-item-title>
       <v-list-item-subtitle>{{ container.name }}</v-list-item-subtitle>
     </v-list-item>
+    <v-list-item v-if="container.stack">
+      <template v-slot:prepend>
+        <v-icon color="secondary">mdi-layers-outline</v-icon>
+      </template>
+      <v-list-item-title>Stack</v-list-item-title>
+      <v-list-item-subtitle>{{ container.stack }}</v-list-item-subtitle>
+    </v-list-item>
     <v-list-item>
       <template v-slot:prepend>
         <v-icon color="secondary">mdi-restart</v-icon>

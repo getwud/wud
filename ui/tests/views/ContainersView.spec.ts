@@ -15,7 +15,8 @@ const mockContainers = [
     image: { registry: { name: 'hub' }, created: '2023-01-01T00:00:00Z' },
     updateAvailable: true,
     updateKind: { semverDiff: 'minor' },
-    labels: { app: 'web', env: 'prod' }
+    labels: { app: 'web', env: 'prod' },
+    stack: 'monitoring'
   },
   {
     id: '2',
@@ -23,7 +24,8 @@ const mockContainers = [
     watcher: 'docker',
     image: { registry: { name: 'ghcr' }, created: '2023-01-02T00:00:00Z' },
     updateAvailable: false,
-    labels: { app: 'api', env: 'dev' }
+    labels: { app: 'api', env: 'dev' },
+    stack: 'web'
   }
 ];
 
@@ -79,6 +81,37 @@ describe('ContainersView', () => {
     const filtered = wrapper.vm.containersFiltered;
     expect(filtered).toHaveLength(1);
     expect(filtered[0].id).toBe('1');
+  });
+
+  it('computes stacks correctly', () => {
+    expect(wrapper.vm.stacks).toEqual(['monitoring', 'web']);
+  });
+
+  it('filters containers by stack', async () => {
+    wrapper.vm.stackSelected = 'monitoring';
+    await wrapper.vm.$nextTick();
+
+    const filtered = wrapper.vm.containersFiltered;
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].id).toBe('1');
+  });
+
+  it('filters containers by search query matching name or stack', async () => {
+    wrapper.vm.searchQuery = 'web';
+    await wrapper.vm.$nextTick();
+
+    const filtered = wrapper.vm.containersFiltered;
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].id).toBe('2');
+  });
+
+  it('sets stack filter when onStackChipClick is called', async () => {
+    wrapper.vm.onStackChipClick('web');
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.stackSelected).toBe('web');
+    expect(wrapper.vm.containersFiltered).toHaveLength(1);
+    expect(wrapper.vm.containersFiltered[0].id).toBe('2');
   });
 
   it('filters containers by watcher', async () => {
@@ -287,10 +320,10 @@ describe('ContainersView', () => {
   describe('table headers and sorting', () => {
     it('defines sortable headers for all columns', () => {
       const headers = wrapper.vm.headers;
-      expect(headers).toHaveLength(5);
+      expect(headers).toHaveLength(6);
       
       const keys = headers.map((h: any) => h.key);
-      expect(keys).toEqual(['watcher', 'registry', 'displayName', 'currentVersion', 'update']);
+      expect(keys).toEqual(['watcher', 'registry', 'stack', 'displayName', 'currentVersion', 'update']);
 
       headers.forEach((header: any) => {
         expect(header.sortable).toBe(true);
@@ -303,6 +336,7 @@ describe('ContainersView', () => {
         name: 'test-name',
         displayName: 'Test Display',
         watcher: 'docker-local',
+        stack: 'test-stack',
         image: {
           registry: { name: 'quay' },
           tag: { value: '1.2.3' }
@@ -313,12 +347,14 @@ describe('ContainersView', () => {
 
       const watcherHeader = headers.find((h: any) => h.key === 'watcher');
       const registryHeader = headers.find((h: any) => h.key === 'registry');
+      const stackHeader = headers.find((h: any) => h.key === 'stack');
       const containerHeader = headers.find((h: any) => h.key === 'displayName');
       const versionHeader = headers.find((h: any) => h.key === 'currentVersion');
       const updateHeader = headers.find((h: any) => h.key === 'update');
 
       expect(watcherHeader.value(sampleItem)).toBe('docker-local');
       expect(registryHeader.value(sampleItem)).toBe('quay');
+      expect(stackHeader.value(sampleItem)).toBe('test-stack');
       expect(containerHeader.value(sampleItem)).toBe('Test Display');
       expect(versionHeader.value(sampleItem)).toBe('1.2.3');
       expect(updateHeader.value(sampleItem)).toBe('1.3.0');
@@ -354,6 +390,8 @@ describe('ContainersView', () => {
     it('resets all filter state and updates query params on onResetFilters', () => {
       wrapper.vm.registrySelected = 'hub';
       wrapper.vm.watcherSelected = 'local';
+      wrapper.vm.stackSelected = 'monitoring';
+      wrapper.vm.searchQuery = 'test';
       wrapper.vm.updateKindSelected = 'minor';
       wrapper.vm.groupByLabel = 'app';
       wrapper.vm.updateAvailableSelected = true;
@@ -363,6 +401,8 @@ describe('ContainersView', () => {
 
       expect(wrapper.vm.registrySelected).toBe('');
       expect(wrapper.vm.watcherSelected).toBe('');
+      expect(wrapper.vm.stackSelected).toBe('');
+      expect(wrapper.vm.searchQuery).toBe('');
       expect(wrapper.vm.updateKindSelected).toBe('');
       expect(wrapper.vm.groupByLabel).toBe('');
       expect(wrapper.vm.updateAvailableSelected).toBe(false);

@@ -6,6 +6,9 @@
         :registry-selected-init="registrySelected"
         :watchers="watchers"
         :watcher-selected-init="watcherSelected"
+        :stacks="stacks"
+        :stack-selected-init="stackSelected"
+        :search-query-init="searchQuery"
         :update-kinds="updateKinds"
         :update-kind-selected-init="updateKindSelected"
         :updateAvailable="updateAvailableSelected"
@@ -17,6 +20,8 @@
         :can-write="canWrite"
         @registry-changed="onRegistryChanged"
         @watcher-changed="onWatcherChanged"
+        @stack-changed="onStackChanged"
+        @search-changed="onSearchChanged"
         @update-available-changed="onUpdateAvailableChanged"
         @oldest-first-changed="onOldestFirstChanged"
         @group-by-label-changed="onGroupByLabelChanged"
@@ -97,6 +102,23 @@
               </div>
             </template>
 
+            <template #[`item.stack`]="{ item }">
+              <v-chip
+                v-if="item.raw ? item.raw.stack : item.stack"
+                label
+                color="secondary"
+                variant="tonal"
+                size="small"
+                class="font-weight-medium cursor-pointer"
+                @click.stop="onStackChipClick(item.raw ? item.raw.stack : item.stack)"
+                title="Filter by this stack"
+              >
+                <v-icon start size="small">mdi-layers-outline</v-icon>
+                {{ item.raw ? item.raw.stack : item.stack }}
+              </v-chip>
+              <span v-else class="text-disabled text-caption">-</span>
+            </template>
+
             <template #[`item.displayName`]="{ item }">
               <div class="d-flex align-center font-weight-medium">
                 <IconRenderer 
@@ -171,6 +193,9 @@
               </div>
               <div class="text-caption text-grey text-truncate">
                 {{ selectedContainer.image?.registry?.name }} &bull; {{ selectedContainer.watcher }}
+                <template v-if="selectedContainer.stack">
+                  &bull; <v-icon size="x-small" class="mr-0.5">mdi-layers-outline</v-icon>{{ selectedContainer.stack }}
+                </template>
               </div>
             </div>
           </div>
@@ -282,6 +307,8 @@ export default defineComponent({
       containers: [] as any[],
       registrySelected: "",
       watcherSelected: "",
+      stackSelected: "",
+      searchQuery: "",
       updateKindSelected: "",
       updateAvailableSelected: false,
       groupByLabel: "",
@@ -324,6 +351,12 @@ export default defineComponent({
           title: "Registry",
           key: "registry",
           value: (item: any) => item.image?.registry?.name || "",
+          sortable: true,
+        },
+        {
+          title: "Stack",
+          key: "stack",
+          value: (item: any) => item.stack || "",
           sortable: true,
         },
         {
@@ -377,6 +410,12 @@ export default defineComponent({
     watchers() {
       return [...new Set(this.containers.map((c) => c.watcher).sort())];
     },
+    stacks(): string[] {
+      const allStacks = this.containers
+        .map((c) => c.stack)
+        .filter((s): s is string => Boolean(s));
+      return [...new Set(allStacks)].sort();
+    },
     updateKinds() {
       return [
         ...new Set(
@@ -389,10 +428,22 @@ export default defineComponent({
     },
     containersFiltered() {
       return this.containers
-        .filter((c) => (this.registrySelected ? this.registrySelected === c.image.registry.name : true))
+        .filter((c) => (this.registrySelected ? this.registrySelected === c.image?.registry?.name : true))
         .filter((c) => (this.watcherSelected ? this.watcherSelected === c.watcher : true))
+        .filter((c) => (this.stackSelected ? this.stackSelected === c.stack : true))
         .filter((c) => (this.updateKindSelected ? this.updateKindSelected === c.updateKind?.semverDiff : true))
         .filter((c) => (this.updateAvailableSelected ? c.updateAvailable : true))
+        .filter((c) => {
+          if (!this.searchQuery) return true;
+          const q = this.searchQuery.toLowerCase().trim();
+          return (
+            (c.displayName && c.displayName.toLowerCase().includes(q)) ||
+            (c.name && c.name.toLowerCase().includes(q)) ||
+            (c.stack && c.stack.toLowerCase().includes(q)) ||
+            (c.image?.name && c.image.name.toLowerCase().includes(q)) ||
+            (c.watcher && c.watcher.toLowerCase().includes(q))
+          );
+        })
         .map((c) => ({
           ...c,
           containerGroup: this.groupByLabel
@@ -485,6 +536,12 @@ export default defineComponent({
 
     onRegistryChanged(val: string) { this.registrySelected = val; this.updateQueryParams(); },
     onWatcherChanged(val: string) { this.watcherSelected = val; this.updateQueryParams(); },
+    onStackChanged(val: string) { this.stackSelected = val; this.updateQueryParams(); },
+    onStackChipClick(stackName: string) {
+      this.stackSelected = this.stackSelected === stackName ? "" : stackName;
+      this.updateQueryParams();
+    },
+    onSearchChanged(val: string) { this.searchQuery = val; },
     onUpdateAvailableChanged() { this.updateAvailableSelected = !this.updateAvailableSelected; this.updateQueryParams(); },
     onOldestFirstChanged() { this.oldestFirst = !this.oldestFirst; this.updateQueryParams(); },
     onGroupByLabelChanged(val: string) { this.groupByLabel = val; this.updateQueryParams(); },
@@ -493,6 +550,8 @@ export default defineComponent({
     onResetFilters() {
       this.registrySelected = "";
       this.watcherSelected = "";
+      this.stackSelected = "";
+      this.searchQuery = "";
       this.updateKindSelected = "";
       this.groupByLabel = "";
       this.updateAvailableSelected = false;
@@ -504,6 +563,7 @@ export default defineComponent({
       const query: any = {};
       if (this.registrySelected) query["registry"] = this.registrySelected;
       if (this.watcherSelected) query["watcher"] = this.watcherSelected;
+      if (this.stackSelected) query["stack"] = this.stackSelected;
       if (this.updateKindSelected) query["update-kind"] = this.updateKindSelected;
       if (this.updateAvailableSelected) query["update-available"] = String(this.updateAvailableSelected);
       if (this.oldestFirst) query["oldest-first"] = String(this.oldestFirst);
@@ -525,6 +585,7 @@ export default defineComponent({
   async beforeRouteEnter(to, from, next) {
     const rs = to.query["registry"];
     const ws = to.query["watcher"];
+    const ss = to.query["stack"];
     const uk = to.query["update-kind"];
     const ua = to.query["update-available"];
     const of = to.query["oldest-first"];
@@ -535,6 +596,7 @@ export default defineComponent({
       next((vm: any) => {
         if (rs) vm.registrySelected = rs;
         if (ws) vm.watcherSelected = ws;
+        if (ss) vm.stackSelected = ss;
         if (uk) vm.updateKindSelected = uk;
         if (ua) vm.updateAvailableSelected = String(ua).toLowerCase() === "true";
         if (of) vm.oldestFirst = String(of).toLowerCase() === "true";

@@ -1405,6 +1405,63 @@ describe('Docker Watcher', () => {
                 ),
             );
         });
+
+        test('should extract stack from com.docker.compose.project label', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const container = {
+                Id: 'compose-container',
+                Names: ['/my-compose-app'],
+                Image: 'test-image',
+                State: 'running',
+                Labels: { 'com.docker.compose.project': 'homelab-stack' },
+            };
+            mockImage.inspect.mockResolvedValue({
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+                Id: 'img123',
+                RepoDigests: [],
+            });
+
+            const containerModule = await import('../../../model/container');
+            const validateContainer = containerModule.validate;
+            // @ts-ignore
+            validateContainer.mockImplementation((c) => c);
+
+            const result = await docker.addImageDetailsToContainer(container);
+            expect(result).toBeDefined();
+            expect(result.stack).toBe('homelab-stack');
+        });
+
+        test('should extract stack from wud.stack label as override', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const container = {
+                Id: 'custom-stack-container',
+                Names: ['/my-custom-app'],
+                Image: 'test-image',
+                State: 'running',
+                Labels: {
+                    'com.docker.compose.project': 'compose-default',
+                    'wud.stack': 'custom-override',
+                },
+            };
+            mockImage.inspect.mockResolvedValue({
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+                Id: 'img123',
+                RepoDigests: [],
+            });
+
+            const containerModule = await import('../../../model/container');
+            const validateContainer = containerModule.validate;
+            // @ts-ignore
+            validateContainer.mockImplementation((c) => c);
+
+            const result = await docker.addImageDetailsToContainer(container);
+            expect(result).toBeDefined();
+            expect(result.stack).toBe('custom-override');
+        });
     });
 
     describe('Container Reporting', () => {

@@ -86,6 +86,33 @@ test('model should not be validated when invalid', async () => {
     }).toThrow();
 });
 
+test('model should validate and preserve stack property', async () => {
+    const containerValidated = container.validate({
+        id: 'container-stack-1',
+        name: 'test-stack',
+        watcher: 'test-watcher',
+        stack: 'homelab',
+        image: {
+            id: 'image-1',
+            registry: {
+                name: 'hub',
+                url: 'https://hub',
+            },
+            name: 'org/image',
+            tag: {
+                value: '1.0.0',
+                semver: true,
+            },
+            digest: {
+                watch: false,
+            },
+            architecture: 'amd64',
+            os: 'linux',
+        },
+    });
+    expect(containerValidated.stack).toBe('homelab');
+});
+
 test('model should flag updateAvailable when tag is different', async () => {
     const containerValidated = container.validate({
         id: 'container-123456789',
