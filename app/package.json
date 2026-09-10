@@ -46,7 +46,7 @@
         "nats": "^2.29.3",
         "nocache": "4.0.0",
         "node-cron": "4.2.1",
-        "nodemailer": "^9.0.3",
+        "nodemailer": "^9.1.1",
         "openid-client": "6.8.2",
         "parse-docker-image-name": "3.0.0",
         "pass": "0.2.0",
