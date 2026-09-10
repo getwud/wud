@@ -29,6 +29,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [REGISTRY] Support direct bearer-token authentication for custom registries
 - 🚀 [REGISTRY] Add support for Docker Hardened Images (dhi.io) (fixes #875)
 - 🚀 [UI] Display Docker Compose stack / project name with filtering chip and drawer details (fixes #1205)
+- 🚀 [TRIGGER] Add support for tags and icon in NTFY trigger (fixes #1216)
 - 🔧 [DOCS] Refresh OpenID Connect (OIDC) and container registry documentation with modern Vue 3 UI screenshots and fix relative asset paths
 
 - ⚠️ [AUTH] Anonymous authentication removed: WUD now enforces mandatory authentication. At least one administrator account must be provisioned (via `WUD_AUTH_ADMIN_USER`/`WUD_AUTH_ADMIN_PASSWORD`, legacy `WUD_AUTH_BASIC_*`, or an OIDC provider with an admin group). WUD will fail-fast on startup if no administrator is available.

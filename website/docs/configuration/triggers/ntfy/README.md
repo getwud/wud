@@ -45,6 +45,22 @@ import TabItem from '@theme/TabItem';
     ntfy notification priority
   </ConfigOption>
 
+  <ConfigOption
+    name="WUD_TRIGGER_NTFY_{trigger_name}_TAGS"
+    required={false}
+    type="string"
+    supported="Comma-separated tags or emojis">
+    List of tags and/or emojis (e.g. `whale,package` or `warning`) [see docs](https://docs.ntfy.sh/publish/#tags-emojis)
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_NTFY_{trigger_name}_ICON"
+    required={false}
+    type="url"
+    supported="Valid HTTP/HTTPS URL">
+    Custom icon URL to display with the notification [see docs](https://docs.ntfy.sh/publish/#icons)
+  </ConfigOption>
+
   <ConfigOption name="WUD_TRIGGER_NTFY_{trigger_name}_AUTH_TOKEN"
     required={false}
     type="string"
