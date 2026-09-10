@@ -41,6 +41,7 @@
 
       <!-- Data Table -->
       <v-data-table
+        v-model:items-per-page="itemsPerPage"
         :headers="headers"
         :items="triggersFiltered"
         item-value="id"
@@ -168,6 +169,19 @@ export default defineComponent({
   },
 
   data() {
+    let itemsPerPage = 10;
+    try {
+      const saved = localStorage.getItem("itemsPerPage") || localStorage.itemsPerPage;
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed)) {
+          itemsPerPage = parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     return {
       triggers: [] as any[],
       search: "",
@@ -176,7 +190,18 @@ export default defineComponent({
       testDialogOpen: false,
       isLoading: false,
       currentUser: null as any,
+      itemsPerPage,
     };
+  },
+
+  watch: {
+    itemsPerPage(val: number) {
+      try {
+        localStorage.setItem("itemsPerPage", String(val));
+      } catch {
+        // ignore
+      }
+    },
   },
 
   async mounted() {

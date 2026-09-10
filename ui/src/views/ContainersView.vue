@@ -28,6 +28,7 @@
       <v-divider />
 
       <v-data-table
+        v-model:items-per-page="itemsPerPage"
         :headers="headers"
         :items="containersFiltered"
         item-value="id"
@@ -278,6 +279,19 @@ export default defineComponent({
   },
 
   data() {
+    let itemsPerPage = 10;
+    try {
+      const saved = localStorage.getItem("itemsPerPage") || localStorage.itemsPerPage;
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed)) {
+          itemsPerPage = parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     return {
       containers: [] as any[],
       registrySelected: "",
@@ -287,6 +301,7 @@ export default defineComponent({
       groupByLabel: "",
       oldestFirst: false,
       currentUser: null as any,
+      itemsPerPage,
       
       drawerOpen: false,
       selectedContainer: null as any,
@@ -296,6 +311,16 @@ export default defineComponent({
       dialogDelete: false,
       containerToDelete: null as any,
     };
+  },
+
+  watch: {
+    itemsPerPage(val: number) {
+      try {
+        localStorage.setItem("itemsPerPage", String(val));
+      } catch {
+        // ignore
+      }
+    },
   },
 
   async mounted() {
