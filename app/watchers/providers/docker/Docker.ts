@@ -447,7 +447,7 @@ export class Docker extends Watcher {
             return;
         }
         const action = dockerEvent.Action;
-        const containerId = dockerEvent.id;
+        const containerId = dockerEvent.Actor?.ID || dockerEvent.id;
 
         // If the container was created or destroyed => perform a watch
         if (action === 'destroy' || action === 'create') {

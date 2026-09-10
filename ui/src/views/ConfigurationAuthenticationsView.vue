@@ -41,6 +41,7 @@
 
       <!-- Data Table -->
       <v-data-table
+        v-model:items-per-page="itemsPerPage"
         :headers="headers"
         :items="authenticationsFiltered"
         item-value="id"
@@ -134,13 +135,37 @@ export default defineComponent({
   },
 
   data() {
+    let itemsPerPage = 10;
+    try {
+      const saved = localStorage.getItem("itemsPerPage") || localStorage.itemsPerPage;
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed)) {
+          itemsPerPage = parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     return {
       authentications: [] as any[],
       search: "",
       drawerOpen: false,
       selectedAuthentication: null as any,
       isLoading: false,
+      itemsPerPage,
     };
+  },
+
+  watch: {
+    itemsPerPage(val: number) {
+      try {
+        localStorage.setItem("itemsPerPage", String(val));
+      } catch {
+        // ignore
+      }
+    },
   },
 
   computed: {

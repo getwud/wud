@@ -369,4 +369,43 @@ describe('ContainersView', () => {
       expect(wrapper.vm.oldestFirst).toBe(false);
     });
   });
+
+  describe('items-per-page persistence', () => {
+    it('defaults itemsPerPage to 10 when not present in localStorage', () => {
+      localStorage.removeItem('itemsPerPage');
+      const testWrapper = mount(ContainersView, {
+        global: {
+          stubs: {
+            'container-filter': true,
+            'container-item': true,
+          },
+        },
+      });
+      expect(testWrapper.vm.itemsPerPage).toBe(10);
+      testWrapper.unmount();
+    });
+
+    it('initializes itemsPerPage from localStorage if present', () => {
+      localStorage.setItem('itemsPerPage', '25');
+      const testWrapper = mount(ContainersView, {
+        global: {
+          stubs: {
+            'container-filter': true,
+            'container-item': true,
+          },
+        },
+      });
+      expect(testWrapper.vm.itemsPerPage).toBe(25);
+      testWrapper.unmount();
+      localStorage.removeItem('itemsPerPage');
+    });
+
+    it('persists itemsPerPage to localStorage when changed', async () => {
+      localStorage.removeItem('itemsPerPage');
+      wrapper.vm.itemsPerPage = 50;
+      await wrapper.vm.$nextTick();
+      expect(localStorage.getItem('itemsPerPage')).toBe('50');
+      localStorage.removeItem('itemsPerPage');
+    });
+  });
 });

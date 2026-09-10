@@ -361,6 +361,34 @@ describe('Docker Watcher', () => {
             expect(storeContainer.updateContainer).toHaveBeenCalled();
         });
 
+        test('should update container status when container id is in Actor.ID (Docker 29.8.0+)', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = {
+                child: jest.fn().mockReturnValue({ info: jest.fn() }),
+                debug: jest.fn(),
+            };
+            docker.log = mockLog;
+            mockContainer.inspect.mockResolvedValue({
+                State: { Status: 'running' },
+            });
+            const existingContainer = { id: 'container456', status: 'stopped' };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const event = JSON.stringify({
+                Action: 'start',
+                Actor: {
+                    ID: 'container456',
+                },
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+
+            expect(mockDockerApi.getContainer).toHaveBeenCalledWith(
+                'container456',
+            );
+            expect(mockContainer.inspect).toHaveBeenCalled();
+            expect(storeContainer.updateContainer).toHaveBeenCalled();
+        });
+
         test('should handle container not found during event processing', async () => {
             const mockLog = { debug: jest.fn() };
             docker.log = mockLog;
