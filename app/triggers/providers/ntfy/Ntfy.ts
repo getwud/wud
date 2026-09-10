@@ -20,6 +20,24 @@ class Ntfy extends Trigger {
                 .default('https://ntfy.sh'),
             topic: this.joi.string(),
             priority: this.joi.number().integer().min(0).max(5),
+            tags: this.joi
+                .alternatives([
+                    this.joi.array().items(this.joi.string()),
+                    this.joi
+                        .string()
+                        .empty('')
+                        .custom((value) =>
+                            value.split(',').map((t) => t.trim()),
+                        ),
+                ])
+                .default([]),
+            icon: this.joi
+                .string()
+                .uri({
+                    scheme: ['http', 'https'],
+                })
+                .allow('')
+                .default(''),
             auth: this.joi.object({
                 user: this.joi.string(),
                 password: this.joi.string(),
@@ -51,12 +69,19 @@ class Ntfy extends Trigger {
      * @returns {Promise<void>}
      */
     async trigger(container) {
-        return this.sendHttpRequest({
+        const body = {
             topic: this.configuration.topic,
             title: this.renderSimpleTitle(container),
             message: this.renderSimpleBody(container),
             priority: this.configuration.priority,
-        });
+        };
+        if (this.configuration.tags && this.configuration.tags.length > 0) {
+            body.tags = this.configuration.tags;
+        }
+        if (this.configuration.icon) {
+            body.icon = this.configuration.icon;
+        }
+        return this.sendHttpRequest(body);
     }
 
     /**
@@ -65,12 +90,19 @@ class Ntfy extends Trigger {
      * @returns {Promise<*>}
      */
     async triggerBatch(containers) {
-        return this.sendHttpRequest({
+        const body = {
             topic: this.configuration.topic,
             title: this.renderBatchTitle(containers),
             message: this.renderBatchBody(containers),
             priority: this.configuration.priority,
-        });
+        };
+        if (this.configuration.tags && this.configuration.tags.length > 0) {
+            body.tags = this.configuration.tags;
+        }
+        if (this.configuration.icon) {
+            body.icon = this.configuration.icon;
+        }
+        return this.sendHttpRequest(body);
     }
 
     /**
