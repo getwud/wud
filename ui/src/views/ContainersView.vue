@@ -410,10 +410,10 @@ export default defineComponent({
     watchers() {
       return [...new Set(this.containers.map((c) => c.watcher).sort())];
     },
-    stacks(): string[] {
+    stacks() {
       const allStacks = this.containers
         .map((c) => c.stack)
-        .filter((s): s is string => Boolean(s));
+        .filter((s) => Boolean(s));
       return [...new Set(allStacks)].sort();
     },
     updateKinds() {
