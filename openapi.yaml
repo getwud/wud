@@ -206,6 +206,10 @@ paths:
                   schema:
                       type: string
                 - in: query
+                  name: stack
+                  schema:
+                      type: string
+                - in: query
                   name: tag
                   schema:
                       type: string
@@ -606,6 +610,9 @@ components:
                     type: string
                 watcher:
                     type: string
+                stack:
+                    type: string
+                    description: Docker Compose project / stack name
                 includeTags:
                     type: string
                 excludeTags:
