@@ -157,4 +157,30 @@ describe('Container Store (SQLite)', () => {
             0,
         );
     });
+
+    test('insertContainer, updateContainer and getContainers should persist and filter by stack', () => {
+        const stackContainer = {
+            ...sampleContainer,
+            id: 'stack-container-id',
+            name: 'stack-container',
+            stack: 'monitoring',
+        };
+
+        container.insertContainer(stackContainer);
+        let stored = container.getContainer('stack-container-id');
+        expect(stored?.stack).toBe('monitoring');
+
+        // Filter by stack
+        const filtered = container.getContainers({ stack: 'monitoring' });
+        expect(filtered.length).toBe(1);
+        expect(filtered[0].id).toBe('stack-container-id');
+
+        // Update stack
+        stackContainer.stack = 'observability';
+        container.updateContainer(stackContainer);
+        stored = container.getContainer('stack-container-id');
+        expect(stored?.stack).toBe('observability');
+
+        container.deleteContainer('stack-container-id');
+    });
 });

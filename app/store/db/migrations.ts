@@ -119,6 +119,14 @@ export const migrations: Migration[] = [
             `CREATE INDEX IF NOT EXISTS idx_api_tokens_hash ON api_tokens (token_hash);`,
         ],
     },
+    {
+        id: 2,
+        name: '0002_container_stack',
+        sql: [
+            `ALTER TABLE containers ADD COLUMN stack TEXT;`,
+            `CREATE INDEX IF NOT EXISTS idx_containers_stack ON containers (stack);`,
+        ],
+    },
 ];
 
 export function runMigrations(sqlite: Database.Database) {

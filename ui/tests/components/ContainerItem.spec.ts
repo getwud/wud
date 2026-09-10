@@ -57,6 +57,16 @@ describe('ContainerItem', () => {
     expect(wrapper.text()).toContain('hub');
   });
 
+  it('displays stack chip when container has stack', async () => {
+    await wrapper.setProps({
+      container: {
+        ...mockContainer,
+        stack: 'my-compose-stack'
+      }
+    });
+    expect(wrapper.text()).toContain('my-compose-stack');
+  });
+
   it('shows update available indicator when update is available', () => {
     expect(wrapper.vm.newVersion).toBe('1.1.0');
   });

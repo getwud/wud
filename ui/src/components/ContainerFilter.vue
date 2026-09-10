@@ -74,7 +74,33 @@
 
     <!-- Bottom Filters Row: Selects & Autocomplete -->
     <v-row dense>
-      <v-col cols="12" sm="6" md="3">
+      <v-col cols="12" sm="6" md="4" lg="2">
+        <v-text-field
+          :hide-details="true"
+          v-model="searchQuery"
+          @update:modelValue="emitSearchChanged"
+          :clearable="true"
+          label="Search"
+          placeholder="Filter containers..."
+          variant="outlined"
+          density="compact"
+          prepend-inner-icon="mdi-magnify"
+        ></v-text-field>
+      </v-col>
+      <v-col cols="12" sm="6" md="4" lg="2">
+        <v-select
+          :hide-details="true"
+          v-model="stackSelected"
+          :items="stacks"
+          @update:modelValue="emitStackChanged"
+          :clearable="true"
+          label="Stack"
+          variant="outlined"
+          density="compact"
+          prepend-inner-icon="mdi-layers-outline"
+        ></v-select>
+      </v-col>
+      <v-col cols="12" sm="6" md="4" lg="2">
         <v-select
           :hide-details="true"
           v-model="watcherSelected"
@@ -87,7 +113,7 @@
           prepend-inner-icon="mdi-eye-outline"
         ></v-select>
       </v-col>
-      <v-col cols="12" sm="6" md="3">
+      <v-col cols="12" sm="6" md="4" lg="2">
         <v-select
           :hide-details="true"
           v-model="registrySelected"
@@ -100,7 +126,7 @@
           prepend-inner-icon="mdi-database-outline"
         ></v-select>
       </v-col>
-      <v-col cols="12" sm="6" md="3">
+      <v-col cols="12" sm="6" md="4" lg="2">
         <v-select
           :hide-details="true"
           v-model="updateKindSelected"
@@ -113,7 +139,7 @@
           prepend-inner-icon="mdi-tag-outline"
         ></v-select>
       </v-col>
-      <v-col cols="12" sm="6" md="3">
+      <v-col cols="12" sm="6" md="4" lg="2">
         <v-autocomplete
           label="Group by label"
           :items="groupLabels"
@@ -160,6 +186,21 @@ export default defineComponent({
       type: String,
       required: true,
     },
+    stacks: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
+    stackSelectedInit: {
+      type: String,
+      required: false,
+      default: "",
+    },
+    searchQueryInit: {
+      type: String,
+      required: false,
+      default: "",
+    },
     updateKinds: {
       type: Array,
       required: true,
@@ -195,6 +236,8 @@ export default defineComponent({
       isRefreshing: false,
       registrySelected: "",
       watcherSelected: "",
+      stackSelected: this.stackSelectedInit || "",
+      searchQuery: this.searchQueryInit || "",
       updateKindSelected: "",
       updateAvailableLocal: this.updateAvailable,
       oldestFirstLocal: this.oldestFirst,
@@ -207,6 +250,8 @@ export default defineComponent({
       return Boolean(
         this.registrySelected ||
         this.watcherSelected ||
+        this.stackSelected ||
+        this.searchQuery ||
         this.updateKindSelected ||
         this.groupByLabelLocal ||
         this.updateAvailableLocal ||
@@ -221,6 +266,12 @@ export default defineComponent({
     },
     emitWatcherChanged() {
       this.$emit("watcher-changed", this.watcherSelected ?? "");
+    },
+    emitStackChanged() {
+      this.$emit("stack-changed", this.stackSelected ?? "");
+    },
+    emitSearchChanged() {
+      this.$emit("search-changed", this.searchQuery ?? "");
     },
     emitUpdateKindChanged() {
       this.$emit("update-kind-changed", this.updateKindSelected ?? "");
@@ -237,12 +288,16 @@ export default defineComponent({
     resetFilters() {
       this.registrySelected = "";
       this.watcherSelected = "";
+      this.stackSelected = "";
+      this.searchQuery = "";
       this.updateKindSelected = "";
       this.groupByLabelLocal = "";
       this.updateAvailableLocal = false;
       this.oldestFirstLocal = false;
       this.emitRegistryChanged();
       this.emitWatcherChanged();
+      this.emitStackChanged();
+      this.emitSearchChanged();
       this.emitUpdateKindChanged();
       this.emitGroupByLabelChanged("");
       this.$emit("reset-filters");
@@ -268,6 +323,8 @@ export default defineComponent({
   async beforeUpdate() {
     this.registrySelected = this.registrySelectedInit;
     this.watcherSelected = this.watcherSelectedInit;
+    this.stackSelected = this.stackSelectedInit || "";
+    this.searchQuery = this.searchQueryInit || "";
     this.updateKindSelected = this.updateKindSelectedInit;
     this.updateAvailableLocal = this.updateAvailable;
     this.oldestFirstLocal = this.oldestFirst;

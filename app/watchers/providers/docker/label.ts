@@ -52,3 +52,13 @@ export const wudTriggerInclude = 'wud.trigger.include';
  * Optional list of triggers to exclude
  */
 export const wudTriggerExclude = 'wud.trigger.exclude';
+
+/**
+ * Docker compose project (stack) label.
+ */
+export const dockerComposeProject = 'com.docker.compose.project';
+
+/**
+ * Optional stack/project override label.
+ */
+export const wudStack = 'wud.stack';

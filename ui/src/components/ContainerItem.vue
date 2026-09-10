@@ -42,6 +42,13 @@
             </v-chip>
             /
           </span>
+          <span v-if="container.stack">
+            <v-chip label color="secondary" variant="tonal" size="small">
+              <v-icon start size="small">mdi-layers-outline</v-icon>
+              {{ container.stack }}
+            </v-chip>
+            /
+          </span>
           <v-chip label color="info" variant="outlined" disabled>
             <IconRenderer 
               v-if="smAndUp" 
