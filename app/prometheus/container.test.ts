@@ -17,6 +17,7 @@ const sampleContainers = [
         id: 'container-123456789',
         name: 'test',
         watcher: 'test',
+        stack: 'my-stack',
         image: {
             id: 'image-123456789',
             registry: {
@@ -84,6 +85,7 @@ test('gauge must be populated on init when containers are in the store', async (
             image_tag_value: 'version',
             name: 'test',
             result_tag: 'version',
+            stack: 'my-stack',
             watcher: 'test',
         },
         1,
