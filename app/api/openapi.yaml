@@ -643,7 +643,38 @@ components:
                             type: string
                 result:
                     type: object
+                    description: |
+                        What the registry currently offers for the watched container.
+
+                        For a container watched by digest, `version` and `created` are read from the
+                        remote image config once per remote digest, and only once an update has been
+                        found - so they describe *what* changed, where the tag alone (typically
+                        `latest`) says nothing.
                     additionalProperties: true
+                    properties:
+                        tag:
+                            type: string
+                            description: The tag WUD would update to.
+                        digest:
+                            type: string
+                            description: The remote manifest digest, when the container is watched by digest.
+                        created:
+                            type: string
+                            description: |
+                                Build date of the remote image, normalized to millisecond precision.
+                                `image.created` is normalized the same way, so the two stay comparable.
+                                For legacy schemaVersion 1 manifests this comes from the manifest itself
+                                rather than the image config.
+                        version:
+                            type: string
+                            description: |
+                                The remote image's `org.opencontainers.image.version` label, when it
+                                carries one. Images whose label is a floating value such as `latest` or
+                                `nightly` report that value verbatim, so compare `created` against the
+                                local `image.created` in that case.
+                        link:
+                            type: string
+                            description: Link to the image on the registry, when a link template is available.
                 created:
                     type: string
                 architecture:

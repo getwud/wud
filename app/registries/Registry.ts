@@ -13,6 +13,26 @@ export interface RegistryManifest {
     digest?: string;
     version?: number;
     created?: string;
+    /**
+     * Digest of the image config blob, when the fetched manifest carried it.
+     * Absent for a multi-arch index, whose child manifest was not fetched.
+     */
+    configDigest?: string;
+}
+
+export interface RegistryImageConfig {
+    created?: string;
+    version?: string;
+}
+
+/**
+ * Image config blob (the object a manifest's `config.digest` points at).
+ */
+export interface RegistryConfigBlobResponse {
+    created?: string;
+    config?: {
+        Labels?: Record<string, string>;
+    };
 }
 
 export interface RegistryTagsList {
@@ -197,6 +217,7 @@ export class Registry extends Component {
         const tagOrDigest = digest || image.tag.value;
         let manifestDigestFound;
         let manifestMediaType;
+        let configDigestFound;
         this.log.debug(
             `${this.getId()} - Get ${image.name}:${tagOrDigest} manifest`,
         );
@@ -274,6 +295,10 @@ export class Registry extends Component {
                     );
                     manifestDigestFound = tagOrDigest;
                     manifestMediaType = responseManifests.mediaType;
+                    // This response IS the platform manifest, so its config
+                    // digest is already known; remember it so callers wanting
+                    // the config blob need not re-fetch the manifest.
+                    configDigestFound = responseManifests.config?.digest;
                 }
             } else if (responseManifests.schemaVersion === 1) {
                 log.debug('Manifests found with schemaVersion = 1');
@@ -314,6 +339,11 @@ export class Registry extends Component {
                 const manifestFound = {
                     digest: responseManifest.headers['docker-content-digest'],
                     version: 2,
+                    // Only present when the fetched manifest carried it, i.e.
+                    // not for a multi-arch index.
+                    ...(configDigestFound
+                        ? { configDigest: configDigestFound }
+                        : {}),
                 };
                 log.debug(
                     `Manifest found with [digest=${manifestFound.digest}, version=${manifestFound.version}]`,
@@ -340,6 +370,67 @@ export class Registry extends Component {
         }
         // Empty result...
         throw new Error('Unexpected error; no manifest found');
+    }
+
+    /**
+     * Get the version label and build date of a remote image.
+     *
+     * A digest-only update ("sha A -> sha B") says nothing about what changed.
+     * Both the `org.opencontainers.image.version` label and the build date live
+     * in the image config blob, which the manifest points at.
+     *
+     * Pass `knownConfigDigest` when the manifest has already been fetched (see
+     * `RegistryManifest.configDigest`) to resolve the config in a single request
+     * instead of two.
+     */
+    async getImageConfig(
+        image: ContainerImage,
+        manifestDigest: string,
+        knownConfigDigest?: string,
+    ): Promise<RegistryImageConfig> {
+        this.log.debug(
+            `${this.getId()} - Get ${image.name}@${manifestDigest} image config`,
+        );
+
+        let configDigest = knownConfigDigest;
+        if (!configDigest) {
+            // Addressing a manifest by its own digest never yields an index,
+            // so only the single-platform manifest types are accepted here.
+            const manifest = await this.callRegistry<RegistryManifestResponse>({
+                image,
+                url: `${image.registry.url}/${image.name}/manifests/${manifestDigest}`,
+                headers: {
+                    Accept: 'application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json',
+                },
+            });
+            configDigest = manifest?.config?.digest;
+        }
+
+        if (!configDigest) {
+            throw new Error(
+                `No config digest found in manifest ${manifestDigest}`,
+            );
+        }
+
+        const configBlob = await this.callRegistry<RegistryConfigBlobResponse>({
+            image,
+            url: `${image.registry.url}/${image.name}/blobs/${configDigest}`,
+        });
+
+        const imageConfig: RegistryImageConfig = {
+            created: configBlob?.created || undefined,
+            // Images built with `ARG VERSION` + `LABEL ...version=$VERSION` and no
+            // build arg publish an EMPTY label. Keep it undefined rather than '',
+            // which the container schema rejects.
+            version:
+                configBlob?.config?.Labels?.[
+                    'org.opencontainers.image.version'
+                ] || undefined,
+        };
+        this.log.debug(
+            `Image config found with [created=${imageConfig.created}, version=${imageConfig.version}]`,
+        );
+        return imageConfig;
     }
 
     async callRegistry<T = any>(options: {

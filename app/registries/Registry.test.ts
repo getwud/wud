@@ -215,6 +215,9 @@ test('getImageManifestDigest should return the manifest digest (not the config d
     ).resolves.toStrictEqual({
         version: 2,
         digest: 'manifest_digest',
+        // Already known from the manifest just fetched, so resolving the image
+        // config later costs one request instead of two.
+        configDigest: 'config_digest',
     });
     // The confirmation request must be made against the reference we already
     // fetched the manifest by (the tag here), never against the config digest.
@@ -271,6 +274,7 @@ test('getImageManifestDigest should resolve a manifest fetched directly by its o
     ).resolves.toStrictEqual({
         version: 2,
         digest: 'sha256:platformManifestDigest',
+        configDigest: 'config_digest',
     });
     expect(urlsCalled).toStrictEqual([
         'url/image/manifests/sha256:platformManifestDigest',
@@ -337,6 +341,172 @@ test('getImageManifestDigest should throw when no digest found', async () => {
             },
         }),
     ).rejects.toEqual(new Error('Unexpected error; no manifest found'));
+});
+
+const imageConfigImage = {
+    name: 'image',
+    architecture: 'amd64',
+    os: 'linux',
+    tag: {
+        value: 'tag',
+    },
+    registry: {
+        url: 'url',
+    },
+};
+
+test('getImageConfig should return the created date and version label from the config blob', async () => {
+    const registryMocked = new Registry();
+    registryMocked.log = log;
+    const urlsCalled: string[] = [];
+    registryMocked.callRegistry = (options) => {
+        urlsCalled.push(options.url);
+        if (options.url === 'url/image/manifests/manifest_digest') {
+            return {
+                schemaVersion: 2,
+                mediaType: 'application/vnd.oci.image.manifest.v1+json',
+                config: {
+                    digest: 'config_digest',
+                    mediaType: 'application/vnd.oci.image.config.v1+json',
+                },
+            };
+        }
+        if (options.url === 'url/image/blobs/config_digest') {
+            return {
+                created: '2026-09-02T05:35:35.550810335Z',
+                config: {
+                    Labels: {
+                        'org.opencontainers.image.version': '2.3.7',
+                    },
+                },
+            };
+        }
+        throw new Error('Boom!');
+    };
+    await expect(
+        registryMocked.getImageConfig(imageConfigImage, 'manifest_digest'),
+    ).resolves.toStrictEqual({
+        created: '2026-09-02T05:35:35.550810335Z',
+        version: '2.3.7',
+    });
+    // The manifest is fetched by its own digest, then the config blob it points at.
+    expect(urlsCalled).toStrictEqual([
+        'url/image/manifests/manifest_digest',
+        'url/image/blobs/config_digest',
+    ]);
+});
+
+test('getImageConfig should not request an index media type (a manifest digest never resolves to an index)', async () => {
+    const registryMocked = new Registry();
+    registryMocked.log = log;
+    let acceptUsed;
+    registryMocked.callRegistry = (options) => {
+        if (options.url === 'url/image/manifests/manifest_digest') {
+            acceptUsed = options.headers.Accept;
+            return { config: { digest: 'config_digest' } };
+        }
+        return {};
+    };
+    await registryMocked.getImageConfig(imageConfigImage, 'manifest_digest');
+    expect(acceptUsed).toStrictEqual(
+        'application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json',
+    );
+});
+
+test('getImageConfig should return undefined version when the image carries no version label', async () => {
+    const registryMocked = new Registry();
+    registryMocked.log = log;
+    registryMocked.callRegistry = (options) => {
+        if (options.url === 'url/image/manifests/manifest_digest') {
+            return { config: { digest: 'config_digest' } };
+        }
+        return {
+            created: '2026-09-02T05:35:35.550810335Z',
+            config: { Labels: { maintainer: 'someone' } },
+        };
+    };
+    await expect(
+        registryMocked.getImageConfig(imageConfigImage, 'manifest_digest'),
+    ).resolves.toStrictEqual({
+        created: '2026-09-02T05:35:35.550810335Z',
+        version: undefined,
+    });
+});
+
+test('getImageConfig should return undefined values when the config blob is empty', async () => {
+    const registryMocked = new Registry();
+    registryMocked.log = log;
+    registryMocked.callRegistry = (options) => {
+        if (options.url === 'url/image/manifests/manifest_digest') {
+            return { config: { digest: 'config_digest' } };
+        }
+        return {};
+    };
+    await expect(
+        registryMocked.getImageConfig(imageConfigImage, 'manifest_digest'),
+    ).resolves.toStrictEqual({
+        created: undefined,
+        version: undefined,
+    });
+});
+
+test('getImageConfig should treat an empty version label as undefined', async () => {
+    const registryMocked = new Registry();
+    registryMocked.log = log;
+    registryMocked.callRegistry = (options) => {
+        if (options.url === 'url/image/manifests/manifest_digest') {
+            return { config: { digest: 'config_digest' } };
+        }
+        // Built with `ARG VERSION` + `LABEL ...version=$VERSION` and no build arg.
+        return {
+            created: '2026-09-02T05:35:35.550810335Z',
+            config: { Labels: { 'org.opencontainers.image.version': '' } },
+        };
+    };
+    // Must be undefined, not '': the container schema rejects an empty string
+    // and the resulting throw would abort the whole watch cycle.
+    await expect(
+        registryMocked.getImageConfig(imageConfigImage, 'manifest_digest'),
+    ).resolves.toStrictEqual({
+        created: '2026-09-02T05:35:35.550810335Z',
+        version: undefined,
+    });
+});
+
+test('getImageConfig should skip the manifest request when the config digest is already known', async () => {
+    const registryMocked = new Registry();
+    registryMocked.log = log;
+    const urlsCalled: string[] = [];
+    registryMocked.callRegistry = (options) => {
+        urlsCalled.push(options.url);
+        return {
+            created: '2026-09-02T05:35:35.550810335Z',
+            config: { Labels: { 'org.opencontainers.image.version': '2.3.7' } },
+        };
+    };
+    await expect(
+        registryMocked.getImageConfig(
+            imageConfigImage,
+            'manifest_digest',
+            'config_digest',
+        ),
+    ).resolves.toStrictEqual({
+        created: '2026-09-02T05:35:35.550810335Z',
+        version: '2.3.7',
+    });
+    // Only the blob is fetched; the manifest was already read by the caller.
+    expect(urlsCalled).toStrictEqual(['url/image/blobs/config_digest']);
+});
+
+test('getImageConfig should throw when the manifest has no config digest', async () => {
+    const registryMocked = new Registry();
+    registryMocked.log = log;
+    registryMocked.callRegistry = () => ({ schemaVersion: 2 });
+    await expect(
+        registryMocked.getImageConfig(imageConfigImage, 'manifest_digest'),
+    ).rejects.toEqual(
+        new Error('No config digest found in manifest manifest_digest'),
+    );
 });
 
 test('callRegistry should call authenticate', async () => {
