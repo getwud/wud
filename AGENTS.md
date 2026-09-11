@@ -119,6 +119,8 @@ Whenever implementing a feature or bugfix, **strictly adhere to the following wo
 - **Post-Release Announcements**: Once the CI release workflow finishes, post an announcement in GitHub Discussions under the `Announcements` category on Manfred's behalf.
 - Commit author must strictly be `Manfred Martin <16061231+fmartinou@users.noreply.github.com>`.
 
+### 7. Pull Requests & Merging
+- **Explicit Approval Required**: NEVER merge Pull Requests into `main` automatically without Manfred's explicit approval. Always report the status of CI checks and wait for Manfred to validate before merging.
 
 ---
 

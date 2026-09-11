@@ -10,4 +10,5 @@ For complete development and architecture instructions, refer to the master guid
 - **Docs & Changelog**: Update `website/docs/` when configs change (`cd website && npm run build`), and append entry in `website/docs/changelog/next.md`.
 - **Strict Quality**: Never bypass tests or break existing config compatibility.
 - **Releases**: Automation via `./scripts/release.sh <version>`. NEVER prefix version with `v` in tags or GitHub release titles (e.g. `9.0.0`). Post announcement in GitHub Discussions under `Announcements`.
+- **Merging**: NEVER merge PRs to `main` without Manfred's explicit approval.
 
