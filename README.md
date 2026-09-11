@@ -11,6 +11,7 @@
 [![CI Status](https://img.shields.io/github/actions/workflow/status/getwud/wud/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white)](https://github.com/getwud/wud/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/getwud/wud?style=flat-square&color=41B883)](https://github.com/getwud/wud/blob/main/LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-getwud.github.io%2Fwud-2563EB?style=flat-square&logo=docusaurus&logoColor=white)](https://getwud.app/)
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub-ea4aaa?style=flat-square&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/fmartinou)
 [![Buy Me A Coffee](https://img.shields.io/badge/Donate-Buy%20Me%20A%20Coffee-orange?style=flat-square&logo=buy-me-a-coffee)](https://www.buymeacoffee.com/61rUNMm)
 [![Donate PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=flat-square&logo=paypal&logoColor=white)](https://www.paypal.com/donate/?business=ZSDMEC3ZE8DQ8&no_recurring=0&currency_code=EUR)
 
@@ -173,12 +174,15 @@ For complete setup guides, advanced configurations, tutorials, and API reference
 
 ---
 
-## 🤝 Community & Support
+## 💖 Supporting WUD
 
-- 🛠️ **Want to contribute?** Read our [Developer & Contributing Guide](CONTRIBUTING.md).
-- 🐛 **Found a bug or need a feature?** Submit an [Issue](https://github.com/getwud/wud/issues).
-- ⭐ **Like WUD?** Give us a star on [GitHub](https://github.com/getwud/wud)!
-- ☕ **Support the maintainer:** [Buy me a coffee](https://www.buymeacoffee.com/61rUNMm) or [Donate via PayPal](https://www.paypal.com/donate/?business=ZSDMEC3ZE8DQ8&no_recurring=0&currency_code=EUR).
+WUD is free and open-source software built and maintained with passion. If WUD saves you time or helps keep your homelab and production containers running up-to-date, please consider supporting its ongoing development:
+
+- 💖 **[Sponsor @fmartinou on GitHub Sponsors](https://github.com/sponsors/fmartinou)**
+- ☕ **[Buy me a coffee](https://www.buymeacoffee.com/61rUNMm)**
+- 💳 **[Donate via PayPal](https://www.paypal.com/donate/?business=ZSDMEC3ZE8DQ8&no_recurring=0&currency_code=EUR)**
+
+Your support helps cover domain name renewals (`getwud.app`), AI developer tooling subscriptions, and rewards the time spent maintaining registry integrations and building new features. Thank you!
 
 ---
 

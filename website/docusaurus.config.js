@@ -201,6 +201,11 @@ const config = {
             position: 'right',
           },
           {
+            href: 'https://github.com/sponsors/fmartinou',
+            position: 'right',
+            label: '💖 Sponsor',
+          },
+          {
             href: 'https://github.com/getwud/wud',
             position: 'right',
             className: 'header-github-link',
