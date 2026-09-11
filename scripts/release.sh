@@ -54,7 +54,7 @@ echo "🏷️ Snapshotting Docusaurus documentation as version $VERSION..."
 # 5. Commit and tag release
 echo "💾 Committing release changes and creating Git tag $VERSION..."
 git -C "$ROOT_DIR" add .
-git -C "$ROOT_DIR" commit -m "chore(release): $VERSION"
+git -C "$ROOT_DIR" commit -m "chore(release): $VERSION" --author="Manfred Martin <16061231+fmartinou@users.noreply.github.com>"
 git -C "$ROOT_DIR" tag -a "$VERSION" -m "Release $VERSION"
 
 echo ""
