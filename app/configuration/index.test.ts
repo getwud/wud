@@ -157,3 +157,16 @@ test('getPrometheusConfiguration should be disabled when overridden', () => {
         enabled: false,
     });
 });
+
+test('getAuthenticationConfigurations should return auth providers and exclude admin key', () => {
+    configuration.wudEnvVars.WUD_AUTH_ADMIN_USER = 'admin';
+    configuration.wudEnvVars.WUD_AUTH_ADMIN_PASSWORD = 'password';
+    configuration.wudEnvVars.WUD_AUTH_OIDC_DISCOVERY =
+        'https://oidc.example.com';
+    const authConfigs = configuration.getAuthenticationConfigurations();
+    expect(authConfigs).toHaveProperty('oidc');
+    expect(authConfigs).not.toHaveProperty('admin');
+    delete configuration.wudEnvVars.WUD_AUTH_ADMIN_USER;
+    delete configuration.wudEnvVars.WUD_AUTH_ADMIN_PASSWORD;
+    delete configuration.wudEnvVars.WUD_AUTH_OIDC_DISCOVERY;
+});

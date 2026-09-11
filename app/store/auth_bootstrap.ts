@@ -116,17 +116,12 @@ export async function bootstrapAuth(): Promise<void> {
 
     // 4. Check if OIDC is configured with an admin group
     const oidcConfig = authConfigs.oidc;
-    const envVars = wudEnvVars as Record<string, any>;
     if (oidcConfig && typeof oidcConfig === 'object') {
         const hasOidcWithAdmin =
-            (oidcConfig.discovery &&
-                (oidcConfig.admingroup || envVars.WUD_AUTH_OIDC_ADMIN_GROUP)) ||
+            (oidcConfig.discovery && oidcConfig.admingroup) ||
             Object.values(oidcConfig).some(
                 (c: any) =>
-                    c &&
-                    typeof c === 'object' &&
-                    c.discovery &&
-                    (c.admingroup || envVars.WUD_AUTH_OIDC_ADMIN_GROUP),
+                    c && typeof c === 'object' && c.discovery && c.admingroup,
             );
         if (hasOidcWithAdmin) {
             log.info(
@@ -138,9 +133,9 @@ export async function bootstrapAuth(): Promise<void> {
 
     // 5. Fail-fast
     log.error(
-        'Authentication is mandatory. No administrator user exists in the database, and no administrator is configured via environment variables (WUD_AUTH_ADMIN_USER / WUD_AUTH_ADMIN_PASSWORD) or OIDC admin group (WUD_AUTH_OIDC_ADMIN_GROUP). Please configure an administrator to start WUD.',
+        'Authentication is mandatory. No administrator user exists in the database, and no administrator is configured via environment variables (WUD_AUTH_ADMIN_USER / WUD_AUTH_ADMIN_PASSWORD) or OIDC admin group (WUD_AUTH_OIDC_{name}_ADMINGROUP). Please configure an administrator to start WUD.',
     );
     throw new Error(
-        'Authentication is mandatory: No administrator user found. Please set WUD_AUTH_ADMIN_USER and WUD_AUTH_ADMIN_PASSWORD, or configure WUD_AUTH_OIDC_ADMIN_GROUP.',
+        'Authentication is mandatory: No administrator user found. Please set WUD_AUTH_ADMIN_USER and WUD_AUTH_ADMIN_PASSWORD, or configure WUD_AUTH_OIDC_{name}_ADMINGROUP.',
     );
 }
