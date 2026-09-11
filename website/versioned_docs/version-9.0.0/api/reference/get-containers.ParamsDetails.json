@@ -1,0 +1,1 @@
+{"parameters":[{"in":"query","name":"status","schema":{"type":"string"}},{"in":"query","name":"watcher","schema":{"type":"string"}},{"in":"query","name":"stack","schema":{"type":"string"}},{"in":"query","name":"tag","schema":{"type":"string"}}]}

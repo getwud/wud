@@ -1,0 +1,1 @@
+{"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"type":"array","items":{"type":"object","additionalProperties":true}}}}},"404":{"description":"Not Found"}}}

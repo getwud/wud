@@ -1,0 +1,1 @@
+{"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"type":"object","properties":{"username":{"type":"string"}},"required":["username"],"title":"User"}}}}}}

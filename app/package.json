@@ -1,6 +1,6 @@
 {
     "name": "wud-app",
-    "version": "1.0.0",
+    "version": "9.0.0",
     "description": "What'up Docker? the app",
     "main": "dist/index.js",
     "scripts": {
