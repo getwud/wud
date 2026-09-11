@@ -38,7 +38,7 @@
         "gotify-client": "0.4.2",
         "https-proxy-agent": "^7.0.6",
         "jiti": "^2.6.1",
-        "joi": "^17.13.4",
+        "joi": "^17.13.6",
         "joi-cron-expression": "1.0.1",
         "just-debounce": "1.1.0",
         "kafkajs": "2.2.4",
