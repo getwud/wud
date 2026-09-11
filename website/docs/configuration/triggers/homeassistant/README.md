@@ -15,6 +15,11 @@ import TabItem from '@theme/TabItem';
   description="The Home Assistant Webhook trigger sends structured JSON payloads to Home Assistant automation webhooks whenever container updates are detected."
 />
 
+:::info[Looking for native integration?]
+This trigger provides a simple, unidirectional webhook for Home Assistant automations.
+If you are looking for the full integration with **Update Entities** and **One-Click Install**, please check out the **[Home Assistant (MQTT) Guide](../homeassistant-mqtt/README.md)**.
+:::
+
 ---
 
 ## ⚙️ Configuration Variables

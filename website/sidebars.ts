@@ -449,6 +449,11 @@ const sidebars = {
         },
         {
           type: 'doc',
+          id: 'configuration/triggers/homeassistant-mqtt/README',
+          label: 'Home Assistant (MQTT Auto-Discovery)',
+        },
+        {
+          type: 'doc',
           id: 'configuration/triggers/homeassistant/README',
           label: 'Home Assistant (Webhook)',
         },
@@ -460,7 +465,7 @@ const sidebars = {
         {
           type: 'doc',
           id: 'configuration/triggers/mqtt/README',
-          label: 'MQTT (Home Assistant)',
+          label: 'MQTT (Generic)',
         },
         {
           type: 'doc',
