@@ -59,7 +59,6 @@ const config = {
           sidebarPath: './sidebars.ts',
           docItemComponent: '@theme/ApiItem',
           editUrl: 'https://github.com/getwud/wud/tree/main/website/',
-          lastVersion: 'current',
           versions: {
             current: {
               label: 'Next 🚧',

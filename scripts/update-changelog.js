@@ -90,6 +90,38 @@ Release history and details for the **WUD ${major}.x** series.
 
 ${releaseBlock}`;
   fs.writeFileSync(targetChangelogFile, newContent, 'utf8');
+
+  // Update website/sidebars.ts if new major version
+  const sidebarsFile = path.join(rootDir, 'website', 'sidebars.ts');
+  if (fs.existsSync(sidebarsFile)) {
+    let sidebarsContent = fs.readFileSync(sidebarsFile, 'utf8');
+    if (!sidebarsContent.includes(`changelog/v${major}`)) {
+      // Demote existing Current label
+      sidebarsContent = sidebarsContent.replace(/label:\s*'v\d+\.x \(Current\)'/g, (m) => m.replace(' (Current)', ''));
+      // Insert new version after changelog/next
+      const nextDocPattern = /(id:\s*'changelog\/next',\s*\n\s*label:\s*'[^']+',\s*\n\s*},)/;
+      const newEntry = `$1\n        {\n          type: 'doc',\n          id: 'changelog/v${major}',\n          label: 'v${major}.x (Current)',\n        },`;
+      sidebarsContent = sidebarsContent.replace(nextDocPattern, newEntry);
+      fs.writeFileSync(sidebarsFile, sidebarsContent, 'utf8');
+      console.log(`✅ Updated ${sidebarsFile} with changelog/v${major}`);
+    }
+  }
+
+  // Update website/docs/changelog/README.md table if new major version
+  const changelogReadmeFile = path.join(changelogDir, 'README.md');
+  if (fs.existsSync(changelogReadmeFile)) {
+    let readmeContent = fs.readFileSync(changelogReadmeFile, 'utf8');
+    if (!readmeContent.includes(`**v${major}.x**`)) {
+      // Demote existing Current in table to Maintenance
+      readmeContent = readmeContent.replace(/(\|\s*\*\*v\d+\.x\*\*\s*\|\s*)\*\*Current\*\*/g, '$1Maintenance');
+      // Insert new version row after Next row
+      const nextRowPattern = /(\|\s*\*\*Next\*\*\s*\|[^\n]+\n)/;
+      const newRow = `$1| **v${major}.x** | **Current** | [${version}](https://github.com/getwud/wud/releases/tag/${version}) (${dateStr}) | [**View v${major}.x Changelog →**](./v${major}.md) |\n`;
+      readmeContent = readmeContent.replace(nextRowPattern, newRow);
+      fs.writeFileSync(changelogReadmeFile, readmeContent, 'utf8');
+      console.log(`✅ Updated ${changelogReadmeFile} with v${major}.x`);
+    }
+  }
 }
 
 // Reset next.md
@@ -107,3 +139,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 `;
 fs.writeFileSync(nextFile, resetNext, 'utf8');
 console.log(`✅ Updated ${targetChangelogFile} and reset next.md for version ${version}`);
+

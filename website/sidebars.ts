@@ -52,8 +52,13 @@ const sidebars = {
         },
         {
           type: 'doc',
+          id: 'changelog/v9',
+          label: 'v9.x (Current)',
+        },
+        {
+          type: 'doc',
           id: 'changelog/v8',
-          label: 'v8.x (Current)',
+          label: 'v8.x',
         },
         {
           type: 'doc',
