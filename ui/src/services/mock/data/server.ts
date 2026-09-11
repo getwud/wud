@@ -25,7 +25,7 @@ export const mockStore = {
 
 export const mockAppInfos = {
   name: "wud",
-  version: "8.4.0",
+  version: "9.0.0",
 };
 
 export const mockStrategies = [

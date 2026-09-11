@@ -4,6 +4,11 @@ import Hass from './Hass';
 import * as containerStore from '../../../store/container';
 import * as registry from '../../../registry';
 
+jest.mock('../../../configuration', () => ({
+    ...jest.requireActual('../../../configuration'),
+    getVersion: () => 'unknown',
+}));
+
 const containerData = [
     {
         containerName: 'container-name',

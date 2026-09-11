@@ -6,6 +6,11 @@ test('getVersion should return wud version', async () => {
     expect(configuration.getVersion()).toStrictEqual('x.y.z');
 });
 
+test('getVersion should fallback to package.json version when WUD_VERSION is not defined', async () => {
+    delete configuration.wudEnvVars.WUD_VERSION;
+    expect(configuration.getVersion()).toStrictEqual('9.0.0');
+});
+
 test('getLogLevel should return info by default', async () => {
     delete configuration.wudEnvVars.WUD_LOG_LEVEL;
     expect(configuration.getLogLevel()).toStrictEqual('info');

@@ -1,3 +1,4 @@
+import { desc } from 'drizzle-orm';
 import logger from '../log';
 import { getVersion } from '../configuration';
 import * as schema from './db/schema';
@@ -13,6 +14,7 @@ export function saveAppInfosAndMigrate() {
         version: currentVersion,
     };
 
+    db.delete(schema.appInfo).run();
     db.insert(schema.appInfo).values(appInfosCurrent).run();
 }
 
@@ -26,7 +28,7 @@ export function getAppInfos() {
     const info = db
         .select()
         .from(schema.appInfo)
-        .orderBy(schema.appInfo.id)
+        .orderBy(desc(schema.appInfo.id))
         .limit(1)
         .get();
 
