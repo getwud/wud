@@ -4,7 +4,7 @@ import * as ui from './ui';
 import fs from 'fs';
 
 jest.spyOn(fs, 'readFileSync').mockReturnValue(
-    '<html><body><div id="app"></div></body></html>',
+    '<html><head></head><body><div id="app"></div></body></html>',
 );
 jest.mock('../configuration', () => ({
     getServerConfiguration: jest.fn(() => ({
@@ -21,13 +21,13 @@ describe('API UI', () => {
         app.use(ui.init());
     });
 
-    test('should serve index html and inject basepath', async () => {
+    test('should serve index html and inject basepath in head', async () => {
         const res = await request(app).get('/any-path');
         expect(res.status).toBe(200);
         expect(res.header['content-type']).toContain('text/html');
         expect(res.header['cache-control']).toBe('no-store');
         expect(res.text).toContain(
-            '<script>window.__WUD_BASE_PATH__=\'/wud\'</script><div id="app">',
+            '<head><base href="/wud/"><script>window.__WUD_BASE_PATH__=\'/wud/\';</script>',
         );
     });
 });

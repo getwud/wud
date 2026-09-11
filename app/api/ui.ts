@@ -10,10 +10,9 @@ function serveIndex(res) {
     const basePath = getServerConfiguration().basepath;
     const baseHref = basePath.endsWith('/') ? basePath : `${basePath}/`;
     const html = fs.readFileSync(indexHtmlPath, 'utf-8');
-    let injected = html.replace('<head>', `<head><base href="${baseHref}">`);
-    injected = injected.replace(
-        '<div id="app">',
-        `<script>window.__WUD_BASE_PATH__='${basePath}'</script><div id="app">`,
+    const injected = html.replace(
+        '<head>',
+        `<head><base href="${baseHref}"><script>window.__WUD_BASE_PATH__='${baseHref}';</script>`,
     );
     res.setHeader('Content-Type', 'text/html');
     res.setHeader('Cache-Control', 'no-store');
@@ -26,11 +25,12 @@ function serveIndex(res) {
  */
 export function init() {
     const router = express.Router();
-    router.use(
-        express.static(path.join(__dirname, '..', '..', 'ui'), {
-            index: false,
-        }),
-    );
+    const uiDir = path.join(__dirname, '..', '..', 'ui');
+    router.use(express.static(uiDir, { index: false }));
+    router.use('*/js', express.static(path.join(uiDir, 'js')));
+    router.use('*/css', express.static(path.join(uiDir, 'css')));
+    router.use('*/img', express.static(path.join(uiDir, 'img')));
+    router.use('*/fonts', express.static(path.join(uiDir, 'fonts')));
 
     // Redirect all 404 to index.html (for vue history mode)
     router.get('*', (req, res) => {

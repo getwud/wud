@@ -148,10 +148,34 @@ test('init should create a mailer transporter with expected configuration when c
                 pass: configurationValid.pass,
             },
             tls: {
-                rejectUnauthorized: false,
+                rejectUnauthorized: true,
             },
         }),
     );
+});
+
+test('init should set rejectUnauthorized to true when tls.verify is true', async () => {
+    smtp.configuration = {
+        ...configurationValid,
+        tls: {
+            enabled: true,
+            verify: true,
+        },
+    };
+    smtp.init();
+    expect(smtp.transporter.options.tls.rejectUnauthorized).toBe(true);
+});
+
+test('init should set rejectUnauthorized to false when tls.verify is false', async () => {
+    smtp.configuration = {
+        ...configurationValid,
+        tls: {
+            enabled: true,
+            verify: false,
+        },
+    };
+    smtp.init();
+    expect(smtp.transporter.options.tls.rejectUnauthorized).toBe(false);
 });
 
 test('maskConfiguration should mask sensitive data', async () => {
