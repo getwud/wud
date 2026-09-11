@@ -15,6 +15,10 @@ import TabItem from '@theme/TabItem';
   description="The mqtt trigger publishes JSON update payloads to an MQTT message broker with Home Assistant auto-discovery support."
 />
 
+:::tip[Looking for Home Assistant?]
+If you are looking to integrate WUD with Home Assistant via MQTT Auto-Discovery (Update Entities, One-Click Install), please read the [Home Assistant (MQTT) Guide](../homeassistant-mqtt/README.md).
+:::
+
 ---
 
 ## ⚙️ Configuration Variables
@@ -55,46 +59,6 @@ import TabItem from '@theme/TabItem';
     type="string"
     defaultValue="wud_$random">
     MQTT client ID to use for the broker connection
-  </ConfigOption>
-
-  <ConfigOption
-    name="WUD_TRIGGER_MQTT_{trigger_name}_HASS_ENABLED"
-    required={false}
-    type="boolean"
-    defaultValue="false">
-    Enable Home Assistant integration and publish state updates
-  </ConfigOption>
-
-  <ConfigOption
-    name="WUD_TRIGGER_MQTT_{trigger_name}_HASS_DISCOVERY"
-    required={false}
-    type="boolean"
-    defaultValue="false">
-    Enable Home Assistant MQTT Auto-Discovery
-  </ConfigOption>
-
-  <ConfigOption
-    name="WUD_TRIGGER_MQTT_{trigger_name}_HASS_PREFIX"
-    required={false}
-    type="string"
-    defaultValue="homeassistant">
-    MQTT discovery prefix topic for Home Assistant
-  </ConfigOption>
-
-  <ConfigOption
-    name="WUD_TRIGGER_MQTT_{trigger_name}_HASS_DEVICEID"
-    required={false}
-    type="string"
-    defaultValue="wud">
-    Device identifier in Home Assistant
-  </ConfigOption>
-
-  <ConfigOption
-    name="WUD_TRIGGER_MQTT_{trigger_name}_HASS_DEVICENAME"
-    required={false}
-    type="string"
-    defaultValue="wud">
-    Device display name in Home Assistant
   </ConfigOption>
 
   <ConfigOption name="WUD_TRIGGER_MQTT_{trigger_name}_TLS_CACHAIN"
@@ -202,35 +166,3 @@ docker run \
 </TabItem>
 </Tabs>
 
----
-
-## 🏠 Home Assistant Integration
-
-WUD integrates with [Home Assistant](https://www.home-assistant.io/) via [MQTT Discovery](https://www.home-assistant.io/docs/mqtt/discovery/).
-
-<Tabs>
-<TabItem value="docker-compose" label="Docker Compose">
-
-```yaml
-services:
-  whatsupdocker:
-    image: getwud/wud
-    environment:
-      - WUD_TRIGGER_MQTT_HASS_URL=mqtt://homeassistant.local:1883
-      - WUD_TRIGGER_MQTT_HASS_HASS_ENABLED=true
-      - WUD_TRIGGER_MQTT_HASS_HASS_DISCOVERY=true
-```
-
-</TabItem>
-<TabItem value="docker" label="Docker">
-
-```bash
-docker run \
-  -e WUD_TRIGGER_MQTT_HASS_URL="mqtt://homeassistant.local:1883" \
-  -e WUD_TRIGGER_MQTT_HASS_HASS_ENABLED="true" \
-  -e WUD_TRIGGER_MQTT_HASS_HASS_DISCOVERY="true" \
-  getwud/wud
-```
-
-</TabItem>
-</Tabs>

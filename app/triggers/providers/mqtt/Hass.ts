@@ -7,13 +7,11 @@ import {
     registerWatcherStart,
     registerWatcherStop,
 } from '../../../event';
-import { Container } from '../../../model/container';
+import { Container, flatten } from '../../../model/container';
 import * as containerStore from '../../../store/container';
+import * as registry from '../../../registry';
 import Watcher from '../../../watchers/Watcher';
-import {
-    MqqtConfiguration,
-    MqqtConfiguration as MqttConfiguration,
-} from './Mqtt';
+import { MqqtConfiguration as MqttConfiguration } from './Mqtt';
 import { Logger } from 'pino';
 
 const HASS_MANUFACTURER = 'wud';
@@ -37,6 +35,7 @@ interface HassSensor {
 interface HassDiscoverySensor extends HassSensor {
     name?: string;
     options?: HassDiscoveryOptions;
+    watcherName?: string;
 }
 
 interface HassNamedSensor {
@@ -57,24 +56,33 @@ interface HassDiscoveryMessage {
     name?: string;
     icon?: string;
     options?: HassDiscoveryOptions;
+    watcherName?: string;
 }
 
 /**
  * Get hass entity unique id.
  */
 function getHassEntityId(topic: string) {
-    return topic.replace(/\//g, '_');
+    return topic.replace(/[^a-zA-Z0-9_-]/g, '_');
 }
 
 /**
  * Get HA wud device info.
  */
-function getHaDevice(configuration: MqqtConfiguration) {
+function getHaDevice(configuration: MqttConfiguration, watcherName?: string) {
+    const deviceId = watcherName
+        ? `${configuration.hass.deviceid}_${watcherName}`
+        : configuration.hass.deviceid;
+    const deviceName = watcherName
+        ? `${configuration.hass.devicename} (${watcherName})`
+        : configuration.hass.devicename;
     return {
-        identifiers: [configuration.hass.deviceid],
+        identifiers: [deviceId],
         manufacturer: HASS_MANUFACTURER,
-        model: configuration.hass.deviceid,
-        name: configuration.hass.devicename,
+        model: watcherName
+            ? `Watcher ${watcherName}`
+            : configuration.hass.deviceid,
+        name: deviceName,
         sw_version: getVersion(),
     };
 }
@@ -130,9 +138,44 @@ class Hass {
         registerWatcherStart((watcher) =>
             this.updateWatcherSensors({ watcher, isRunning: true }),
         );
-        registerWatcherStop((watcher) =>
-            this.updateWatcherSensors({ watcher, isRunning: false }),
-        );
+        registerWatcherStop(async (watcher) => {
+            await this.updateWatcherSensors({ watcher, isRunning: false });
+            await this.updateContainerSensors({
+                watcher: watcher.name,
+            } as Container);
+        });
+
+        // Subscribe to install command pattern
+        if (typeof this.client.subscribe === 'function') {
+            this.client.subscribe(`${this.configuration.topic}/+/+/install`);
+        }
+        if (typeof this.client.on === 'function') {
+            this.client.on('message', async (topic, message) => {
+                const prefix = `${this.configuration.topic}/`;
+                const suffix = '/install';
+                if (
+                    topic.startsWith(prefix) &&
+                    topic.endsWith(suffix) &&
+                    message &&
+                    message.toString() === 'INSTALL'
+                ) {
+                    const middle = topic.substring(
+                        prefix.length,
+                        topic.length - suffix.length,
+                    );
+                    const parts = middle.split('/');
+                    if (parts.length === 2) {
+                        await this.handleInstallCommand(topic);
+                    }
+                }
+            });
+        }
+
+        // Publish global sensors once at startup if containers exist
+        const containers = containerStore.getContainers();
+        if (containers && containers.length > 0) {
+            await this.updateContainerSensors(containers[0]);
+        }
     }
 
     async publishDiscoveryMessages(sensors: HassDiscoverySensor[]) {
@@ -143,6 +186,7 @@ class Hass {
                 kind: sensor.kind,
                 name: sensor.name,
                 options: sensor.options,
+                watcherName: sensor.watcherName,
             });
         }
     }
@@ -170,7 +214,8 @@ class Hass {
                 kind: containerStateSensor.kind,
                 stateTopic: containerStateSensor.topic,
                 name: container.displayName,
-                icon: sanitizeIcon(container.displayIcon),
+                icon: sanitizeIcon(container.displayIcon || 'mdi:docker'),
+                watcherName: container.watcher,
                 options: {
                     // Home Assistant's "Updates" page prints the DEVICE name as
                     // the headline and falls back to the entity name only when
@@ -183,6 +228,10 @@ class Hass {
                     value_template: HASS_ENTITY_VALUE_TEMPLATE,
                     latest_version_topic: containerStateSensor.topic,
                     latest_version_template: HASS_LATEST_VERSION_TEMPLATE,
+                    command_topic: this.getContainerCommandTopic({ container }),
+                    payload_install: 'INSTALL',
+                    in_progress_template:
+                        '{{ value_json.in_progress | default(false) }}',
                     release_url: container.result
                         ? container.result.link
                         : undefined,
@@ -190,7 +239,6 @@ class Hass {
                 },
             });
         }
-        await this.updateContainerSensors(container);
     }
 
     /**
@@ -204,12 +252,14 @@ class Hass {
         this.log.info(
             `Remove hass container update sensor [${containerStateSensor.topic}]`,
         );
+        await this.client.publish(containerStateSensor.topic, '', {
+            retain: true,
+        });
         if (this.configuration.hass.discovery) {
             await this.removeSensor({
                 discoveryTopic: this.getDiscoveryTopic(containerStateSensor),
             });
         }
-        await this.updateContainerSensors(container);
     }
 
     async updateContainerSensors(container: Container) {
@@ -270,13 +320,31 @@ class Hass {
 
         // Publish discovery messages
         if (this.configuration.hass.discovery) {
-            await this.publishDiscoveryMessages(
-                Object.values(sensors).map(({ sensor, name, options }) => ({
-                    ...sensor,
-                    name,
-                    options,
-                })),
-            );
+            const globalSensors = [
+                sensors.totalCount,
+                sensors.totalUpdateCount,
+                sensors.totalUpdateStatus,
+            ].map(({ sensor, name, options }) => ({
+                ...sensor,
+                name,
+                options,
+            }));
+
+            const watcherSensors = [
+                sensors.watcherTotalCount,
+                sensors.watcherUpdateCount,
+                sensors.watcherUpdateStatus,
+            ].map(({ sensor, name, options }) => ({
+                ...sensor,
+                name,
+                options,
+                watcherName: container.watcher,
+            }));
+
+            await this.publishDiscoveryMessages([
+                ...globalSensors,
+                ...watcherSensors,
+            ]);
         }
 
         // Count all containers
@@ -352,6 +420,7 @@ class Hass {
                 kind: watcherStatusSensor.kind,
                 options: HASS_BOOLEAN_OPTIONS,
                 name: `Watcher ${watcher.name} running status`,
+                watcherName: watcher.name,
             });
         }
 
@@ -372,6 +441,7 @@ class Hass {
         name,
         icon,
         options = {},
+        watcherName,
     }: HassDiscoveryMessage) {
         const entityId = getHassEntityId(stateTopic);
         return this.client.publish(
@@ -380,10 +450,8 @@ class Hass {
                 unique_id: entityId,
                 default_entity_id: `${kind}.${entityId}`,
                 name: name || entityId,
-                device: getHaDevice(this.configuration),
+                device: getHaDevice(this.configuration, watcherName),
                 icon: icon || sanitizeIcon('mdi:docker'),
-                entity_picture:
-                    'https://github.com/getwud/wud/raw/main/docs/assets/wud-logo-256.png',
                 state_topic: stateTopic,
                 ...options,
             }),
@@ -397,7 +465,7 @@ class Hass {
      * Publish an empty message to discovery topic to remove the sensor.
      */
     async removeSensor({ discoveryTopic }: { discoveryTopic: string }) {
-        return this.client.publish(discoveryTopic, JSON.stringify({}), {
+        return this.client.publish(discoveryTopic, '', {
             retain: true,
         });
     }
@@ -421,6 +489,79 @@ class Hass {
     getContainerStateTopic({ container }: { container: Container }) {
         const containerName = container.name.replace(/\./g, '-');
         return `${this.configuration.topic}/${container.watcher}/${containerName}`;
+    }
+
+    /**
+     * Get container command topic.
+     */
+    getContainerCommandTopic({ container }: { container: Container }) {
+        const containerName = container.name.replace(/\./g, '-');
+        return `${this.configuration.topic}/${container.watcher}/${containerName}/install`;
+    }
+
+    /**
+     * Handle install command from Home Assistant.
+     */
+    async handleInstallCommand(topic: string) {
+        const prefix = `${this.configuration.topic}/`;
+        const suffix = '/install';
+        if (!topic.startsWith(prefix) || !topic.endsWith(suffix)) {
+            return;
+        }
+        const middle = topic.substring(
+            prefix.length,
+            topic.length - suffix.length,
+        );
+        const [watcher, containerName] = middle.split('/');
+        if (!watcher || !containerName) {
+            return;
+        }
+
+        const container = (containerStore.getContainers() || []).find(
+            (c) =>
+                c.watcher === watcher &&
+                (c.name.replace(/\./g, '-') === containerName ||
+                    c.name === containerName),
+        );
+
+        if (!container) {
+            this.log.warn(
+                `Container not found for install command on topic ${topic}`,
+            );
+            return;
+        }
+
+        const stateTopic = this.getContainerStateTopic({ container });
+        try {
+            await this.client.publish(
+                stateTopic,
+                JSON.stringify({ ...flatten(container), in_progress: true }),
+                { retain: true },
+            );
+            const triggers = Object.values(registry.getState().trigger).filter(
+                (trigger) =>
+                    trigger.type === 'docker' ||
+                    trigger.type === 'dockercompose',
+            );
+            for (const trigger of triggers) {
+                await trigger.trigger(container);
+            }
+        } catch (error) {
+            this.log.error(
+                `Failed to handle install command for container ${container.name}: ${error}`,
+            );
+        } finally {
+            const currentContainer =
+                containerStore.getContainer(container.id) || container;
+            await this.client.publish(
+                stateTopic,
+                JSON.stringify({
+                    ...flatten(currentContainer),
+                    in_progress: false,
+                }),
+                { retain: true },
+            );
+        }
     }
 
     /**
