@@ -102,9 +102,9 @@ class Smtp extends Trigger {
             auth,
             secure: this.configuration.tls && this.configuration.tls.enabled,
             tls: {
-                rejectUnauthorized: !this.configuration.tls
-                    ? false
-                    : !this.configuration.tls.verify,
+                rejectUnauthorized: this.configuration.tls
+                    ? this.configuration.tls.verify
+                    : true,
             },
         });
     }
