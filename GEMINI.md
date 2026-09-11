@@ -9,3 +9,4 @@ For complete development and architecture instructions, refer to the master guid
 - **E2E**: Backend Cucumber tests in `e2e/` (`npm run test:local`), UI Playwright tests in `ui-e2e/` (`./scripts/run-ui-tests.sh`).
 - **Docs & Changelog**: Update `website/docs/` when configs change (`cd website && npm run build`), and append entry in `website/docs/changelog/next.md`.
 - **Strict Quality**: Never bypass tests or break existing config compatibility.
+- **Releases**: Automation via `./scripts/release.sh <version>`. NEVER prefix version with `v` in tags or GitHub release titles (e.g. `9.0.0`).

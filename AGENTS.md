@@ -113,7 +113,10 @@ Whenever implementing a feature or bugfix, **strictly adhere to the following wo
   - 🚀 `Feature` / Enhancement (e.g. `- 🚀 [TRIGGER] Add new XYZ trigger`)
   - 🐛 `Bug Fix` (e.g. `- 🐛 [REGISTRY] Fix token refresh on 401`)
   - ⚠️ `Breaking / Deprecation` (e.g. `- ⚠️ [CONFIG] Deprecate WUD_OLD_VAR in favor of WUD_NEW_VAR`)
-  - 🔧 `Maintenance / Refactoring / CI` (e.g. `- 🔧 [CI] Update action versions`)
+### 6. Release Process
+- Use `./scripts/release.sh <version>` to automate release preparation (package bumps, changelog transfer, Docusaurus docs snapshotting).
+- **Tag & Release Naming Convention**: NEVER prefix versions with `v` in Git tags or GitHub Release titles (e.g. use `9.0.0`, NOT `v9.0.0`).
+- Commit author must strictly be `Manfred Martin <16061231+fmartinou@users.noreply.github.com>`.
 
 ---
 
