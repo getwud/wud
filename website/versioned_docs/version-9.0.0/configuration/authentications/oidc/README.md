@@ -112,7 +112,7 @@ When a user logs in through OIDC, WUD automatically creates an account in the in
 :::
 
 :::tip[Zero Local Credentials: Omit Local Administrator with OIDC]
-If you define `WUD_AUTH_OIDC_{name}_ADMINGROUP` (or the global `WUD_AUTH_OIDC_ADMIN_GROUP`), **you do not need to configure any local administrator** (`WUD_AUTH_ADMIN_USER` / `WUD_AUTH_ADMIN_PASSWORD`).
+If you define `WUD_AUTH_OIDC_{name}_ADMINGROUP`, **you do not need to configure any local administrator** (`WUD_AUTH_ADMIN_USER` / `WUD_AUTH_ADMIN_PASSWORD`).
 
 WUD's startup verification recognizes that your Identity Provider provides administrative users, allowing the container to start cleanly without local credentials. When a user in the admin group logs in via OIDC for the first time, WUD automatically provisions their account and grants them full `admin` permissions. This enables a 100% SSO-driven, zero-local-credentials deployment!
 :::

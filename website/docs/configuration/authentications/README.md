@@ -28,7 +28,7 @@ Alternatively, WUD maintains backward compatibility with legacy basic authentica
 
 ### Omitting the Local Administrator with OIDC SSO
 
-If you configure an OpenID Connect provider with an administrator group (`WUD_AUTH_OIDC_{name}_ADMINGROUP` or `WUD_AUTH_OIDC_ADMIN_GROUP`), **you do not need any local administrator account** (`WUD_AUTH_ADMIN_USER` / `WUD_AUTH_ADMIN_PASSWORD`).
+If you configure an OpenID Connect provider with an administrator group (`WUD_AUTH_OIDC_{name}_ADMINGROUP`), **you do not need any local administrator account** (`WUD_AUTH_ADMIN_USER` / `WUD_AUTH_ADMIN_PASSWORD`).
 
 WUD's startup verification recognizes the OIDC admin group configuration and starts cleanly without requiring local admin credentials. Upon their first login, any user belonging to the configured admin group is automatically provisioned and assigned the `admin` role in WUD. This enables a 100% SSO-driven, zero-local-credentials deployment!
 

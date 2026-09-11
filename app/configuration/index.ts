@@ -93,7 +93,12 @@ export function getRegistryConfigurations() {
  * @returns {*}
  */
 export function getAuthenticationConfigurations() {
-    return get('wud.auth', wudEnvVars);
+    const authConfigs = get('wud.auth', wudEnvVars) as any;
+    if (authConfigs && typeof authConfigs === 'object') {
+        const { admin, ...providers } = authConfigs;
+        return providers;
+    }
+    return authConfigs;
 }
 
 /**

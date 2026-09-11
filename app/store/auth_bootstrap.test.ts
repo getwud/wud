@@ -53,6 +53,23 @@ describe('Auth Bootstrap', () => {
         await expect(bootstrapAuth()).resolves.not.toThrow();
     });
 
+    test('should allow startup if named OIDC instance is configured with admin group', async () => {
+        (
+            configuration.getAuthenticationConfigurations as jest.Mock
+        ).mockReturnValue({
+            oidc: {
+                authentik: {
+                    discovery: 'https://oidc.example.com',
+                    admingroup: 'wud-admins',
+                },
+            },
+        });
+        (configuration.get as jest.Mock).mockReturnValue(undefined);
+
+        // Should not throw error
+        await expect(bootstrapAuth()).resolves.not.toThrow();
+    });
+
     test('should throw fail-fast error when DB is empty and no admin config exists', async () => {
         (
             configuration.getAuthenticationConfigurations as jest.Mock
@@ -60,7 +77,7 @@ describe('Auth Bootstrap', () => {
         (configuration.get as jest.Mock).mockReturnValue(undefined);
 
         await expect(bootstrapAuth()).rejects.toThrow(
-            /Authentication is mandatory: No administrator user found/,
+            'Authentication is mandatory: No administrator user found. Please set WUD_AUTH_ADMIN_USER and WUD_AUTH_ADMIN_PASSWORD, or configure WUD_AUTH_OIDC_{name}_ADMINGROUP.',
         );
     });
 });
