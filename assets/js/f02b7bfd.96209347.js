@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkwebsite=self.webpackChunkwebsite||[]).push([["4625"],{50181(e,r,s){s.r(r),s.d(r,{default:()=>a});var t=s(74848);s(96540);var u=s(56347);function a(){return(0,t.jsx)(u.rd,{to:"/docs/api/reference/wud-rest-api"})}}}]);
