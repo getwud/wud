@@ -229,7 +229,7 @@ jobs:
 
   deploy-docs:
     name: Deploy Docs
-    needs: [build-docs, publish]
+    needs: [build-docs]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
