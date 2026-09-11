@@ -19,7 +19,7 @@ docker compose -f "$SCRIPT_DIR/docker-compose.e2e.yml" up -d --build
 
 # Wait for WUD to finish its initial container scan
 echo "⏳ Waiting for WUD to finish container resolution..."
-MAX_WAIT_SECONDS=30
+MAX_WAIT_SECONDS=60
 START_TIME=$(date +%s)
 
 while true; do
