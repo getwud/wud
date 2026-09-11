@@ -6,10 +6,11 @@ describe('public-path.ts', () => {
     jest.resetModules();
   });
 
-  it('sets __webpack_public_path__ to / when __WUD_BASE_PATH__ is not set', () => {
+  it('does not set __webpack_public_path__ when __WUD_BASE_PATH__ is not set', () => {
     delete (window as any).__WUD_BASE_PATH__;
+    delete (global as any).__webpack_public_path__;
     require('@/public-path');
-    expect((global as any).__webpack_public_path__).toBe('/');
+    expect((global as any).__webpack_public_path__).toBeUndefined();
   });
 
   it('sets __webpack_public_path__ to base path with trailing slash', () => {
