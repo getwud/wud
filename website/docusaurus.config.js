@@ -59,6 +59,12 @@ const config = {
           sidebarPath: './sidebars.ts',
           docItemComponent: '@theme/ApiItem',
           editUrl: 'https://github.com/getwud/wud/tree/main/website/',
+          lastVersion: 'current',
+          versions: {
+            current: {
+              label: 'Next 🚧',
+            },
+          },
         },
         blog: false,
         theme: {
@@ -184,6 +190,11 @@ const config = {
             to: '/demo',
             label: 'Live Demo',
             position: 'left',
+          },
+          {
+            type: 'docsVersionDropdown',
+            position: 'right',
+            dropdownActiveClassDisabled: true,
           },
           {
             to: '/docs/changelog',
