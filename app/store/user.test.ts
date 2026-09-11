@@ -8,6 +8,7 @@ import {
     deleteUser,
     countUsers,
     countAdminUsers,
+    countLocalUsers,
     hashPassword,
     verifyPassword,
 } from './user';
@@ -105,6 +106,29 @@ describe('User Store', () => {
         const admins = await countAdminUsers();
         expect(total).toBeGreaterThanOrEqual(2);
         expect(admins).toBeGreaterThanOrEqual(2);
+    });
+
+    test('should count local users correctly', async () => {
+        const initialLocal = await countLocalUsers();
+        const oidcUser = await createUser({
+            username: 'oidc-user',
+            provider: 'oidc',
+            role: 'ro',
+        });
+        // countLocalUsers should not increase when adding an OIDC user
+        expect(await countLocalUsers()).toBe(initialLocal);
+
+        const localUser = await createUser({
+            username: 'another-local-user',
+            provider: 'local',
+            password: 'password',
+            role: 'ro',
+        });
+        expect(await countLocalUsers()).toBe(initialLocal + 1);
+
+        await deleteUser(localUser.id);
+        await deleteUser(oidcUser.id);
+        expect(await countLocalUsers()).toBe(initialLocal);
     });
 
     test('should delete a user', async () => {

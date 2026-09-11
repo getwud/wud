@@ -1,11 +1,18 @@
 import express from 'express';
 import request from 'supertest';
 import * as auth from './auth';
+import * as registry from '../registry';
+import { countLocalUsers } from '../store/user';
 
 jest.mock('./SqliteSessionStore', () => {
     const session = require('express-session');
     return jest.fn().mockImplementation(() => new session.MemoryStore());
 });
+
+jest.mock('../store/user', () => ({
+    getUserById: jest.fn(),
+    countLocalUsers: jest.fn(),
+}));
 
 jest.mock('../store', () => ({
     store: {
@@ -47,6 +54,20 @@ describe('API Auth', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        (registry.getState as jest.Mock).mockReturnValue({
+            authentication: {
+                mockAuth: {
+                    getId: () => 'mockAuth',
+                    getStrategy: () => ({ name: 'mockStrategy' }),
+                    getStrategyDescription: () => ({
+                        type: 'mock',
+                        name: 'Mock Auth',
+                        logoutUrl: 'http://logout',
+                    }),
+                },
+            },
+        });
+        (countLocalUsers as jest.Mock).mockResolvedValue(1);
         app = express();
         app.use(express.json());
 
@@ -82,6 +103,67 @@ describe('API Auth', () => {
         expect(res.body).toEqual([
             { type: 'mock', name: 'Mock Auth', logoutUrl: 'http://logout' },
         ]);
+    });
+
+    test('GET /auth/strategies should exclude basic strategy when countLocalUsers is 0', async () => {
+        (countLocalUsers as jest.Mock).mockResolvedValue(0);
+        (registry.getState as jest.Mock).mockReturnValue({
+            authentication: {
+                basicAuth: {
+                    getId: () => 'basicAuth',
+                    getStrategy: () => ({ name: 'basic' }),
+                    getStrategyDescription: () => ({
+                        type: 'basic',
+                        name: 'Local Credentials',
+                    }),
+                },
+                oidcAuth: {
+                    getId: () => 'oidcAuth',
+                    getStrategy: () => ({ name: 'oidc' }),
+                    getStrategyDescription: () => ({
+                        type: 'oidc',
+                        name: 'Keycloak',
+                    }),
+                },
+            },
+        });
+
+        const res = await request(app).get('/auth/strategies');
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual([{ type: 'oidc', name: 'Keycloak' }]);
+        expect(countLocalUsers).toHaveBeenCalled();
+    });
+
+    test('GET /auth/strategies should include basic strategy when countLocalUsers > 0', async () => {
+        (countLocalUsers as jest.Mock).mockResolvedValue(2);
+        (registry.getState as jest.Mock).mockReturnValue({
+            authentication: {
+                basicAuth: {
+                    getId: () => 'basicAuth',
+                    getStrategy: () => ({ name: 'basic' }),
+                    getStrategyDescription: () => ({
+                        type: 'basic',
+                        name: 'Local Credentials',
+                    }),
+                },
+                oidcAuth: {
+                    getId: () => 'oidcAuth',
+                    getStrategy: () => ({ name: 'oidc' }),
+                    getStrategyDescription: () => ({
+                        type: 'oidc',
+                        name: 'Keycloak',
+                    }),
+                },
+            },
+        });
+
+        const res = await request(app).get('/auth/strategies');
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual([
+            { type: 'oidc', name: 'Keycloak' },
+            { type: 'basic', name: 'Local Credentials' },
+        ]);
+        expect(countLocalUsers).toHaveBeenCalled();
     });
 
     test('POST /auth/login should return user', async () => {

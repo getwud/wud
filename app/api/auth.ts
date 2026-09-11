@@ -11,7 +11,7 @@ import SqliteSessionStore from './SqliteSessionStore';
 import Authentication, {
     StrategyDescription,
 } from '../authentications/providers/Authentication';
-import { getUserById } from '../store/user';
+import { getUserById, countLocalUsers } from '../store/user';
 import { verifyToken } from '../store/token';
 
 const router = express.Router();
@@ -81,7 +81,7 @@ function useStrategy(authentication: Authentication, app) {
     }
 }
 
-function getUniqueStrategies() {
+async function getUniqueStrategies() {
     const strategies = Object.values(registry.getState().authentication).map(
         (authentication) => authentication.getStrategyDescription(),
     );
@@ -96,18 +96,31 @@ function getUniqueStrategies() {
             uniqueStrategies.push(strategy);
         }
     });
+
+    // If basic strategy is present, only expose it if there is at least one local user in the database
+    const hasBasic = uniqueStrategies.find((s) => s.type === 'basic');
+    if (hasBasic) {
+        const localUserCount = await countLocalUsers();
+        if (localUserCount === 0) {
+            return uniqueStrategies
+                .filter((s) => s.type !== 'basic')
+                .sort((s1, s2) => s1.name.localeCompare(s2.name));
+        }
+    }
+
     return uniqueStrategies.sort((s1, s2) => s1.name.localeCompare(s2.name));
 }
 
 /**
  * Return the registered strategies from the registry.
  */
-function getStrategies(req, res) {
-    res.json(getUniqueStrategies());
+async function getStrategies(req, res) {
+    res.json(await getUniqueStrategies());
 }
 
-function getLogoutRedirectUrl() {
-    const strategyWithRedirectUrl = getUniqueStrategies().find(
+async function getLogoutRedirectUrl() {
+    const strategies = await getUniqueStrategies();
+    const strategyWithRedirectUrl = strategies.find(
         (strategy) => strategy.logoutUrl,
     );
     if (strategyWithRedirectUrl) {
@@ -137,10 +150,10 @@ function login(req, res) {
 /**
  * Logout current user.
  */
-function logout(req, res) {
+async function logout(req, res) {
     req.logout(() => {});
     res.status(200).json({
-        logoutUrl: getLogoutRedirectUrl(),
+        logoutUrl: await getLogoutRedirectUrl(),
     });
 }
 

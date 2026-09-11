@@ -8,4 +8,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 > Changes below are merged on `main` and will be included in the upcoming release.
 
 ---
-
+- 🐛 [AUTH] Hide basic strategy from login when no local users exist in database
