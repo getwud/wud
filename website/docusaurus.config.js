@@ -201,22 +201,65 @@ const config = {
             position: 'right',
           },
           {
-            href: 'https://github.com/sponsors/fmartinou',
-            position: 'right',
-            label: '💖 Sponsor',
-          },
-          {
             href: 'https://github.com/getwud/wud',
             position: 'right',
             className: 'header-github-link',
             'aria-label': 'GitHub repository',
-            label: 'GitHub',
           },
         ],
       },
       footer: {
         style: 'dark',
-        copyright: `Copyright © ${new Date().getFullYear()} WUD`,
+        links: [
+          {
+            title: 'Documentation',
+            items: [
+              {
+                label: 'Getting Started',
+                to: '/docs/quickstart',
+              },
+              {
+                label: 'Live Demo',
+                to: '/demo',
+              },
+              {
+                label: 'API Reference',
+                to: '/docs/api',
+              },
+            ],
+          },
+          {
+            title: 'Community',
+            items: [
+              {
+                label: 'GitHub',
+                href: 'https://github.com/getwud/wud',
+              },
+              {
+                label: '💖 Sponsor',
+                href: 'https://github.com/sponsors/fmartinou',
+              },
+              {
+                label: 'Discussions',
+                href: 'https://github.com/getwud/wud/discussions',
+              },
+            ],
+          },
+          {
+            title: 'More',
+            items: [
+              {
+                label: 'Changelog',
+                to: '/docs/changelog',
+              },
+              {
+                label: 'Docker Hub',
+                href: 'https://hub.docker.com/r/getwud/wud',
+              },
+            ],
+          },
+        ],
+        copyright: `Copyright © ${new Date().getFullYear()} WUD - What's up Docker.`,
       },
       prism: {
         theme: prismThemes.github,
