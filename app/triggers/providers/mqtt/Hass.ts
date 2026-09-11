@@ -35,6 +35,7 @@ interface HassSensor {
 interface HassDiscoverySensor extends HassSensor {
     name?: string;
     options?: HassDiscoveryOptions;
+    watcherName?: string;
 }
 
 interface HassNamedSensor {
@@ -185,6 +186,7 @@ class Hass {
                 kind: sensor.kind,
                 name: sensor.name,
                 options: sensor.options,
+                watcherName: sensor.watcherName,
             });
         }
     }
@@ -223,7 +225,7 @@ class Hass {
                     // the supporting text, making the rows distinguishable.
                     title: container.displayName,
                     force_update: true,
-                    installed_version_template: HASS_ENTITY_VALUE_TEMPLATE,
+                    value_template: HASS_ENTITY_VALUE_TEMPLATE,
                     latest_version_topic: containerStateSensor.topic,
                     latest_version_template: HASS_LATEST_VERSION_TEMPLATE,
                     command_topic: this.getContainerCommandTopic({ container }),
@@ -318,13 +320,31 @@ class Hass {
 
         // Publish discovery messages
         if (this.configuration.hass.discovery) {
-            await this.publishDiscoveryMessages(
-                Object.values(sensors).map(({ sensor, name, options }) => ({
-                    ...sensor,
-                    name,
-                    options,
-                })),
-            );
+            const globalSensors = [
+                sensors.totalCount,
+                sensors.totalUpdateCount,
+                sensors.totalUpdateStatus,
+            ].map(({ sensor, name, options }) => ({
+                ...sensor,
+                name,
+                options,
+            }));
+
+            const watcherSensors = [
+                sensors.watcherTotalCount,
+                sensors.watcherUpdateCount,
+                sensors.watcherUpdateStatus,
+            ].map(({ sensor, name, options }) => ({
+                ...sensor,
+                name,
+                options,
+                watcherName: container.watcher,
+            }));
+
+            await this.publishDiscoveryMessages([
+                ...globalSensors,
+                ...watcherSensors,
+            ]);
         }
 
         // Count all containers

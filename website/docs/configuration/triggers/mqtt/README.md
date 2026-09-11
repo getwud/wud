@@ -255,6 +255,10 @@ To keep Home Assistant devices organized and clean:
 - **Watcher Devices**: Each watcher gets its own dedicated device (e.g. `wud (local)` for a watcher named `local`). All containers monitored by this watcher are grouped under this device.
 - **Global WUD Device**: Represents the core WUD service, providing connection status (`binary_sensor`), total container count (`sensor`), total update count (`sensor`), and global update status (`binary_sensor`).
 
+:::note[Migrating from Previous Versions]
+When upgrading to this version, if the legacy monolithic **wud** device already exists in Home Assistant, it is recommended to delete it from the Home Assistant UI (**Settings > Devices & services > MQTT > wud device > Delete**). Home Assistant will then cleanly rediscover the new per-watcher devices (`wud_<watcher>`) alongside the global `wud` device without orphan entities or duplicates.
+:::
+
 ### 🔐 MQTT Permissions & Broker ACLs
 
 When using an MQTT broker with Access Control Lists (ACLs) enabled (e.g. Mosquitto):
