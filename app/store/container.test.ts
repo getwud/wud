@@ -183,4 +183,44 @@ describe('Container Store (SQLite)', () => {
 
         container.deleteContainer('stack-container-id');
     });
+
+    test('getContainer and getContainers should restore updateAvailable and updateKind from history', () => {
+        const updateContainerSample = {
+            ...sampleContainer,
+            id: 'container-update-kind',
+            name: 'update-kind-test',
+            updateAvailable: true,
+            updateKind: {
+                kind: 'tag',
+                localValue: '1.0.0',
+                remoteValue: '2.0.0',
+                semverDiff: 'major',
+            },
+            result: {
+                tag: '2.0.0',
+            },
+        };
+
+        container.insertContainer(updateContainerSample);
+
+        const fetched = container.getContainer('container-update-kind');
+        expect(fetched).toBeDefined();
+        expect(fetched?.updateAvailable).toBe(true);
+        expect(fetched?.updateKind).toEqual({
+            kind: 'tag',
+            localValue: '1.0.0',
+            remoteValue: '2.0.0',
+            semverDiff: 'major',
+        });
+
+        const list = container.getContainers({ name: 'update-kind-test' });
+        expect(list.length).toBe(1);
+        expect(list[0].updateAvailable).toBe(true);
+        expect(list[0].updateKind).toEqual({
+            kind: 'tag',
+            localValue: '1.0.0',
+            remoteValue: '2.0.0',
+            semverDiff: 'major',
+        });
+    });
 });

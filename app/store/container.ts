@@ -80,6 +80,20 @@ function buildContainerFromRows(
                 message: historyRow.errorMessage,
             };
         }
+        if (
+            historyRow.updateAvailable !== undefined &&
+            historyRow.updateAvailable !== null
+        ) {
+            raw.updateAvailable = Boolean(historyRow.updateAvailable);
+        }
+        if (historyRow.updateKind) {
+            raw.updateKind = {
+                kind: historyRow.updateKind,
+                localValue: historyRow.localValue ?? undefined,
+                remoteValue: historyRow.remoteValue ?? undefined,
+                semverDiff: historyRow.semverDiff ?? undefined,
+            };
+        }
     }
 
     return validateContainer(raw);
