@@ -60,7 +60,22 @@ Object.keys(process.env)
 replaceSecrets(wudEnvVars);
 
 export function getVersion() {
-    return wudEnvVars.WUD_VERSION || 'unknown';
+    if (wudEnvVars.WUD_VERSION) {
+        return wudEnvVars.WUD_VERSION;
+    }
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const pkg = require('../package.json');
+        return pkg.version || 'unknown';
+    } catch {
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const pkg = require('../../package.json');
+            return pkg.version || 'unknown';
+        } catch {
+            return 'unknown';
+        }
+    }
 }
 
 export function getLogLevel() {

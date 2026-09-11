@@ -36,4 +36,19 @@ describe('App Store (SQLite)', () => {
             version: '2.0.0',
         });
     });
+
+    test('saveAppInfosAndMigrate should clean up previous records on upgrade', () => {
+        app.createCollections();
+        expect(app.getAppInfos()).toEqual({
+            name: 'wud',
+            version: '2.0.0',
+        });
+
+        app.saveAppInfosAndMigrate();
+        const info = app.getAppInfos();
+        expect(info).toEqual({
+            name: 'wud',
+            version: '2.0.0',
+        });
+    });
 });
