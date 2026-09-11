@@ -231,3 +231,16 @@ export async function countAdminUsers(): Promise<number> {
         .get();
     return count ? Number(count.count) : 0;
 }
+
+/**
+ * Count number of local users.
+ */
+export async function countLocalUsers(): Promise<number> {
+    const db = getDb();
+    const count = db
+        .select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(eq(users.provider, 'local'))
+        .get();
+    return count ? Number(count.count) : 0;
+}
