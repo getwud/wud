@@ -39,9 +39,17 @@ echo "📦 Updating package versions to $VERSION..."
 (cd "$ROOT_DIR/ui" && npm version "$VERSION" --no-git-tag-version)
 (cd "$ROOT_DIR/website" && npm version "$VERSION" --no-git-tag-version)
 
+# Update OpenAPI specification version
+echo "📄 Updating OpenAPI specification version to $VERSION..."
+sed -i.bak -E "s/^(    version: ).*/\1$VERSION/" "$ROOT_DIR/app/api/openapi.yaml" && rm -f "$ROOT_DIR/app/api/openapi.yaml.bak"
+
 # 2. Update changelog
 echo "📝 Updating changelogs..."
 node "$SCRIPT_DIR/update-changelog.js" "$VERSION"
+
+# Build demo UI bundle for documentation
+echo "🖥️ Building demo UI bundle..."
+(cd "$ROOT_DIR/ui" && npm run build:demo)
 
 # 3. Generate OpenAPI documentation in website
 echo "📚 Generating OpenAPI documentation..."
