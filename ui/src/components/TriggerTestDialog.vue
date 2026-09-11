@@ -20,9 +20,21 @@
           <strong class="text-high-emphasis">{{ trigger?.type }} / {{ trigger?.name }}</strong>.
         </div>
 
+        <v-autocomplete
+          label="Source Container"
+          v-model="selectedContainerId"
+          :items="containerOptions"
+          variant="outlined"
+          density="compact"
+          hide-details
+          clearable
+          class="mb-3"
+        />
+
         <v-text-field
           label="Container ID"
           v-model="container.id"
+          :disabled="!!selectedContainerId"
           variant="outlined"
           density="compact"
           hide-details
@@ -32,6 +44,7 @@
         <v-text-field
           label="Container Name"
           v-model="container.name"
+          :disabled="!!selectedContainerId"
           variant="outlined"
           density="compact"
           hide-details
@@ -41,6 +54,7 @@
         <v-text-field
           label="Container Watcher"
           v-model="container.watcher"
+          :disabled="!!selectedContainerId"
           variant="outlined"
           density="compact"
           hide-details
@@ -117,6 +131,7 @@
 </template>
 
 <script lang="ts">
+import { getAllContainers } from "@/services/container";
 import { runTrigger } from "@/services/trigger";
 import { defineComponent } from "vue";
 
@@ -136,10 +151,17 @@ export default defineComponent({
   data() {
     return {
       isTriggering: false,
+      containers: [] as any[],
+      selectedContainerId: null as string | null,
       container: {
         id: "123456789",
         name: "container_test",
         watcher: "watcher_test",
+        stack: "test-stack",
+        labels: {
+          "com.docker.compose.project.working_dir": "/opt/docker/container_test",
+          "com.docker.compose.service": "container_test",
+        },
         updateKind: {
           kind: "tag",
           semverDiff: "major",
@@ -152,7 +174,55 @@ export default defineComponent({
       },
     };
   },
+  computed: {
+    containerOptions(): any[] {
+      const mockOption = {
+        title: "Mock Container (Sample data)",
+        value: null,
+      };
+      const realOptions = (this.containers || []).map((c: any) => ({
+        title: `${c.name} (${c.watcher})`,
+        value: c.id,
+      }));
+      return [mockOption, ...realOptions];
+    },
+  },
+  watch: {
+    async modelValue(val: boolean) {
+      if (val) {
+        await this.loadContainers();
+      }
+    },
+    selectedContainerId(newId: string | null) {
+      if (newId) {
+        const selected = (this.containers || []).find((c: any) => c.id === newId);
+        if (selected) {
+          this.container.id = selected.id;
+          this.container.name = selected.name;
+          this.container.watcher = selected.watcher;
+          if (selected.image?.tag?.value) {
+            this.container.updateKind.localValue = selected.image.tag.value;
+          }
+        }
+      } else {
+        this.container.id = "123456789";
+        this.container.name = "container_test";
+        this.container.watcher = "watcher_test";
+        this.container.updateKind.localValue = "1.2.3";
+      }
+    },
+  },
+  async mounted() {
+    await this.loadContainers();
+  },
   methods: {
+    async loadContainers() {
+      try {
+        this.containers = (await getAllContainers()) || [];
+      } catch {
+        this.containers = [];
+      }
+    },
     close() {
       this.$emit("update:modelValue", false);
     },
@@ -160,10 +230,31 @@ export default defineComponent({
       if (!this.trigger) return;
       this.isTriggering = true;
       try {
+        let payload: any;
+        if (this.selectedContainerId) {
+          const selectedContainer = (this.containers || []).find(
+            (c: any) => c.id === this.selectedContainerId,
+          );
+          payload = selectedContainer
+            ? JSON.parse(JSON.stringify(selectedContainer))
+            : JSON.parse(JSON.stringify(this.container));
+          payload.updateAvailable = true;
+          payload.updateKind = { ...this.container.updateKind };
+          if (!payload.result) payload.result = {};
+          if (this.container.updateKind.kind === "tag") {
+            payload.result.tag = this.container.updateKind.remoteValue;
+          } else if (this.container.updateKind.kind === "digest") {
+            payload.result.digest = this.container.updateKind.remoteValue;
+          }
+          payload.result.link = this.container.updateKind.result.link;
+        } else {
+          payload = this.container;
+        }
+
         await runTrigger({
           triggerType: this.trigger.type,
           triggerName: this.trigger.name,
-          container: this.container,
+          container: payload,
         });
         (this as any).$eventBus?.emit("notify", "Trigger executed with success");
         this.close();

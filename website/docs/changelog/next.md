@@ -30,6 +30,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [REGISTRY] Add support for Docker Hardened Images (dhi.io) (fixes #875)
 - 🚀 [UI] Display Docker Compose stack / project name with filtering chip and drawer details (fixes #1205)
 - 🚀 [TRIGGER] Add support for tags and icon in NTFY trigger (fixes #1216)
+- 🚀 [TRIGGER] Support real container selection and labels in Trigger Test dialog (fixes #1216)
 - 🚀 [TRIGGER] Overhaul Home Assistant MQTT integration with update entity, install actions, per-watcher devices, and storm prevention (fixes #1148, #649, #381, #216)
 - 🔧 [DOCS] Refresh OpenID Connect (OIDC) and container registry documentation with modern Vue 3 UI screenshots and fix relative asset paths
 
