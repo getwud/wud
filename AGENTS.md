@@ -116,7 +116,9 @@ Whenever implementing a feature or bugfix, **strictly adhere to the following wo
 ### 6. Release Process
 - Use `./scripts/release.sh <version>` to automate release preparation (package bumps, changelog transfer, Docusaurus docs snapshotting).
 - **Tag & Release Naming Convention**: NEVER prefix versions with `v` in Git tags or GitHub Release titles (e.g. use `9.0.0`, NOT `v9.0.0`).
+- **Post-Release Announcements**: Once the CI release workflow finishes, post an announcement in GitHub Discussions under the `Announcements` category on Manfred's behalf.
 - Commit author must strictly be `Manfred Martin <16061231+fmartinou@users.noreply.github.com>`.
+
 
 ---
 
