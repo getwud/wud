@@ -119,6 +119,11 @@
   background-color: var(--ifm-navbar-link-hover-color);
 }
 
+/* Hide redundant OpenAPI version badge inside markdown content since Docusaurus already displays the doc version badge */
+.theme-doc-markdown .theme-doc-version-badge {
+  display: none;
+}
+
 /* Subtle micro-animations for interactive elements */
 .navbar__item,
 .button,
