@@ -125,6 +125,34 @@
           <v-list-item-title class="text-body-2 font-weight-medium">Documentation</v-list-item-title>
         </v-list-item>
 
+        <!-- Sponsor Link -->
+        <div v-if="mini" class="d-flex justify-center mb-1">
+          <v-btn
+            icon="mdi-heart"
+            variant="text"
+            density="comfortable"
+            size="small"
+            color="pink"
+            href="https://github.com/sponsors/fmartinou"
+            target="_blank"
+            class="rounded-lg"
+          >
+            <v-icon size="20" color="pink">mdi-heart</v-icon>
+            <v-tooltip activator="parent" location="right">Sponsor WUD</v-tooltip>
+          </v-btn>
+        </div>
+        <v-list-item
+          v-else
+          href="https://github.com/sponsors/fmartinou"
+          target="_blank"
+          rounded="lg"
+          class="nav-item mb-1 text-pink"
+          prepend-icon="mdi-heart"
+          append-icon="mdi-open-in-new"
+        >
+          <v-list-item-title class="text-body-2 font-weight-medium">Sponsor WUD</v-list-item-title>
+        </v-list-item>
+
         <!-- User / Settings Menu -->
         <v-menu location="top end" offset="8" :close-on-content-click="false">
           <template v-slot:activator="{ props }">

@@ -9,3 +9,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 ---
 - 🐛 [AUTH] Hide basic strategy from login when no local users exist in database
+- 🚀 [COMMUNITY] Add GitHub Sponsors integration across repository and documentation
