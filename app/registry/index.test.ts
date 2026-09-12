@@ -11,6 +11,17 @@ jest.mock('../configuration', () => ({
     getAuthenticationConfigurations: jest.fn(),
 }));
 
+jest.mock('@kubernetes/client-node', () => ({
+    KubeConfig: jest.fn().mockImplementation(() => ({
+        loadFromCluster: jest.fn(),
+        loadFromFile: jest.fn(),
+        makeApiClient: jest.fn().mockReturnValue({}),
+    })),
+    AppsV1Api: jest.fn(),
+    CoreV1Api: jest.fn(),
+    BatchV1Api: jest.fn(),
+}));
+
 let registries = {};
 let triggers = {};
 let watchers = {};
@@ -206,6 +217,26 @@ test('registerWatchers should register all watchers', async () => {
     expect(Object.keys(registry.getState().watcher)).toEqual([
         'docker.watcher1',
         'docker.watcher2',
+    ]);
+});
+
+test('registerWatchers should register multi-provider watchers (docker and kubernetes)', async () => {
+    watchers = {
+        docker: {
+            remote: {
+                host: 'remote-host',
+            },
+        },
+        kubernetes: {
+            mycluster: {
+                namespace: 'default',
+            },
+        },
+    };
+    await registry.testable_registerWatchers();
+    expect(Object.keys(registry.getState().watcher)).toEqual([
+        'docker.remote',
+        'kubernetes.mycluster',
     ]);
 });
 

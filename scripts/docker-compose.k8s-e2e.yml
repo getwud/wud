@@ -1,0 +1,27 @@
+services:
+  wud:
+    build:
+      context: ..
+      args:
+        WUD_VERSION: local
+    image: wud:k8s-test
+    container_name: wud-k8s
+    ports:
+      - "3000:3000"
+    volumes:
+      - /tmp/kubeconfig-internal.yaml:/etc/wud/kubeconfig.yaml:ro
+    environment:
+      - WUD_LOG_LEVEL=debug
+      - WUD_WATCHER_KUBERNETES_MYCLUSTER_KUBECONFIG=/etc/wud/kubeconfig.yaml
+      - WUD_WATCHER_KUBERNETES_MYCLUSTER_NAMESPACE=.*
+      - WUD_WATCHER_KUBERNETES_MYCLUSTER_CRON=0 * * * *
+      - WUD_WATCHER_KUBERNETES_MYCLUSTER_WATCHBYDEFAULT=true
+      - WUD_WATCHER_KUBERNETES_MYCLUSTER_WATCHATSTART=true
+      - WUD_AUTH_BASIC_JOHN_USER=john
+      - WUD_AUTH_BASIC_JOHN_HASH=$$apr1$$8zDVtSAY$$62WBh9DspNbUKMZXYRsjS/
+    networks:
+      - kind
+
+networks:
+  kind:
+    external: true
