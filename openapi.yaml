@@ -314,6 +314,67 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/ErrorResponse'
             x-eov-operation-handler: app
+    '/api/containers/{id}/snooze':
+        post:
+            tags:
+                - Containers
+            summary: Snooze update for a container
+            operationId: snoozeContainer
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                version:
+                                    type: string
+                                    description: Candidate version to snooze
+                                until:
+                                    type: integer
+                                    description: Timestamp until which the update is snoozed
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Container'
+                '400':
+                    description: Bad Request
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                '404':
+                    description: Not Found
+            x-eov-operation-handler: app
+        delete:
+            tags:
+                - Containers
+            summary: Unsnooze update for a container
+            operationId: unsnoozeContainer
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Container'
+                '404':
+                    description: Not Found
+            x-eov-operation-handler: app
     '/api/containers/{id}/triggers':
         get:
             tags:
@@ -632,6 +693,15 @@ components:
                     additionalProperties: true
                 updateAvailable:
                     type: boolean
+                isSnoozed:
+                    type: boolean
+                    description: Whether the update for this container is currently snoozed
+                snoozedVersion:
+                    type: string
+                    description: Version that is currently snoozed
+                snoozedUntil:
+                    type: integer
+                    description: Epoch timestamp (ms) until which the update is snoozed
                 updateKind:
                     type: object
                     properties:
