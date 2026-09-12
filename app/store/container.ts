@@ -40,6 +40,8 @@ function buildContainerFromRows(
         triggerInclude: containerRow.triggerInclude ?? undefined,
         triggerExclude: containerRow.triggerExclude ?? undefined,
         labels: containerRow.labels ?? undefined,
+        snoozedVersion: containerRow.snoozedVersion ?? undefined,
+        snoozedUntil: containerRow.snoozedUntil ?? undefined,
     };
 
     if (imageRow) {
@@ -124,6 +126,8 @@ export function insertContainer(container: any): Container {
             triggerInclude: containerToSave.triggerInclude,
             triggerExclude: containerToSave.triggerExclude,
             labels: containerToSave.labels,
+            snoozedVersion: containerToSave.snoozedVersion,
+            snoozedUntil: containerToSave.snoozedUntil,
         })
         .run();
 
@@ -197,6 +201,8 @@ export function updateContainer(container: any): Container {
             triggerInclude: containerToReturn.triggerInclude,
             triggerExclude: containerToReturn.triggerExclude,
             labels: containerToReturn.labels,
+            snoozedVersion: containerToReturn.snoozedVersion,
+            snoozedUntil: containerToReturn.snoozedUntil,
             updatedAt: sql`CURRENT_TIMESTAMP`,
         })
         .onConflictDoUpdate({
@@ -216,6 +222,14 @@ export function updateContainer(container: any): Container {
                 triggerInclude: containerToReturn.triggerInclude,
                 triggerExclude: containerToReturn.triggerExclude,
                 labels: containerToReturn.labels,
+                snoozedVersion:
+                    containerToReturn.snoozedVersion !== undefined
+                        ? containerToReturn.snoozedVersion
+                        : sql`snoozed_version`,
+                snoozedUntil:
+                    containerToReturn.snoozedUntil !== undefined
+                        ? containerToReturn.snoozedUntil
+                        : sql`snoozed_until`,
                 updatedAt: sql`CURRENT_TIMESTAMP`,
             },
         })
@@ -441,4 +455,52 @@ export function getContainerHistory(containerId: string) {
         .where(eq(schema.containerResultsHistory.containerId, containerId))
         .orderBy(desc(schema.containerResultsHistory.id))
         .all();
+}
+
+/**
+ * Snooze a container update.
+ */
+export function snoozeContainer(
+    id: string,
+    version: string,
+    until?: number,
+): Container {
+    const db = getDb();
+    db.update(schema.containers)
+        .set({
+            snoozedVersion: version,
+            snoozedUntil: until ?? null,
+            updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(eq(schema.containers.id, id))
+        .run();
+
+    const updatedContainer = getContainer(id);
+    if (!updatedContainer) {
+        throw new Error(`Container ${id} not found`);
+    }
+    emitContainerUpdated(updatedContainer);
+    return updatedContainer;
+}
+
+/**
+ * Unsnooze a container update.
+ */
+export function unsnoozeContainer(id: string): Container {
+    const db = getDb();
+    db.update(schema.containers)
+        .set({
+            snoozedVersion: null,
+            snoozedUntil: null,
+            updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(eq(schema.containers.id, id))
+        .run();
+
+    const updatedContainer = getContainer(id);
+    if (!updatedContainer) {
+        throw new Error(`Container ${id} not found`);
+    }
+    emitContainerUpdated(updatedContainer);
+    return updatedContainer;
 }

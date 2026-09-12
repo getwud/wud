@@ -65,6 +65,7 @@ test('model should be validated when compliant', async () => {
 
         linkTemplate: 'https://release-${major}.${minor}.${patch}.acme.com',
         link: 'https://release-1.0.0.acme.com',
+        isSnoozed: false,
         updateAvailable: true,
         updateKind: {
             kind: 'tag',
@@ -320,6 +321,7 @@ test('flatten should be flatten the nested properties with underscores when call
         status: 'unknown',
         image_architecture: 'arch',
         image_created: '2021-06-12T05:33:38.440Z',
+        image_digest_repo: undefined,
         image_digest_watch: false,
         image_id: 'image-123456789',
         image_name: 'organization/image',
@@ -328,6 +330,7 @@ test('flatten should be flatten the nested properties with underscores when call
         image_registry_url: 'https://hub',
         image_tag_semver: true,
         image_tag_value: '1.0.0',
+        is_snoozed: false,
         link: 'https://release-1.0.0.acme.com',
 
         link_template: 'https://release-${major}.${minor}.${patch}.acme.com',
@@ -538,5 +541,88 @@ test('addUpdateKindProperty should return unknown when no update available', asy
     addUpdateKindProperty(containerObject);
     expect(containerObject.updateKind).toEqual({
         kind: 'unknown',
+    });
+});
+
+describe('snooze functionality', () => {
+    const baseContainer = {
+        id: 'c1',
+        name: 'test-app',
+        watcher: 'docker',
+        image: {
+            id: 'img1',
+            registry: { name: 'hub', url: 'https://hub' },
+            name: 'test-app',
+            tag: { value: '1.0.0', semver: true },
+            digest: { watch: false },
+            architecture: 'amd64',
+            os: 'linux',
+        },
+        result: {
+            tag: '2.0.0',
+        },
+    };
+
+    test('should mark updateAvailable=false and isSnoozed=true when snoozed indefinitely', () => {
+        const validated = container.validate({
+            ...baseContainer,
+            snoozedVersion: '2.0.0',
+        });
+        expect(validated.isSnoozed).toBe(true);
+        expect(validated.updateAvailable).toBe(false);
+    });
+
+    test('should mark updateAvailable=false and isSnoozed=true when snoozed until a future time', () => {
+        const validated = container.validate({
+            ...baseContainer,
+            snoozedVersion: '2.0.0',
+            snoozedUntil: Date.now() + 100000,
+        });
+        expect(validated.isSnoozed).toBe(true);
+        expect(validated.updateAvailable).toBe(false);
+    });
+
+    test('should mark updateAvailable=true and isSnoozed=false when snooze has expired', () => {
+        const validated = container.validate({
+            ...baseContainer,
+            snoozedVersion: '2.0.0',
+            snoozedUntil: Date.now() - 1000,
+        });
+        expect(validated.isSnoozed).toBe(false);
+        expect(validated.updateAvailable).toBe(true);
+    });
+
+    test('should mark updateAvailable=true and isSnoozed=false when a newer version appears', () => {
+        const validated = container.validate({
+            ...baseContainer,
+            snoozedVersion: '1.5.0', // older snooze
+            result: { tag: '2.0.0' },
+        });
+        expect(validated.isSnoozed).toBe(false);
+        expect(validated.updateAvailable).toBe(true);
+    });
+
+    test('should support snoozing by digest', () => {
+        const digestContainer = {
+            id: 'c2',
+            name: 'digest-app',
+            watcher: 'docker',
+            image: {
+                id: 'img2',
+                registry: { name: 'hub', url: 'https://hub' },
+                name: 'digest-app',
+                tag: { value: 'latest', semver: false },
+                digest: { watch: true, value: 'sha256:old' },
+                architecture: 'amd64',
+                os: 'linux',
+            },
+            result: {
+                digest: 'sha256:new',
+            },
+            snoozedVersion: 'sha256:new',
+        };
+        const validated = container.validate(digestContainer);
+        expect(validated.isSnoozed).toBe(true);
+        expect(validated.updateAvailable).toBe(false);
     });
 });

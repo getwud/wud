@@ -901,6 +901,8 @@ export class Docker extends Watcher {
                 created,
             },
             labels: container.Labels,
+            snoozedVersion: containerInStore?.snoozedVersion,
+            snoozedUntil: containerInStore?.snoozedUntil,
             result: containerInStore?.result ?? {
                 tag: tagName,
             },

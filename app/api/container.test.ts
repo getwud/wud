@@ -9,6 +9,8 @@ jest.mock('../store/container', () => ({
     getContainer: jest.fn(),
     getContainers: jest.fn(),
     deleteContainer: jest.fn(),
+    snoozeContainer: jest.fn(),
+    unsnoozeContainer: jest.fn(),
 }));
 
 jest.mock('../registry', () => ({
@@ -51,6 +53,8 @@ describe('API Container', () => {
         app.post('/watch', containerRouterLocal.watchContainers);
         app.get('/:id', containerRouterLocal.getContainer);
         app.delete('/:id', containerRouterLocal.deleteContainer);
+        app.post('/:id/snooze', containerRouterLocal.snoozeContainer);
+        app.delete('/:id/snooze', containerRouterLocal.unsnoozeContainer);
         app.get('/:id/triggers', containerRouterLocal.getContainerTriggers);
         app.post(
             '/:id/triggers/:triggerType/:triggerName',
@@ -375,5 +379,148 @@ describe('API Container', () => {
 
         const res = await request(app).post('/container1/watch');
         expect(res.status).toBe(404);
+    });
+
+    describe('snoozeContainer', () => {
+        test('should return 404 when container is not found', async () => {
+            (storeContainer.getContainer as jest.Mock).mockReturnValue(
+                undefined,
+            );
+
+            const res = await request(app)
+                .post('/container-missing/snooze')
+                .send({ version: '2.0.0' });
+            expect(res.status).toBe(404);
+        });
+
+        test('should return 400 when no version provided and container has no candidate result', async () => {
+            (storeContainer.getContainer as jest.Mock).mockReturnValue({
+                id: 'container1',
+            });
+
+            const res = await request(app).post('/container1/snooze').send({});
+            expect(res.status).toBe(400);
+            expect(res.body.message).toContain(
+                'No candidate version to snooze',
+            );
+        });
+
+        test('should snooze container with explicit version and until timestamp', async () => {
+            (storeContainer.getContainer as jest.Mock).mockReturnValue({
+                id: 'container1',
+                result: { tag: '2.0.0' },
+            });
+            const mockSnoozed = {
+                id: 'container1',
+                snoozedVersion: '2.0.0',
+                snoozedUntil: 1234567890,
+                isSnoozed: true,
+                updateAvailable: false,
+            };
+            (storeContainer.snoozeContainer as jest.Mock).mockReturnValue(
+                mockSnoozed,
+            );
+
+            const res = await request(app)
+                .post('/container1/snooze')
+                .send({ version: '2.0.0', until: 1234567890 });
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual(mockSnoozed);
+            expect(storeContainer.snoozeContainer).toHaveBeenCalledWith(
+                'container1',
+                '2.0.0',
+                1234567890,
+            );
+        });
+
+        test('should snooze container with default candidate version from container.result.tag', async () => {
+            (storeContainer.getContainer as jest.Mock).mockReturnValue({
+                id: 'container1',
+                result: { tag: '3.0.0' },
+            });
+            const mockSnoozed = {
+                id: 'container1',
+                snoozedVersion: '3.0.0',
+                isSnoozed: true,
+                updateAvailable: false,
+            };
+            (storeContainer.snoozeContainer as jest.Mock).mockReturnValue(
+                mockSnoozed,
+            );
+
+            const res = await request(app).post('/container1/snooze').send({});
+            expect(res.status).toBe(200);
+            expect(storeContainer.snoozeContainer).toHaveBeenCalledWith(
+                'container1',
+                '3.0.0',
+                undefined,
+            );
+        });
+
+        test('should return 500 when storeContainer.snoozeContainer throws', async () => {
+            (storeContainer.getContainer as jest.Mock).mockReturnValue({
+                id: 'container1',
+                result: { tag: '2.0.0' },
+            });
+            (storeContainer.snoozeContainer as jest.Mock).mockImplementation(
+                () => {
+                    throw new Error('store error');
+                },
+            );
+
+            const res = await request(app)
+                .post('/container1/snooze')
+                .send({ version: '2.0.0' });
+            expect(res.status).toBe(500);
+            expect(res.body.message).toBe('store error');
+        });
+    });
+
+    describe('unsnoozeContainer', () => {
+        test('should return 404 when container is not found', async () => {
+            (storeContainer.getContainer as jest.Mock).mockReturnValue(
+                undefined,
+            );
+
+            const res = await request(app).delete('/container-missing/snooze');
+            expect(res.status).toBe(404);
+        });
+
+        test('should unsnooze container successfully', async () => {
+            (storeContainer.getContainer as jest.Mock).mockReturnValue({
+                id: 'container1',
+                snoozedVersion: '2.0.0',
+            });
+            const mockUnsnoozed = {
+                id: 'container1',
+                isSnoozed: false,
+                updateAvailable: true,
+            };
+            (storeContainer.unsnoozeContainer as jest.Mock).mockReturnValue(
+                mockUnsnoozed,
+            );
+
+            const res = await request(app).delete('/container1/snooze');
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual(mockUnsnoozed);
+            expect(storeContainer.unsnoozeContainer).toHaveBeenCalledWith(
+                'container1',
+            );
+        });
+
+        test('should return 500 when storeContainer.unsnoozeContainer throws', async () => {
+            (storeContainer.getContainer as jest.Mock).mockReturnValue({
+                id: 'container1',
+            });
+            (storeContainer.unsnoozeContainer as jest.Mock).mockImplementation(
+                () => {
+                    throw new Error('store error');
+                },
+            );
+
+            const res = await request(app).delete('/container1/snooze');
+            expect(res.status).toBe(500);
+            expect(res.body.message).toBe('store error');
+        });
     });
 });

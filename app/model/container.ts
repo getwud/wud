@@ -64,6 +64,9 @@ export interface Container {
     updateKind: ContainerUpdateKind;
     labels?: Record<string, string>;
     resultChanged?: (otherContainer: Container | undefined) => boolean;
+    snoozedVersion?: string;
+    snoozedUntil?: number;
+    isSnoozed?: boolean;
 }
 
 // Container data schema
@@ -82,6 +85,9 @@ const schema = joi.object({
     link: joi.string(),
     triggerInclude: joi.string(),
     triggerExclude: joi.string(),
+    snoozedVersion: joi.string().allow('', null).optional(),
+    snoozedUntil: joi.number().integer().allow(null).optional(),
+    isSnoozed: joi.boolean().optional(),
     image: joi
         .object({
             id: joi.string().min(1).required(),
@@ -179,6 +185,27 @@ function getLink(container: Container, originalTagValue: string) {
 }
 
 /**
+ * Computed isSnoozed property.
+ * @param container
+ */
+function addIsSnoozedProperty(container: Container) {
+    Object.defineProperty(container, 'isSnoozed', {
+        enumerable: true,
+        get(this: Container) {
+            if (!this.snoozedVersion || !this.result) {
+                return false;
+            }
+            const candidateMatches =
+                this.snoozedVersion === this.result.tag ||
+                this.snoozedVersion === this.result.digest;
+            const timeValid =
+                !this.snoozedUntil || Date.now() < this.snoozedUntil;
+            return Boolean(candidateMatches && timeValid);
+        },
+    });
+}
+
+/**
  * Computed function to check whether there is an update.
  * @param container
  * @returns {boolean}
@@ -188,6 +215,10 @@ function addUpdateAvailableProperty(container: Container) {
         enumerable: true,
         get(this: Container) {
             if (this.image === undefined || this.result === undefined) {
+                return false;
+            }
+
+            if (this.isSnoozed) {
                 return false;
             }
 
@@ -381,6 +412,7 @@ export function validate(container: any): Container {
     const containerValidated = validation.value as Container;
 
     // Add computed properties
+    addIsSnoozedProperty(containerValidated);
     addUpdateAvailableProperty(containerValidated);
     addUpdateKindProperty(containerValidated);
     addLinkProperty(containerValidated);

@@ -4,7 +4,9 @@ import ContainersView from '@/views/ContainersView.vue';
 // Mock the container service
 jest.mock('@/services/container', () => ({
   getAllContainers: jest.fn(),
-  deleteContainer: jest.fn()
+  deleteContainer: jest.fn(),
+  snoozeContainer: jest.fn(),
+  unsnoozeContainer: jest.fn(),
 }));
 
 const mockContainers = [
@@ -320,12 +322,12 @@ describe('ContainersView', () => {
   describe('table headers and sorting', () => {
     it('defines sortable headers for all columns', () => {
       const headers = wrapper.vm.headers;
-      expect(headers).toHaveLength(6);
+      expect(headers).toHaveLength(7);
       
       const keys = headers.map((h: any) => h.key);
-      expect(keys).toEqual(['watcher', 'registry', 'stack', 'displayName', 'currentVersion', 'update']);
+      expect(keys).toEqual(['watcher', 'registry', 'stack', 'displayName', 'currentVersion', 'update', 'actions']);
 
-      headers.forEach((header: any) => {
+      headers.filter((h: any) => h.key !== 'actions').forEach((header: any) => {
         expect(header.sortable).toBe(true);
       });
     });
@@ -446,6 +448,100 @@ describe('ContainersView', () => {
       await wrapper.vm.$nextTick();
       expect(localStorage.getItem('itemsPerPage')).toBe('50');
       localStorage.removeItem('itemsPerPage');
+    });
+  });
+
+  describe('snooze functionality', () => {
+    it('opens snooze dialog with default duration', () => {
+      const target = mockContainers[0];
+      wrapper.vm.openSnoozeDialog(target);
+      expect(wrapper.vm.containerToSnooze).toEqual(target);
+      expect(wrapper.vm.snoozeDuration).toBe('indefinitely');
+      expect(wrapper.vm.dialogSnooze).toBe(true);
+    });
+
+    it('executes snooze indefinitely and updates container', async () => {
+      const { snoozeContainer } = require('@/services/container');
+      const target = { ...mockContainers[0], result: { tag: '1.2.0' } };
+      wrapper.vm.containers = [target];
+      wrapper.vm.containerToSnooze = target;
+      wrapper.vm.snoozeDuration = 'indefinitely';
+
+      const updated = {
+        ...target,
+        snoozedVersion: '1.2.0',
+        isSnoozed: true,
+        updateAvailable: false,
+      };
+      snoozeContainer.mockResolvedValue(updated);
+
+      await wrapper.vm.executeSnooze();
+
+      expect(snoozeContainer).toHaveBeenCalledWith('1', {
+        version: '1.2.0',
+        until: undefined,
+      });
+      expect(wrapper.vm.containers[0].isSnoozed).toBe(true);
+      expect(wrapper.vm.containers[0].updateAvailable).toBe(false);
+      expect(wrapper.vm.dialogSnooze).toBe(false);
+    });
+
+    it('executes snooze with duration 1_day', async () => {
+      const { snoozeContainer } = require('@/services/container');
+      const target = { ...mockContainers[0], result: { tag: '1.2.0' } };
+      wrapper.vm.containers = [target];
+      wrapper.vm.containerToSnooze = target;
+      wrapper.vm.snoozeDuration = '1_day';
+
+      snoozeContainer.mockResolvedValue({
+        ...target,
+        snoozedVersion: '1.2.0',
+        isSnoozed: true,
+        updateAvailable: false,
+      });
+
+      const before = Date.now();
+      await wrapper.vm.executeSnooze();
+      const after = Date.now();
+
+      expect(snoozeContainer).toHaveBeenCalled();
+      const callArgs = snoozeContainer.mock.calls[0];
+      expect(callArgs[0]).toBe('1');
+      expect(callArgs[1].version).toBe('1.2.0');
+      expect(callArgs[1].until).toBeGreaterThanOrEqual(before + 24 * 60 * 60 * 1000);
+      expect(callArgs[1].until).toBeLessThanOrEqual(after + 24 * 60 * 60 * 1000);
+    });
+
+    it('executes unsnooze and updates container', async () => {
+      const { unsnoozeContainer } = require('@/services/container');
+      const target = {
+        ...mockContainers[0],
+        snoozedVersion: '1.2.0',
+        isSnoozed: true,
+        updateAvailable: false,
+      };
+      wrapper.vm.containers = [target];
+
+      const unsnoozed = {
+        ...target,
+        snoozedVersion: undefined,
+        snoozedUntil: undefined,
+        isSnoozed: false,
+        updateAvailable: true,
+      };
+      unsnoozeContainer.mockResolvedValue(unsnoozed);
+
+      await wrapper.vm.executeUnsnooze(target);
+
+      expect(unsnoozeContainer).toHaveBeenCalledWith('1');
+      expect(wrapper.vm.containers[0].isSnoozed).toBe(false);
+      expect(wrapper.vm.containers[0].updateAvailable).toBe(true);
+    });
+
+    it('includes actions header', () => {
+      const actionHeader = wrapper.vm.headers.find((h) => h.key === 'actions');
+      expect(actionHeader).toBeDefined();
+      expect(actionHeader.title).toBe('Actions');
     });
   });
 });

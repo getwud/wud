@@ -127,6 +127,14 @@ export const migrations: Migration[] = [
             `CREATE INDEX IF NOT EXISTS idx_containers_stack ON containers (stack);`,
         ],
     },
+    {
+        id: 3,
+        name: '0003_container_snooze',
+        sql: [
+            `ALTER TABLE containers ADD COLUMN snoozed_version TEXT;`,
+            `ALTER TABLE containers ADD COLUMN snoozed_until INTEGER;`,
+        ],
+    },
 ];
 
 export function runMigrations(sqlite: Database.Database) {

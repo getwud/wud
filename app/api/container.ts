@@ -250,6 +250,63 @@ export async function watchContainer(req, res) {
 }
 
 /**
+ * Snooze container updates.
+ * @param req
+ * @param res
+ */
+export function snoozeContainer(req, res) {
+    const { id } = req.params;
+    const container = storeContainer.getContainer(id);
+    if (!container) {
+        return res.sendStatus(404);
+    }
+    const { version, until } = req.body || {};
+    const targetVersion =
+        version || container.result?.tag || container.result?.digest;
+    if (!targetVersion) {
+        return res.status(400).json({
+            error: 'Bad request',
+            message: 'No candidate version to snooze',
+        });
+    }
+    try {
+        const updated = storeContainer.snoozeContainer(
+            id,
+            targetVersion,
+            until,
+        );
+        return res.status(200).json(updated);
+    } catch (e) {
+        return res.status(500).json({
+            error: 'Snooze failed',
+            message: e.message,
+        });
+    }
+}
+
+/**
+ * Unsnooze container updates.
+ * @param req
+ * @param res
+ */
+export function unsnoozeContainer(req, res) {
+    const { id } = req.params;
+    const container = storeContainer.getContainer(id);
+    if (!container) {
+        return res.sendStatus(404);
+    }
+    try {
+        const updated = storeContainer.unsnoozeContainer(id);
+        return res.status(200).json(updated);
+    } catch (e) {
+        return res.status(500).json({
+            error: 'Unsnooze failed',
+            message: e.message,
+        });
+    }
+}
+
+/**
  * Init Router.
  * @returns {*}
  */
@@ -270,6 +327,16 @@ export function init() {
         '/:id',
         requireRole(['admin', 'rw'], 'write'),
         deleteContainer,
+    );
+    router.post(
+        '/:id/snooze',
+        requireRole(['admin', 'rw'], 'write'),
+        snoozeContainer,
+    );
+    router.delete(
+        '/:id/snooze',
+        requireRole(['admin', 'rw'], 'write'),
+        unsnoozeContainer,
     );
     router.get(
         '/:id/triggers',
