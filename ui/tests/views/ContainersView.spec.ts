@@ -544,4 +544,30 @@ describe('ContainersView', () => {
       expect(actionHeader.title).toBe('Actions');
     });
   });
+
+  describe('cool-down period', () => {
+    it('handles cooling down containers correctly in view and drawer', async () => {
+      const coolingContainer = {
+        id: 'cool-1',
+        displayName: 'Cooling App',
+        watcher: 'local',
+        image: { registry: { name: 'hub' }, tag: { value: '1.0.0' } },
+        updateAvailable: false,
+        isCoolingDown: true,
+        coolingDownUntil: Date.now() + 3600000,
+        result: { tag: '2.0.0' },
+      };
+      wrapper.vm.onRefreshAllContainers([coolingContainer]);
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.vm.containers).toHaveLength(1);
+      expect(wrapper.vm.containers[0].isCoolingDown).toBe(true);
+      expect(wrapper.vm.containers[0].coolingDownUntil).toBeDefined();
+
+      wrapper.vm.onRowClick(null, { item: coolingContainer });
+      expect(wrapper.vm.drawerOpen).toBe(true);
+      expect(wrapper.vm.selectedContainer.isCoolingDown).toBe(true);
+      expect(wrapper.vm.drawerTab).toBe('update');
+    });
+  });
 });

@@ -133,6 +133,14 @@ describe('Docker Watcher', () => {
             };
             expect(() => docker.validateConfiguration(config)).not.toThrow();
         });
+
+        test('should validate configuration with delay option', async () => {
+            const config = {
+                socket: '/var/run/docker.sock',
+                delay: '24h',
+            };
+            expect(() => docker.validateConfiguration(config)).not.toThrow();
+        });
     });
 
     describe('Initialization', () => {
@@ -1489,6 +1497,93 @@ describe('Docker Watcher', () => {
             const result = await docker.addImageDetailsToContainer(container);
             expect(result).toBeDefined();
             expect(result.stack).toBe('custom-override');
+        });
+
+        test('should extract delay from wud.watch.delay label', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const container = {
+                Id: 'custom-delay-container',
+                Names: ['/my-custom-app'],
+                Image: 'test-image',
+                State: 'running',
+                Labels: {
+                    'wud.watch.delay': '3d',
+                },
+            };
+            mockImage.inspect.mockResolvedValue({
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+                Id: 'img123',
+                RepoDigests: [],
+            });
+
+            const containerModule = await import('../../../model/container');
+            const validateContainer = containerModule.validate;
+            // @ts-ignore
+            validateContainer.mockImplementation((c) => c);
+
+            const result = await docker.addImageDetailsToContainer(container);
+            expect(result).toBeDefined();
+            expect(result.delay).toBe('3d');
+        });
+
+        test('should extract delay from wud.tag.delay label as fallback', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const container = {
+                Id: 'custom-delay-container-2',
+                Names: ['/my-custom-app'],
+                Image: 'test-image',
+                State: 'running',
+                Labels: {
+                    'wud.tag.delay': '12h',
+                },
+            };
+            mockImage.inspect.mockResolvedValue({
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+                Id: 'img123',
+                RepoDigests: [],
+            });
+
+            const containerModule = await import('../../../model/container');
+            const validateContainer = containerModule.validate;
+            // @ts-ignore
+            validateContainer.mockImplementation((c) => c);
+
+            const result = await docker.addImageDetailsToContainer(container);
+            expect(result).toBeDefined();
+            expect(result.delay).toBe('12h');
+        });
+
+        test('should extract delay from watcher configuration when not defined on labels', async () => {
+            await docker.register('watcher', 'docker', 'test', {
+                delay: '1w',
+            });
+            const container = {
+                Id: 'custom-delay-container-3',
+                Names: ['/my-custom-app'],
+                Image: 'test-image',
+                State: 'running',
+                Labels: {},
+            };
+            mockImage.inspect.mockResolvedValue({
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+                Id: 'img123',
+                RepoDigests: [],
+            });
+
+            const containerModule = await import('../../../model/container');
+            const validateContainer = containerModule.validate;
+            // @ts-ignore
+            validateContainer.mockImplementation((c) => c);
+
+            const result = await docker.addImageDetailsToContainer(container);
+            expect(result).toBeDefined();
+            expect(result.delay).toBe('1w');
         });
     });
 

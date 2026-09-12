@@ -65,6 +65,8 @@ test('model should be validated when compliant', async () => {
 
         linkTemplate: 'https://release-${major}.${minor}.${patch}.acme.com',
         link: 'https://release-1.0.0.acme.com',
+        coolingDownUntil: undefined,
+        isCoolingDown: false,
         isSnoozed: false,
         updateAvailable: true,
         updateKind: {
@@ -339,6 +341,8 @@ test('flatten should be flatten the nested properties with underscores when call
         display_icon: 'mdi:docker',
         result_link: 'https://release-2.0.0.acme.com',
         result_tag: '2.0.0',
+        cooling_down_until: undefined,
+        is_cooling_down: false,
         update_available: true,
         update_kind_kind: 'tag',
         update_kind_local_value: '1.0.0',
@@ -623,6 +627,188 @@ describe('snooze functionality', () => {
         };
         const validated = container.validate(digestContainer);
         expect(validated.isSnoozed).toBe(true);
+        expect(validated.updateAvailable).toBe(false);
+    });
+});
+
+describe('parseDurationMs', () => {
+    test('should return undefined for undefined, null, or empty string', () => {
+        expect(container.parseDurationMs(undefined)).toBeUndefined();
+        expect(container.parseDurationMs(null)).toBeUndefined();
+        expect(container.parseDurationMs('')).toBeUndefined();
+        expect(container.parseDurationMs('   ')).toBeUndefined();
+    });
+
+    test('should parse raw milliseconds as number or string', () => {
+        expect(container.parseDurationMs(5000)).toBe(5000);
+        expect(container.parseDurationMs('5000')).toBe(5000);
+        expect(container.parseDurationMs(0)).toBe(0);
+        expect(container.parseDurationMs(-10)).toBeUndefined();
+    });
+
+    test('should parse seconds', () => {
+        expect(container.parseDurationMs('30s')).toBe(30000);
+        expect(container.parseDurationMs('10 sec')).toBe(10000);
+        expect(container.parseDurationMs('1 second')).toBe(1000);
+        expect(container.parseDurationMs('45 seconds')).toBe(45000);
+    });
+
+    test('should parse minutes', () => {
+        expect(container.parseDurationMs('10m')).toBe(600000);
+        expect(container.parseDurationMs('5 min')).toBe(300000);
+        expect(container.parseDurationMs('1 minute')).toBe(60000);
+        expect(container.parseDurationMs('2 minutes')).toBe(120000);
+    });
+
+    test('should parse hours', () => {
+        expect(container.parseDurationMs('24h')).toBe(86400000);
+        expect(container.parseDurationMs('2 hr')).toBe(7200000);
+        expect(container.parseDurationMs('1 hour')).toBe(3600000);
+        expect(container.parseDurationMs('3 hours')).toBe(10800000);
+    });
+
+    test('should parse days', () => {
+        expect(container.parseDurationMs('3d')).toBe(259200000);
+        expect(container.parseDurationMs('1 day')).toBe(86400000);
+        expect(container.parseDurationMs('5 days')).toBe(432000000);
+    });
+
+    test('should parse weeks', () => {
+        expect(container.parseDurationMs('1w')).toBe(604800000);
+        expect(container.parseDurationMs('2 weeks')).toBe(1209600000);
+    });
+
+    test('should parse fractional values', () => {
+        expect(container.parseDurationMs('1.5h')).toBe(5400000);
+        expect(container.parseDurationMs('0.5d')).toBe(43200000);
+    });
+
+    test('should return undefined for invalid strings', () => {
+        expect(container.parseDurationMs('invalid')).toBeUndefined();
+        expect(container.parseDurationMs('10xyz')).toBeUndefined();
+        expect(container.parseDurationMs('abc10m')).toBeUndefined();
+    });
+});
+
+describe('cool-down delay logic', () => {
+    const baseContainer = {
+        id: 'container-delay-test',
+        name: 'test-delay',
+        watcher: 'local',
+        image: {
+            id: 'img-1',
+            registry: { name: 'hub', url: 'https://hub' },
+            name: 'app',
+            tag: { value: '1.0.0', semver: true },
+            digest: { watch: false },
+            architecture: 'amd64',
+            os: 'linux',
+            created: '2023-01-01T00:00:00.000Z',
+        },
+    };
+
+    test('should hold update in cool-down when remote release is within delay window', () => {
+        // Released 1 hour ago, delay is 24h -> cooling down until 23h from now
+        const releaseTime = new Date(Date.now() - 3600 * 1000).toISOString();
+        const validated = container.validate({
+            ...baseContainer,
+            delay: '24h',
+            result: {
+                tag: '2.0.0',
+                created: releaseTime,
+            },
+        });
+
+        expect(validated.isCoolingDown).toBe(true);
+        expect(validated.updateAvailable).toBe(false);
+        expect(validated.updateKind.kind).toBe('unknown');
+        expect(validated.coolingDownUntil).toBe(
+            new Date(releaseTime).getTime() + 24 * 3600 * 1000,
+        );
+    });
+
+    test('should mark updateAvailable=true when cool-down period has elapsed', () => {
+        // Released 2 days ago, delay is 24h -> cool-down finished yesterday
+        const releaseTime = new Date(
+            Date.now() - 48 * 3600 * 1000,
+        ).toISOString();
+        const validated = container.validate({
+            ...baseContainer,
+            delay: '24h',
+            result: {
+                tag: '2.0.0',
+                created: releaseTime,
+            },
+        });
+
+        expect(validated.isCoolingDown).toBe(false);
+        expect(validated.updateAvailable).toBe(true);
+        expect(validated.updateKind.kind).toBe('tag');
+        expect(validated.updateKind.semverDiff).toBe('major');
+    });
+
+    test('should not be cooling down if no candidate update exists', () => {
+        // Same tag and same created date -> no update
+        const validated = container.validate({
+            ...baseContainer,
+            delay: '24h',
+            result: {
+                tag: '1.0.0',
+                created: baseContainer.image.created,
+            },
+        });
+
+        expect(validated.isCoolingDown).toBe(false);
+        expect(validated.updateAvailable).toBe(false);
+    });
+
+    test('should not be cooling down if container has no delay', () => {
+        const releaseTime = new Date().toISOString();
+        const validated = container.validate({
+            ...baseContainer,
+            result: {
+                tag: '2.0.0',
+                created: releaseTime,
+            },
+        });
+
+        expect(validated.coolingDownUntil).toBeUndefined();
+        expect(validated.isCoolingDown).toBe(false);
+        expect(validated.updateAvailable).toBe(true);
+    });
+
+    test('should not be cooling down if result has no created date', () => {
+        const validated = container.validate({
+            ...baseContainer,
+            delay: '24h',
+            result: {
+                tag: '2.0.0',
+            },
+        });
+
+        expect(validated.coolingDownUntil).toBeUndefined();
+        expect(validated.isCoolingDown).toBe(false);
+        expect(validated.updateAvailable).toBe(true);
+    });
+
+    test('should handle digest updates with cool-down', () => {
+        const releaseTime = new Date(Date.now() - 1000).toISOString();
+        const validated = container.validate({
+            ...baseContainer,
+            delay: '1h',
+            image: {
+                ...baseContainer.image,
+                tag: { value: 'latest', semver: false },
+                digest: { watch: true, value: 'sha256:old', repo: 'app' },
+            },
+            result: {
+                tag: 'latest',
+                digest: 'sha256:new',
+                created: releaseTime,
+            },
+        });
+
+        expect(validated.isCoolingDown).toBe(true);
         expect(validated.updateAvailable).toBe(false);
     });
 });

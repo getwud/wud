@@ -48,6 +48,9 @@ export interface Container {
     status: string;
     watcher: string;
     stack?: string;
+    delay?: string;
+    isCoolingDown?: boolean;
+    coolingDownUntil?: number;
     includeTags?: string;
     excludeTags?: string;
     transformTags?: string;
@@ -69,6 +72,70 @@ export interface Container {
     isSnoozed?: boolean;
 }
 
+/**
+ * Parse human duration string into milliseconds.
+ * Supports units: s (seconds), m (minutes), h (hours), d (days), w (weeks), or raw ms.
+ *
+ * @param duration string | number | undefined
+ * @returns number | undefined
+ */
+export function parseDurationMs(
+    duration: string | number | undefined,
+): number | undefined {
+    if (duration === undefined || duration === null) {
+        return undefined;
+    }
+    if (typeof duration === 'number') {
+        return !isNaN(duration) && duration >= 0 ? duration : undefined;
+    }
+    const trimmed = String(duration).trim();
+    if (trimmed === '') {
+        return undefined;
+    }
+    if (/^\d+$/.test(trimmed)) {
+        const parsed = parseInt(trimmed, 10);
+        return !isNaN(parsed) && parsed >= 0 ? parsed : undefined;
+    }
+    const match = trimmed.match(/^(\d+(?:\.\d+)?)\s*([a-zA-Z]+)$/);
+    if (!match) {
+        return undefined;
+    }
+    const value = parseFloat(match[1]);
+    const unit = match[2].toLowerCase();
+    switch (unit) {
+        case 's':
+        case 'sec':
+        case 'second':
+        case 'seconds':
+            return Math.round(value * 1000);
+        case 'm':
+        case 'min':
+        case 'minute':
+        case 'minutes':
+            return Math.round(value * 60 * 1000);
+        case 'h':
+        case 'hr':
+        case 'hour':
+        case 'hours':
+            return Math.round(value * 60 * 60 * 1000);
+        case 'd':
+        case 'day':
+        case 'days':
+            return Math.round(value * 24 * 60 * 60 * 1000);
+        case 'w':
+        case 'week':
+        case 'weeks':
+            return Math.round(value * 7 * 24 * 60 * 60 * 1000);
+        case 'ms':
+        case 'millis':
+        case 'millisecond':
+        case 'milliseconds':
+            return Math.round(value);
+        default:
+            return undefined;
+    }
+}
+
 // Container data schema
 const schema = joi.object({
     id: joi.string().min(1).required(),
@@ -78,6 +145,9 @@ const schema = joi.object({
     status: joi.string().default('unknown'),
     watcher: joi.string().min(1).required(),
     stack: joi.string().allow('').optional(),
+    delay: joi.string().allow('', null).optional(),
+    isCoolingDown: joi.boolean().default(false),
+    coolingDownUntil: joi.number().optional(),
     includeTags: joi.string(),
     excludeTags: joi.string(),
     transformTags: joi.string(),
@@ -206,57 +276,96 @@ function addIsSnoozedProperty(container: Container) {
 }
 
 /**
+ * Check whether a candidate update exists (different tag, digest, or created date).
+ * @param container
+ * @returns {boolean}
+ */
+function isCandidateUpdateAvailable(container: Container): boolean {
+    if (container.image === undefined || container.result === undefined) {
+        return false;
+    }
+
+    // Compare digests if we have them
+    if (
+        container.image.digest.watch &&
+        container.image.digest.value !== undefined &&
+        container.result.digest !== undefined
+    ) {
+        return container.image.digest.value !== container.result.digest;
+    }
+
+    // Compare tags otherwise
+    let updateAvailable = false;
+    const localTag = transformTag(
+        container.transformTags,
+        container.image.tag.value,
+    );
+    const remoteTag = transformTag(
+        container.transformTags,
+        container.result.tag,
+    );
+    updateAvailable = localTag !== remoteTag;
+
+    // Fallback to image created date (especially for legacy v1 manifests)
+    if (
+        container.image.created !== undefined &&
+        container.result.created !== undefined
+    ) {
+        const createdDate = new Date(container.image.created).getTime();
+        const createdDateResult = new Date(container.result.created!).getTime();
+
+        updateAvailable = updateAvailable || createdDate !== createdDateResult;
+    }
+    return updateAvailable;
+}
+
+/**
  * Computed function to check whether there is an update.
  * @param container
  * @returns {boolean}
  */
 function addUpdateAvailableProperty(container: Container) {
+    Object.defineProperty(container, 'coolingDownUntil', {
+        enumerable: true,
+        get(this: Container) {
+            if (!this.delay || !this.result?.created) {
+                return undefined;
+            }
+            const delayMs = parseDurationMs(this.delay);
+            if (delayMs === undefined) {
+                return undefined;
+            }
+            const createdDate = new Date(this.result.created).getTime();
+            if (isNaN(createdDate)) {
+                return undefined;
+            }
+            return createdDate + delayMs;
+        },
+    });
+
+    Object.defineProperty(container, 'isCoolingDown', {
+        enumerable: true,
+        get(this: Container) {
+            if (this.coolingDownUntil === undefined) {
+                return false;
+            }
+            if (Date.now() >= this.coolingDownUntil) {
+                return false;
+            }
+            return isCandidateUpdateAvailable(this);
+        },
+    });
+
     Object.defineProperty(container, 'updateAvailable', {
         enumerable: true,
         get(this: Container) {
-            if (this.image === undefined || this.result === undefined) {
+            if (this.isCoolingDown) {
                 return false;
             }
-
             if (this.isSnoozed) {
                 return false;
             }
-
-            // Compare digests if we have them
-            if (
-                this.image.digest.watch &&
-                this.image.digest.value !== undefined &&
-                this.result.digest !== undefined
-            ) {
-                return this.image.digest.value !== this.result.digest;
-            }
-
-            // Compare tags otherwise
-            let updateAvailable = false;
-            const localTag = transformTag(
-                container.transformTags,
-                this.image.tag.value,
-            );
-            const remoteTag = transformTag(
-                container.transformTags,
-                this.result.tag,
-            );
-            updateAvailable = localTag !== remoteTag;
-
-            // Fallback to image created date (especially for legacy v1 manifests)
-            if (
-                this.image.created !== undefined &&
-                this.result.created !== undefined
-            ) {
-                const createdDate = new Date(this.image.created).getTime();
-                const createdDateResult = new Date(
-                    this.result.created!,
-                ).getTime();
-
-                updateAvailable =
-                    updateAvailable || createdDate !== createdDateResult;
-            }
-            return updateAvailable;
+            return isCandidateUpdateAvailable(this);
         },
     });
 }

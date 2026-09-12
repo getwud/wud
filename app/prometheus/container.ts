@@ -55,6 +55,8 @@ export function init() {
             populateGauge();
         },
         labelNames: [
+            'cooling_down_until',
+            'delay',
             'display_icon',
             'display_name',
             'error_message',
@@ -74,6 +76,7 @@ export function init() {
             'image_tag_value',
             'image_variant',
             'include_tags',
+            'is_cooling_down',
             'is_snoozed',
             'labels',
             'link_template',

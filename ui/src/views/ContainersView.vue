@@ -177,6 +177,26 @@
                   </span>
                 </v-tooltip>
               </template>
+              <template v-else-if="item.raw ? item.raw.isCoolingDown : item.isCoolingDown">
+                <v-tooltip bottom>
+                  <template v-slot:activator="{ props }">
+                    <v-chip
+                      label
+                      variant="tonal"
+                      color="info"
+                      size="small"
+                      v-bind="props"
+                      class="font-weight-medium"
+                    >
+                      <v-icon start size="small">mdi-timer-sand</v-icon>
+                      Cooling down
+                    </v-chip>
+                  </template>
+                  <span>
+                    Update available but cooling down{{ (item.raw ? item.raw.coolingDownUntil : item.coolingDownUntil) ? ` until ${new Date(item.raw ? item.raw.coolingDownUntil : item.coolingDownUntil).toLocaleString()}` : '' }}
+                  </span>
+                </v-tooltip>
+              </template>
               <span v-else class="text-grey text-caption">Up to date</span>
             </template>
 
@@ -317,6 +337,8 @@
                 :semver="selectedContainer.image?.tag?.semver"
                 :update-kind="selectedContainer.updateKind"
                 :update-available="selectedContainer.updateAvailable"
+                :is-cooling-down="selectedContainer.isCoolingDown"
+                :cooling-down-until="selectedContainer.coolingDownUntil"
                 :is-snoozed="selectedContainer.isSnoozed"
                 :snoozed-version="selectedContainer.snoozedVersion"
                 :snoozed-until="selectedContainer.snoozedUntil"

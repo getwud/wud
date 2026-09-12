@@ -14,3 +14,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🛠️ [DOCS] Add CSpell and Markdownlint quality gates for documentation
 - 🚀 [TRIGGER] Add ondigest configuration option to filter out digest updates (fixes #756)
 - 🚀 [UI] Add snooze functionality to temporarily or indefinitely ignore container updates (fixes #702)
+- 🚀 [WATCHER] Add update delay / cool-down period before triggering updates (fixes #507)

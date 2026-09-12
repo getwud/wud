@@ -39,9 +39,9 @@ function buildContainerFromRows(
         link: containerRow.link ?? undefined,
         triggerInclude: containerRow.triggerInclude ?? undefined,
         triggerExclude: containerRow.triggerExclude ?? undefined,
-        labels: containerRow.labels ?? undefined,
         snoozedVersion: containerRow.snoozedVersion ?? undefined,
         snoozedUntil: containerRow.snoozedUntil ?? undefined,
+        delay: containerRow.delay ?? undefined,
     };
 
     if (imageRow) {
@@ -128,6 +128,7 @@ export function insertContainer(container: any): Container {
             labels: containerToSave.labels,
             snoozedVersion: containerToSave.snoozedVersion,
             snoozedUntil: containerToSave.snoozedUntil,
+            delay: containerToSave.delay,
         })
         .run();
 
@@ -203,6 +204,7 @@ export function updateContainer(container: any): Container {
             labels: containerToReturn.labels,
             snoozedVersion: containerToReturn.snoozedVersion,
             snoozedUntil: containerToReturn.snoozedUntil,
+            delay: containerToReturn.delay,
             updatedAt: sql`CURRENT_TIMESTAMP`,
         })
         .onConflictDoUpdate({
@@ -230,6 +232,7 @@ export function updateContainer(container: any): Container {
                     containerToReturn.snoozedUntil !== undefined
                         ? containerToReturn.snoozedUntil
                         : sql`snoozed_until`,
+                delay: containerToReturn.delay,
                 updatedAt: sql`CURRENT_TIMESTAMP`,
             },
         })

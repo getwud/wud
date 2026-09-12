@@ -25,6 +25,8 @@ import {
     wudTriggerExclude,
     dockerComposeProject,
     wudStack,
+    wudWatchDelay,
+    wudTagDelay,
 } from './label';
 import * as storeContainer from '../../../store/container';
 import {
@@ -306,6 +308,7 @@ export class Docker extends Watcher {
             watchdigestdefault: this.joi.boolean().optional(),
             watchevents: this.joi.boolean().default(true),
             watchatstart: this.joi.boolean().default(true),
+            delay: this.joi.string().optional(),
         });
     }
 
@@ -769,6 +772,10 @@ export class Docker extends Watcher {
             containerLabels[dockerComposeProject] ||
             containerLabels['com.docker.compose.project'] ||
             undefined;
+        const delay =
+            containerLabels[wudWatchDelay] ||
+            containerLabels[wudTagDelay] ||
+            this.configuration.delay;
 
         // Is container already in store? just return it :)
         const containerInStore = storeContainer.getContainer(containerId);
@@ -779,6 +786,9 @@ export class Docker extends Watcher {
             this.log.debug(`Container ${containerInStore.id} already in store`);
             if (stack && !containerInStore.stack) {
                 containerInStore.stack = stack;
+            }
+            if (delay && containerInStore.delay !== delay) {
+                containerInStore.delay = delay;
             }
             return containerInStore;
         }
@@ -872,6 +882,7 @@ export class Docker extends Watcher {
             status,
             watcher: this.name,
             stack,
+            delay,
             includeTags,
             excludeTags,
             transformTags,

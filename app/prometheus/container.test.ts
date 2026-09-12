@@ -176,3 +176,50 @@ test('container event should mark metrics dirty and rebuild on next interval', a
 
     expect(spySet).toHaveBeenCalledTimes(1);
 });
+
+test('gauge should register container with delay and cool-down labels without warning', async () => {
+    let onAdded;
+    event.registerContainerAdded.mockImplementation((handler) => {
+        onAdded = handler;
+        return jest.fn();
+    });
+    event.registerContainerUpdated.mockImplementation(() => jest.fn());
+    event.registerContainerRemoved.mockImplementation(() => jest.fn());
+
+    const coolContainer = {
+        id: 'c1',
+        name: 'app',
+        watcher: 'test',
+        delay: '24h',
+        isCoolingDown: true,
+        coolingDownUntil: 1700000000000,
+        image: {
+            id: 'img1',
+            registry: { name: 'reg', url: 'https://hub' },
+            name: 'img',
+            tag: { value: '1.0', semver: false },
+            digest: { watch: false },
+            architecture: 'amd64',
+            os: 'linux',
+        },
+    };
+    store.getContainers = jest.fn(() => [coolContainer]);
+
+    const spyWarn = jest.spyOn(log, 'warn');
+    const gauge = container.init();
+    const spySet = jest.spyOn(gauge, 'set');
+    spySet.mockClear();
+
+    onAdded(coolContainer);
+    jest.advanceTimersByTime(5000);
+
+    expect(spyWarn).not.toHaveBeenCalled();
+    expect(spySet).toHaveBeenCalledWith(
+        expect.objectContaining({
+            delay: '24h',
+            is_cooling_down: true,
+            cooling_down_until: 1700000000000,
+        }),
+        1,
+    );
+});

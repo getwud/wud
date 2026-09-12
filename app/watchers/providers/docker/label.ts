@@ -62,3 +62,9 @@ export const dockerComposeProject = 'com.docker.compose.project';
  * Optional stack/project override label.
  */
 export const wudStack = 'wud.stack';
+
+/**
+ * Optional cool-down delay before update is considered available.
+ */
+export const wudWatchDelay = 'wud.watch.delay';
+export const wudTagDelay = 'wud.tag.delay';
