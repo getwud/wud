@@ -1,6 +1,20 @@
 <template>
   <div>
-    <v-list density="compact" v-if="updateAvailable">
+    <v-alert
+      v-if="isSnoozed || snoozedVersion"
+      color="warning"
+      variant="tonal"
+      density="compact"
+      icon="mdi-bell-sleep"
+      class="mb-3"
+    >
+      <div class="font-weight-medium">Update snoozed</div>
+      <div class="text-caption">
+        Version {{ snoozedVersion }} is snoozed{{ snoozedUntil ? ` until ${new Date(snoozedUntil).toLocaleString()}` : ' indefinitely' }}.
+      </div>
+    </v-alert>
+
+    <v-list density="compact" v-if="updateAvailable || isSnoozed || snoozedVersion">
       <v-list-item v-if="result.tag">
         <template v-slot:prepend>
           <v-icon color="secondary">mdi-tag</v-icon>
@@ -97,6 +111,18 @@ export default defineComponent({
     },
     updateAvailable: {
       type: Boolean,
+    },
+    isSnoozed: {
+      type: Boolean,
+      default: false,
+    },
+    snoozedVersion: {
+      type: String,
+      default: "",
+    },
+    snoozedUntil: {
+      type: Number,
+      default: null,
     },
   },
   computed: {

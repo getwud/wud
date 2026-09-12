@@ -37,6 +37,8 @@ export const containers = sqliteTable('containers', {
     triggerInclude: text('trigger_include'),
     triggerExclude: text('trigger_exclude'),
     labels: text('labels', { mode: 'json' }),
+    snoozedVersion: text('snoozed_version'),
+    snoozedUntil: integer('snoozed_until'),
     createdAt: text('created_at').default(sql`(CURRENT_TIMESTAMP)`),
     updatedAt: text('updated_at').default(sql`(CURRENT_TIMESTAMP)`),
 });

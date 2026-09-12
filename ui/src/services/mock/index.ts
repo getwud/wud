@@ -171,6 +171,28 @@ export const mockService = {
     return { ok: true, status: 200 };
   },
 
+  async snoozeContainer(containerId: string, { version, until }: any = {}) {
+    await delay(250);
+    const found = containersState.find((c: any) => c.id === containerId);
+    if (!found) throw new Error("Container not found");
+    found.snoozedVersion = version || found.result?.tag || found.result?.digest;
+    found.snoozedUntil = until ?? null;
+    found.isSnoozed = true;
+    found.updateAvailable = false;
+    return JSON.parse(JSON.stringify(found));
+  },
+
+  async unsnoozeContainer(containerId: string) {
+    await delay(250);
+    const found = containersState.find((c: any) => c.id === containerId);
+    if (!found) throw new Error("Container not found");
+    found.snoozedVersion = null;
+    found.snoozedUntil = null;
+    found.isSnoozed = false;
+    found.updateAvailable = true;
+    return JSON.parse(JSON.stringify(found));
+  },
+
   async getContainerTriggers(_containerId?: string) {
     /* eslint-enable @typescript-eslint/no-unused-vars */
     await delay(150);

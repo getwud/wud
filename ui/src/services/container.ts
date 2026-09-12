@@ -68,12 +68,49 @@ async function runTrigger({ containerId, triggerType, triggerName }) {
   return response.json();
 }
 
+async function snoozeContainer(
+  containerId: string,
+  { version, until }: { version?: string; until?: number } = {},
+) {
+  if (isDemoMode()) {
+    return mockService.snoozeContainer(containerId, { version, until });
+  }
+  const response = await fetch(url(`api/containers/${containerId}/snooze`), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ version, until }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || response.statusText);
+  }
+  return response.json();
+}
+
+async function unsnoozeContainer(containerId: string) {
+  if (isDemoMode()) {
+    return mockService.unsnoozeContainer(containerId);
+  }
+  const response = await fetch(url(`api/containers/${containerId}/snooze`), {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || response.statusText);
+  }
+  return response.json();
+}
+
 export {
   getContainerIcon,
   getAllContainers,
   refreshAllContainers,
   refreshContainer,
   deleteContainer,
+  snoozeContainer,
+  unsnoozeContainer,
   getContainerTriggers,
   runTrigger,
 };

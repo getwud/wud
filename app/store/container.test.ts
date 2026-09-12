@@ -296,4 +296,56 @@ describe('Container Store (SQLite)', () => {
         });
         expect(nonMatching).toEqual([]);
     });
+
+    test('snoozeContainer should snooze update and emit emitContainerUpdated', () => {
+        container.insertContainer(sampleContainer);
+        const spyEvent = jest.spyOn(event, 'emitContainerUpdated');
+
+        const until = Date.now() + 86400000;
+        const snoozed = container.snoozeContainer(
+            sampleContainer.id,
+            '1.1.0',
+            until,
+        );
+
+        expect(snoozed.snoozedVersion).toBe('1.1.0');
+        expect(snoozed.snoozedUntil).toBe(until);
+        expect(snoozed.isSnoozed).toBe(true);
+        expect(snoozed.updateAvailable).toBe(false);
+        expect(spyEvent).toHaveBeenCalled();
+
+        const fetched = container.getContainer(sampleContainer.id);
+        expect(fetched?.snoozedVersion).toBe('1.1.0');
+        expect(fetched?.snoozedUntil).toBe(until);
+        expect(fetched?.isSnoozed).toBe(true);
+        expect(fetched?.updateAvailable).toBe(false);
+    });
+
+    test('unsnoozeContainer should unsnooze update and emit emitContainerUpdated', () => {
+        container.insertContainer(sampleContainer);
+        container.snoozeContainer(sampleContainer.id, '1.1.0');
+
+        const spyEvent = jest.spyOn(event, 'emitContainerUpdated');
+        const unsnoozed = container.unsnoozeContainer(sampleContainer.id);
+
+        expect(unsnoozed.snoozedVersion).toBeUndefined();
+        expect(unsnoozed.snoozedUntil).toBeUndefined();
+        expect(unsnoozed.isSnoozed).toBe(false);
+        expect(unsnoozed.updateAvailable).toBe(true);
+        expect(spyEvent).toHaveBeenCalled();
+
+        const fetched = container.getContainer(sampleContainer.id);
+        expect(fetched?.snoozedVersion).toBeUndefined();
+        expect(fetched?.isSnoozed).toBe(false);
+        expect(fetched?.updateAvailable).toBe(true);
+    });
+
+    test('snoozeContainer and unsnoozeContainer should throw if container not found', () => {
+        expect(() => container.snoozeContainer('unknown-id', '1.0.0')).toThrow(
+            'Container unknown-id not found',
+        );
+        expect(() => container.unsnoozeContainer('unknown-id')).toThrow(
+            'Container unknown-id not found',
+        );
+    });
 });

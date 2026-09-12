@@ -157,7 +157,63 @@
                   <span class="text-caption">Copy to clipboard</span>
                 </v-tooltip>
               </template>
+              <template v-else-if="(item.raw ? item.raw.isSnoozed : item.isSnoozed) || (item.raw ? item.raw.snoozedVersion : item.snoozedVersion)">
+                <v-tooltip bottom>
+                  <template v-slot:activator="{ props }">
+                    <v-chip
+                      label
+                      variant="tonal"
+                      color="warning"
+                      size="small"
+                      v-bind="props"
+                      class="font-weight-medium"
+                    >
+                      <v-icon start size="small">mdi-bell-sleep</v-icon>
+                      Snoozed ({{ (item.raw ? item.raw.snoozedVersion : item.snoozedVersion) }})
+                    </v-chip>
+                  </template>
+                  <span>
+                    Update snoozed{{ (item.raw ? item.raw.snoozedUntil : item.snoozedUntil) ? ` until ${new Date(item.raw ? item.raw.snoozedUntil : item.snoozedUntil).toLocaleString()}` : ' indefinitely' }}
+                  </span>
+                </v-tooltip>
+              </template>
               <span v-else class="text-grey text-caption">Up to date</span>
+            </template>
+
+            <template #[`item.actions`]="{ item }">
+              <v-menu location="bottom end">
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    icon="mdi-dots-vertical"
+                    variant="text"
+                    size="small"
+                    v-bind="props"
+                    @click.stop
+                    aria-label="Actions"
+                  />
+                </template>
+                <v-list density="compact">
+                  <v-list-item
+                    v-if="(item.raw ? item.raw.updateAvailable : item.updateAvailable) && canWrite"
+                    prepend-icon="mdi-bell-sleep"
+                    title="Snooze update"
+                    @click.stop="openSnoozeDialog(item.raw || item)"
+                  />
+                  <v-list-item
+                    v-if="((item.raw ? item.raw.isSnoozed : item.isSnoozed) || (item.raw ? item.raw.snoozedVersion : item.snoozedVersion)) && canWrite"
+                    prepend-icon="mdi-bell-ring"
+                    title="Unsnooze update"
+                    @click.stop="executeUnsnooze(item.raw || item)"
+                  />
+                  <v-list-item
+                    v-if="deleteEnabled && canWrite"
+                    prepend-icon="mdi-delete"
+                    title="Delete container"
+                    class="text-error"
+                    @click.stop="confirmDelete(item.raw || item)"
+                  />
+                </v-list>
+              </v-menu>
             </template>
 
             <template v-slot:no-data>
@@ -201,6 +257,26 @@
             </div>
           </div>
           <v-btn
+            v-if="selectedContainer.updateAvailable && canWrite"
+            icon="mdi-bell-sleep"
+            color="warning"
+            variant="text"
+            size="small"
+            class="mr-1"
+            @click="openSnoozeDialog(selectedContainer)"
+            title="Snooze update"
+          ></v-btn>
+          <v-btn
+            v-if="(selectedContainer.isSnoozed || selectedContainer.snoozedVersion) && canWrite"
+            icon="mdi-bell-ring"
+            color="primary"
+            variant="text"
+            size="small"
+            class="mr-1"
+            @click="executeUnsnooze(selectedContainer)"
+            title="Unsnooze update"
+          ></v-btn>
+          <v-btn
             v-if="deleteEnabled && canWrite"
             icon="mdi-delete"
             color="error"
@@ -241,6 +317,9 @@
                 :semver="selectedContainer.image?.tag?.semver"
                 :update-kind="selectedContainer.updateKind"
                 :update-available="selectedContainer.updateAvailable"
+                :is-snoozed="selectedContainer.isSnoozed"
+                :snoozed-version="selectedContainer.snoozedVersion"
+                :snoozed-until="selectedContainer.snoozedUntil"
               />
             </v-window-item>
             <v-window-item value="triggers">
@@ -276,6 +355,34 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Snooze Update Dialog -->
+    <v-dialog v-model="dialogSnooze" width="500">
+      <v-card class="rounded-lg">
+        <v-toolbar color="primary" flat>
+          <v-toolbar-title class="text-white">
+            <v-icon start>mdi-bell-sleep</v-icon>
+            Snooze update
+          </v-toolbar-title>
+        </v-toolbar>
+        <v-card-text class="pt-4 pb-2 text-body-1">
+          <div>
+            Snooze update for
+            <span class="font-weight-bold">{{ containerToSnooze?.displayName || containerToSnooze?.name }}</span>:
+          </div>
+          <v-radio-group v-model="snoozeDuration" class="mt-3">
+            <v-radio label="Until next version" value="indefinitely" />
+            <v-radio label="For 1 day" value="1_day" />
+            <v-radio label="For 1 week" value="1_week" />
+            <v-radio label="For 1 month" value="1_month" />
+          </v-radio-group>
+        </v-card-text>
+        <v-card-actions class="justify-end px-4 pb-4">
+          <v-btn variant="outlined" @click="dialogSnooze = false">Cancel</v-btn>
+          <v-btn color="primary" variant="flat" :loading="snoozeLoading" @click="executeSnooze">Snooze</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -287,7 +394,12 @@ import ContainerImage from "@/components/ContainerImage.vue";
 import ContainerTriggers from "@/components/ContainerTriggers.vue";
 import ContainerUpdate from "@/components/ContainerUpdate.vue";
 import IconRenderer from "@/components/IconRenderer.vue";
-import { deleteContainer, getAllContainers } from "@/services/container";
+import {
+  deleteContainer,
+  getAllContainers,
+  snoozeContainer,
+  unsnoozeContainer,
+} from "@/services/container";
 import { getRegistryProviderIcon } from "@/services/registry";
 import { getUser } from "@/services/auth";
 import { defineComponent } from "vue";
@@ -337,6 +449,11 @@ export default defineComponent({
       deleteEnabled: false,
       dialogDelete: false,
       containerToDelete: null as any,
+
+      dialogSnooze: false,
+      containerToSnooze: null as any,
+      snoozeDuration: "indefinitely",
+      snoozeLoading: false,
     };
   },
 
@@ -414,6 +531,12 @@ export default defineComponent({
             return aVal.localeCompare(bVal, undefined, { numeric: true });
           },
           sortable: true,
+        },
+        {
+          title: "Actions",
+          key: "actions",
+          sortable: false,
+          align: "end",
         },
       ];
     },
@@ -557,6 +680,76 @@ export default defineComponent({
         (this as any).$eventBus.emit("notify", `Error when trying to delete the container (${e.message})`, "error");
       }
       this.containerToDelete = null;
+    },
+
+    openSnoozeDialog(container: any) {
+      this.containerToSnooze = container;
+      this.snoozeDuration = "indefinitely";
+      this.dialogSnooze = true;
+    },
+
+    async executeSnooze() {
+      if (!this.containerToSnooze) return;
+      this.snoozeLoading = true;
+      try {
+        let until: number | undefined;
+        const now = Date.now();
+        if (this.snoozeDuration === "1_day") {
+          until = now + 24 * 60 * 60 * 1000;
+        } else if (this.snoozeDuration === "1_week") {
+          until = now + 7 * 24 * 60 * 60 * 1000;
+        } else if (this.snoozeDuration === "1_month") {
+          until = now + 30 * 24 * 60 * 60 * 1000;
+        }
+
+        const targetVersion =
+          this.containerToSnooze.updateKind?.remoteValue ||
+          this.containerToSnooze.result?.tag ||
+          this.containerToSnooze.result?.digest;
+
+        const updated = await snoozeContainer(this.containerToSnooze.id, {
+          version: targetVersion,
+          until,
+        });
+
+        this.containers = this.containers.map((c) =>
+          c.id === updated.id ? { ...c, ...updated } : c,
+        );
+        if (this.selectedContainer && this.selectedContainer.id === updated.id) {
+          this.selectedContainer = { ...this.selectedContainer, ...updated };
+        }
+        (this as any).$eventBus.emit("notify", "Update snoozed successfully");
+        this.dialogSnooze = false;
+      } catch (e: any) {
+        (this as any).$eventBus.emit(
+          "notify",
+          `Failed to snooze update (${e.message})`,
+          "error",
+        );
+      } finally {
+        this.snoozeLoading = false;
+        this.containerToSnooze = null;
+      }
+    },
+
+    async executeUnsnooze(container: any) {
+      if (!container) return;
+      try {
+        const updated = await unsnoozeContainer(container.id);
+        this.containers = this.containers.map((c) =>
+          c.id === updated.id ? { ...c, ...updated } : c,
+        );
+        if (this.selectedContainer && this.selectedContainer.id === updated.id) {
+          this.selectedContainer = { ...this.selectedContainer, ...updated };
+        }
+        (this as any).$eventBus.emit("notify", "Update unsnoozed successfully");
+      } catch (e: any) {
+        (this as any).$eventBus.emit(
+          "notify",
+          `Failed to unsnooze update (${e.message})`,
+          "error",
+        );
+      }
     },
 
     onRegistryChanged(val: string) { this.registrySelected = val; this.updateQueryParams(); },
