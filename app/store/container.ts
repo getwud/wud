@@ -363,18 +363,9 @@ export function getContainers(query: Record<string, any> = {}): Container[] {
         return [];
     }
 
-    let containerRows = db.select().from(schema.containers).all();
+    const containerRows = db.select().from(schema.containers).all();
 
-    // In-memory filter for any query attributes
-    if (query && Object.keys(query).length > 0) {
-        containerRows = containerRows.filter((row) => {
-            return Object.entries(query).every(
-                ([k, v]) => (row as any)[k] === v,
-            );
-        });
-    }
-
-    const containerList = containerRows.map((containerRow) => {
+    let containerList = containerRows.map((containerRow) => {
         const imageRow = db
             .select()
             .from(schema.containerImages)
@@ -393,6 +384,15 @@ export function getContainers(query: Record<string, any> = {}): Container[] {
 
         return buildContainerFromRows(containerRow, imageRow, historyRow);
     });
+
+    // In-memory filter for any query attributes
+    if (query && Object.keys(query).length > 0) {
+        containerList = containerList.filter((container) => {
+            return Object.entries(query).every(
+                ([k, v]) => (container as any)[k] === v,
+            );
+        });
+    }
 
     return containerList.sort(
         byValues([
