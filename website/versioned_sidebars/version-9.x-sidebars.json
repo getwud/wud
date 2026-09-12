@@ -31,11 +31,6 @@
       "items": [
         {
           "type": "doc",
-          "id": "changelog/next",
-          "label": "Next (Unreleased)"
-        },
-        {
-          "type": "doc",
           "id": "changelog/v9",
           "label": "v9.x (Current)"
         },

@@ -55,9 +55,55 @@ echo "🖥️ Building demo UI bundle..."
 echo "📚 Generating OpenAPI documentation..."
 (cd "$ROOT_DIR/website" && npm run gen:api-docs)
 
+MAJOR_VERSION=$(echo "$VERSION" | cut -d. -f1)
+DOC_VERSION="${MAJOR_VERSION}.x"
+
 # 4. Snapshot Docusaurus documentation for this version
-echo "🏷️ Snapshotting Docusaurus documentation as version $VERSION..."
-(cd "$ROOT_DIR/website" && npm run docusaurus docs:version "$VERSION")
+echo "🏷️ Snapshotting Docusaurus documentation as version $DOC_VERSION..."
+
+if [ -f "$ROOT_DIR/website/versions.json" ] && grep -q "\"$DOC_VERSION\"" "$ROOT_DIR/website/versions.json"; then
+  echo "♻️ Version $DOC_VERSION already exists. Replacing it..."
+  node -e "
+    const fs = require('fs');
+    const file = '$ROOT_DIR/website/versions.json';
+    let versions = JSON.parse(fs.readFileSync(file, 'utf8'));
+    versions = versions.filter(v => v !== '$DOC_VERSION');
+    fs.writeFileSync(file, JSON.stringify(versions, null, 2), 'utf8');
+  "
+  rm -rf "$ROOT_DIR/website/versioned_docs/version-$DOC_VERSION"
+  rm -f "$ROOT_DIR/website/versioned_sidebars/version-$DOC_VERSION-sidebars.json"
+fi
+
+(cd "$ROOT_DIR/website" && npm run docusaurus docs:version "$DOC_VERSION")
+
+# 4.5. Clean up 'next' changelog from the newly created version snapshot
+echo "🧹 Cleaning up 'next' changelog from version $DOC_VERSION snapshot..."
+VERSIONED_DOCS_DIR="$ROOT_DIR/website/versioned_docs/version-$DOC_VERSION"
+VERSIONED_SIDEBARS_FILE="$ROOT_DIR/website/versioned_sidebars/version-$DOC_VERSION-sidebars.json"
+
+if [ -f "$VERSIONED_DOCS_DIR/changelog/next.md" ]; then
+  rm "$VERSIONED_DOCS_DIR/changelog/next.md"
+fi
+
+if [ -f "$VERSIONED_DOCS_DIR/changelog/README.md" ]; then
+  sed -i.bak '/| \*\*Next\*\* |/d' "$VERSIONED_DOCS_DIR/changelog/README.md" && rm -f "$VERSIONED_DOCS_DIR/changelog/README.md.bak"
+fi
+
+if [ -f "$VERSIONED_SIDEBARS_FILE" ]; then
+  node -e "
+    const fs = require('fs');
+    const file = '$VERSIONED_SIDEBARS_FILE';
+    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (data.docsSidebar) {
+      data.docsSidebar.forEach(category => {
+        if ((category.id === 'changelog' || category.label === 'Changelog') && category.items) {
+          category.items = category.items.filter(item => item.id !== 'changelog/next');
+        }
+      });
+    }
+    fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+  "
+fi
 
 # 5. Commit and tag release
 echo "💾 Committing release changes and creating Git tag $VERSION..."

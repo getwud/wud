@@ -15,7 +15,6 @@ Browse release notes and detailed changes by version series:
 
 | Version Series | Status | Latest Release | Release Notes |
 | :--- | :--- | :--- | :--- |
-| **Next** | 🚧 Unreleased | Working draft on `main` | [**View Unreleased Changes →**](./next.md) |
 | **v9.x** | **Current** | [9.0.0](https://github.com/getwud/wud/releases/tag/9.0.0) (2026-09-11) | [**View v9.x Changelog →**](./v9.md) |
 | **v8.x** | Maintenance | [8.4.0](https://github.com/getwud/wud/releases/tag/8.4.0) (2026-09-03) | [**View v8.x Changelog →**](./v8.md) |
 | **v7.x** | Maintenance | [7.2.0](https://github.com/getwud/wud/releases/tag/7.2.0) (2024-12-19) | [**View v7.x Changelog →**](./v7.md) |
