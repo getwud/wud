@@ -238,7 +238,7 @@ export default defineComponent({
         this.registries = registries
           .map((registry: any) => ({
             ...registry,
-            icon: getRegistryProviderIcon(registry.type),
+            icon: registry.configuration?.icon || getRegistryProviderIcon(registry.type, registry),
           }))
           .sort((r1: any, r2: any) => r1.id.localeCompare(r2.id));
         if (this.selectedRegistry) {
@@ -265,7 +265,7 @@ export default defineComponent({
       const registriesWithIcons = registries
         .map((registry: any) => ({
           ...registry,
-          icon: getRegistryProviderIcon(registry.type),
+          icon: registry.configuration?.icon || getRegistryProviderIcon(registry.type, registry),
         }))
         .sort((r1: any, r2: any) => r1.id.localeCompare(r2.id));
       next((vm: any) => (vm.registries = registriesWithIcons));

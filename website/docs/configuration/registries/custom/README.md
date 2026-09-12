@@ -57,6 +57,14 @@ import TabItem from '@theme/TabItem';
     supported="Bearer token (mutually exclusive with LOGIN/PASSWORD and AUTH)">
     Access token sent as `Authorization: Bearer &lt;token&gt;`
   </ConfigOption>
+
+  <ConfigOption
+    name="WUD_REGISTRY_CUSTOM_{registry_name}_ICON"
+    type="string"
+    defaultValue="si-opencontainersinitiative"
+    required={false}>
+    Icon displayed in the user interface, compatible with Iconify identifiers (e.g. `mdi:server`, `si-gitlab`).
+  </ConfigOption>
 </ConfigList>
 
 ---
