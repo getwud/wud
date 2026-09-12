@@ -43,6 +43,7 @@ docker run -d --name wud \
 
 - Docker Hub: `getwud/wud`
 - GitHub Container Registry: `ghcr.io/getwud/wud`
+
 :::
 
 ## Open the UI
@@ -55,7 +56,7 @@ docker run -d --name wud \
 It's time to [**configure your triggers**](../configuration/triggers/README.md)!
 :::
 
-## Going deeper...
+## Going deeper
 
 :::info[Need to fine-tune how WUD monitors your containers?]
 Check out the [**watcher documentation**](../configuration/watchers/README.md)!

@@ -109,6 +109,7 @@ fi
 echo "🧪 Running tests & verification before commit & tag..."
 (cd "$ROOT_DIR/app" && npm test)
 (cd "$ROOT_DIR/ui" && npm run test:unit)
+(cd "$ROOT_DIR/website" && npm run lint:docs)
 (cd "$ROOT_DIR/website" && npm run build)
 
 # 6. Commit and tag release

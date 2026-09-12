@@ -106,16 +106,19 @@ docker run \
 ## 📖 Setup Guide: Creating an AWS IAM User for ECR
 
 ### 1. Create an IAM User
+
 Open the [AWS IAM Console](https://console.aws.amazon.com/iam) and create a new IAM user.
 
 ![AWS IAM create user](./ecr_01.png)
 
 ### 2. Attach the Read-Only Policy
+
 Attach the `AmazonEC2ContainerRegistryReadOnly` managed policy to the user.
 
 ![AWS IAM attach policy](./ecr_02.png)
 
 ### 3. Generate Access Keys
+
 Create an **Access Key** under **Security credentials**, and copy the Access Key ID and Secret Access Key.
 
 ![AWS IAM generate access keys](./ecr_03.png)

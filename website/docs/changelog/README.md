@@ -28,6 +28,7 @@ Browse release notes and detailed changes by version series:
 ## 🔖 Semantic Versioning
 
 WUD follows [Semantic Versioning (SemVer)](https://semver.org/):
+
 - **Major (`X.0.0`)**: Incompatible API or configuration changes.
 - **Minor (`0.X.0`)**: Backwards-compatible new features and enhancements.
 - **Patch (`0.0.X`)**: Backwards-compatible bug fixes and optimizations.

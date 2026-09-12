@@ -25,8 +25,6 @@ flowchart LR
     WUD -->|"Act"| T
 ```
 
-
-
 ## Supported triggers
 
 A wide range of triggers are supported:

@@ -101,11 +101,13 @@ docker run \
 ## 📖 Setup Guide
 
 ### 1. Create a Bot & Obtain a Bot Token
+
 1. Open Telegram and start a chat with [@BotFather](https://t.me/BotFather).
 2. Send `/newbot` and follow the prompts to choose a bot name and username.
 3. Copy the HTTP API token provided by BotFather into `WUD_TRIGGER_TELEGRAM_{trigger_name}_BOTTOKEN`.
 
 ### 2. Find Your Chat ID
+
 1. Send a message to your newly created bot or add it to your target group.
 2. Start a chat with [@userinfobot](https://t.me/userinfobot) or [@GetIDsBot](https://t.me/GetIDsBot) to see your numeric Chat ID.
 3. Set your Chat ID as `WUD_TRIGGER_TELEGRAM_{trigger_name}_CHATID`.

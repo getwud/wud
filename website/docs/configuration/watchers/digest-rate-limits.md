@@ -23,15 +23,15 @@ flowchart LR
     E -->|Same Digest| G["Container Up to Date"]
 ```
 
-
 ---
 
 ## 2. Docker Hub Rate Limits Explained
 
-Fetching the remote image digest requires querying the _Docker Registry Manifest API_. 
+Fetching the remote image digest requires querying the _Docker Registry Manifest API_.
 
 :::warning[Docker Hub Pull Rate Limits]
 Docker Hub treats manifest requests as **pull operations**, subjecting them to strict rate limits:
+
 - **Anonymous Users**: 100 pulls per 6-hour window (tracked by client IP address).
 - **Authenticated Free Users**: 200 pulls per 6-hour window.
 - **Paid Pro/Team Users**: Unlimited pulls.
@@ -57,6 +57,7 @@ To protect you against accidental rate limits out of the box, WUD applies smart 
 ## 4. Best Practices to Prevent Rate Limiting
 
 ### Strategy 1: Authenticate with Docker Hub (Doubles Quota)
+
 Configure the [Docker Hub Registry Module](../registries/hub/README.md) with your Docker Hub account and Personal Access Token (PAT). This raises your limit to 200 pulls/6h (or unlimited on paid accounts).
 
 ```yaml
@@ -68,6 +69,7 @@ environment:
 ---
 
 ### Strategy 2: Customize Digest Watching per Container
+
 Use the `wud.watch.digest` container label to explicitly enable or disable digest polling for specific containers:
 
 <Tabs>
@@ -104,6 +106,7 @@ docker run -d \
 ---
 
 ### Strategy 3: Tune Watcher Schedule
+
 Instead of scanning every few minutes, schedule watcher scans at sensible intervals using cron syntax:
 
 ```yaml

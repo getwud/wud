@@ -15,7 +15,10 @@
     "clear": "docusaurus clear",
     "serve": "docusaurus serve",
     "write-translations": "docusaurus write-translations",
-    "write-heading-ids": "docusaurus write-heading-ids"
+    "write-heading-ids": "docusaurus write-heading-ids",
+    "lint:md": "markdownlint-cli2 \"docs/**/*.md\" \"docs/**/*.mdx\"",
+    "lint:spell": "cspell \"docs/**/*.{md,mdx}\"",
+    "lint:docs": "npm run lint:md && npm run lint:spell"
   },
   "dependencies": {
     "@docusaurus/core": "3.10.2",
@@ -42,6 +45,8 @@
   "devDependencies": {
     "@docusaurus/module-type-aliases": "3.10.2",
     "@docusaurus/types": "3.10.2",
+    "cspell": "^10.3.0",
+    "markdownlint-cli2": "^0.23.2",
     "simple-icons": "^16.28.0"
   },
   "browserslist": {

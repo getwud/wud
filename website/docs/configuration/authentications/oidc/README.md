@@ -123,9 +123,11 @@ WUD supports any compliant OpenID Connect Identity Provider. Step-by-step guides
 
 :::tip[Automatic User Onboarding & Role Sync]
 When a user logs in through OIDC, WUD automatically creates an account in the internal database.
+
 - If group mapping is configured (`ADMINGROUP`, `RWGROUP`, `ROGROUP`), the user's role is automatically synchronized with their IDP groups on each login (granting `admin`, `rw`, or `ro`).
 - If a user does not match any configured group, their role falls back to `DEFAULTROLE` (`ro` by default).
 - When `DEFAULTROLE=none`, access is strictly locked down: any user not belonging to at least one authorized group (`ADMINGROUP`, `RWGROUP`, or `ROGROUP`) is denied access and redirected to login with an error notification.
+
 :::
 
 :::tip[Zero Local Credentials: Omit Local Administrator with OIDC]
@@ -278,7 +280,7 @@ docker run \
 
 ![Authentik create provider](./authentik_00.png)
 
-#### Important settings:
+#### Important settings
 
 - Client Type: `Confidential`
 - Client ID: `<generated value>`
@@ -339,6 +341,7 @@ docker run \
 #### 1. In Keycloak Admin Console, configure a Client
 
 Select your Realm (e.g. `master` or a dedicated realm like `homelab`):
+
 1. Navigate to **Clients** > **Create client**.
 2. **General Settings**:
    - **Client type**: `OpenID Connect`
@@ -362,6 +365,7 @@ Go to the **Credentials** tab of the created client and copy the **Client Secret
 #### 3. Map Groups Claim in Keycloak
 
 To automatically synchronize Keycloak groups with WUD roles:
+
 1. Under your `wud` Client, navigate to the **Client scopes** tab.
 2. Click the dedicated client scope (e.g., `wud-dedicated`).
 3. Click **Add mapper** > **By configuration** > select **Group Membership**.
@@ -444,12 +448,14 @@ docker run \
 #### 2. Retrieve Credentials
 
 Under the application's **General** tab:
+
 - Copy the **Client ID**.
 - Copy the **Client Secret** under the *Client Credentials* section.
 
 #### 3. Configure Groups Claim in Okta
 
 To synchronize Okta user groups with WUD roles:
+
 1. In your Okta Admin dashboard, navigate to **Security** > **API** > **Authorization Servers**.
 2. Select your authorization server (e.g. `default`).
 3. Under the **Claims** tab, click **Add Claim**:
@@ -462,10 +468,12 @@ To synchronize Okta user groups with WUD roles:
 #### 4. Configure WUD
 
 :::info
+
 - For Okta API Access Management / Custom Authorization Server, the discovery URL is:  
   `https://<your-okta-domain>/oauth2/default/.well-known/openid-configuration`
 - For an Okta Org Authorization Server, the discovery URL is:  
   `https://<your-okta-domain>/.well-known/openid-configuration`
+
 :::
 
 <Tabs>
@@ -513,7 +521,7 @@ docker run \
 Because WUD strictly adheres to OpenID Connect discovery specifications, you can connect any other compliant provider by pointing to its discovery endpoint.
 
 | Provider | Discovery Endpoint Format | Suggested `USERNAMECLAIM` | Callback URI Format |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | **Google** | `https://accounts.google.com/.well-known/openid-configuration` | `email` | `https://<wud-domain>/auth/oidc/google/cb` |
 | **Microsoft Entra ID (Azure AD)** | `https://login.microsoftonline.com/<tenant-id>/v2.0/.well-known/openid-configuration` | `preferred_username` or `email` | `https://<wud-domain>/auth/oidc/entra/cb` |
 | **GitLab** | `https://gitlab.com/.well-known/openid-configuration` | `email` or `nickname` | `https://<wud-domain>/auth/oidc/gitlab/cb` |
@@ -522,7 +530,9 @@ Because WUD strictly adheres to OpenID Connect discovery specifications, you can
 | **Kanidm** | `https://<your-kanidm-domain>/oauth2/openid/<client_id>/.well-known/openid-configuration` | `preferred_username` | `https://<wud-domain>/auth/oidc/kanidm/cb` |
 
 #### Example: Microsoft Entra ID (Azure AD) with Security Groups
+
 In the Azure Portal under your App registration > **Token configuration**, click **Add groups claim** (select *Security groups*). In WUD, configure:
+
 ```yaml
 environment:
   - WUD_AUTH_OIDC_ENTRA_CLIENTID=<azure-app-client-id>
@@ -533,4 +543,3 @@ environment:
   - WUD_AUTH_OIDC_ENTRA_ADMINGROUP=<admin-group-object-id>
   - WUD_AUTH_OIDC_ENTRA_RWGROUP=<rw-group-object-id>
 ```
-

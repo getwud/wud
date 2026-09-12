@@ -9,3 +9,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 ---
 
+- 🛠️ [DOCS] Add CSpell and Markdownlint quality gates for documentation

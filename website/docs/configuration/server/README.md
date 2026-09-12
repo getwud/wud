@@ -89,6 +89,7 @@ You can adjust the HTTP server configuration with the following environment vari
     Path to TLS server private key file (required when TLS is enabled)
   </ConfigOption>
 </ConfigList>
+
 ### Examples
 
 #### Disable HTTP server
@@ -176,7 +177,7 @@ docker run \
 
 Example Caddy configuration (prefix-stripping):
 
-```
+```caddy
 handle_path /wud/* {
     reverse_proxy localhost:3000
 }
