@@ -27,6 +27,7 @@ const configurationValid = {
 
     batchtitle: '${containers.length} updates available',
     includebydefault: true,
+    ondigest: true,
 };
 
 beforeEach(async () => {
@@ -521,4 +522,190 @@ test('renderBatchBody should replace placeholders when called', async () => {
     ).toEqual(
         '- Container container-name running with tag 1.0.0 can be updated to tag 2.0.0\nhttp://test\n',
     );
+});
+
+test('validateConfiguration should accept ondigest option', async () => {
+    const validatedConfiguration = trigger.validateConfiguration({});
+    expect(validatedConfiguration.ondigest).toBeUndefined();
+
+    const validatedWithFalse = trigger.validateConfiguration({
+        ondigest: false,
+    });
+    expect(validatedWithFalse.ondigest).toBe(false);
+
+    const validatedWithTrue = trigger.validateConfiguration({
+        ondigest: true,
+    });
+    expect(validatedWithTrue.ondigest).toBe(true);
+});
+
+test('mustTrigger should return false for digest update when ondigest is false', async () => {
+    trigger.configuration.ondigest = false;
+    expect(
+        trigger.mustTrigger({
+            name: 'container1',
+            updateKind: {
+                kind: 'digest',
+                localValue: 'sha256:111',
+                remoteValue: 'sha256:222',
+            },
+        }),
+    ).toBe(false);
+});
+
+test('mustTrigger should return true for tag update when ondigest is false', async () => {
+    trigger.configuration.ondigest = false;
+    expect(
+        trigger.mustTrigger({
+            name: 'container1',
+            updateKind: {
+                kind: 'tag',
+                localValue: '1.0.0',
+                remoteValue: '2.0.0',
+            },
+        }),
+    ).toBe(true);
+});
+
+test('mustTrigger should return true for digest update when ondigest is true', async () => {
+    trigger.configuration.ondigest = true;
+    expect(
+        trigger.mustTrigger({
+            name: 'container1',
+            updateKind: {
+                kind: 'digest',
+                localValue: 'sha256:111',
+                remoteValue: 'sha256:222',
+            },
+        }),
+    ).toBe(true);
+});
+
+test('mustTrigger should allow overriding ondigest via specific container label', async () => {
+    trigger.type = 'mock';
+    trigger.name = 'trigger1';
+    trigger.configuration.ondigest = false;
+
+    expect(
+        trigger.mustTrigger({
+            name: 'container1',
+            updateKind: {
+                kind: 'digest',
+            },
+            labels: {
+                'wud.trigger.mock.trigger1.ondigest': 'true',
+            },
+        }),
+    ).toBe(true);
+
+    trigger.configuration.ondigest = true;
+    expect(
+        trigger.mustTrigger({
+            name: 'container1',
+            updateKind: {
+                kind: 'digest',
+            },
+            labels: {
+                'wud.trigger.mock.trigger1.ondigest': 'false',
+            },
+        }),
+    ).toBe(false);
+});
+
+test('mustTrigger should allow overriding ondigest via type container label', async () => {
+    trigger.type = 'mock';
+    trigger.name = 'trigger1';
+    trigger.configuration.ondigest = false;
+
+    expect(
+        trigger.mustTrigger({
+            name: 'container1',
+            updateKind: {
+                kind: 'digest',
+            },
+            labels: {
+                'wud.trigger.mock.ondigest': 'true',
+            },
+        }),
+    ).toBe(true);
+});
+
+test('mustTrigger should allow overriding ondigest via generic container label', async () => {
+    trigger.type = 'mock';
+    trigger.name = 'trigger1';
+    trigger.configuration.ondigest = false;
+
+    expect(
+        trigger.mustTrigger({
+            name: 'container1',
+            updateKind: {
+                kind: 'digest',
+            },
+            labels: {
+                'wud.trigger.ondigest': 'true',
+            },
+        }),
+    ).toBe(true);
+});
+
+test('handleContainerReport should ignore digest update and log debug when ondigest is false', async () => {
+    trigger.configuration.ondigest = false;
+    const triggerSpy = jest.spyOn(trigger, 'trigger');
+    const debugSpy = jest.fn();
+    trigger.log = {
+        ...log,
+        child: () => ({
+            debug: debugSpy,
+            warn: jest.fn(),
+        }),
+    };
+
+    await trigger.handleContainerReport({
+        changed: true,
+        container: {
+            name: 'container1',
+            updateAvailable: true,
+            updateKind: {
+                kind: 'digest',
+            },
+        },
+    });
+
+    expect(triggerSpy).not.toHaveBeenCalled();
+    expect(debugSpy).toHaveBeenCalledWith(
+        'Digest update ignored because ondigest is disabled',
+    );
+});
+
+test('handleContainerReports should filter out digest updates when ondigest is false in batch mode', async () => {
+    trigger.configuration.ondigest = false;
+    const triggerBatchSpy = jest.spyOn(trigger, 'triggerBatch');
+
+    const digestContainer = {
+        name: 'container-digest',
+        updateAvailable: true,
+        updateKind: {
+            kind: 'digest',
+        },
+    };
+    const tagContainer = {
+        name: 'container-tag',
+        updateAvailable: true,
+        updateKind: {
+            kind: 'tag',
+        },
+    };
+
+    await trigger.handleContainerReports([
+        {
+            changed: true,
+            container: digestContainer,
+        },
+        {
+            changed: true,
+            container: tagContainer,
+        },
+    ]);
+
+    expect(triggerBatchSpy).toHaveBeenCalledWith([tagContainer]);
 });

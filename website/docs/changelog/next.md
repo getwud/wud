@@ -11,3 +11,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 - 🚀 [TRIGGER] Add support for Telegram topics / message_thread_id (fixes #506)
 - 🛠️ [DOCS] Add CSpell and Markdownlint quality gates for documentation
+- 🚀 [TRIGGER] Add ondigest configuration option to filter out digest updates (fixes #756)

@@ -13,6 +13,7 @@ export interface TriggerConfiguration extends ComponentConfiguration {
     simplebody?: string;
     batchtitle?: string;
     includebydefault?: boolean;
+    ondigest?: boolean;
 }
 
 export interface ContainerReport {
@@ -178,6 +179,10 @@ class Trigger extends Component {
                     )
                 ) {
                     logContainer.debug('Threshold not reached => ignore');
+                } else if (!this.isDigestAllowed(containerReport.container)) {
+                    logContainer.debug(
+                        'Digest update ignored because ondigest is disabled',
+                    );
                 } else if (!this.mustTrigger(containerReport.container)) {
                     logContainer.debug('Trigger conditions not met => ignore');
                 } else {
@@ -293,11 +298,43 @@ class Trigger extends Component {
     }
 
     /**
+     * Return true if digest update is allowed for this container.
+     */
+    isDigestAllowed(containerResult: Container) {
+        if (containerResult.updateKind?.kind !== 'digest') {
+            return true;
+        }
+        let ondigest = this.configuration.ondigest !== false;
+        if (containerResult.labels) {
+            const specificLabel =
+                this.type && this.name
+                    ? containerResult.labels[
+                          `wud.trigger.${this.type}.${this.name}.ondigest`
+                      ]
+                    : undefined;
+            const typeLabel = this.type
+                ? containerResult.labels[`wud.trigger.${this.type}.ondigest`]
+                : undefined;
+            const genericLabel = containerResult.labels['wud.trigger.ondigest'];
+
+            const labelValue = specificLabel ?? typeLabel ?? genericLabel;
+            if (labelValue !== undefined) {
+                ondigest =
+                    typeof labelValue === 'boolean'
+                        ? labelValue
+                        : String(labelValue).toLowerCase() === 'true';
+            }
+        }
+        return ondigest;
+    }
+
+    /**
      * Return true if must trigger on this container.
      */
     mustTrigger(containerResult: Container) {
         const { triggerInclude, triggerExclude } = containerResult;
         return (
+            this.isDigestAllowed(containerResult) &&
             this.isTriggerIncluded(containerResult, triggerInclude) &&
             !this.isTriggerExcluded(containerResult, triggerExclude)
         );
@@ -372,6 +409,7 @@ class Trigger extends Component {
                 .string()
                 .default('${containers.length} updates available'),
             includebydefault: this.joi.boolean(),
+            ondigest: this.joi.boolean(),
         });
         const schemaValidated =
             schemaWithDefaultOptions.validate(configuration);
