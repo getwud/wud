@@ -136,14 +136,14 @@ To customize how WUD monitors specific containers (opt-in/opt-out, tag filtering
 
 :::info[Multiple & Remote Watchers]
 You can configure multiple watchers to monitor both local and remote Docker hosts simultaneously.
+
 - **Remote Hosts**: For remote Docker TCP and mutual TLS setup, see [**Remote Daemons & TLS Security**](remote-tls.md).
 - **Rate Limits & Digests**: To learn how digest polling works and prevent Docker Hub quota exhaustion, see [**Digest & Rate Limits**](digest-rate-limits.md).
 - **Per-Container Rules**: To configure tag filtering and routing per container, see [**Container Labels**](labels.md).
+
 :::
 
 ---
-
-
 
 ## Examples
 

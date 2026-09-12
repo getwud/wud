@@ -218,7 +218,8 @@ In certain cases, image tags include metadata suffixes (such as commit hashes or
 By default, the trailing SHA-1 hash (`-7b368146`) interferes with comparison, even though `1.0.0-99` represents a valid semver version (`$major.$minor.$patch-$prerelease`).
 
 #### Syntax
-```
+
+```text
 $valid_regex_with_capturing_groups => $valid_string_with_placeholders
 ```
 
@@ -283,6 +284,7 @@ docker run -d --name redis --label wud.watch.digest=true redis:alpine
 You can generate a direct clickable link to release notes using a URL template:
 
 The available template variables are:
+
 - `${original}`: The original unparsed tag
 - `${transformed}`: The tag after applying `wud.tag.transform`
 - `${major}`: Major version number
@@ -320,7 +322,9 @@ docker run -d --name mariadb \
 Customize how containers appear in the WUD Web UI and smart home integrations (e.g. Home Assistant):
 
 #### Supported Icons
+
 WUD supports the full [Iconify](https://icon-sets.iconify.design/) catalog (over 150,000+ open-source icons across 150+ collections) using the standard `collection:icon-name` format:
+
 - `mdi:` for [Material Design Icons](https://icon-sets.iconify.design/mdi/) (`mdi:database`, `mdi:docker`)
 - `simple-icons:` (or `si:`) for [Simple Icons](https://icon-sets.iconify.design/simple-icons/) (`simple-icons:mysql`, `si:mariadb`)
 - `selfhst:` (or `sh:`) for [Selfh.st Icons](https://icon-sets.iconify.design/selfhst/) (`selfhst:authentik`, `selfhst:jellyfin`)
@@ -329,6 +333,7 @@ WUD supports the full [Iconify](https://icon-sets.iconify.design/) catalog (over
 - Any other collection from [Icon-sets](https://icon-sets.iconify.design/) (e.g. `lucide:`, `tabler:`, `devicon:`, etc.)
 
 :::info Legacy Prefixes & Backward Compatibility
+
 - Legacy prefixes (`mdi-`, `si-`, `sh-`, `fa-`, `fab:`, etc.) are automatically normalized.
 - The `hl:` and `hl-` (Homarr) prefix is deprecated and automatically mapped to `selfhst:`.
 - Specifying an icon name without any prefix (e.g. `mariadb`) defaults to `simple-icons:mariadb`.
@@ -366,12 +371,14 @@ docker run -d --name mariadb \
 Route notifications or auto-updates for a specific container to designated triggers:
 
 #### Threshold Levels
+
 - `all`: Triggers on all updates (semver & digest).
 - `major`: Triggers on `major`, `minor`, or `patch` updates.
 - `minor`: Triggers only on `minor` or `patch` updates.
 - `patch`: Triggers only on `patch` updates.
 
 #### Example: Send Email for All Updates, Auto-Update on Minor/Patch Only
+
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
 

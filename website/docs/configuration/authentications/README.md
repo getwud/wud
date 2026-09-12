@@ -41,11 +41,13 @@ If no administrator is found in the database, no bootstrap administrator credent
 ## Managing Users & API Tokens
 
 Once authenticated as an administrator, you can manage users directly in the Web UI under **Configuration > Users**:
+
 - Add new local users with assigned roles (`admin`, `rw`, `ro`).
 - Edit user roles and reset passwords.
 - Delete users (with safety checks preventing deletion of the last remaining admin or self-deletion).
 
 All users can also navigate to **My Profile** to:
+
 - Synchronize their interface preferences (such as **Dark / Light theme**).
 - Change their account password (for local accounts).
 - Generate and manage **Personal API Tokens** for automation scripts, CI/CD pipelines, or Home Assistant integrations using `Authorization: Bearer wud_...`.

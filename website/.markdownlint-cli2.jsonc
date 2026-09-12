@@ -1,0 +1,17 @@
+{
+  "config": {
+    "default": true,
+    "MD001": false,
+    "MD013": false,
+    "MD024": false,
+    "MD025": false,
+    "MD033": false,
+    "MD041": false
+  },
+  "ignores": [
+    "docs/api/reference/**",
+    "node_modules/**",
+    "build/**",
+    ".docusaurus/**"
+  ]
+}

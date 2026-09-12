@@ -143,6 +143,8 @@ Docker Hub enforces [rate limits](https://docs.docker.com/docker-hub/download-ra
 - **Pro / Team**: Unlimited.
 
 :::tip[Best Practices for Rate Limits]
+
 - **Authenticate**: Adding a free Docker Hub PAT instantly doubles your rate limit quota.
 - **Digest Watch Selectively**: Rather than enabling global digest watching, apply the `wud.watch.digest=true` label only to containers that truly need it.
+
 :::

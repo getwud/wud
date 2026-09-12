@@ -84,6 +84,8 @@ jobs:
         run: |
           (cd ui && npm ci)
           (cd website && npm ci)
+      - name: Lint documentation
+        run: (cd website && npm run lint:docs)
       - name: Build demo UI
         run: (cd ui && npm run build:demo)
       - name: Build website
