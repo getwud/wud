@@ -62,4 +62,33 @@ describe('ConfigurationRegistriesView.vue', () => {
     await vm.refreshRegistries();
     expect(registryService.getAllRegistries).toHaveBeenCalled();
   });
+
+  it('maps custom icon from configuration.icon on refreshRegistries', async () => {
+    const customRegistries = [
+      {
+        id: 'custom.myreg',
+        type: 'custom',
+        name: 'myreg',
+        configuration: { url: 'http://localhost:5000', icon: 'mdi:server' },
+      },
+      {
+        id: 'hub.docker',
+        type: 'hub',
+        name: 'docker',
+        configuration: { url: 'https://hub.docker.com' },
+      },
+    ];
+    (registryService.getAllRegistries as jest.Mock).mockResolvedValue(customRegistries);
+
+    const wrapper = mount(ConfigurationRegistriesView);
+    const vm = wrapper.vm as any;
+
+    await vm.refreshRegistries();
+
+    expect(vm.registries).toHaveLength(2);
+    const customReg = vm.registries.find((r: any) => r.id === 'custom.myreg');
+    const defaultReg = vm.registries.find((r: any) => r.id === 'hub.docker');
+    expect(customReg.icon).toBe('mdi:server');
+    expect(defaultReg.icon).toBe('si-docker');
+  });
 });

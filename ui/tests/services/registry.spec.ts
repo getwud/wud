@@ -5,7 +5,7 @@ global.fetch = jest.fn();
 
 describe('Registry Service', () => {
   beforeEach(() => {
-    fetch.mockClear();
+    (fetch as jest.Mock).mockClear();
   });
 
   describe('getRegistryProviderIcon', () => {
@@ -26,6 +26,54 @@ describe('Registry Service', () => {
       expect(getRegistryProviderIcon('hub.docker.com')).toBe('si-docker');
       expect(getRegistryProviderIcon('gcr.io')).toBe('si-googlecloud');
     });
+
+    it('returns custom icon when registryItem has configuration.icon', () => {
+      const registryItem = {
+        id: 'custom.myreg',
+        type: 'custom',
+        name: 'myreg',
+        configuration: { icon: 'mdi:server' },
+      };
+      expect(getRegistryProviderIcon('custom', registryItem)).toBe('mdi:server');
+    });
+
+    it('returns custom icon from cache when provider matches registry id', async () => {
+      const mockRegistries = [
+        {
+          id: 'custom.myreg',
+          type: 'custom',
+          name: 'myreg',
+          configuration: { icon: 'logos:gitlab' },
+        },
+      ];
+      (fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockRegistries,
+      });
+
+      await getAllRegistries();
+
+      expect(getRegistryProviderIcon('custom.myreg')).toBe('logos:gitlab');
+    });
+
+    it('returns custom icon from cache when provider matches type.name', async () => {
+      const mockRegistries = [
+        {
+          id: 'custom-1',
+          type: 'custom',
+          name: 'myreg2',
+          configuration: { icon: 'mdi:server' },
+        },
+      ];
+      (fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockRegistries,
+      });
+
+      await getAllRegistries();
+
+      expect(getRegistryProviderIcon('custom.myreg2')).toBe('mdi:server');
+    });
   });
 
   describe('getAllRegistries', () => {
@@ -34,7 +82,7 @@ describe('Registry Service', () => {
         { name: 'hub', type: 'docker' },
         { name: 'ghcr', type: 'github' }
       ];
-      fetch.mockResolvedValueOnce({
+      (fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockRegistries
       });

@@ -16,6 +16,7 @@ test('validatedConfiguration should initialize when configuration is valid', asy
             password: 'password',
         }),
     ).toStrictEqual({
+        icon: 'si-opencontainersinitiative',
         url: 'http://localhost:5000',
         login: 'login',
         password: 'password',
@@ -36,10 +37,32 @@ test('validatedConfiguration should initialize with a bearer token', async () =>
             token: 'personal-access-token',
         }),
     ).toStrictEqual({
+        icon: 'si-opencontainersinitiative',
         url: 'http://localhost:5000',
         token: 'personal-access-token',
         concurrency: 2,
     });
+});
+
+test('validatedConfiguration should contain default icon si-opencontainersinitiative', async () => {
+    const validated = custom.validateConfiguration({
+        url: 'http://localhost:5000',
+    });
+    expect(validated.icon).toBe('si-opencontainersinitiative');
+});
+
+test('validatedConfiguration should accept and validate custom icon', async () => {
+    const serverIcon = custom.validateConfiguration({
+        url: 'http://localhost:5000',
+        icon: 'mdi:server',
+    });
+    expect(serverIcon.icon).toBe('mdi:server');
+
+    const gitlabIcon = custom.validateConfiguration({
+        url: 'http://localhost:5000',
+        icon: 'logos:gitlab',
+    });
+    expect(gitlabIcon.icon).toBe('logos:gitlab');
 });
 
 test('validatedConfiguration should throw error when auth is not base64', async () => {

@@ -9,6 +9,7 @@ import { ContainerImage } from '../../../model/container';
 class Custom extends DockerRegistryV2 {
     getConfigurationSchema(): AnySchema<any> {
         return this.joi.object().keys({
+            icon: this.joi.string().default('si-opencontainersinitiative'),
             url: this.joi.string().uri().required(),
             login: this.joi.alternatives().conditional('password', {
                 not: undefined,
