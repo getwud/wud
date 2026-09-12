@@ -381,4 +381,89 @@ describe('Container Store (SQLite)', () => {
         const fetched = container.getContainer(sampleContainer.id);
         expect(fetched?.delay).toBe('1w');
     });
+
+    test('insertContainer should persist labels and getContainer should rehydrate them accurately', () => {
+        const containerWithLabels = {
+            ...sampleContainer,
+            id: 'container-with-labels',
+            labels: {
+                'wud.watch': 'true',
+                'com.docker.compose.project': 'my-stack',
+            },
+        };
+
+        container.insertContainer(containerWithLabels);
+
+        const fetched = container.getContainer('container-with-labels');
+        expect(fetched).toBeDefined();
+        expect(fetched?.labels).toEqual({
+            'wud.watch': 'true',
+            'com.docker.compose.project': 'my-stack',
+        });
+    });
+
+    test('getContainers should return labels for containers that have them and undefined for those that do not', () => {
+        const cWithoutLabels = {
+            ...sampleContainer,
+            id: 'c-without-labels',
+            name: 'c-without',
+        };
+        const cWithLabels = {
+            ...sampleContainer,
+            id: 'c-with-labels',
+            name: 'c-with',
+            labels: {
+                environment: 'production',
+                team: 'core',
+            },
+        };
+
+        container.insertContainer(cWithoutLabels);
+        container.insertContainer(cWithLabels);
+
+        const containers = container.getContainers();
+        const foundWithout = containers.find(
+            (c) => c.id === 'c-without-labels',
+        );
+        const foundWith = containers.find((c) => c.id === 'c-with-labels');
+
+        expect(foundWithout).toBeDefined();
+        expect(foundWithout?.labels).toBeUndefined();
+
+        expect(foundWith).toBeDefined();
+        expect(foundWith?.labels).toEqual({
+            environment: 'production',
+            team: 'core',
+        });
+    });
+
+    test('updateContainer should update labels properly', () => {
+        const initialContainer = {
+            ...sampleContainer,
+            id: 'container-update-labels',
+            labels: {
+                version: '1.0',
+            },
+        };
+
+        container.insertContainer(initialContainer);
+
+        const updated = container.updateContainer({
+            ...initialContainer,
+            labels: {
+                version: '2.0',
+                release: 'candidate',
+            },
+        });
+        expect(updated.labels).toEqual({
+            version: '2.0',
+            release: 'candidate',
+        });
+
+        const fetched = container.getContainer('container-update-labels');
+        expect(fetched?.labels).toEqual({
+            version: '2.0',
+            release: 'candidate',
+        });
+    });
 });

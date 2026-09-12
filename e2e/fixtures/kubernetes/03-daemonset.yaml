@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: test-daemonset
+  namespace: default
+  annotations:
+    wud.getwud.io/watch: "true"
+spec:
+  selector:
+    matchLabels:
+      app: test-daemonset
+  template:
+    metadata:
+      labels:
+        app: test-daemonset
+    spec:
+      containers:
+        - name: daemon-app
+          image: alpine:3.20
+          command: ["sleep", "3600"]

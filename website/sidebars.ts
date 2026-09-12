@@ -160,6 +160,11 @@ const sidebars = {
       id: 'configuration/watchers/digest-rate-limits',
       label: 'Digest & Rate Limits',
     },
+    {
+      type: 'doc',
+      id: 'configuration/watchers/kubernetes/README',
+      label: 'Kubernetes Watcher',
+    },
   ],
 
   registriesSidebar: [
