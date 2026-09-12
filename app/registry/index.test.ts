@@ -445,3 +445,35 @@ test('deregisterWatchers should throw when errors occurred', async () => {
         'Error when deregistering component .',
     );
 });
+
+test('getDocumentationLink should return correct URLs for each component kind', () => {
+    const getDocumentationLink = registry.testable_getDocumentationLink;
+    expect(getDocumentationLink('trigger')).toBe(
+        'https://getwud.app/docs/configuration/triggers',
+    );
+    expect(getDocumentationLink('watcher')).toBe(
+        'https://getwud.app/docs/configuration/watchers',
+    );
+    expect(getDocumentationLink('registry')).toBe(
+        'https://getwud.app/docs/configuration/registries',
+    );
+    expect(getDocumentationLink('authentication')).toBe(
+        'https://getwud.app/docs/configuration/authentications',
+    );
+    expect(getDocumentationLink('unknown')).toBe(
+        'https://getwud.app/docs/configuration',
+    );
+});
+
+test('getHelpfulErrorMessage should include getwud.app doc link when provider not found', () => {
+    const getHelpfulErrorMessage = registry.testable_getHelpfulErrorMessage;
+    const message = getHelpfulErrorMessage(
+        'authentication',
+        'oidc_admin',
+        "Cannot find module './oidc_admin'",
+        ['oidc'],
+    );
+    expect(message).toContain(
+        'For more information, visit: https://getwud.app/docs/configuration/authentications',
+    );
+});

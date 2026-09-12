@@ -69,19 +69,12 @@ function getAvailableProviders(basePath: string) {
  */
 function getDocumentationLink(kind: ComponentKind) {
     const docLinks: Record<ComponentKind, string> = {
-        trigger:
-            'https://github.com/getwud/wud/tree/main/docs/configuration/triggers',
-        watcher:
-            'https://github.com/getwud/wud/tree/main/docs/configuration/watchers',
-        registry:
-            'https://github.com/getwud/wud/tree/main/docs/configuration/registries',
-        authentication:
-            'https://github.com/getwud/wud/tree/main/docs/configuration/authentications',
+        trigger: 'https://getwud.app/docs/configuration/triggers',
+        watcher: 'https://getwud.app/docs/configuration/watchers',
+        registry: 'https://getwud.app/docs/configuration/registries',
+        authentication: 'https://getwud.app/docs/configuration/authentications',
     };
-    return (
-        docLinks[kind] ||
-        'https://github.com/getwud/wud/tree/main/docs/configuration'
-    );
+    return docLinks[kind] || 'https://getwud.app/docs/configuration';
 }
 
 /**
@@ -451,5 +444,7 @@ export {
     deregisterWatchers as testable_deregisterWatchers,
     deregisterAuthentications as testable_deregisterAuthentications,
     deregisterAll as testable_deregisterAll,
+    getDocumentationLink as testable_getDocumentationLink,
+    getHelpfulErrorMessage as testable_getHelpfulErrorMessage,
     log as testable_log,
 };
