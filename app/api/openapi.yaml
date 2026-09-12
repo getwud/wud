@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
     title: WUD REST API
-    version: 9.0.1
+    version: 9.0.2
     description: |
         Welcome to the *WUD* REST API documentation.
 
