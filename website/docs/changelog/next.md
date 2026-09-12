@@ -14,5 +14,6 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 📝 [DOCS] Clarify OIDC admin group configuration and remove invalid global env var reference (fixes #1226)
 - 📝 [DOCS] Update documentation URLs in registry error logs to point to getwud.app (fixes #1233)
 - 🐛 [STORE] Fix container query filtering on updateAvailable and hydrated properties (fixes #1197)
+- 🧪 [TESTS] Add end-to-end MQTT and Home Assistant discovery test suite
 - 🐛 [UI] Fix application version display in UI, mock data, and store
 - 🛠️ [RELEASE] Improve release script for non-major versions and prune unreleased changelog from doc snapshots

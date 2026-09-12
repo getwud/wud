@@ -12,6 +12,13 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - WUD_TRIGGER_MOCK_EXAMPLE_MOCK=mock
+      - WUD_TRIGGER_MQTT_E2E_URL=mqtt://mosquitto:1883
+      - WUD_TRIGGER_MQTT_E2E_TOPIC=wud/container
+      - WUD_TRIGGER_MQTT_E2E_HASS_ENABLED=true
+      - WUD_TRIGGER_MQTT_E2E_HASS_DISCOVERY=true
+      - WUD_TRIGGER_MQTT_E2E_HASS_PREFIX=homeassistant
+      - WUD_TRIGGER_MQTT_E2E_HASS_DEVICEID=wud
+      - WUD_TRIGGER_MQTT_E2E_HASS_DEVICENAME=wud
       - WUD_WATCHER_LOCAL_WATCHBYDEFAULT=false
       - WUD_REGISTRY_ECR_PRIVATE_ACCESSKEYID=${AWS_ACCESSKEY_ID:-dummy}
       - WUD_REGISTRY_ECR_PRIVATE_SECRETACCESSKEY=${AWS_SECRET_ACCESSKEY:-dummy}
@@ -46,6 +53,15 @@ services:
       - WUD_AUTH_OIDC_MOCK_DISCOVERY=http://mock-oidc:8080/.well-known/openid-configuration
     depends_on:
       - mock-oidc
+      - mosquitto
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
 
   mock-oidc:
     image: node:24-alpine
