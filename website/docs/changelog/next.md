@@ -10,3 +10,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 ---
 
 - 🛠️ [DOCS] Add CSpell and Markdownlint quality gates for documentation
+- 🚀 [TRIGGER] Add ondigest configuration option to filter out digest updates (fixes #756)

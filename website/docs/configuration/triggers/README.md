@@ -80,6 +80,14 @@ In addition to provider-specific settings, all triggers support the following co
   </ConfigOption>
 
   <ConfigOption
+    name="WUD_TRIGGER_{trigger_type}_{trigger_name}_ONDIGEST"
+    required={false}
+    type="boolean"
+    defaultValue="true">
+    Enable or disable notifications when only the image digest has changed (without semver tag bump)
+  </ConfigOption>
+
+  <ConfigOption
     name="WUD_TRIGGER_{trigger_type}_{trigger_name}_SIMPLEBODY"
     required={false}
     type="string"
