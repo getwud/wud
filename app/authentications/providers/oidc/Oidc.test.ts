@@ -24,6 +24,7 @@ const configurationValid = {
     ttl: 60,
     usernameclaim: 'email',
     groupsclaim: 'groups',
+    defaultrole: 'ro',
 };
 
 const mockConfig = {
@@ -92,6 +93,7 @@ test('maskConfiguration should mask configuration secrets', async () => {
         ttl: 60,
         usernameclaim: 'email',
         groupsclaim: 'groups',
+        defaultrole: 'ro',
     });
 });
 
@@ -435,4 +437,113 @@ test('getUserFromAccessToken should assign admin role when group matches admingr
 
     const user = await oidc.getUserFromAccessToken('token');
     expect(user.role).toEqual('admin');
+});
+
+test('validateConfiguration should accept rogroup and defaultrole none', async () => {
+    const config = {
+        ...configurationValid,
+        rogroup: 'readers',
+        defaultrole: 'none',
+    };
+    const validated = oidc.validateConfiguration(config);
+    expect(validated.rogroup).toEqual('readers');
+    expect(validated.defaultrole).toEqual('none');
+});
+
+test('validateConfiguration should throw error when defaultrole is invalid', async () => {
+    const config = {
+        ...configurationValid,
+        defaultrole: 'invalid',
+    };
+    expect(() => {
+        oidc.validateConfiguration(config);
+    }).toThrow(ValidationError);
+});
+
+test('getEffectiveScope should include groups when rogroup is configured', () => {
+    oidc.configuration = { ...configurationValid, rogroup: 'readers' };
+    expect(oidc.getEffectiveScope()).toEqual('openid email profile groups');
+});
+
+test('getUserFromAccessToken should assign ro role when group matches rogroup', async () => {
+    oidc.configuration = {
+        ...configurationValid,
+        rogroup: 'wud-ro',
+        ttl: -1,
+    };
+    (oidc as any).cachedConfig = mockConfig;
+    (client.fetchUserInfo as jest.Mock).mockResolvedValue({
+        email: 'reader@example.com',
+        groups: ['wud-ro'],
+    });
+
+    const user = await oidc.getUserFromAccessToken('token');
+    expect(user.role).toEqual('ro');
+});
+
+test('getUserFromAccessToken should throw access denied when defaultrole is none and user has no matching group', async () => {
+    oidc.configuration = {
+        ...configurationValid,
+        admingroup: 'wud-admin',
+        rwgroup: 'wud-rw',
+        rogroup: 'wud-ro',
+        defaultrole: 'none',
+        ttl: -1,
+    };
+    (oidc as any).cachedConfig = mockConfig;
+    (client.fetchUserInfo as jest.Mock).mockResolvedValue({
+        email: 'unauthorized@example.com',
+        groups: ['other-group'],
+    });
+
+    await expect(oidc.getUserFromAccessToken('token')).rejects.toThrow(
+        'Access denied: user does not belong to any authorized group',
+    );
+});
+
+test('getUserFromAccessToken should allow access when defaultrole is none and group matches rogroup', async () => {
+    oidc.configuration = {
+        ...configurationValid,
+        rogroup: 'wud-ro',
+        defaultrole: 'none',
+        ttl: -1,
+    };
+    (oidc as any).cachedConfig = mockConfig;
+    (client.fetchUserInfo as jest.Mock).mockResolvedValue({
+        email: 'reader@example.com',
+        groups: ['wud-ro'],
+    });
+
+    const user = await oidc.getUserFromAccessToken('token');
+    expect(user.role).toEqual('ro');
+});
+
+test('callback should redirect to login with error parameter when authentication fails', async () => {
+    oidc.configuration = { ...configurationValid, ttl: -1 };
+    (oidc as any).cachedConfig = mockConfig;
+    (client.authorizationCodeGrant as jest.Mock).mockRejectedValue(
+        new Error('Invalid authorization code'),
+    );
+
+    const req: any = {
+        protocol: 'http',
+        headers: { host: 'localhost:3000' },
+        originalUrl: '/auth/oidc/oidc/cb?code=123',
+        session: {
+            oidc: {
+                codeVerifier: 'verifier',
+                state: 'state123',
+            },
+        },
+        query: {},
+    };
+    const res: any = {
+        redirect: jest.fn(),
+    };
+
+    await oidc.callback(req, res);
+
+    expect(res.redirect).toHaveBeenCalledWith(
+        'http://localhost:3000/#/login?error=Invalid%20authorization%20code',
+    );
 });

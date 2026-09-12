@@ -39,6 +39,8 @@ class Oidc extends Authentication {
             usernameclaim: this.joi.string().default('email'),
             admingroup: this.joi.string().optional(),
             rwgroup: this.joi.string().optional(),
+            rogroup: this.joi.string().optional(),
+            defaultrole: this.joi.string().valid('ro', 'none').default('ro'),
             groupsclaim: this.joi.string().default('groups'),
             scope: this.joi.string().optional(),
         });
@@ -167,7 +169,11 @@ class Oidc extends Authentication {
             return this.configuration.scope;
         }
         const scopes = ['openid', 'email', 'profile'];
-        if (this.configuration.admingroup || this.configuration.rwgroup) {
+        if (
+            this.configuration.admingroup ||
+            this.configuration.rwgroup ||
+            this.configuration.rogroup
+        ) {
             const scopesSupported = config?.serverMetadata()?.scopes_supported;
             // Only request 'groups' scope if the IdP explicitly declares supporting it (or if no discovery metadata available)
             if (
@@ -305,7 +311,10 @@ class Oidc extends Authentication {
                     this.log.warn(
                         `Error when logging the user [${err.message}]`,
                     );
-                    res.status(401).send(err.message);
+                    const publicUrl = getPublicUrl(req).replace(/\/$/, '');
+                    res.redirect(
+                        `${publicUrl}/#/login?error=${encodeURIComponent(err.message)}`,
+                    );
                 } else {
                     const publicUrl = getPublicUrl(req).replace(/\/$/, '');
                     const destination = nextUrl
@@ -317,9 +326,12 @@ class Oidc extends Authentication {
                     res.redirect(destination);
                 }
             });
-        } catch (err) {
+        } catch (err: any) {
             this.log.warn(`Error when logging the user [${err.message}]`);
-            res.status(401).send(err.message);
+            const publicUrl = getPublicUrl(req).replace(/\/$/, '');
+            res.redirect(
+                `${publicUrl}/#/login?error=${encodeURIComponent(err.message)}`,
+            );
         }
     }
 
@@ -369,9 +381,11 @@ class Oidc extends Authentication {
         }
 
         // Determine role from groups if configured
-        let determinedRole: UserRole = 'ro';
+        let determinedRole: UserRole | 'none' = this.configuration.defaultrole;
         const hasGroupConfig = Boolean(
-            this.configuration.admingroup || this.configuration.rwgroup,
+            this.configuration.admingroup ||
+                this.configuration.rwgroup ||
+                this.configuration.rogroup,
         );
 
         if (hasGroupConfig) {
@@ -390,19 +404,35 @@ class Oidc extends Authentication {
             userGroups.includes(this.configuration.rwgroup)
         ) {
             determinedRole = 'rw';
+        } else if (
+            this.configuration.rogroup &&
+            userGroups.includes(this.configuration.rogroup)
+        ) {
+            determinedRole = 'ro';
         }
+
+        if (determinedRole === 'none') {
+            this.log.warn(
+                `Access denied for user '${validUsername}': does not belong to any authorized group.`,
+            );
+            throw new Error(
+                'Access denied: user does not belong to any authorized group',
+            );
+        }
+
+        const role: UserRole = determinedRole;
 
         // Check if user exists in database
         const existingUser = await getUserByUsername(validUsername);
         if (existingUser) {
             if (hasGroupConfig) {
                 // If group claims are configured on OIDC, sync role from IDP
-                if (existingUser.role !== determinedRole) {
+                if (existingUser.role !== role) {
                     this.log.info(
-                        `Syncing OIDC user role for '${validUsername}' from '${existingUser.role}' to '${determinedRole}'`,
+                        `Syncing OIDC user role for '${validUsername}' from '${existingUser.role}' to '${role}'`,
                     );
-                    await updateUser(existingUser.id, { role: determinedRole });
-                    existingUser.role = determinedRole;
+                    await updateUser(existingUser.id, { role });
+                    existingUser.role = role;
                 }
             }
             return {
@@ -416,11 +446,11 @@ class Oidc extends Authentication {
 
         // User onboarding: create new OIDC user in database
         this.log.info(
-            `Onboarding new OIDC user '${validUsername}' with role '${determinedRole}'`,
+            `Onboarding new OIDC user '${validUsername}' with role '${role}'`,
         );
         const newUser = await createUser({
             username: validUsername,
-            role: determinedRole,
+            role,
             provider: 'oidc',
         });
 

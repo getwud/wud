@@ -12,19 +12,22 @@ jest.mock('@/services/auth', () => ({
 
 // Mock router
 const mockRouter = {
-  push: jest.fn()
+  push: jest.fn(),
+  replace: jest.fn()
 };
 const mockRoute = {
-    query: {}
+    query: {} as Record<string, any>
 };
 
 describe('LoginView', () => {
-  let wrapper;
+  let wrapper: any;
 
   beforeEach(() => {
     (getStrategies as jest.Mock).mockReset();
     (getOidcRedirection as jest.Mock).mockReset();
     mockRouter.push.mockReset();
+    mockRouter.replace.mockReset();
+    mockRoute.query = {};
   });
 
   afterEach(() => {
@@ -80,7 +83,34 @@ describe('LoginView', () => {
       mockRoute.query.next = undefined; // reset
   });
 
+  it('emits error notification and clears error from query when error is present on mount', (done) => {
+      mockRoute.query = { error: 'Access denied: user does not belong to any authorized group' };
+      mountComponent([{ type: 'basic' }]);
+      expect(mockRouter.replace).toHaveBeenCalledWith({
+          query: {},
+      });
+      setTimeout(() => {
+          expect(wrapper.vm.eventBus.emit).toHaveBeenCalledWith(
+              'notify',
+              'Access denied: user does not belong to any authorized group',
+              'error',
+          );
+          done();
+      }, 150);
+  });
+
   describe('Route Hook (beforeRouteEnter)', () => {
+      it('does NOT automatically redirect to OIDC when an error is present in query', async () => {
+          (getStrategies as jest.Mock).mockResolvedValue([
+              { type: 'oidc', name: 'authentik', redirect: true }
+          ]);
+          const next = jest.fn();
+          const to = { query: { error: 'Access denied' } };
+          await LoginView.beforeRouteEnter.call(LoginView, to, {}, next);
+
+          expect(getOidcRedirection).not.toHaveBeenCalled();
+          expect(next).toHaveBeenCalledWith(expect.any(Function));
+      });
       it('redirects to home if anonymous auth is enabled', async () => {
           (getStrategies as jest.Mock).mockResolvedValue([{ type: 'anonymous' }]);
           const next = jest.fn();
