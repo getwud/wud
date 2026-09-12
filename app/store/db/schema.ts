@@ -39,6 +39,7 @@ export const containers = sqliteTable('containers', {
     labels: text('labels', { mode: 'json' }),
     snoozedVersion: text('snoozed_version'),
     snoozedUntil: integer('snoozed_until'),
+    delay: text('delay'),
     createdAt: text('created_at').default(sql`(CURRENT_TIMESTAMP)`),
     updatedAt: text('updated_at').default(sql`(CURRENT_TIMESTAMP)`),
 });

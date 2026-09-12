@@ -1,6 +1,20 @@
 <template>
   <div>
     <v-alert
+      v-if="isCoolingDown"
+      color="info"
+      variant="tonal"
+      density="compact"
+      icon="mdi-timer-sand"
+      class="mb-3"
+    >
+      <div class="font-weight-medium">Update in cool-down</div>
+      <div class="text-caption">
+        A new version is available but currently held in cool-down period{{ coolingDownUntil ? ` until ${new Date(coolingDownUntil).toLocaleString()}` : '' }}.
+      </div>
+    </v-alert>
+
+    <v-alert
       v-if="isSnoozed || snoozedVersion"
       color="warning"
       variant="tonal"
@@ -14,7 +28,7 @@
       </div>
     </v-alert>
 
-    <v-list density="compact" v-if="updateAvailable || isSnoozed || snoozedVersion">
+    <v-list density="compact" v-if="updateAvailable || isCoolingDown || isSnoozed || snoozedVersion">
       <v-list-item v-if="result.tag">
         <template v-slot:prepend>
           <v-icon color="secondary">mdi-tag</v-icon>
@@ -75,7 +89,7 @@
           </v-tooltip>
         </v-list-item-subtitle>
       </v-list-item>
-      <v-list-item>
+      <v-list-item v-if="updateKind && updateKind.kind && updateKind.kind !== 'unknown'">
         <template v-slot:prepend>
           <v-icon v-if="updateKind.semverDiff === 'patch'" color="success"
             >mdi-information</v-icon
@@ -111,6 +125,14 @@ export default defineComponent({
     },
     updateAvailable: {
       type: Boolean,
+    },
+    isCoolingDown: {
+      type: Boolean,
+      default: false,
+    },
+    coolingDownUntil: {
+      type: Number,
+      default: null,
     },
     isSnoozed: {
       type: Boolean,

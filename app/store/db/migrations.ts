@@ -135,6 +135,11 @@ export const migrations: Migration[] = [
             `ALTER TABLE containers ADD COLUMN snoozed_until INTEGER;`,
         ],
     },
+    {
+        id: 4,
+        name: '0004_container_delay',
+        sql: [`ALTER TABLE containers ADD COLUMN delay TEXT;`],
+    },
 ];
 
 export function runMigrations(sqlite: Database.Database) {

@@ -116,4 +116,16 @@ describe('ContainerUpdate', () => {
   it('computes correct update type', () => {
     expect(wrapper.vm.updateKind.kind).toBe('tag');
   });
+
+  it('displays cool-down alert when isCoolingDown is true', async () => {
+    const futureTime = Date.now() + 86400000;
+    await wrapper.setProps({
+      isCoolingDown: true,
+      coolingDownUntil: futureTime,
+      updateAvailable: false,
+    });
+
+    expect(wrapper.text()).toContain('Update in cool-down');
+    expect(wrapper.text()).toContain('held in cool-down period');
+  });
 });

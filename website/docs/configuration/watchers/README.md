@@ -51,6 +51,14 @@ To customize how WUD monitors specific containers (opt-in/opt-out, tag filtering
   </ConfigOption>
 
   <ConfigOption
+    name="WUD_WATCHER_{watcher_name}_DELAY"
+    type="string"
+    required={false}
+    supported="Duration string (e.g. `30s`, `10m`, `24h`, `3d`, `1w`)">
+    Cool-down period before considering an update available for discovered containers
+  </ConfigOption>
+
+  <ConfigOption
     name="WUD_WATCHER_{watcher_name}_HOST"
     type="string"
     required={false}

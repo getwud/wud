@@ -348,4 +348,37 @@ describe('Container Store (SQLite)', () => {
             'Container unknown-id not found',
         );
     });
+
+    test('insertContainer and getContainer should preserve delay property and calculate cool-down', () => {
+        const containerWithDelay = {
+            ...sampleContainer,
+            id: 'container-with-delay',
+            delay: '2d',
+            result: {
+                tag: '2.0.0',
+                created: new Date().toISOString(),
+            },
+        };
+
+        container.insertContainer(containerWithDelay);
+
+        const fetched = container.getContainer('container-with-delay');
+        expect(fetched).toBeDefined();
+        expect(fetched?.delay).toBe('2d');
+        expect(fetched?.isCoolingDown).toBe(true);
+        expect(fetched?.updateAvailable).toBe(false);
+    });
+
+    test('updateContainer should update delay property', () => {
+        container.insertContainer(sampleContainer);
+
+        const updated = container.updateContainer({
+            ...sampleContainer,
+            delay: '1w',
+        });
+        expect(updated.delay).toBe('1w');
+
+        const fetched = container.getContainer(sampleContainer.id);
+        expect(fetched?.delay).toBe('1w');
+    });
 });

@@ -87,6 +87,14 @@ Container labels allow you to customize WUD behavior on a **per-container basis*
   </ConfigOption>
 
   <ConfigOption
+    name="wud.watch.delay"
+    required={false}
+    type="string"
+    supported="Duration string (e.g. `30s`, `10m`, `24h`, `3d`, `1w`)">
+    Cool-down period before considering an update available for this container (can also be specified as `wud.tag.delay`)
+  </ConfigOption>
+
+  <ConfigOption
     name="wud.watch.digest"
     required={false}
     type="boolean"
@@ -396,6 +404,35 @@ services:
 ```bash
 docker run -d --name web_app \
   --label 'wud.trigger.include=smtp.gmail,dockercompose.local:minor' \
+  web_app:1.2.0
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+### 9. Configure Cool-Down Period Before Update Trigger
+
+To prevent updating to fresh upstream releases immediately (e.g. to wait for hotfixes or community feedback), you can set a cool-down delay:
+
+<Tabs>
+<TabItem value="docker-compose" label="Docker Compose">
+
+```yaml
+services:
+  web_app:
+    image: web_app:1.2.0
+    labels:
+      - wud.watch.delay=3d
+```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+```bash
+docker run -d --name web_app \
+  --label 'wud.watch.delay=3d' \
   web_app:1.2.0
 ```
 

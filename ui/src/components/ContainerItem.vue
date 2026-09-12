@@ -146,6 +146,8 @@
                 :semver="container.image.tag.semver"
                 :update-kind="container.updateKind"
                 :update-available="container.updateAvailable"
+                :is-cooling-down="container.isCoolingDown"
+                :cooling-down-until="container.coolingDownUntil"
               />
             </v-window-item>
             <v-window-item>
