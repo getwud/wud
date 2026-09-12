@@ -85,6 +85,20 @@ export default defineComponent({
     };
   },
 
+  mounted() {
+    const errorMsg = this.$route.query.error as string;
+    if (errorMsg) {
+      this.$router.replace({
+        query: { ...this.$route.query, error: undefined },
+      });
+      setTimeout(() => {
+        if (this.eventBus) {
+          this.eventBus.emit("notify", errorMsg, "error");
+        }
+      }, 100);
+    }
+  },
+
   methods: {
     /**
      * Format display label for strategy tab.
@@ -152,10 +166,15 @@ export default defineComponent({
       // Auto-redirect if:
       // 1. An OIDC strategy has redirect: true configured, OR
       // 2. ONLY OIDC is enabled (no basic auth)
-      const oidcWithExplicitRedirect = supported.find(
-        (strategy: any) => strategy.type === "oidc" && strategy.redirect,
-      );
-      const isOnlyOidc = supported.length === 1 && supported[0].type === "oidc";
+      // AND no error is present in query parameters
+      const hasError = Boolean(to?.query?.error);
+      const oidcWithExplicitRedirect =
+        !hasError &&
+        supported.find(
+          (strategy: any) => strategy.type === "oidc" && strategy.redirect,
+        );
+      const isOnlyOidc =
+        !hasError && supported.length === 1 && supported[0].type === "oidc";
       const oidcToRedirect =
         oidcWithExplicitRedirect || (isOnlyOidc ? supported[0] : null);
 

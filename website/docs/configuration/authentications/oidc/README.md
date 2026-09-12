@@ -97,18 +97,35 @@ WUD supports any compliant OpenID Connect Identity Provider. Step-by-step guides
   </ConfigOption>
 
   <ConfigOption
+    name="WUD_AUTH_OIDC_{auth_name}_ROGROUP"
+    required={false}
+    type="string">
+    Identity provider group or role name that grants WUD `ro` (Read-Only) privileges upon login
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_AUTH_OIDC_{auth_name}_DEFAULTROLE"
+    required={false}
+    type="string"
+    defaultValue="ro"
+    supported="`ro`, `none`">
+    Default role assigned to authenticated users who do not match any configured group. Set to `none` to strictly deny access and reject logins for users who do not belong to any authorized group
+  </ConfigOption>
+
+  <ConfigOption
     name="WUD_AUTH_OIDC_{auth_name}_SCOPE"
     required={false}
     type="string"
     defaultValue="openid email profile">
-    OpenID Connect scopes to request during authorization flow. Automatically appends `groups` when `ADMINGROUP` or `RWGROUP` is configured unless overridden.
+    OpenID Connect scopes to request during authorization flow. Automatically appends `groups` when `ADMINGROUP`, `RWGROUP`, or `ROGROUP` is configured unless overridden.
   </ConfigOption>
 </ConfigList>
 
 :::tip[Automatic User Onboarding & Role Sync]
 When a user logs in through OIDC, WUD automatically creates an account in the internal database.
-- If `ADMINGROUP` or `RWGROUP` is configured, the user's role is automatically synchronized with their IDP groups on each login (granting `admin`, `rw`, or falling back to `ro`).
-- If no groups are configured, new OIDC users default to `ro` (Read-Only), and a local administrator can promote their role directly in the WUD Web UI.
+- If group mapping is configured (`ADMINGROUP`, `RWGROUP`, `ROGROUP`), the user's role is automatically synchronized with their IDP groups on each login (granting `admin`, `rw`, or `ro`).
+- If a user does not match any configured group, their role falls back to `DEFAULTROLE` (`ro` by default).
+- When `DEFAULTROLE=none`, access is strictly locked down: any user not belonging to at least one authorized group (`ADMINGROUP`, `RWGROUP`, or `ROGROUP`) is denied access and redirected to login with an error notification.
 :::
 
 :::tip[Zero Local Credentials: Omit Local Administrator with OIDC]
