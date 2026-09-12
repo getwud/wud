@@ -3,9 +3,13 @@ import request from 'supertest';
 import * as ui from './ui';
 import fs from 'fs';
 
-jest.spyOn(fs, 'readFileSync').mockReturnValue(
-    '<html><head></head><body><div id="app"></div></body></html>',
-);
+const originalReadFileSync = fs.readFileSync;
+jest.spyOn(fs, 'readFileSync').mockImplementation((filePath, options) => {
+    if (typeof filePath === 'string' && filePath.includes('index.html')) {
+        return '<html><head></head><body><div id="app"></div></body></html>';
+    }
+    return originalReadFileSync(filePath, options);
+});
 jest.mock('../configuration', () => ({
     getServerConfiguration: jest.fn(() => ({
         basepath: '/wud',

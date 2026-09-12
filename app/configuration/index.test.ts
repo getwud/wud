@@ -8,7 +8,9 @@ test('getVersion should return wud version', async () => {
 
 test('getVersion should fallback to package.json version when WUD_VERSION is not defined', async () => {
     delete configuration.wudEnvVars.WUD_VERSION;
-    expect(configuration.getVersion()).toStrictEqual('9.0.0');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const pkg = require('../package.json');
+    expect(configuration.getVersion()).toStrictEqual(pkg.version);
 });
 
 test('getLogLevel should return info by default', async () => {
