@@ -15,7 +15,8 @@
   "license": "MIT",
   "dependencies": {
     "@cucumber/cucumber": "11.1.1",
-    "apickli": "3.0.3"
+    "apickli": "3.0.3",
+    "mqtt": "5.14.1"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.51.4",

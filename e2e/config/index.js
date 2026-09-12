@@ -4,4 +4,5 @@ module.exports = {
     port: process.env.WUD_PORT || 3000,
     username: process.env.WUD_USERNAME || 'john',
     password: process.env.WUD_PASSWORD || 'doe',
+    mqttUrl: process.env.MQTT_URL || `mqtt://${process.env.MQTT_HOST || '127.0.0.1'}:${process.env.MQTT_PORT || 1883}`,
 };
