@@ -39,6 +39,9 @@ beforeEach(async () => {
     jest.restoreAllMocks();
     mockedPost.mockReset();
     mockedPost.mockResolvedValue({ status: 200, data: {} } as any);
+    (telegram as any).proxyAgent = undefined;
+    telegram.configuration = { ...configurationValid };
+    telegram.name = undefined as any;
 });
 
 test('maskConfiguration should mask sensitive data', async () => {
@@ -210,5 +213,264 @@ test('sendMessage should call the Telegram API with proxy settings when configur
             httpAgent: expect.any(HttpsProxyAgent),
             httpsAgent: expect.any(HttpsProxyAgent),
         }),
+    );
+});
+
+test('validateConfiguration should accept messagethreadid as integer or string', () => {
+    const configWithNumber = telegram.validateConfiguration({
+        ...configurationValid,
+        messagethreadid: 12345,
+    });
+    expect(configWithNumber.messagethreadid).toEqual(12345);
+
+    const configWithString = telegram.validateConfiguration({
+        ...configurationValid,
+        messagethreadid: '67890',
+    });
+    expect(configWithString.messagethreadid).toEqual('67890');
+});
+
+test('validateConfiguration should normalize message_thread_id and message.thread.id to messagethreadid', () => {
+    const configWithUnderscore = telegram.validateConfiguration({
+        ...configurationValid,
+        message_thread_id: 111,
+    });
+    expect(configWithUnderscore.messagethreadid).toEqual(111);
+    expect(configWithUnderscore.message_thread_id).toBeUndefined();
+
+    const configWithNested = telegram.validateConfiguration({
+        ...configurationValid,
+        message: { thread: { id: 222 } },
+    });
+    expect(configWithNested.messagethreadid).toEqual(222);
+    expect(configWithNested.message).toBeUndefined();
+});
+
+test('sendMessage should not include message_thread_id when not configured', async () => {
+    telegram.configuration = { ...configurationValid };
+    await (telegram as any).sendMessage('Test Body');
+
+    expect(mockedPost).toHaveBeenCalledWith(
+        'https://api.telegram.org/bottoken/sendMessage',
+        {
+            chat_id: configurationValid.chatid,
+            text: 'Test Body',
+            parse_mode: 'MarkdownV2',
+        },
+        undefined,
+    );
+});
+
+test('sendMessage should include message_thread_id when configured on trigger', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        messagethreadid: 42,
+    };
+    await (telegram as any).sendMessage('Test Body');
+
+    expect(mockedPost).toHaveBeenCalledWith(
+        'https://api.telegram.org/bottoken/sendMessage',
+        {
+            chat_id: configurationValid.chatid,
+            text: 'Test Body',
+            parse_mode: 'MarkdownV2',
+            message_thread_id: 42,
+        },
+        undefined,
+    );
+});
+
+test('trigger should use container label for message_thread_id over trigger configuration', async () => {
+    telegram.name = 'telegram1';
+    telegram.configuration = {
+        ...configurationValid,
+        messagethreadid: 42,
+    };
+
+    const containerWithLabel: Container = {
+        name: 'test-container',
+        updateKind: {
+            kind: 'tag',
+            localValue: '1.0.0',
+            remoteValue: '2.0.0',
+        },
+        labels: {
+            'wud.trigger.telegram.telegram1.message_thread_id': '100',
+        },
+    } as any;
+
+    await telegram.trigger(containerWithLabel);
+
+    expect(mockedPost).toHaveBeenCalledWith(
+        'https://api.telegram.org/bottoken/sendMessage',
+        expect.objectContaining({
+            message_thread_id: '100',
+        }),
+        undefined,
+    );
+});
+
+test('trigger should fallback to generic container label for message_thread_id', async () => {
+    telegram.name = 'telegram1';
+    telegram.configuration = {
+        ...configurationValid,
+    };
+
+    const containerWithGenericLabel: Container = {
+        name: 'test-container',
+        updateKind: {
+            kind: 'tag',
+            localValue: '1.0.0',
+            remoteValue: '2.0.0',
+        },
+        labels: {
+            'wud.trigger.telegram.message_thread_id': '200',
+        },
+    } as any;
+
+    await telegram.trigger(containerWithGenericLabel);
+
+    expect(mockedPost).toHaveBeenCalledWith(
+        'https://api.telegram.org/bottoken/sendMessage',
+        expect.objectContaining({
+            message_thread_id: '200',
+        }),
+        undefined,
+    );
+});
+
+test('triggerBatch should pass message_thread_id from configuration', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        messagethreadid: 555,
+    };
+
+    const containers: Container[] = [
+        {
+            name: 'container1',
+            updateKind: { kind: 'tag', localValue: '1', remoteValue: '2' },
+        } as any,
+    ];
+
+    await telegram.triggerBatch(containers);
+
+    expect(mockedPost).toHaveBeenCalledWith(
+        'https://api.telegram.org/bottoken/sendMessage',
+        expect.objectContaining({
+            message_thread_id: 555,
+        }),
+        undefined,
+    );
+});
+
+test('trigger should recognize messagethreadid label without underscores', async () => {
+    telegram.name = 'telegram1';
+    telegram.configuration = {
+        ...configurationValid,
+    };
+
+    const containerWithLabel: Container = {
+        name: 'test-container',
+        updateKind: {
+            kind: 'tag',
+            localValue: '1.0.0',
+            remoteValue: '2.0.0',
+        },
+        labels: {
+            'wud.trigger.telegram.telegram1.messagethreadid': '300',
+        },
+    } as any;
+
+    await telegram.trigger(containerWithLabel);
+
+    expect(mockedPost).toHaveBeenCalledWith(
+        'https://api.telegram.org/bottoken/sendMessage',
+        expect.objectContaining({
+            message_thread_id: '300',
+        }),
+        undefined,
+    );
+});
+
+test('trigger should recognize generic messagethreadid label without underscores', async () => {
+    telegram.name = 'telegram1';
+    telegram.configuration = {
+        ...configurationValid,
+    };
+
+    const containerWithLabel: Container = {
+        name: 'test-container',
+        updateKind: {
+            kind: 'tag',
+            localValue: '1.0.0',
+            remoteValue: '2.0.0',
+        },
+        labels: {
+            'wud.trigger.telegram.messagethreadid': '400',
+        },
+    } as any;
+
+    await telegram.trigger(containerWithLabel);
+
+    expect(mockedPost).toHaveBeenCalledWith(
+        'https://api.telegram.org/bottoken/sendMessage',
+        expect.objectContaining({
+            message_thread_id: '400',
+        }),
+        undefined,
+    );
+});
+
+test('trigger with disabletitle should also include message_thread_id', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        disabletitle: true,
+        messagethreadid: 777,
+    };
+
+    const container: Container = {
+        name: 'test-container',
+        updateKind: {
+            kind: 'tag',
+            localValue: '1.0.0',
+            remoteValue: '2.0.0',
+        },
+    } as any;
+
+    await telegram.trigger(container);
+
+    expect(mockedPost).toHaveBeenCalledWith(
+        'https://api.telegram.org/bottoken/sendMessage',
+        expect.objectContaining({
+            message_thread_id: 777,
+        }),
+        undefined,
+    );
+});
+
+test('triggerBatch with disabletitle should also include message_thread_id from first container label', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        disabletitle: true,
+    };
+
+    const containers: Container[] = [
+        {
+            name: 'container1',
+            updateKind: { kind: 'tag', localValue: '1', remoteValue: '2' },
+            labels: {
+                'wud.trigger.telegram.message_thread_id': '888',
+            },
+        } as any,
+    ];
+
+    await telegram.triggerBatch(containers);
+
+    expect(mockedPost).toHaveBeenCalledWith(
+        'https://api.telegram.org/bottoken/sendMessage',
+        expect.objectContaining({
+            message_thread_id: '888',
+        }),
+        undefined,
     );
 });

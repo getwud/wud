@@ -69,6 +69,7 @@
     "lokijs",
     "lscr",
     "mdx",
+    "messagethreadid",
     "mosquitto",
     "mqtt",
     "mqttjs",

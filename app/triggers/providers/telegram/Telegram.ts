@@ -2,6 +2,7 @@ import axios from 'axios';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { Container } from '../../../model/container';
+import { ComponentConfiguration } from '../../../registry/Component';
 import Trigger from '../Trigger';
 
 function createProxyAgent(proxyUrl: string) {
@@ -37,6 +38,12 @@ class Telegram extends Trigger {
         return this.joi.object().keys({
             bottoken: this.joi.string().required(),
             chatid: this.joi.string().required(),
+            messagethreadid: this.joi
+                .alternatives([
+                    this.joi.number().integer().strict(),
+                    this.joi.string(),
+                ])
+                .optional(),
             disabletitle: this.joi.boolean().default(false),
             messageformat: this.joi
                 .string()
@@ -45,6 +52,33 @@ class Telegram extends Trigger {
                 .default('Markdown'),
             proxy: this.joi.string().uri().optional(),
         });
+    }
+
+    validateConfiguration(
+        configuration: ComponentConfiguration,
+    ): ComponentConfiguration {
+        const normalizedConfig = { ...configuration };
+
+        const threadId =
+            normalizedConfig.messagethreadid ??
+            normalizedConfig.message_thread_id ??
+            normalizedConfig.message?.thread?.id;
+
+        if (threadId !== undefined) {
+            normalizedConfig.messagethreadid = threadId;
+            delete normalizedConfig.message_thread_id;
+            if (normalizedConfig.message?.thread) {
+                delete normalizedConfig.message.thread.id;
+                if (Object.keys(normalizedConfig.message.thread).length === 0) {
+                    delete normalizedConfig.message.thread;
+                }
+                if (Object.keys(normalizedConfig.message).length === 0) {
+                    delete normalizedConfig.message;
+                }
+            }
+        }
+
+        return super.validateConfiguration(normalizedConfig);
     }
 
     maskConfiguration() {
@@ -62,36 +96,80 @@ class Telegram extends Trigger {
             : undefined;
     }
 
+    private getMessageThreadId(
+        container?: Container,
+    ): string | number | undefined {
+        if (container && container.labels) {
+            const specificLabel =
+                container.labels[
+                    `wud.trigger.telegram.${this.name}.message_thread_id`
+                ] ??
+                container.labels[
+                    `wud.trigger.telegram.${this.name}.messagethreadid`
+                ];
+            if (specificLabel !== undefined) {
+                return specificLabel;
+            }
+
+            const genericLabel =
+                container.labels['wud.trigger.telegram.message_thread_id'] ??
+                container.labels['wud.trigger.telegram.messagethreadid'];
+            if (genericLabel !== undefined) {
+                return genericLabel;
+            }
+        }
+        return this.configuration.messagethreadid;
+    }
+
     trigger(container: Container) {
+        const threadId = this.getMessageThreadId(container);
         const body = this.renderSimpleBody(container);
 
         if (this.configuration.disabletitle) {
-            return this.sendMessage(body);
+            return threadId !== undefined
+                ? this.sendMessage(body, threadId)
+                : this.sendMessage(body);
         }
 
         const title = this.renderSimpleTitle(container);
 
-        return this.sendMessage(
-            `${this.bold(title)}\n\n${this.escapeMarkdown(body)}`,
-        );
+        const message = `${this.bold(title)}\n\n${this.escapeMarkdown(body)}`;
+        return threadId !== undefined
+            ? this.sendMessage(message, threadId)
+            : this.sendMessage(message);
     }
 
     triggerBatch(containers: Container[]) {
+        const threadId = this.getMessageThreadId(containers[0]);
         const body = this.renderBatchBody(containers);
         if (this.configuration.disabletitle) {
-            return this.sendMessage(body);
+            return threadId !== undefined
+                ? this.sendMessage(body, threadId)
+                : this.sendMessage(body);
         }
 
         const title = this.renderBatchTitle(containers);
-        return this.sendMessage(`${this.bold(title)}\n\n${body}`);
+        const message = `${this.bold(title)}\n\n${body}`;
+        return threadId !== undefined
+            ? this.sendMessage(message, threadId)
+            : this.sendMessage(message);
     }
 
-    private async sendMessage(text: string) {
-        const message = {
+    private async sendMessage(text: string, threadId?: string | number) {
+        const message: Record<string, any> = {
             chat_id: this.configuration.chatid,
             text,
             parse_mode: this.getParseMode(),
         };
+        const effectiveThreadId =
+            threadId ?? this.configuration.messagethreadid;
+        if (
+            effectiveThreadId !== undefined &&
+            effectiveThreadId !== null &&
+            effectiveThreadId !== ''
+        ) {
+            message.message_thread_id = effectiveThreadId;
+        }
         const requestConfig = this.proxyAgent
             ? {
                   httpAgent: this.proxyAgent as any,
