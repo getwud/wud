@@ -53,6 +53,14 @@ import TabItem from '@theme/TabItem';
   </ConfigOption>
 
   <ConfigOption
+    name="WUD_TRIGGER_TELEGRAM_{trigger_name}_MESSAGE_THREAD_ID"
+    required={false}
+    type="integer | string"
+    supported="Numeric message thread ID (e.g. `42`)">
+    Unique identifier for the target message thread (topic) of the forum supergroup
+  </ConfigOption>
+
+  <ConfigOption
     name="WUD_TRIGGER_TELEGRAM_{trigger_name}_PROXY"
     required={false}
     type="url"
@@ -96,6 +104,46 @@ docker run \
 </TabItem>
 </Tabs>
 
+### Send Notifications to a Topic (Forum Supergroup)
+
+<Tabs>
+<TabItem value="docker-compose" label="Docker Compose">
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    environment:
+      - WUD_TRIGGER_TELEGRAM_LOCAL_BOTTOKEN=123456789:AApFzFLD0g0NVg8l0bZf55ex3sajC4Aw84Q
+      - WUD_TRIGGER_TELEGRAM_LOCAL_CHATID=-1001234567890
+      - WUD_TRIGGER_TELEGRAM_LOCAL_MESSAGE_THREAD_ID=42
+```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+```bash
+docker run \
+  -e WUD_TRIGGER_TELEGRAM_LOCAL_BOTTOKEN="123456789:AApFzFLD0g0NVg8l0bZf55ex3sajC4Aw84Q" \
+  -e WUD_TRIGGER_TELEGRAM_LOCAL_CHATID="-1001234567890" \
+  -e WUD_TRIGGER_TELEGRAM_LOCAL_MESSAGE_THREAD_ID="42" \
+  getwud/wud
+```
+
+</TabItem>
+<TabItem value="container-label" label="Per-Container Override">
+
+```yaml
+services:
+  my-app:
+    image: my-app:1.2.0
+    labels:
+      - wud.trigger.telegram.local.message_thread_id=42
+```
+
+</TabItem>
+</Tabs>
+
 ---
 
 ## 📖 Setup Guide
@@ -111,3 +159,11 @@ docker run \
 1. Send a message to your newly created bot or add it to your target group.
 2. Start a chat with [@userinfobot](https://t.me/userinfobot) or [@GetIDsBot](https://t.me/GetIDsBot) to see your numeric Chat ID.
 3. Set your Chat ID as `WUD_TRIGGER_TELEGRAM_{trigger_name}_CHATID`.
+
+### 3. Find Your Message Thread ID (Topic)
+
+If you are posting to a specific topic within a forum supergroup:
+
+1. In Telegram Desktop, right-click the topic and select **Copy Link to Topic**.
+2. The copied link will be in the format `https://t.me/c/1234567890/42`.
+3. The last number (`42`) is the `MESSAGE_THREAD_ID`.
