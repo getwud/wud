@@ -223,4 +223,77 @@ describe('Container Store (SQLite)', () => {
             semverDiff: 'major',
         });
     });
+
+    test('getContainers should filter by updateAvailable and combined query parameters', () => {
+        const containerWithUpdate = {
+            ...sampleContainer,
+            id: 'c-with-update',
+            name: 'c-with-update',
+            watcher: 'docker-local',
+            updateAvailable: true,
+            result: {
+                tag: '1.1.0',
+            },
+        };
+        const containerNoUpdate = {
+            ...sampleContainer,
+            id: 'c-no-update',
+            name: 'c-no-update',
+            watcher: 'docker-local',
+            updateAvailable: false,
+            result: {
+                tag: '1.0.0',
+            },
+        };
+        const containerOtherWatcherWithUpdate = {
+            ...sampleContainer,
+            id: 'c-other-watcher-with-update',
+            name: 'c-other-watcher-with-update',
+            watcher: 'docker-remote',
+            updateAvailable: true,
+            result: {
+                tag: '2.0.0',
+            },
+        };
+
+        container.insertContainer(containerWithUpdate);
+        container.insertContainer(containerNoUpdate);
+        container.insertContainer(containerOtherWatcherWithUpdate);
+
+        // Filter only updateAvailable: true
+        const withUpdateOnly = container.getContainers({
+            updateAvailable: true,
+        });
+        expect(withUpdateOnly.map((c) => c.id).sort()).toEqual([
+            'c-other-watcher-with-update',
+            'c-with-update',
+        ]);
+
+        // Filter only updateAvailable: false
+        const noUpdateOnly = container.getContainers({
+            updateAvailable: false,
+        });
+        expect(noUpdateOnly.map((c) => c.id)).toEqual(['c-no-update']);
+
+        // Combined filter watcher + updateAvailable: true
+        const combined = container.getContainers({
+            watcher: 'docker-local',
+            updateAvailable: true,
+        });
+        expect(combined.map((c) => c.id)).toEqual(['c-with-update']);
+
+        // Combined filter watcher + updateAvailable: false
+        const combinedNoUpdate = container.getContainers({
+            watcher: 'docker-local',
+            updateAvailable: false,
+        });
+        expect(combinedNoUpdate.map((c) => c.id)).toEqual(['c-no-update']);
+
+        // Non-matching filter
+        const nonMatching = container.getContainers({
+            watcher: 'docker-remote',
+            updateAvailable: false,
+        });
+        expect(nonMatching).toEqual([]);
+    });
 });
