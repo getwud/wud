@@ -674,6 +674,15 @@ components:
                 stack:
                     type: string
                     description: Docker Compose project / stack name
+                delay:
+                    type: string
+                    description: Cool-down duration before update is considered available (e.g. 3d, 24h)
+                isCoolingDown:
+                    type: boolean
+                    description: Whether the update is currently held in cool-down period
+                coolingDownUntil:
+                    type: integer
+                    description: Epoch timestamp (ms) until which the update is held in cool-down
                 includeTags:
                     type: string
                 excludeTags:
