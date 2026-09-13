@@ -214,7 +214,7 @@ async function registerWatchers() {
                 ),
             );
         } else {
-            const knownProviders = ['docker', 'kubernetes'];
+            const knownProviders = ['docker', 'kubernetes', 'nomad'];
 
             watchersToRegister = watchersToRegister.concat(
                 Object.keys(configurations).flatMap((key) => {

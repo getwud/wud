@@ -152,6 +152,11 @@ const sidebars = {
     },
     {
       type: 'doc',
+      id: 'configuration/watchers/nomad/README',
+      label: 'Nomad Watcher',
+    },
+    {
+      type: 'doc',
       id: 'configuration/watchers/labels',
       label: 'Container Labels',
     },

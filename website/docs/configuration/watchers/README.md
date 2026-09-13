@@ -20,6 +20,7 @@ WUD provides dedicated watchers tailored for your infrastructure:
 | :--- | :--- | :--- |
 | 🐳 **Docker** | [**Docker Configuration ↓**](#docker-configuration) | Local sockets, Remote TCP daemons, and Docker Compose stacks. |
 | ☸️ **Kubernetes** | [**Kubernetes Watcher Guide →**](./kubernetes/README.md) | In-cluster RBAC, Deployments, StatefulSets, DaemonSets, CronJobs. |
+| 🎯 **Nomad** | [**Nomad Watcher Guide →**](./nomad/README.md) | HashiCorp Nomad jobs (`service`, `batch`, `system`) and task groups. |
 
 ---
 

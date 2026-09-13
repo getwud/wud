@@ -177,6 +177,30 @@ jobs:
         if: failure()
         run: docker logs wud-k8s || true
 
+  e2e-nomad:
+    name: E2E Nomad Tests
+    needs: [lint, unit-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            app/package-lock.json
+            e2e/package-lock.json
+      - name: Install dependencies
+        run: |
+          (cd app && npm ci)
+          (cd e2e && npm ci)
+      - name: Run Nomad E2E Tests
+        run: ./scripts/run-nomad-e2e-tests.sh
+      - name: Show wud-nomad logs on failure
+        if: failure()
+        run: docker logs wud-nomad || true
+
   ui-e2e-test:
     name: UI E2E Tests
     needs: [lint, unit-test]
