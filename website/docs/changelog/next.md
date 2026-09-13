@@ -19,3 +19,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [WATCHER] Add HashiCorp Nomad watcher provider with full E2E test suite
 - 🚀 [WATCHER] Standardize Kubernetes annotations and Nomad metadata on canonical getwud.app/ prefix with short aliases and unified workload documentation
 - 🚀 [WATCHER] Add Docker Swarm watcher provider with automated E2E test suite
+- 🐛 [REGISTRY] Fix default ecr.public provider matching for public.ecr.aws images (fixes #1251)

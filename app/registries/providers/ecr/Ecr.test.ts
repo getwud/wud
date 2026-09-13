@@ -11,6 +11,7 @@ jest.mock('@aws-sdk/client-ecr', () => {
     };
 });
 
+import axios from 'axios';
 import { Logger } from 'pino';
 import { ContainerImage } from '../../../model/container';
 import { Ecr } from './Ecr';
@@ -50,6 +51,18 @@ test('validatedConfiguration should initialize when configuration is valid', asy
     });
 });
 
+test('validatedConfiguration should validate when public is true without AWS keys', async () => {
+    expect(
+        ecr.validateConfiguration({
+            public: true,
+        }),
+    ).toStrictEqual({
+        public: true,
+        region: 'us-east-1',
+        concurrency: 2,
+    });
+});
+
 test('validatedConfiguration should throw error when accessKey is missing', async () => {
     expect(() => {
         ecr.validateConfiguration({
@@ -68,13 +81,63 @@ test('validatedConfiguration should throw error when secretaccesskey is missing'
     }).toThrow('"secretaccesskey" is required');
 });
 
-test('validatedConfiguration should throw error when secretaccesskey is missing', async () => {
+test('validatedConfiguration should throw error when region is missing', async () => {
     expect(() => {
         ecr.validateConfiguration({
             accesskeyid: 'accesskeyid',
             secretaccesskey: 'secretaccesskey',
         });
     }).toThrow('"region" is required');
+});
+
+test('default public registry instance should initialize public to true and match public.ecr.aws', async () => {
+    const defaultEcr = new Ecr();
+    await defaultEcr.register('registry', 'ecr', 'public', '' as any);
+
+    expect(defaultEcr.configuration.public).toBe(true);
+    expect(defaultEcr.match('public.ecr.aws')).toBe(true);
+    expect(defaultEcr.match('123456789.dkr.ecr.eu-west-1.amazonaws.com')).toBe(
+        false,
+    );
+});
+
+test('public instance with public: true should match public.ecr.aws and not private ECR', async () => {
+    const pubEcr = new Ecr();
+    await pubEcr.register('registry', 'ecr', 'mypub', { public: true });
+
+    expect(pubEcr.configuration.public).toBe(true);
+    expect(pubEcr.match('public.ecr.aws')).toBe(true);
+    expect(pubEcr.match('123456789.dkr.ecr.eu-west-1.amazonaws.com')).toBe(
+        false,
+    );
+});
+
+test('private registry with accesskeyid should match private ECR and not public.ecr.aws unless public is true', async () => {
+    const privEcr = new Ecr();
+    await privEcr.register('registry', 'ecr', 'private', {
+        accesskeyid: 'my-key',
+        secretaccesskey: 'my-secret',
+        region: 'eu-west-1',
+    });
+
+    expect(privEcr.configuration.public).toBe(false);
+    expect(privEcr.match('123456789.dkr.ecr.eu-west-1.amazonaws.com')).toBe(
+        true,
+    );
+    expect(privEcr.match('public.ecr.aws')).toBe(false);
+
+    // If private registry explicitly sets public: true
+    const hybridEcr = new Ecr();
+    await hybridEcr.register('registry', 'ecr', 'hybrid', {
+        accesskeyid: 'my-key',
+        secretaccesskey: 'my-secret',
+        region: 'eu-west-1',
+        public: true,
+    });
+    expect(hybridEcr.match('public.ecr.aws')).toBe(true);
+    expect(hybridEcr.match('123456789.dkr.ecr.eu-west-1.amazonaws.com')).toBe(
+        true,
+    );
 });
 
 test('match should return true when registry url is from ecr', async () => {
@@ -110,7 +173,7 @@ test('normalizeImage should return the proper registry v2 endpoint', async () =>
     });
 });
 
-test('authenticate should call ecr auth endpoint', async () => {
+test('authenticate should call ecr auth endpoint for private images', async () => {
     expect(
         ecr.authenticate(
             {
@@ -125,6 +188,57 @@ test('authenticate should call ecr auth endpoint', async () => {
             Authorization: 'Basic xxxxx',
         },
     });
+});
+
+test('authenticate should use public ecr token endpoint for public.ecr.aws even when private keys are set', async () => {
+    const axiosMock = axios as unknown as jest.MockedFunction<typeof axios>;
+    axiosMock.mockResolvedValueOnce({
+        data: { token: 'public-token-123' },
+    });
+
+    const result = await ecr.authenticate(
+        {
+            name: 'docker/library/traefik',
+            registry: {
+                url: 'https://public.ecr.aws/v2',
+            },
+        } as ContainerImage,
+        { headers: {} },
+    );
+
+    expect(axiosMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+            method: 'GET',
+            url: 'https://public.ecr.aws/token/',
+        }),
+    );
+    expect(result.headers?.Authorization).toBe('Bearer public-token-123');
+});
+
+test('getTagsPage should use proper baseUrl for public and private ecr pagination', async () => {
+    const pubImage = {
+        name: 'docker/library/traefik',
+        registry: {
+            url: 'https://public.ecr.aws/v2',
+        },
+    } as ContainerImage;
+
+    const callRegistrySpy = jest
+        .spyOn(ecr, 'callRegistry')
+        // @ts-ignore
+        .mockResolvedValueOnce({ name: 'traefik', tags: ['v1'] });
+
+    await ecr.getTagsPage(
+        pubImage,
+        undefined,
+        '</v2/docker/library/traefik/tags/list?n=1000&next_token=abc>; rel="next"',
+    );
+
+    expect(callRegistrySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+            url: 'https://public.ecr.aws/v2/docker/library/traefik/tags/list?n=1000&next_token=abc',
+        }),
+    );
 });
 
 test('getAuthPull should call ecr auth endpoint and get token', async () => {

@@ -12,10 +12,14 @@ import TabItem from '@theme/TabItem';
 
 <DocHero
   icon="ecr"
-  badge="🔐 Setup Required"
+  badge="🔐 Setup Required (Private)"
   badgeType="setup"
-  description="The ecr registry module lets you authenticate against private AWS Elastic Container Registry (ECR) repositories."
+  description="The ecr registry module lets you authenticate against private AWS Elastic Container Registry (ECR) repositories and monitor public images from public.ecr.aws."
 />
+
+:::info[Zero-Config for Public Images]
+Public images from `public.ecr.aws` work out of the box with zero configuration via the default `ecr.public` provider. AWS credentials are only required to authenticate against private ECR repositories.
+:::
 
 ---
 
@@ -24,26 +28,27 @@ import TabItem from '@theme/TabItem';
 <ConfigList>
   <ConfigOption
     name="WUD_REGISTRY_ECR_{registry_name}_ACCESSKEYID"
-    required={true}
+    required={false}
     type="string"
     supported="[AWS Access Key ID](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html)">
-    AWS IAM Access Key ID
+    AWS IAM Access Key ID (required for private ECR registries)
   </ConfigOption>
 
   <ConfigOption
     name="WUD_REGISTRY_ECR_{registry_name}_SECRETACCESSKEY"
-    required={true}
+    required={false}
     type="string"
     supported="[AWS Secret Access Key](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html)">
-    AWS IAM Secret Access Key
+    AWS IAM Secret Access Key (required for private ECR registries)
   </ConfigOption>
 
   <ConfigOption
     name="WUD_REGISTRY_ECR_{registry_name}_REGION"
-    required={true}
+    required={false}
     type="string"
+    defaultValue="us-east-1 (when public)"
     supported="[AWS Region Code](https://docs.aws.amazon.com/general/latest/gr/rande.html#regional-endpoints) (e.g. `us-east-1`, `eu-west-1`)">
-    AWS Region Code
+    AWS Region Code (required for private ECR registries, defaults to `us-east-1` when `PUBLIC=true`)
   </ConfigOption>
 
   <ConfigOption
@@ -60,17 +65,21 @@ import TabItem from '@theme/TabItem';
     required={false}
     type="boolean"
     defaultValue="false">
-    Whether the registry is an ECR Public gallery
+    Whether the registry is an ECR Public gallery. When set to `true`, AWS credentials are not required.
   </ConfigOption>
 </ConfigList>
 
-:::warning[Required IAM Policy]
+:::warning[Required IAM Policy for Private Registries]
 Ensure the `AmazonEC2ContainerRegistryReadOnly` policy (or equivalent `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer` permissions) is attached to the IAM user.
 :::
 
 ---
 
 ## 🚀 Examples
+
+### Monitor Public AWS ECR Images (`public.ecr.aws`)
+
+Public images (for example `public.ecr.aws/docker/library/traefik:latest`) work automatically without any configuration.
 
 ### Authenticate with Private AWS ECR
 
