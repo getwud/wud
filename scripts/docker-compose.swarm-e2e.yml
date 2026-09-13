@@ -1,0 +1,39 @@
+services:
+  dind:
+    image: docker:dind
+    container_name: dind-swarm
+    privileged: true
+    environment:
+      - DOCKER_TLS_CERTDIR=""
+    command: dockerd -H unix:///var/run/docker.sock -H tcp://0.0.0.0:2375 --tls=false
+    ports:
+      - "2375:2375"
+    networks:
+      - swarm-net
+
+  wud:
+    build:
+      context: ..
+      args:
+        WUD_VERSION: local
+    image: wud:swarm-test
+    container_name: wud-swarm
+    ports:
+      - "3000:3000"
+    environment:
+      - WUD_LOG_LEVEL=debug
+      - WUD_WATCHER_SWARM_TEST_HOST=dind
+      - WUD_WATCHER_SWARM_TEST_PORT=2375
+      - WUD_WATCHER_SWARM_TEST_CRON=0 * * * *
+      - WUD_WATCHER_SWARM_TEST_WATCHBYDEFAULT=true
+      - WUD_WATCHER_SWARM_TEST_WATCHATSTART=true
+      - WUD_AUTH_BASIC_JOHN_USER=john
+      - WUD_AUTH_BASIC_JOHN_HASH=$$apr1$$8zDVtSAY$$62WBh9DspNbUKMZXYRsjS/
+    depends_on:
+      - dind
+    networks:
+      - swarm-net
+
+networks:
+  swarm-net:
+    driver: bridge

@@ -18,3 +18,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [WATCHER] Add Kubernetes watcher provider for Deployments, StatefulSets, DaemonSets, and CronJobs
 - 🚀 [WATCHER] Add HashiCorp Nomad watcher provider with full E2E test suite
 - 🚀 [WATCHER] Standardize Kubernetes annotations and Nomad metadata on canonical getwud.app/ prefix with short aliases and unified workload documentation
+- 🚀 [WATCHER] Add Docker Swarm watcher provider with automated E2E test suite

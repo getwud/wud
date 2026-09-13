@@ -201,6 +201,30 @@ jobs:
         if: failure()
         run: docker logs wud-nomad || true
 
+  e2e-swarm:
+    name: E2E Swarm Tests
+    needs: [lint, unit-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            app/package-lock.json
+            e2e/package-lock.json
+      - name: Install dependencies
+        run: |
+          (cd app && npm ci)
+          (cd e2e && npm ci)
+      - name: Run Swarm E2E Tests
+        run: ./scripts/run-swarm-e2e-tests.sh
+      - name: Show wud-swarm logs on failure
+        if: failure()
+        run: docker logs wud-swarm || true
+
   ui-e2e-test:
     name: UI E2E Tests
     needs: [lint, unit-test]
@@ -234,7 +258,7 @@ jobs:
 
   publish:
     name: Publish Docker Image
-    needs: [lint, unit-test, e2e-test, e2e-kubernetes, e2e-nomad, ui-e2e-test]
+    needs: [lint, unit-test, e2e-test, e2e-kubernetes, e2e-nomad, e2e-swarm, ui-e2e-test]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:

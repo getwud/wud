@@ -5,14 +5,16 @@
   "main": "index.js",
   "scripts": {
     "lint": "eslint '**/*.js'",
-    "cucumber": "cucumber-js features/**/*.feature --tags 'not @skip and not @kubernetes and not @nomad'",
-    "cucumber:local": "cucumber-js features/**/*.feature --tags 'not @ci-only and not @skip and not @kubernetes and not @nomad'",
+    "cucumber": "cucumber-js features/**/*.feature --tags 'not @skip and not @kubernetes and not @nomad and not @swarm'",
+    "cucumber:local": "cucumber-js features/**/*.feature --tags 'not @ci-only and not @skip and not @kubernetes and not @nomad and not @swarm'",
     "cucumber:kubernetes": "cucumber-js features/kubernetes.feature --tags @kubernetes",
     "cucumber:nomad": "cucumber-js features/nomad.feature --tags @nomad",
+    "cucumber:swarm": "cucumber-js features/swarm.feature --tags @swarm",
     "test:local": "LOCAL_MODE=true dotenvx run -- ../scripts/run-e2e-tests.sh",
     "test:ci": "CI=true dotenvx run -- ../scripts/run-e2e-tests.sh",
     "test:kubernetes": "dotenvx run -- ../scripts/run-k8s-e2e-tests.sh",
-    "test:nomad": "dotenvx run -- ../scripts/run-nomad-e2e-tests.sh"
+    "test:nomad": "dotenvx run -- ../scripts/run-nomad-e2e-tests.sh",
+    "test:swarm": "dotenvx run -- ../scripts/run-swarm-e2e-tests.sh"
   },
   "author": "fmartinou",
   "repository": "getwud/wud",
