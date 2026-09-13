@@ -158,7 +158,7 @@ const sidebars = {
     {
       type: 'doc',
       id: 'configuration/watchers/labels',
-      label: 'Container Labels',
+      label: 'Workload Customization',
     },
     {
       type: 'doc',

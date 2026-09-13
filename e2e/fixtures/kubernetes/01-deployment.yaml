@@ -4,8 +4,8 @@ metadata:
   name: test-deployment
   namespace: default
   annotations:
-    wud.getwud.io/watch: "true"
-    wud.getwud.io/display.icon: "mdi:kubernetes"
+    getwud.app/watch: "true"
+    getwud.app/display.icon: "mdi:kubernetes"
 spec:
   replicas: 1
   selector:

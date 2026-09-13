@@ -13,7 +13,7 @@ job "multi-app" {
       }
 
       meta = {
-        "wud.display.name" = "Nomad Redis"
+        "getwud.app/display.name" = "Nomad Redis"
       }
     }
   }

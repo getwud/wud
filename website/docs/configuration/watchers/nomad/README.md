@@ -150,33 +150,24 @@ WUD must be able to reach the Nomad HTTP API (default port `4646`):
 
 You can customize how WUD treats each Nomad job, task group, or individual task by setting key-value pairs in the `meta { ... }` block in your job file.
 
+### Supported Prefixes
+
+- **Canonical (Recommended)**: `getwud.app/<property>`
+- **Short alias (Nomad-idiomatic)**: `wud.<property>` or `wud/<property>`
+- **Legacy**: `wud.getwud.io/<property>`
+
+:::tip[Fine-tune your workloads]
+Looking for detailed examples, regex filtering, tag transforms, or digest watching?
+Check out the comprehensive [**Container & Workload Customization guide**](../labels.md).
+:::
+
 ### Cascading Priority
 
 Metadata cascades with the following precedence:
 
 `Task.meta` → `TaskGroup.meta` → `Job.meta`
 
-A setting placed on a `job` applies to all its tasks unless overridden by a `group` or `task`.
-
-### Supported Keys
-
-| Metadata Key | Values | Description |
-| :--- | :--- | :--- |
-| `wud.watch` | `true` \| `false` | Enable or disable watching for this task/job |
-| `wud.tag.include` | Regex | Only consider remote tags matching this pattern |
-| `wud.tag.exclude` | Regex | Exclude remote tags matching this pattern |
-| `wud.tag.transform` | Expression | Tag transformation expression |
-| `wud.watch.digest` | `true` \| `false` | Watch image digest for non-semver tags |
-| `wud.display.name` | String | Custom display name in WUD UI |
-| `wud.display.icon` | Iconify ID | Custom icon (defaults to `cib:nomad`) |
-| `wud.link.template` | URL template | Custom clickable link template |
-| `wud.trigger.include` | Comma-separated | Specific triggers to include |
-| `wud.trigger.exclude` | Comma-separated | Specific triggers to exclude |
-| `wud.stack` | String | Stack name (defaults to namespace or job name) |
-
-:::tip[Namespace Prefix Support]
-You can use either `wud.<key>` (idiomatic in Nomad) or `wud.getwud.io/<key>` interchangeably.
-:::
+A setting placed on a `job` applies to all its tasks unless overridden by a `group` or `task`. In job/group metadata, suffixing with `.<task_name>` (e.g. `getwud.app/display.name.redis`) targets a specific task.
 
 ---
 

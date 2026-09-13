@@ -7,6 +7,7 @@ import {
     buildContainerId,
     extractDigestFromImage,
 } from './Nomad';
+import { getMetaValue } from './annotation';
 import * as event from '../../../event';
 import * as storeContainer from '../../../store/container';
 import * as registry from '../../../registry';
@@ -520,5 +521,54 @@ describe('Nomad Watcher - Version Lookup & Watch Cycle', () => {
         expect(event.emitContainerReports).toHaveBeenCalledWith(reports);
         expect(event.emitWatcherStop).toHaveBeenCalledWith(watcher);
         expect(reports).toHaveLength(1);
+    });
+});
+
+describe('Nomad getMetaValue helper', () => {
+    test('resolves canonical getwud.app/ prefix with highest priority', () => {
+        const meta = {
+            'getwud.app/watch': 'true',
+            'wud.watch': 'false',
+        };
+        expect(getMetaValue(meta, 'watch')).toBe('true');
+    });
+
+    test('resolves idiomatic wud. prefix', () => {
+        const meta = {
+            'wud.tag.include': '^1\\.0',
+        };
+        expect(getMetaValue(meta, 'tag.include')).toBe('^1\\.0');
+    });
+
+    test('resolves wud/ slash prefix', () => {
+        const meta = {
+            'wud/display.name': 'App Name',
+        };
+        expect(getMetaValue(meta, 'display.name')).toBe('App Name');
+    });
+
+    test('resolves legacy wud.getwud.io/ prefix', () => {
+        const meta = {
+            'wud.getwud.io/display.icon': 'mdi:docker',
+        };
+        expect(getMetaValue(meta, 'display.icon')).toBe('mdi:docker');
+    });
+
+    test('respects per-task override across prefixes', () => {
+        const meta = {
+            'getwud.app/display.name': 'Global Name',
+            'wud.display.name.task1': 'Task 1 Specific Name',
+        };
+        expect(getMetaValue(meta, 'display.name', undefined, 'task1')).toBe(
+            'Task 1 Specific Name',
+        );
+        expect(getMetaValue(meta, 'display.name', undefined, 'task2')).toBe(
+            'Global Name',
+        );
+    });
+
+    test('returns undefined when meta is undefined or key not present', () => {
+        expect(getMetaValue(undefined, 'watch')).toBeUndefined();
+        expect(getMetaValue({}, 'watch')).toBeUndefined();
     });
 });

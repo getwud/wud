@@ -146,33 +146,30 @@ subjects:
 
 ---
 
-## Workload Annotations
+## Workload Customization & Annotations
 
-WUD supports annotations on Kubernetes workloads to fine-tune update discovery, filtering, and notifications:
+WUD supports annotations on Kubernetes workloads to fine-tune update discovery, filtering, and notifications.
 
-| Annotation | Description | Example |
-| --- | --- | --- |
-| `wud.getwud.io/watch` | Opt-in or opt-out | `"true"` / `"false"` |
-| `wud.getwud.io/tag.include` | Regex to include tags | `"^1\\.27\\..*"` |
-| `wud.getwud.io/tag.exclude` | Regex to exclude tags | `".*-alpine"` |
-| `wud.getwud.io/tag.transform` | Tag transform expression | `"s/^v//"` |
-| `wud.getwud.io/watch.digest` | Watch image digest | `"true"` |
-| `wud.getwud.io/link.template` | Link template | `` "`https://hub.docker.com/r/library/nginx/tags?name=${tag}`" `` |
-| `wud.getwud.io/display.name` | Friendly display name | `"My Nginx"` |
-| `wud.getwud.io/display.icon` | Iconify icon | `"mdi:kubernetes"` |
-| `wud.getwud.io/trigger.include` | Trigger include filter | `"slack.*"` |
-| `wud.getwud.io/trigger.exclude` | Trigger exclude filter | `"email"` |
-| `wud.getwud.io/stack` | Stack/group name (default: namespace) | `"frontend"` |
+### Supported Prefixes
 
-### Per-container annotations (multi-container pods)
+- **Canonical (Recommended)**: `getwud.app/<property>`
+- **Short alias**: `wud/<property>`
+- **Legacy**: `wud.getwud.io/<property>`
 
-Suffix annotations with the container name to target a specific container within a pod:
+:::tip[Fine-tune your workloads]
+Looking for detailed examples, regex filtering, tag transforms, or digest watching?
+Check out the comprehensive [**Container & Workload Customization guide**](../labels.md).
+:::
+
+### Multi-Container Pods
+
+Suffix any annotation with `.<container_name>` to target a specific container within a multi-container pod:
 
 ```yaml
 annotations:
-  wud.getwud.io/display.name.nginx: "My Nginx"
-  wud.getwud.io/display.name.sidecar: "My Sidecar"
-  wud.getwud.io/watch.digest.nginx: "true"
+  getwud.app/display.name.nginx: "My Nginx"
+  getwud.app/display.name.sidecar: "My Sidecar"
+  getwud.app/watch.digest.nginx: "true"
 ```
 
 ---
@@ -205,10 +202,10 @@ metadata:
   name: my-nginx
   namespace: production
   annotations:
-    wud.getwud.io/watch: "true"
-    wud.getwud.io/tag.include: "^1\\.27\\..*"
-    wud.getwud.io/display.name: "My Nginx"
-    wud.getwud.io/display.icon: "mdi:nginx"
+    getwud.app/watch: "true"
+    getwud.app/tag.include: "^1\\.27\\..*"
+    getwud.app/display.name: "My Nginx"
+    getwud.app/display.icon: "mdi:nginx"
 spec:
   selector:
     matchLabels:

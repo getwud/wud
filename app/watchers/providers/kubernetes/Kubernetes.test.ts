@@ -22,6 +22,7 @@ import {
     extractDigestFromImageID,
     buildContainerId,
 } from './Kubernetes';
+import { getAnnotationValue } from './annotation';
 import * as event from '../../../event';
 import * as storeContainer from '../../../store/container';
 import * as registry from '../../../registry';
@@ -572,6 +573,74 @@ describe('Kubernetes Watcher', () => {
             );
             expect(nginxContainer.includeTags).toBe('^1\\.27');
             expect(sidecarContainer.displayName).toBe('My Custom Sidecar');
+        });
+
+        test('supports canonical getwud.app/ and short wud/ annotation prefixes', async () => {
+            const deployment = makeDeployment({
+                metadata: {
+                    name: 'prefix-test',
+                    namespace: 'default',
+                    annotations: {
+                        'getwud.app/display.name': 'Canonical Name',
+                        'wud/tag.include': '^2\\.',
+                    },
+                },
+            });
+            mockAppsV1Api.listDeploymentForAllNamespaces.mockResolvedValue({
+                items: [deployment],
+            });
+            const containers = await kubernetes.getContainers();
+            expect(containers).toHaveLength(1);
+            expect(containers[0].displayName).toBe('Canonical Name');
+            expect(containers[0].includeTags).toBe('^2\\.');
+        });
+    });
+
+    describe('getAnnotationValue helper', () => {
+        test('resolves canonical getwud.app/ prefix with highest priority', () => {
+            const annotations = {
+                'getwud.app/watch': 'true',
+                'wud/watch': 'false',
+                'wud.getwud.io/watch': 'false',
+            };
+            expect(getAnnotationValue(annotations, 'watch')).toBe('true');
+        });
+
+        test('resolves short wud/ prefix when canonical is not set', () => {
+            const annotations = {
+                'wud/tag.include': '^1\\.0',
+                'wud.getwud.io/tag.include': '^0\\.9',
+            };
+            expect(getAnnotationValue(annotations, 'tag.include')).toBe(
+                '^1\\.0',
+            );
+        });
+
+        test('resolves legacy wud.getwud.io/ prefix as fallback', () => {
+            const annotations = {
+                'wud.getwud.io/display.name': 'Legacy Name',
+            };
+            expect(getAnnotationValue(annotations, 'display.name')).toBe(
+                'Legacy Name',
+            );
+        });
+
+        test('respects per-container override across prefixes', () => {
+            const annotations = {
+                'getwud.app/display.name': 'Default App',
+                'wud/display.name.worker': 'Worker App',
+            };
+            expect(
+                getAnnotationValue(annotations, 'display.name', 'worker'),
+            ).toBe('Worker App');
+            expect(getAnnotationValue(annotations, 'display.name', 'web')).toBe(
+                'Default App',
+            );
+        });
+
+        test('returns undefined when no annotations or key not found', () => {
+            expect(getAnnotationValue(undefined, 'watch')).toBeUndefined();
+            expect(getAnnotationValue({}, 'watch')).toBeUndefined();
         });
     });
 

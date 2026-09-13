@@ -17,17 +17,18 @@ import {
 } from '../../../tag';
 import * as event from '../../../event';
 import {
-    wudWatch,
-    wudTagInclude,
-    wudTagExclude,
-    wudTagTransform,
-    wudWatchDigest,
-    wudLinkTemplate,
-    wudDisplayName,
-    wudDisplayIcon,
-    wudTriggerInclude,
-    wudTriggerExclude,
-    wudStack,
+    getAnnotationValue,
+    KEY_WATCH,
+    KEY_TAG_INCLUDE,
+    KEY_TAG_EXCLUDE,
+    KEY_TAG_TRANSFORM,
+    KEY_WATCH_DIGEST,
+    KEY_LINK_TEMPLATE,
+    KEY_DISPLAY_NAME,
+    KEY_DISPLAY_ICON,
+    KEY_TRIGGER_INCLUDE,
+    KEY_TRIGGER_EXCLUDE,
+    KEY_STACK,
 } from './annotation';
 import * as storeContainer from '../../../store/container';
 import {
@@ -396,7 +397,7 @@ export class Kubernetes extends Watcher {
 
         const filtered = workloads.filter((w) =>
             isWorkloadToWatch(
-                w.annotations[wudWatch],
+                getAnnotationValue(w.annotations, KEY_WATCH),
                 this.configuration.watchbydefault,
             ),
         );
@@ -662,19 +663,19 @@ export class Kubernetes extends Watcher {
     ): Promise<Container> {
         const annotations = workload.annotations;
 
-        // Annotation helpers (per-container suffix or workload-level)
-        const getAnnotation = (base: string): string | undefined =>
-            annotations[`${base}.${containerSpec.name}`] ?? annotations[base];
+        // Annotation helpers (per-container suffix or workload-level across all prefixes)
+        const getAnnotation = (key: string): string | undefined =>
+            getAnnotationValue(annotations, key, containerSpec.name);
 
-        const includeTags = getAnnotation(wudTagInclude);
-        const excludeTags = getAnnotation(wudTagExclude);
-        const transformTags = getAnnotation(wudTagTransform);
-        const linkTemplate = getAnnotation(wudLinkTemplate);
-        const displayName = getAnnotation(wudDisplayName);
-        const displayIcon = getAnnotation(wudDisplayIcon);
-        const triggerInclude = getAnnotation(wudTriggerInclude);
-        const triggerExclude = getAnnotation(wudTriggerExclude);
-        const stack = annotations[wudStack] ?? workload.namespace;
+        const includeTags = getAnnotation(KEY_TAG_INCLUDE);
+        const excludeTags = getAnnotation(KEY_TAG_EXCLUDE);
+        const transformTags = getAnnotation(KEY_TAG_TRANSFORM);
+        const linkTemplate = getAnnotation(KEY_LINK_TEMPLATE);
+        const displayName = getAnnotation(KEY_DISPLAY_NAME);
+        const displayIcon = getAnnotation(KEY_DISPLAY_ICON);
+        const triggerInclude = getAnnotation(KEY_TRIGGER_INCLUDE);
+        const triggerExclude = getAnnotation(KEY_TRIGGER_EXCLUDE);
+        const stack = getAnnotation(KEY_STACK) ?? workload.namespace;
 
         const containerId = buildContainerId(
             workload.namespace,
@@ -712,7 +713,7 @@ export class Kubernetes extends Watcher {
         const isSemver = parsedTag !== null && parsedTag !== undefined;
 
         // Determine digest watching
-        const watchDigestAnnotation = getAnnotation(wudWatchDigest);
+        const watchDigestAnnotation = getAnnotation(KEY_WATCH_DIGEST);
         let watchDigest = false;
         if (!isSemver) {
             if (watchDigestAnnotation !== undefined) {
@@ -788,7 +789,11 @@ export class Kubernetes extends Watcher {
         const watchDigest =
             !container.image.tag.semver &&
             registryProvider.shouldWatchDigest(
-                container.labels?.[wudWatchDigest],
+                getAnnotationValue(
+                    container.labels,
+                    KEY_WATCH_DIGEST,
+                    container.name,
+                ),
                 container.image.name,
                 this.configuration.watchdigestdefault,
             );
@@ -796,7 +801,7 @@ export class Kubernetes extends Watcher {
         if (!container.image.tag.semver && !watchDigest) {
             this.log.warn(
                 `Image ${container.image.name} is not semver and digest watching is disabled. ` +
-                    `Configure wud.getwud.io/watch.digest=true on the workload or set watchdigestdefault.`,
+                    `Configure getwud.app/watch.digest=true on the workload or set watchdigestdefault.`,
             );
         }
 
