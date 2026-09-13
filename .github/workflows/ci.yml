@@ -234,7 +234,7 @@ jobs:
 
   publish:
     name: Publish Docker Image
-    needs: [lint, unit-test, e2e-test, e2e-kubernetes, ui-e2e-test]
+    needs: [lint, unit-test, e2e-test, e2e-kubernetes, e2e-nomad, ui-e2e-test]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
