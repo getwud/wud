@@ -19,13 +19,32 @@ export interface EcrConfiguration {
  * Elastic Container Registry integration.
  */
 export class Ecr extends DockerRegistryV2 {
+    async init() {
+        if (this.configuration.public === undefined) {
+            this.configuration.public =
+                this.name === 'public' || !this.configuration.accesskeyid;
+        }
+    }
+
     getConfigurationSchema(): joi.AlternativesSchema | joi.ObjectSchema {
         return this.joi.alternatives(
             this.joi.string().allow(''),
             this.joi.object<EcrConfiguration>().keys({
-                accesskeyid: this.joi.string().required(),
-                secretaccesskey: this.joi.string().required(),
-                region: this.joi.string().required(),
+                accesskeyid: this.joi.string().when('public', {
+                    is: true,
+                    then: this.joi.optional(),
+                    otherwise: this.joi.required(),
+                }),
+                secretaccesskey: this.joi.string().when('public', {
+                    is: true,
+                    then: this.joi.optional(),
+                    otherwise: this.joi.required(),
+                }),
+                region: this.joi.string().when('public', {
+                    is: true,
+                    then: this.joi.optional().default('us-east-1'),
+                    otherwise: this.joi.required(),
+                }),
                 accountid: this.joi.string().optional(),
                 public: this.joi.boolean().optional().default(false),
             }),
@@ -38,12 +57,19 @@ export class Ecr extends DockerRegistryV2 {
     match(imageUrl: string) {
         this.log.debug(`Matching image registry URL: ${imageUrl}`);
 
-        // Check if the image registry URL matches ECR or ECR Public Gallery
+        // Check if the image registry URL matches ECR Public Gallery
         if (
-            this.configuration.public &&
+            (this.configuration.public ||
+                this.name === 'public' ||
+                !this.configuration.accesskeyid) &&
             imageUrl === ECR_PUBLIC_GALLERY_HOSTNAME
         ) {
             return true;
+        }
+
+        // Public-only registry (without credentials) does not match private ECR URLs
+        if (!this.configuration.accesskeyid) {
+            return false;
         }
 
         // If account ID is provided, check if the image registry URL matches the account ID
@@ -67,9 +93,23 @@ export class Ecr extends DockerRegistryV2 {
         requestOptions: AxiosRequestConfig,
     ) {
         const requestOptionsWithAuth = requestOptions;
-        // Private registry
-        if (this.configuration.accesskeyid) {
+        // Public ECR gallery in priority
+        if (image.registry.url.includes(ECR_PUBLIC_GALLERY_HOSTNAME)) {
+            const response = await axios({
+                method: 'GET',
+                url: 'https://public.ecr.aws/token/',
+                headers: {
+                    Accept: 'application/json',
+                },
+            });
+            requestOptionsWithAuth.headers =
+                requestOptionsWithAuth.headers || {};
+            requestOptionsWithAuth.headers.Authorization = `Bearer ${response.data.token}`;
+            // Private registry
+        } else if (this.configuration.accesskeyid) {
             if (this.tokenCache && this.tokenCache.expiresAt > new Date()) {
+                requestOptionsWithAuth.headers =
+                    requestOptionsWithAuth.headers || {};
                 requestOptionsWithAuth.headers.Authorization = `Basic ${this.tokenCache.token}`;
             } else {
                 const ecr = new ECRClient({
@@ -93,18 +133,10 @@ export class Ecr extends DockerRegistryV2 {
                     ),
                 };
 
+                requestOptionsWithAuth.headers =
+                    requestOptionsWithAuth.headers || {};
                 requestOptionsWithAuth.headers.Authorization = `Basic ${tokenValue}`;
             }
-            // Public ECR gallery
-        } else if (image.registry.url.includes(ECR_PUBLIC_GALLERY_HOSTNAME)) {
-            const response = await axios({
-                method: 'GET',
-                url: 'https://public.ecr.aws/token/',
-                headers: {
-                    Accept: 'application/json',
-                },
-            });
-            requestOptionsWithAuth.headers.Authorization = `Bearer ${response.data.token}`;
         }
         return requestOptionsWithAuth;
     }
@@ -115,12 +147,19 @@ export class Ecr extends DockerRegistryV2 {
         link: string | undefined = undefined,
     ) {
         const itemsPerPage = 1000;
+        const baseUrl = image.registry.url.includes(ECR_PUBLIC_GALLERY_HOSTNAME)
+            ? 'https://public.ecr.aws'
+            : image.registry.url.replace(/\/v2$/, '');
+
         if (link) {
             const linkUrl = link.match(/<(.+?)>/);
             if (linkUrl) {
+                const targetUrl = linkUrl[1].startsWith('http')
+                    ? linkUrl[1]
+                    : `${baseUrl}${linkUrl[1]}`;
                 return this.callRegistry<RegistryTagsList>({
                     image,
-                    url: `https://public.ecr.aws${linkUrl[1]}`,
+                    url: targetUrl,
                     resolveWithFullResponse: true,
                 });
             }
