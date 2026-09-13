@@ -4,7 +4,7 @@
 
 # What's Up Docker? (WUD)
 
-### *Keep your Docker containers up-to-date, automatically and effortlessly.*
+### *Keep your containers up-to-date across any orchestrator, automatically and effortlessly.*
 
 [![Docker Pulls](https://img.shields.io/docker/pulls/getwud/wud?style=flat-square&logo=docker&logoColor=white&color=2496ED)](https://hub.docker.com/r/getwud/wud)
 [![GitHub Stars](https://img.shields.io/github/stars/getwud/wud?style=flat-square&logo=github&color=FFB800)](https://github.com/getwud/wud/stargazers)
@@ -14,6 +14,12 @@
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub-ea4aaa?style=flat-square&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/fmartinou)
 [![Buy Me A Coffee](https://img.shields.io/badge/Donate-Buy%20Me%20A%20Coffee-orange?style=flat-square&logo=buy-me-a-coffee)](https://www.buymeacoffee.com/61rUNMm)
 [![Donate PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=flat-square&logo=paypal&logoColor=white)](https://www.paypal.com/donate/?business=ZSDMEC3ZE8DQ8&no_recurring=0&currency_code=EUR)
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Orchestrators-Docker-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker" />
+  <img src="https://img.shields.io/badge/Orchestrators-Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white" alt="Kubernetes" />
+  <img src="https://img.shields.io/badge/Orchestrators-Docker%20Compose-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker Compose" />
+</p>
 
 <p align="center">
   <a href="https://getwud.app/"><b>📖 Documentation</b></a> •
@@ -39,7 +45,7 @@
 
 ```mermaid
 flowchart LR
-    W["🔍 <b>WATCHERS</b><br/>Discover running containers<br/><i>Local/Remote Docker, Compose, Nomad</i>"]
+    W["🔍 <b>WATCHERS</b><br/>Discover running containers<br/><i>Docker, Kubernetes, Compose, Nomad...</i>"]
     WUD{{"⚡ <b>WUD ENGINE</b><br/>Compare versions &amp; digests"}}
     R["📦 <b>REGISTRIES</b><br/>Inspect tags &amp; manifests<br/><i>Docker Hub, GHCR, Private OCI</i>"]
     T["🚀 <b>TRIGGERS</b><br/>Notify &amp; Auto-Update<br/><i>Discord, Slack, Compose, MQTT</i>"]
@@ -53,8 +59,8 @@ flowchart LR
 
 ## ✨ Features
 
-- 🔍 **Multi-Watcher Engine**  
-  Monitor local Docker daemons, remote Docker engines over TLS, Docker Compose setups, or HashiCorp Nomad workloads.
+- 🔍 **Multi-Orchestrator Engine**  
+  Monitor standalone Docker daemons, remote Docker engines over TLS, Docker Compose setups, or native **Kubernetes clusters** (Deployments, StatefulSets, DaemonSets, CronJobs).
 - 📦 **Multi-Registry Integration**  
   Zero-config & authenticated support for **Docker Hub**, **GitHub Container Registry (GHCR)**, **AWS ECR**, **Google GCR/GAR**, **Azure ACR**, **Quay**, **GitLab**, **Gitea**, **Forgejo**, **Codeberg**, **LinuxServer (LSCR)**, and any custom/self-hosted OCI registry.
 - 🔔 **30+ Notification & Automation Triggers**  
@@ -109,6 +115,12 @@ services:
 
 ## 🧩 Supported Integrations
 
+### 🔍 Watchers & Orchestrators
+| Environment | Supported Workloads | Configuration Guide |
+| :--- | :--- | :---: |
+| [**Docker**](https://getwud.app/docs/configuration/watchers/) | Local socket, Remote TCP over TLS, Docker Compose | Built-in (Active by default) |
+| [**Kubernetes**](https://getwud.app/docs/configuration/watchers/kubernetes/) | Deployments, StatefulSets, DaemonSets, CronJobs | In-cluster RBAC / Kubeconfig |
+
 ### 📦 Registries
 | Registry | Description | Authentication |
 | :--- | :--- | :---: |
@@ -133,9 +145,11 @@ services:
 
 ---
 
-## 🏷️ Configuration via Docker Labels
+## 🏷️ Configuration via Labels & Annotations
 
-WUD can be configured globally through environment variables or granularly per container using Docker labels:
+WUD can be configured globally through environment variables or granularly per container/workload using Docker labels or Kubernetes annotations:
+
+### Docker & Compose (Labels)
 
 ```yaml
 services:
@@ -151,6 +165,26 @@ services:
       
       # Automatically recreate this container when an update is available
       - "wud.trigger.docker.myupdater.enabled=true"
+```
+
+### Kubernetes (Annotations)
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+  namespace: default
+  annotations:
+    # Explicitly watch this workload
+    wud.getwud.io/watch: "true"
+    
+    # Only consider semver minor and patch updates
+    wud.getwud.io/tag.include: "^1\\.\\d+\\.\\d+$"
+    wud.getwud.io/tag.transform: "^v(.*)$ => $1"
+    
+    # Custom display icon in WUD UI
+    wud.getwud.io/display.icon: "mdi:kubernetes"
 ```
 
 Explore all configuration options in the [Configuration Hub](https://getwud.app/docs/configuration/).

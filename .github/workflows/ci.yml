@@ -153,6 +153,30 @@ jobs:
         if: failure()
         run: docker logs wud || true
 
+  e2e-kubernetes:
+    name: E2E Kubernetes Tests
+    needs: [lint, unit-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            app/package-lock.json
+            e2e/package-lock.json
+      - name: Install dependencies
+        run: |
+          (cd app && npm ci)
+          (cd e2e && npm ci)
+      - name: Run Kubernetes E2E Tests
+        run: ./scripts/run-k8s-e2e-tests.sh
+      - name: Show wud-k8s logs on failure
+        if: failure()
+        run: docker logs wud-k8s || true
+
   ui-e2e-test:
     name: UI E2E Tests
     needs: [lint, unit-test]
@@ -186,7 +210,7 @@ jobs:
 
   publish:
     name: Publish Docker Image
-    needs: [lint, unit-test, e2e-test, ui-e2e-test]
+    needs: [lint, unit-test, e2e-test, e2e-kubernetes, ui-e2e-test]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:

@@ -15,3 +15,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [TRIGGER] Add ondigest configuration option to filter out digest updates (fixes #756)
 - 🚀 [UI] Add snooze functionality to temporarily or indefinitely ignore container updates (fixes #702)
 - 🚀 [WATCHER] Add update delay / cool-down period before triggering updates (fixes #507)
+- 🚀 [WATCHER] Add Kubernetes watcher provider for Deployments, StatefulSets, DaemonSets, and CronJobs

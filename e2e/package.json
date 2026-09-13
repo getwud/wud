@@ -5,10 +5,12 @@
   "main": "index.js",
   "scripts": {
     "lint": "eslint '**/*.js'",
-    "cucumber": "cucumber-js **/*.feature",
-    "cucumber:local": "cucumber-js **/*.feature --tags 'not @ci-only'",
+    "cucumber": "cucumber-js features/**/*.feature --tags 'not @skip and not @kubernetes'",
+    "cucumber:local": "cucumber-js features/**/*.feature --tags 'not @ci-only and not @skip and not @kubernetes'",
+    "cucumber:kubernetes": "cucumber-js features/kubernetes.feature --tags @kubernetes",
     "test:local": "LOCAL_MODE=true dotenvx run -- ../scripts/run-e2e-tests.sh",
-    "test:ci": "CI=true dotenvx run -- ../scripts/run-e2e-tests.sh"
+    "test:ci": "CI=true dotenvx run -- ../scripts/run-e2e-tests.sh",
+    "test:kubernetes": "dotenvx run -- ../scripts/run-k8s-e2e-tests.sh"
   },
   "author": "fmartinou",
   "repository": "getwud/wud",

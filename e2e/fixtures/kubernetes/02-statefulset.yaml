@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: test-statefulset
+  namespace: default
+  annotations:
+    wud.getwud.io/watch: "true"
+spec:
+  serviceName: "test-statefulset"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-statefulset
+  template:
+    metadata:
+      labels:
+        app: test-statefulset
+    spec:
+      containers:
+        - name: stateful-app
+          image: alpine:3.20
+          command: ["sleep", "3600"]

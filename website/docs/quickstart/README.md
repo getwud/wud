@@ -62,6 +62,10 @@ It's time to [**configure your triggers**](../configuration/triggers/README.md)!
 Check out the [**watcher documentation**](../configuration/watchers/README.md)!
 :::
 
+:::tip[Running in Kubernetes?]
+WUD can be deployed natively in your Kubernetes cluster to watch Deployments, StatefulSets, DaemonSets, and CronJobs. Check out the [**Kubernetes Watcher Guide**](../configuration/watchers/kubernetes/README.md) for RBAC manifests and setup instructions.
+:::
+
 :::info[Need to integrate other registries (ECR, GCR, GitLab...)?]
 Check out the [**registry documentation**](../configuration/registries/README.md).
 :::

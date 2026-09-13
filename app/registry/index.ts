@@ -214,16 +214,54 @@ async function registerWatchers() {
                 ),
             );
         } else {
+            const knownProviders = ['docker', 'kubernetes'];
+
             watchersToRegister = watchersToRegister.concat(
-                Object.keys(configurations).map((watcherKey) => {
-                    const watcherKeyNormalize = watcherKey.toLowerCase();
-                    return registerComponent(
-                        'watcher',
-                        'docker',
-                        watcherKeyNormalize,
-                        configurations[watcherKeyNormalize],
-                        '../watchers/providers',
-                    );
+                Object.keys(configurations).flatMap((key) => {
+                    const keyNormalized = key.toLowerCase();
+
+                    if (knownProviders.includes(keyNormalized)) {
+                        // New format: WUD_WATCHER_KUBERNETES_MYCLUSTER_* or WUD_WATCHER_DOCKER_LOCAL_*
+                        // First-level key is the provider, second level is the watcher name
+                        const providerConfigurations =
+                            configurations[keyNormalized];
+                        if (
+                            !providerConfigurations ||
+                            typeof providerConfigurations !== 'object'
+                        ) {
+                            return [];
+                        }
+                        return Object.keys(providerConfigurations).map(
+                            (watcherName) => {
+                                const watcherNameNormalized =
+                                    watcherName.toLowerCase();
+                                log.info(
+                                    `Register watcher: provider=${keyNormalized}, name=${watcherNameNormalized}`,
+                                );
+                                return registerComponent(
+                                    'watcher',
+                                    keyNormalized,
+                                    watcherNameNormalized,
+                                    providerConfigurations[watcherName],
+                                    '../watchers/providers',
+                                );
+                            },
+                        );
+                    } else {
+                        // Legacy format: WUD_WATCHER_LOCAL_* → assumed to be a Docker watcher
+                        log.info(
+                            `Register watcher (legacy format): provider=docker, name=${keyNormalized}`,
+                        );
+                        return [
+                            registerComponent(
+                                'watcher',
+                                'docker',
+                                keyNormalized,
+                                configurations[key],
+                                '../watchers/providers',
+                            ),
+                        ];
+                    }
                 }),
             );
         }

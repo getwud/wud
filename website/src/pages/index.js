@@ -10,9 +10,9 @@ import styles from './index.module.css';
 const FEATURES = [
   {
     icon: 'mdi-update',
-    title: 'Multi-Watcher Engine',
+    title: 'Multi-Orchestrator Engine',
     description:
-      'Monitor local Docker daemons, remote Docker engines over TLS, Docker Compose setups, Kubernetes, or Nomad orchestrators seamlessly.',
+      'Native watchers for standalone Docker daemons, Docker Compose setups, and Kubernetes clusters (Deployments, StatefulSets, DaemonSets, CronJobs).',
   },
   {
     icon: 'mdi-database-search',
@@ -74,12 +74,11 @@ function HeroBanner() {
         </Heading>
 
         <p className={styles.tagline}>
-          Keep your containers up-to-date!
+          Keep your containers up-to-date across any orchestrator!
         </p>
 
         <p className={styles.heroDescription}>
-          WUD is a lightweight, open-source tool that continuously monitors your containers,
-          discovers image updates across all registries, and notifies you or triggers updates automatically.
+          WUD is a lightweight, open-source tool that continuously monitors your containers across Docker, Kubernetes, and beyond, discovers image updates across all registries, and notifies you or triggers updates automatically.
         </p>
 
         <div className={styles.buttonsContainer}>

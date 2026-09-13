@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-deployment
+  namespace: default
+  annotations:
+    wud.getwud.io/watch: "true"
+    wud.getwud.io/display.icon: "mdi:kubernetes"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-deployment
+  template:
+    metadata:
+      labels:
+        app: test-deployment
+    spec:
+      containers:
+        - name: app
+          image: alpine:3.20
+          command: ["sleep", "3600"]

@@ -39,6 +39,7 @@ function buildContainerFromRows(
         link: containerRow.link ?? undefined,
         triggerInclude: containerRow.triggerInclude ?? undefined,
         triggerExclude: containerRow.triggerExclude ?? undefined,
+        labels: containerRow.labels ?? undefined,
         snoozedVersion: containerRow.snoozedVersion ?? undefined,
         snoozedUntil: containerRow.snoozedUntil ?? undefined,
         delay: containerRow.delay ?? undefined,
