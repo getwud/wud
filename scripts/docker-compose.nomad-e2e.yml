@@ -1,0 +1,38 @@
+services:
+  nomad:
+    image: hashicorp/nomad:latest
+    container_name: nomad-server
+    command: agent -server -bind 0.0.0.0 -data-dir /tmp/nomad -bootstrap-expect 1
+    environment:
+      - NOMAD_SKIP_DOCKER_IMAGE_WARN=1
+    ports:
+      - "4646:4646"
+    networks:
+      - nomad-net
+
+  wud:
+    build:
+      context: ..
+      args:
+        WUD_VERSION: local
+    image: wud:nomad-test
+    container_name: wud-nomad
+    ports:
+      - "3000:3000"
+    environment:
+      - WUD_LOG_LEVEL=debug
+      - WUD_WATCHER_NOMAD_TEST_URL=http://nomad:4646
+      - WUD_WATCHER_NOMAD_TEST_NAMESPACE=*
+      - WUD_WATCHER_NOMAD_TEST_CRON=0 * * * *
+      - WUD_WATCHER_NOMAD_TEST_WATCHBYDEFAULT=true
+      - WUD_WATCHER_NOMAD_TEST_WATCHATSTART=true
+      - WUD_AUTH_BASIC_JOHN_USER=john
+      - WUD_AUTH_BASIC_JOHN_HASH=$$apr1$$8zDVtSAY$$62WBh9DspNbUKMZXYRsjS/
+    depends_on:
+      - nomad
+    networks:
+      - nomad-net
+
+networks:
+  nomad-net:
+    driver: bridge

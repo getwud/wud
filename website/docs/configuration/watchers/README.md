@@ -20,6 +20,7 @@ WUD provides dedicated watchers tailored for your infrastructure:
 | :--- | :--- | :--- |
 | 🐳 **Docker** | [**Docker Configuration ↓**](#docker-configuration) | Local sockets, Remote TCP daemons, and Docker Compose stacks. |
 | ☸️ **Kubernetes** | [**Kubernetes Watcher Guide →**](./kubernetes/README.md) | In-cluster RBAC, Deployments, StatefulSets, DaemonSets, CronJobs. |
+| 🎯 **Nomad** | [**Nomad Watcher Guide →**](./nomad/README.md) | HashiCorp Nomad jobs (`service`, `batch`, `system`) and task groups. |
 
 ---
 
@@ -29,8 +30,8 @@ WUD provides dedicated watchers tailored for your infrastructure:
 If no watcher is explicitly configured, a default watcher named `local` is automatically created, monitoring `/var/run/docker.sock`.
 :::
 
-:::tip[Per-Container Configuration]
-To customize how WUD monitors specific containers (opt-in/opt-out, tag filtering, semver transforms, custom display names, or trigger routing), see the [**Container Labels**](labels.md) documentation.
+:::tip[Per-Workload Configuration]
+To customize how WUD monitors specific containers or workloads (opt-in/opt-out, tag filtering, semver transforms, custom display names, or trigger routing), see the comprehensive [**Workload Customization guide**](labels.md).
 :::
 
 ### Configuration Options

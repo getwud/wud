@@ -18,6 +18,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Orchestrators-Docker-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker" />
   <img src="https://img.shields.io/badge/Orchestrators-Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white" alt="Kubernetes" />
+  <img src="https://img.shields.io/badge/Orchestrators-Nomad-00CA8E?style=flat-square&logo=nomad&logoColor=white" alt="Nomad" />
   <img src="https://img.shields.io/badge/Orchestrators-Docker%20Compose-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker Compose" />
 </p>
 
@@ -120,6 +121,7 @@ services:
 | :--- | :--- | :---: |
 | [**Docker**](https://getwud.app/docs/configuration/watchers/) | Local socket, Remote TCP over TLS, Docker Compose | Built-in (Active by default) |
 | [**Kubernetes**](https://getwud.app/docs/configuration/watchers/kubernetes/) | Deployments, StatefulSets, DaemonSets, CronJobs | In-cluster RBAC / Kubeconfig |
+| [**Nomad**](https://getwud.app/docs/configuration/watchers/nomad/) | Jobs (`service`, `batch`, `system`), Task Groups | HTTP API / ACL Token |
 
 ### 📦 Registries
 | Registry | Description | Authentication |

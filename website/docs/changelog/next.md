@@ -16,3 +16,5 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [UI] Add snooze functionality to temporarily or indefinitely ignore container updates (fixes #702)
 - 🚀 [WATCHER] Add update delay / cool-down period before triggering updates (fixes #507)
 - 🚀 [WATCHER] Add Kubernetes watcher provider for Deployments, StatefulSets, DaemonSets, and CronJobs
+- 🚀 [WATCHER] Add HashiCorp Nomad watcher provider with full E2E test suite
+- 🚀 [WATCHER] Standardize Kubernetes annotations and Nomad metadata on canonical getwud.app/ prefix with short aliases and unified workload documentation
