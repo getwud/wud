@@ -88,7 +88,7 @@ function getRegistries() {
 }
 
 /**
- * Determine if a workload should be watched based on the wud.getwud.io/watch
+ * Determine if a workload should be watched based on the getwud.app/watch
  * annotation value and the watchByDefault configuration option.
  */
 export function isWorkloadToWatch(

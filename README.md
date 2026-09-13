@@ -10,7 +10,7 @@
 [![GitHub Stars](https://img.shields.io/github/stars/getwud/wud?style=flat-square&logo=github&color=FFB800)](https://github.com/getwud/wud/stargazers)
 [![CI Status](https://img.shields.io/github/actions/workflow/status/getwud/wud/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white)](https://github.com/getwud/wud/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/getwud/wud?style=flat-square&color=41B883)](https://github.com/getwud/wud/blob/main/LICENSE)
-[![Documentation](https://img.shields.io/badge/docs-getwud.github.io%2Fwud-2563EB?style=flat-square&logo=docusaurus&logoColor=white)](https://getwud.app/)
+[![Documentation](https://img.shields.io/badge/docs-getwud.app-2563EB?style=flat-square&logo=docusaurus&logoColor=white)](https://getwud.app/)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub-ea4aaa?style=flat-square&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/fmartinou)
 [![Buy Me A Coffee](https://img.shields.io/badge/Donate-Buy%20Me%20A%20Coffee-orange?style=flat-square&logo=buy-me-a-coffee)](https://www.buymeacoffee.com/61rUNMm)
 [![Donate PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=flat-square&logo=paypal&logoColor=white)](https://www.paypal.com/donate/?business=ZSDMEC3ZE8DQ8&no_recurring=0&currency_code=EUR)
@@ -181,14 +181,14 @@ metadata:
   namespace: default
   annotations:
     # Explicitly watch this workload
-    wud.getwud.io/watch: "true"
+    getwud.app/watch: "true"
     
     # Only consider semver minor and patch updates
-    wud.getwud.io/tag.include: "^1\\.\\d+\\.\\d+$"
-    wud.getwud.io/tag.transform: "^v(.*)$ => $1"
+    getwud.app/tag.include: "^1\\.\\d+\\.\\d+$"
+    getwud.app/tag.transform: "^v(.*)$ => $1"
     
     # Custom display icon in WUD UI
-    wud.getwud.io/display.icon: "mdi:kubernetes"
+    getwud.app/display.icon: "mdi:kubernetes"
 ```
 
 Explore all configuration options in the [Configuration Hub](https://getwud.app/docs/configuration/).
