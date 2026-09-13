@@ -17,6 +17,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Orchestrators-Docker-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker" />
+  <img src="https://img.shields.io/badge/Orchestrators-Docker%20Swarm-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker Swarm" />
   <img src="https://img.shields.io/badge/Orchestrators-Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white" alt="Kubernetes" />
   <img src="https://img.shields.io/badge/Orchestrators-Nomad-00CA8E?style=flat-square&logo=nomad&logoColor=white" alt="Nomad" />
   <img src="https://img.shields.io/badge/Orchestrators-Docker%20Compose-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker Compose" />
@@ -46,7 +47,7 @@
 
 ```mermaid
 flowchart LR
-    W["🔍 <b>WATCHERS</b><br/>Discover running containers<br/><i>Docker, Kubernetes, Compose, Nomad...</i>"]
+    W["🔍 <b>WATCHERS</b><br/>Discover running containers<br/><i>Docker, Swarm, Kubernetes, Compose, Nomad...</i>"]
     WUD{{"⚡ <b>WUD ENGINE</b><br/>Compare versions &amp; digests"}}
     R["📦 <b>REGISTRIES</b><br/>Inspect tags &amp; manifests<br/><i>Docker Hub, GHCR, Private OCI</i>"]
     T["🚀 <b>TRIGGERS</b><br/>Notify &amp; Auto-Update<br/><i>Discord, Slack, Compose, MQTT</i>"]
@@ -61,7 +62,7 @@ flowchart LR
 ## ✨ Features
 
 - 🔍 **Multi-Orchestrator Engine**  
-  Monitor standalone Docker daemons, remote Docker engines over TLS, Docker Compose setups, or native **Kubernetes clusters** (Deployments, StatefulSets, DaemonSets, CronJobs).
+  Monitor standalone Docker daemons, remote Docker engines over TLS, Docker Compose setups, **Docker Swarm clusters**, native **Kubernetes clusters** (Deployments, StatefulSets, DaemonSets, CronJobs), or **HashiCorp Nomad** clusters.
 - 📦 **Multi-Registry Integration**  
   Zero-config & authenticated support for **Docker Hub**, **GitHub Container Registry (GHCR)**, **AWS ECR**, **Google GCR/GAR**, **Azure ACR**, **Quay**, **GitLab**, **Gitea**, **Forgejo**, **Codeberg**, **LinuxServer (LSCR)**, and any custom/self-hosted OCI registry.
 - 🔔 **30+ Notification & Automation Triggers**  
@@ -120,6 +121,7 @@ services:
 | Environment | Supported Workloads | Configuration Guide |
 | :--- | :--- | :---: |
 | [**Docker**](https://getwud.app/docs/configuration/watchers/) | Local socket, Remote TCP over TLS, Docker Compose | Built-in (Active by default) |
+| [**Docker Swarm**](https://getwud.app/docs/configuration/watchers/swarm/) | Services, Stacks, Replicated & Global workloads | Socket / Remote TCP over TLS |
 | [**Kubernetes**](https://getwud.app/docs/configuration/watchers/kubernetes/) | Deployments, StatefulSets, DaemonSets, CronJobs | In-cluster RBAC / Kubeconfig |
 | [**Nomad**](https://getwud.app/docs/configuration/watchers/nomad/) | Jobs (`service`, `batch`, `system`), Task Groups | HTTP API / ACL Token |
 

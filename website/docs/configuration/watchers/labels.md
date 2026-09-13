@@ -11,6 +11,7 @@ Regardless of your orchestrator, the property names and logic are **100% identic
 | Orchestrator | Metadata Type | Canonical Key Format | Supported Aliases |
 | :--- | :--- | :--- | :--- |
 | 🐳 **Docker / Compose** | Container Labels | `wud.<property>` | — |
+| 🐝 **Docker Swarm** | Service Labels (`deploy.labels`) | `getwud.app/<property>` | `wud.<property>`, `wud/<property>` |
 | ☸️ **Kubernetes** | Workload Annotations | `getwud.app/<property>` | `wud/<property>`, `wud.getwud.io/<property>` |
 | 🟢 **Nomad** | Task / Group / Job Meta | `getwud.app/<property>` | `wud.<property>`, `wud/<property>` |
 
@@ -194,6 +195,20 @@ job "mariadb" {
 ```
 
 </TabItem>
+<TabItem value="swarm" label="🐝 Docker Swarm">
+
+```yaml title="stack.yaml"
+version: '3.8'
+
+services:
+  mariadb:
+    image: mariadb:10.4.5
+    deploy:
+      labels:
+        - getwud.app/watch=true
+```
+
+</TabItem>
 </Tabs>
 
 ---
@@ -251,6 +266,20 @@ job "legacy-app" {
 ```
 
 </TabItem>
+<TabItem value="swarm" label="🐝 Docker Swarm">
+
+```yaml title="stack.yaml"
+version: '3.8'
+
+services:
+  legacy_app:
+    image: myapp:1.0.0
+    deploy:
+      labels:
+        - getwud.app/watch=false
+```
+
+</TabItem>
 </Tabs>
 
 ---
@@ -290,6 +319,20 @@ job "mariadb" {
     "getwud.app/tag.include" = "^\\d+\\.\\d+\\.\\d+$"
   }
 }
+```
+
+</TabItem>
+<TabItem value="swarm" label="🐝 Docker Swarm">
+
+```yaml title="stack.yaml"
+version: '3.8'
+
+services:
+  mariadb:
+    image: mariadb:10.4.5
+    deploy:
+      labels:
+        - getwud.app/tag.include=^\d+\.\d+\.\d+$
 ```
 
 </TabItem>
@@ -346,6 +389,21 @@ job "searx" {
 ```
 
 </TabItem>
+<TabItem value="swarm" label="🐝 Docker Swarm">
+
+```yaml title="stack.yaml"
+version: '3.8'
+
+services:
+  searx:
+    image: searx/searx:1.0.0-269-7b368146
+    deploy:
+      labels:
+        - getwud.app/tag.include=^\d+\.\d+\.\d+-\d+-.*$
+        - getwud.app/tag.transform=^(\d+\.\d+\.\d+-\d+)-.*$ => $1
+```
+
+</TabItem>
 </Tabs>
 
 ---
@@ -383,6 +441,20 @@ job "redis" {
     "getwud.app/watch.digest" = "true"
   }
 }
+```
+
+</TabItem>
+<TabItem value="swarm" label="🐝 Docker Swarm">
+
+```yaml title="stack.yaml"
+version: '3.8'
+
+services:
+  redis:
+    image: redis:alpine
+    deploy:
+      labels:
+        - getwud.app/watch.digest=true
 ```
 
 </TabItem>
@@ -432,6 +504,20 @@ job "mariadb" {
     "getwud.app/link.template" = "https://mariadb.com/kb/en/mariadb-${major}${minor}${patch}-changelog"
   }
 }
+```
+
+</TabItem>
+<TabItem value="swarm" label="🐝 Docker Swarm">
+
+```yaml title="stack.yaml"
+version: '3.8'
+
+services:
+  mariadb:
+    image: mariadb:10.6.4
+    deploy:
+      labels:
+        - getwud.app/link.template=https://mariadb.com/kb/en/mariadb-${major}${minor}${patch}-changelog
 ```
 
 </TabItem>
@@ -488,6 +574,21 @@ job "mariadb" {
 ```
 
 </TabItem>
+<TabItem value="swarm" label="🐝 Docker Swarm">
+
+```yaml title="stack.yaml"
+version: '3.8'
+
+services:
+  mariadb:
+    image: mariadb:10.6.4
+    deploy:
+      labels:
+        - getwud.app/display.name=Production MariaDB
+        - getwud.app/display.icon=si:mariadb
+```
+
+</TabItem>
 </Tabs>
 
 ---
@@ -535,6 +636,20 @@ job "web-app" {
 ```
 
 </TabItem>
+<TabItem value="swarm" label="🐝 Docker Swarm">
+
+```yaml title="stack.yaml"
+version: '3.8'
+
+services:
+  web_app:
+    image: web_app:1.2.0
+    deploy:
+      labels:
+        - getwud.app/trigger.include=smtp.gmail,webhook.prod:minor
+```
+
+</TabItem>
 </Tabs>
 
 ---
@@ -572,6 +687,20 @@ job "web-app" {
     "getwud.app/watch.delay" = "3d"
   }
 }
+```
+
+</TabItem>
+<TabItem value="swarm" label="🐝 Docker Swarm">
+
+```yaml title="stack.yaml"
+version: '3.8'
+
+services:
+  web_app:
+    image: web_app:1.2.0
+    deploy:
+      labels:
+        - getwud.app/watch.delay=3d
 ```
 
 </TabItem>

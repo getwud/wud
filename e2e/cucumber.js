@@ -5,7 +5,10 @@ function getTags() {
     if (process.argv.includes('@nomad')) {
         return '@nomad';
     }
-    return 'not @skip and not @kubernetes and not @nomad';
+    if (process.argv.includes('@swarm')) {
+        return '@swarm';
+    }
+    return 'not @skip and not @kubernetes and not @nomad and not @swarm';
 }
 
 module.exports = {

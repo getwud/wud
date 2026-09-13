@@ -147,6 +147,11 @@ const sidebars = {
     },
     {
       type: 'doc',
+      id: 'configuration/watchers/swarm/README',
+      label: 'Docker Swarm Watcher',
+    },
+    {
+      type: 'doc',
       id: 'configuration/watchers/kubernetes/README',
       label: 'Kubernetes Watcher',
     },

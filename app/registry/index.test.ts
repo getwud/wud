@@ -220,7 +220,7 @@ test('registerWatchers should register all watchers', async () => {
     ]);
 });
 
-test('registerWatchers should register multi-provider watchers (docker, kubernetes, nomad)', async () => {
+test('registerWatchers should register multi-provider watchers (docker, kubernetes, nomad, swarm)', async () => {
     watchers = {
         docker: {
             remote: {
@@ -237,12 +237,18 @@ test('registerWatchers should register multi-provider watchers (docker, kubernet
                 url: 'http://nomad:4646',
             },
         },
+        swarm: {
+            myswarm: {
+                host: 'swarm-manager',
+            },
+        },
     };
     await registry.testable_registerWatchers();
     expect(Object.keys(registry.getState().watcher)).toEqual([
         'docker.remote',
         'kubernetes.mycluster',
         'nomad.mycluster',
+        'swarm.myswarm',
     ]);
 });
 

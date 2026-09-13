@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  ignored:
+    image: alpine:3.19
+    deploy:
+      replicas: 1
+      labels:
+        - "getwud.app/watch=false"
