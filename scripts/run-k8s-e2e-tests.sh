@@ -9,6 +9,10 @@ echo "🧪 [K8s E2E] Initialisation de l'environnement de test Kubernetes..."
 
 cleanup() {
     STATUS=$?
+    if [ $STATUS -ne 0 ]; then
+        echo "❌ [K8s E2E] Échec détecté, affichage des logs de WUD..."
+        docker logs wud-k8s || true
+    fi
     echo "🧹 [K8s E2E] Nettoyage des conteneurs WUD..."
     docker compose -f "$COMPOSE_FILE" down -v || true
     if [ "$KEEP_CLUSTER" != "true" ]; then
@@ -51,7 +55,7 @@ echo "⏳ [K8s E2E] Attente de la résolution initiale des conteneurs WUD..."
 MAX_WAIT_SECONDS=60
 START_TIME=$(date +%s)
 while true; do
-    if docker logs wud-k8s 2>&1 | grep -q "Cron finished"; then
+    if docker logs wud-k8s 2>&1 | grep -E "Cron finished \([1-9][0-9]* containers watched"; then
         ELAPSED=$(( $(date +%s) - START_TIME ))
         echo "🎯 [K8s E2E] WUD est prêt ! Scan terminé en ${ELAPSED}s."
         break
@@ -59,7 +63,7 @@ while true; do
     ELAPSED=$(( $(date +%s) - START_TIME ))
     if [ $ELAPSED -ge $MAX_WAIT_SECONDS ]; then
         echo "⚠️ [K8s E2E] Timeout en attente de 'Cron finished'. Logs récents :"
-        docker logs --tail 30 wud-k8s
+        docker logs --tail 50 wud-k8s
         break
     fi
     sleep 1

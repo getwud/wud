@@ -24,7 +24,7 @@ Feature: WUD Kubernetes Watcher
     And response body path $.id should be kubernetes.mycluster
     And response body path $.type should be kubernetes
     And response body path $.name should be mycluster
-    And response body path $.configuration.namespace should be .*
+    And response body path $.configuration.namespace should be default
     And response body path $.configuration.cron should be 0 * * * *
     And response body path $.configuration.watchbydefault should be true
 
@@ -32,7 +32,7 @@ Feature: WUD Kubernetes Watcher
     When I GET /api/containers
     Then response code should be 200
     And response body should be valid json
-    And response body path $[?(@.watcher=='mycluster')][0].image.tag.value should be .*
+    And response body path $[?(@.name=~'.*_deployment_.*')][0].name should be .*_deployment_.*
 
   Scenario: WUD must assign namespace as stack by default
     When I GET /api/containers
