@@ -32,25 +32,25 @@ Feature: WUD Kubernetes Watcher
     When I GET /api/containers
     Then response code should be 200
     And response body should be valid json
-    And response body path $[?(@.name=~'.*_deployment_.*')][0].name should be .*_deployment_.*
+    And response body path $[?(@.name=='default_deployment_test-deployment_app')].name should be default_deployment_test-deployment_app
 
   Scenario: WUD must assign namespace as stack by default
     When I GET /api/containers
     Then response code should be 200
-    And response body path $[?(@.watcher=='mycluster')][0].stack should not be null
+    And response body path $[?(@.name=='default_deployment_test-deployment_app')].stack should be default
 
   Scenario: WUD must discover watched StatefulSets
     When I GET /api/containers
     Then response code should be 200
-    And response body path $[?(@.name=~'.*_statefulset_.*')][0].name should be .*_statefulset_.*
+    And response body path $[?(@.name=='default_statefulset_test-statefulset_stateful-app')].name should be default_statefulset_test-statefulset_stateful-app
 
   Scenario: WUD must discover watched DaemonSets
     When I GET /api/containers
     Then response code should be 200
-    And response body path $[?(@.name=~'.*_daemonset_.*')][0].name should be .*_daemonset_.*
+    And response body path $[?(@.name=='default_daemonset_test-daemonset_daemon-app')].name should be default_daemonset_test-daemonset_daemon-app
 
   Scenario: WUD must discover watched CronJobs
     When I GET /api/containers
     Then response code should be 200
-    And response body path $[?(@.name=~'.*_cronjob_.*')][0].name should be .*_cronjob_.*
+    And response body path $[?(@.name=='default_cronjob_test-cronjob_cron-app')].name should be default_cronjob_test-cronjob_cron-app
 
