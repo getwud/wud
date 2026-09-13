@@ -3,14 +3,27 @@ import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-# Docker Watchers
+# Watchers Overview
 
 <DocHero
   icon="docker"
-  badge="⚡ Active by Default"
+  badge="Multi-Orchestrator"
   badgeType="default"
-  description="Watchers are responsible for discovering and scanning Docker containers on local or remote Docker daemons."
+  description="Watchers are responsible for discovering and scanning containers across your infrastructure, whether on Docker daemons or Kubernetes clusters."
 />
+
+## Supported Environments
+
+WUD provides dedicated watchers tailored for your infrastructure:
+
+| Environment | Documentation | Description |
+| :--- | :--- | :--- |
+| 🐳 **Docker** | [**Docker Configuration ↓**](#docker-configuration) | Local sockets, Remote TCP daemons, and Docker Compose stacks. |
+| ☸️ **Kubernetes** | [**Kubernetes Watcher Guide →**](./kubernetes/README.md) | In-cluster RBAC, Deployments, StatefulSets, DaemonSets, CronJobs. |
+
+---
+
+## Docker Configuration
 
 :::info[Default Watcher]
 If no watcher is explicitly configured, a default watcher named `local` is automatically created, monitoring `/var/run/docker.sock`.
@@ -20,9 +33,7 @@ If no watcher is explicitly configured, a default watcher named `local` is autom
 To customize how WUD monitors specific containers (opt-in/opt-out, tag filtering, semver transforms, custom display names, or trigger routing), see the [**Container Labels**](labels.md) documentation.
 :::
 
----
-
-## Configuration Options
+### Configuration Options
 
 <ConfigList>
   <ConfigOption

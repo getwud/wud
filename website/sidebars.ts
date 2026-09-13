@@ -143,7 +143,12 @@ const sidebars = {
     {
       type: 'doc',
       id: 'configuration/watchers/README',
-      label: 'Docker Watcher',
+      label: 'Overview & Docker',
+    },
+    {
+      type: 'doc',
+      id: 'configuration/watchers/kubernetes/README',
+      label: 'Kubernetes Watcher',
     },
     {
       type: 'doc',
@@ -159,11 +164,6 @@ const sidebars = {
       type: 'doc',
       id: 'configuration/watchers/digest-rate-limits',
       label: 'Digest & Rate Limits',
-    },
-    {
-      type: 'doc',
-      id: 'configuration/watchers/kubernetes/README',
-      label: 'Kubernetes Watcher',
     },
   ],
 
