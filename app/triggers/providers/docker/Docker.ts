@@ -551,9 +551,11 @@ class Docker extends Trigger {
         // either the same (when updateKind is digest)
         // or the new one (when updateKind is tag)
         const tagOrDigest =
-            container.updateKind.kind === 'digest'
-                ? container.image.tag.value
-                : container.updateKind.remoteValue;
+            container.updateKind?.kind === 'digest'
+                ? container.image?.tag?.value
+                : (container.updateKind?.remoteValue ??
+                  container.image?.tag?.value ??
+                  'latest');
 
         // Rebuild image definition string
         return registry.getImageFullName(container.image, tagOrDigest);
@@ -565,6 +567,13 @@ class Docker extends Trigger {
     async trigger(container: Container) {
         // Child logger for the container to process
         const logContainer = this.log.child({ container: fullName(container) });
+
+        if (!container.updateAvailable) {
+            logContainer.info(
+                `No update available for container ${fullName(container)} => skip trigger`,
+            );
+            return;
+        }
 
         // Get watcher
         const watcher = this.getWatcher(container);

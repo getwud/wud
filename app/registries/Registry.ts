@@ -491,12 +491,11 @@ export class Registry extends Component {
         }
     }
 
-    getImageFullName(image: ContainerImage, tagOrDigest: string) {
+    getImageFullName(image: ContainerImage, tagOrDigest?: string) {
+        const tag = tagOrDigest || image.tag?.value || 'latest';
         // digests are separated with @ whereas tags are separated with :
         const tagOrDigestWithSeparator =
-            tagOrDigest.indexOf(':') !== -1
-                ? `@${tagOrDigest}`
-                : `:${tagOrDigest}`;
+            tag.indexOf(':') !== -1 ? `@${tag}` : `:${tag}`;
         let fullName = `${image.registry.url}/${image.name}${tagOrDigestWithSeparator}`;
 
         fullName = fullName.replace(/https?:\/\//, '');

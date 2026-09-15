@@ -36,6 +36,7 @@ describe('Dockercompose Trigger', () => {
 
 const container = {
     name: 'test',
+    updateAvailable: true,
     image: {
         registry: { name: 'hub' },
         name: 'test/test',
@@ -197,5 +198,29 @@ describe('Dockercompose Trigger - file operations', () => {
             configurationValid.file,
             [container],
         );
+    });
+
+    test('trigger should skip and return without error when updateAvailable is false', async () => {
+        const triggerBatchSpy = jest.spyOn(dockercompose, 'triggerBatch');
+        await expect(
+            dockercompose.trigger({
+                ...container,
+                updateAvailable: false,
+            } as any),
+        ).resolves.toBeUndefined();
+
+        expect(triggerBatchSpy).not.toHaveBeenCalled();
+        triggerBatchSpy.mockRestore();
+    });
+
+    test('triggerBatch should skip and return without error when no containers have updates available', async () => {
+        dockercompose.processComposeFile = jest.fn();
+        await expect(
+            dockercompose.triggerBatch([
+                { ...container, updateAvailable: false } as any,
+            ]),
+        ).resolves.toBeUndefined();
+
+        expect(dockercompose.processComposeFile).not.toHaveBeenCalled();
     });
 });
