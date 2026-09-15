@@ -109,10 +109,16 @@ export class Registry extends Component {
      * Check if the digest label value is to be watched for this registry (to be overridden).
      */
     shouldWatchDigest(
-        _wudWatchDigestLabelValue: string,
-        _image: string,
+        wudWatchDigestLabelValue?: string,
+        _image?: string,
         watchDigestDefault?: boolean,
-    ) {
+    ): boolean {
+        if (
+            wudWatchDigestLabelValue !== undefined &&
+            wudWatchDigestLabelValue !== ''
+        ) {
+            return wudWatchDigestLabelValue.toLowerCase() === 'true';
+        }
         return watchDigestDefault !== undefined ? watchDigestDefault : true;
     }
 

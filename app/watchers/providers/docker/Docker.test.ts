@@ -882,6 +882,44 @@ describe('Docker Watcher', () => {
             expect(container.image.digest.value).toBe('sha256:local123');
         });
 
+        test('should watch digest for semver tag when wud.watch.digest is explicitly true in container labels', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const container = {
+                image: {
+                    id: 'image123',
+                    registry: { name: 'hub' },
+                    tag: { value: 'v3', semver: true },
+                    digest: { watch: true, repo: 'sha256:local123' },
+                },
+                labels: {
+                    'wud.watch.digest': 'true',
+                },
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['v3']),
+                getImageManifestDigest: jest.fn().mockResolvedValue({
+                    digest: 'sha256:remote123',
+                    created: '2023-01-01',
+                    version: 2,
+                }),
+                shouldWatchDigest: jest.fn(() => true),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const mockLogChild = {
+                error: jest.fn(),
+                warn: jest.fn(),
+                info: jest.fn(),
+                debug: jest.fn(),
+            };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(mockRegistry.getImageManifestDigest).toHaveBeenCalled();
+            expect(result.digest).toBe('sha256:remote123');
+        });
+
         test('should not flag a false digest update for a multi-arch image whose local RepoDigest is a leaf manifest digest (regression for ghcr.io/tricked-dev/kanidm-oauth2-manager)', async () => {
             // Reproduces the real-world bug: an OCI index with amd64/arm64 entries,
             // where Docker recorded the arm64 *manifest* digest (not the index
@@ -1405,6 +1443,90 @@ describe('Docker Watcher', () => {
 
             expect(result).toBeDefined();
             expect(result.image.digest.watch).toBe(true);
+        });
+
+        test('should respect wud.watch.digest=true when tag is semver', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = { warn: jest.fn(), debug: jest.fn() };
+            docker.log = mockLog;
+            const container = {
+                Id: '123',
+                Image: 'ghcr.io/immich-app/immich-server:v3',
+                Names: ['/immich'],
+                State: 'running',
+                Labels: { 'wud.watch.digest': 'true' },
+            };
+            mockImage.inspect.mockResolvedValue({
+                Id: 'image123',
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+            });
+            mockTag.parse.mockReturnValue({ major: 3, minor: 0, patch: 0 });
+
+            registry.getState.mockReturnValue({
+                registry: {
+                    ghcr: {
+                        match: () => true,
+                        shouldWatchDigest: () => true,
+                        normalizeImage: (img: any) => img,
+                        getId: () => 'ghcr',
+                    },
+                },
+            });
+
+            const containerModule = await import('../../../model/container');
+            const validateContainer = containerModule.validate;
+            // @ts-ignore
+            validateContainer.mockImplementation((c) => c);
+
+            const result = await docker.addImageDetailsToContainer(container);
+
+            expect(result).toBeDefined();
+            expect(result.image.tag.semver).toBe(true);
+            expect(result.image.digest.watch).toBe(true);
+        });
+
+        test('should default watchDigest to false when tag is semver and no wud.watch.digest label is present', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = { warn: jest.fn(), debug: jest.fn() };
+            docker.log = mockLog;
+            const container = {
+                Id: '123',
+                Image: 'ghcr.io/immich-app/immich-server:v3',
+                Names: ['/immich'],
+                State: 'running',
+                Labels: {},
+            };
+            mockImage.inspect.mockResolvedValue({
+                Id: 'image123',
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+            });
+            mockTag.parse.mockReturnValue({ major: 3, minor: 0, patch: 0 });
+
+            registry.getState.mockReturnValue({
+                registry: {
+                    ghcr: {
+                        match: () => true,
+                        shouldWatchDigest: () => true,
+                        normalizeImage: (img: any) => img,
+                        getId: () => 'ghcr',
+                    },
+                },
+            });
+
+            const containerModule = await import('../../../model/container');
+            const validateContainer = containerModule.validate;
+            // @ts-ignore
+            validateContainer.mockImplementation((c) => c);
+
+            const result = await docker.addImageDetailsToContainer(container);
+
+            expect(result).toBeDefined();
+            expect(result.image.tag.semver).toBe(true);
+            expect(result.image.digest.watch).toBe(false);
         });
 
         test('should warn when displayIcon uses deprecated hl prefix', async () => {

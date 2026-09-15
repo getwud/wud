@@ -359,6 +359,57 @@ describe('Nomad Watcher - Discovery & Workload Mapping', () => {
         expect(redisContainer.watcher).toBe('nomad_test');
     });
 
+    test('getContainers should respect wud.watch.digest=true for semver tag', async () => {
+        mockClient.get.mockImplementation((url: string) => {
+            if (url === '/v1/nodes') return Promise.resolve({ data: [] });
+            if (url.startsWith('/v1/jobs')) {
+                return Promise.resolve({
+                    data: [
+                        {
+                            ID: 'digest-job',
+                            Name: 'digest-job',
+                            Namespace: 'default',
+                            Status: 'running',
+                            Stop: false,
+                        },
+                    ],
+                });
+            }
+            if (url.startsWith('/v1/job/digest-job')) {
+                return Promise.resolve({
+                    data: {
+                        ID: 'digest-job',
+                        Name: 'digest-job',
+                        Namespace: 'default',
+                        TaskGroups: [
+                            {
+                                Name: 'backend',
+                                Tasks: [
+                                    {
+                                        Name: 'app',
+                                        Driver: 'docker',
+                                        Config: {
+                                            image: 'ghcr.io/immich-app/immich-server:v3',
+                                        },
+                                        Meta: {
+                                            'wud.watch.digest': 'true',
+                                        },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                });
+            }
+            return Promise.reject(new Error('Unknown URL'));
+        });
+
+        const containers = await watcher.getContainers();
+        expect(containers).toHaveLength(1);
+        expect(containers[0].image.tag.semver).toBe(true);
+        expect(containers[0].image.digest.watch).toBe(true);
+    });
+
     test('getContainers should respect wud.watch=false override', async () => {
         mockClient.get.mockImplementation((url: string) => {
             if (url === '/v1/nodes') return Promise.resolve({ data: [] });
@@ -465,6 +516,38 @@ describe('Nomad Watcher - Version Lookup & Watch Cycle', () => {
 
         const result = await watcher.findNewVersion(container, watcher.log);
         expect(result.tag).toBe('1.28.0');
+    });
+
+    test('findNewVersion should watch digest for semver tag when wud.watch.digest is true', async () => {
+        const mockRegistry = {
+            getId: () => 'hub',
+            getTags: jest.fn().mockResolvedValue(['v3']),
+            getImageManifestDigest: jest.fn().mockResolvedValue({
+                digest: 'sha256:remote-digest-123',
+                created: '2023-01-01',
+                version: 2,
+            }),
+            shouldWatchDigest: jest.fn().mockReturnValue(true),
+        };
+
+        (registry.getState as jest.Mock).mockReturnValue({
+            registry: { hub: mockRegistry },
+        });
+
+        const container: any = {
+            id: 'test_id',
+            labels: { 'wud.watch.digest': 'true' },
+            image: {
+                registry: { name: 'hub', url: 'registry-1.docker.io' },
+                name: 'library/nginx',
+                tag: { value: 'v3', semver: true },
+                digest: { watch: true, repo: 'sha256:local-digest-123' },
+            },
+        };
+
+        const result = await watcher.findNewVersion(container, watcher.log);
+        expect(mockRegistry.getImageManifestDigest).toHaveBeenCalled();
+        expect(result.digest).toBe('sha256:remote-digest-123');
     });
 
     test('watchContainer should record errors gracefully when registry fails', async () => {

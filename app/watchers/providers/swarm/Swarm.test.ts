@@ -211,6 +211,30 @@ describe('Swarm Watcher - Service Discovery & Mapping', () => {
         expect(c.image.architecture).toBe('amd64');
     });
 
+    test('should respect watch.digest=true for semver tags in getContainers', async () => {
+        mockDocker.listServices.mockResolvedValue([
+            {
+                ID: 'service_digest',
+                Spec: {
+                    Name: 'immich',
+                    Labels: {
+                        'getwud.app/watch.digest': 'true',
+                    },
+                    TaskTemplate: {
+                        ContainerSpec: {
+                            Image: 'ghcr.io/immich-app/immich-server:v3',
+                        },
+                    },
+                },
+            },
+        ]);
+
+        const containers = await watcher.getContainers();
+        expect(containers).toHaveLength(1);
+        expect(containers[0].image.tag.semver).toBe(true);
+        expect(containers[0].image.digest.watch).toBe(true);
+    });
+
     test('should filter out services with watch=false', async () => {
         mockDocker.listServices.mockResolvedValue([
             {
@@ -316,5 +340,37 @@ describe('Swarm Watcher - Version Lookup & Watch Cycle', () => {
         expect(event.emitContainerReports).toHaveBeenCalledWith(reports);
         expect(event.emitWatcherStop).toHaveBeenCalledWith(watcher);
         expect(reports).toHaveLength(1);
+    });
+
+    test('findNewVersion should watch digest for semver tag when wud.watch.digest is true', async () => {
+        const mockRegistry = {
+            getId: () => 'hub',
+            getTags: jest.fn().mockResolvedValue(['v3']),
+            getImageManifestDigest: jest.fn().mockResolvedValue({
+                digest: 'sha256:remote-digest-123',
+                created: '2023-01-01',
+                version: 2,
+            }),
+            shouldWatchDigest: jest.fn().mockReturnValue(true),
+        };
+
+        (registry.getState as jest.Mock).mockReturnValue({
+            registry: { hub: mockRegistry },
+        });
+
+        const container: any = {
+            id: 'test_id',
+            labels: { 'getwud.app/watch.digest': 'true' },
+            image: {
+                registry: { name: 'hub', url: 'registry-1.docker.io' },
+                name: 'library/nginx',
+                tag: { value: 'v3', semver: true },
+                digest: { watch: true, repo: 'sha256:local-digest-123' },
+            },
+        };
+
+        const result = await watcher.findNewVersion(container, watcher.log);
+        expect(mockRegistry.getImageManifestDigest).toHaveBeenCalled();
+        expect(result.digest).toBe('sha256:remote-digest-123');
     });
 });
