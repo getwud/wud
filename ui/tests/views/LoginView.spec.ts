@@ -83,20 +83,57 @@ describe('LoginView', () => {
       mockRoute.query.next = undefined; // reset
   });
 
-  it('emits error notification and clears error from query when error is present on mount', (done) => {
-      mockRoute.query = { error: 'Access denied: user does not belong to any authorized group' };
-      mountComponent([{ type: 'basic' }]);
-      expect(mockRouter.replace).toHaveBeenCalledWith({
-          query: {},
+  describe('mounted() — error query param handling', () => {
+      let originalHistoryReplaceState: typeof window.history.replaceState;
+      let mockHistoryReplaceState: jest.Mock;
+
+      beforeEach(() => {
+          originalHistoryReplaceState = window.history.replaceState;
+          mockHistoryReplaceState = jest.fn();
+          window.history.replaceState = mockHistoryReplaceState;
       });
-      setTimeout(() => {
-          expect(wrapper.vm.eventBus.emit).toHaveBeenCalledWith(
-              'notify',
-              'Access denied: user does not belong to any authorized group',
-              'error',
-          );
-          done();
-      }, 150);
+
+      afterEach(() => {
+          window.history.replaceState = originalHistoryReplaceState;
+      });
+
+      it('uses window.history.replaceState() (not $router.replace()) to strip ?error from URL', () => {
+          // Simulate a webHistory URL where ?error is a real query param (production mode)
+          Object.defineProperty(window, 'location', {
+              configurable: true,
+              value: { href: 'http://localhost/login?error=Access+denied' },
+          });
+          mockRoute.query = { error: 'Access denied' };
+          mountComponent([{ type: 'oidc', name: 'authentik' }]);
+
+          // window.history.replaceState must be called to strip ?error
+          expect(mockHistoryReplaceState).toHaveBeenCalled();
+          const calledUrl: string = mockHistoryReplaceState.mock.calls[0][2];
+          expect(calledUrl).not.toContain('error');
+
+          // $router.replace() must NOT be called (would re-trigger beforeRouteEnter → infinite loop)
+          expect(mockRouter.replace).not.toHaveBeenCalled();
+      });
+
+      it('emits error notification after stripping ?error from URL', (done) => {
+          mockRoute.query = { error: 'Access denied: user does not belong to any authorized group' };
+          mountComponent([{ type: 'basic' }]);
+          setTimeout(() => {
+              expect(wrapper.vm.eventBus.emit).toHaveBeenCalledWith(
+                  'notify',
+                  'Access denied: user does not belong to any authorized group',
+                  'error',
+              );
+              done();
+          }, 150);
+      });
+
+      it('does nothing when no ?error is present on mount', () => {
+          mockRoute.query = {};
+          mountComponent([{ type: 'basic' }]);
+          expect(mockHistoryReplaceState).not.toHaveBeenCalled();
+          expect(mockRouter.replace).not.toHaveBeenCalled();
+      });
   });
 
   describe('Route Hook (beforeRouteEnter)', () => {
