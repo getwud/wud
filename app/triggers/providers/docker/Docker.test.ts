@@ -12,6 +12,8 @@ const configurationValid = {
     once: true,
     auto: true,
     autoremovetimeout: 10000,
+    selfupdate: false,
+    selfupdatetimeout: 120000,
     simpletitle:
         'New ${container.updateKind.kind} found for container ${container.name}',
     simplebody:
@@ -757,4 +759,155 @@ test('getNewImageFullName should gracefully handle undefined remoteValue', () =>
         containerWithoutRemoteValue.image,
         '1.2.3',
     );
+});
+
+const buildSelfUpdateDockerApi = () => {
+    const stop = jest.fn(() => Promise.resolve());
+    const remove = jest.fn(() => Promise.resolve());
+    const createContainer = jest.fn(() =>
+        Promise.resolve({
+            id: 'helper-id',
+            start: jest.fn(() => Promise.resolve()),
+        }),
+    );
+    const dockerApi = {
+        createContainer,
+        pull: () => Promise.resolve(),
+        modem: {
+            followProgress: (pullStream, res) => res(),
+        },
+        getContainer: () =>
+            Promise.resolve({
+                inspect: () =>
+                    Promise.resolve({
+                        Name: '/wud',
+                        Id: '123456798',
+                        Image: 'sha256:currentimage',
+                        State: { Running: true },
+                        Config: { Hostname: '123456798' },
+                        HostConfig: {},
+                        NetworkSettings: { Networks: {} },
+                    }),
+                stop,
+                remove,
+                start: () => Promise.resolve(),
+            }),
+    };
+    return { dockerApi, stop, remove, createContainer };
+};
+
+const selfContainer = {
+    updateAvailable: true,
+    watcher: 'test',
+    id: '123456789',
+    name: 'wud',
+    image: {
+        name: 'getwud/wud',
+        registry: { name: 'hub', url: 'my-registry' },
+    },
+    updateKind: { remoteValue: '9.0.3' },
+};
+
+test('trigger should refuse to replace the container WUD runs in by default', async () => {
+    const { dockerApi, stop, remove } = buildSelfUpdateDockerApi();
+    const watcherSpy = jest.spyOn(docker, 'getWatcher').mockReturnValue({
+        dockerApi,
+        configuration: { socket: '/var/run/docker.sock' },
+    });
+    const selfSpy = jest
+        .spyOn(docker, 'resolveSelfContainerId')
+        .mockResolvedValue('123456798');
+
+    await expect(docker.trigger(selfContainer)).rejects.toThrow(
+        /Refusing to update the container WUD runs in/,
+    );
+
+    // The whole point: the container must not be touched.
+    expect(stop).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+
+    watcherSpy.mockRestore();
+    selfSpy.mockRestore();
+});
+
+test('trigger should delegate to a helper container when selfupdate is enabled', async () => {
+    const { dockerApi, stop, remove, createContainer } =
+        buildSelfUpdateDockerApi();
+    const watcherSpy = jest.spyOn(docker, 'getWatcher').mockReturnValue({
+        dockerApi,
+        configuration: { socket: '/var/run/docker.sock' },
+    });
+    const selfSpy = jest
+        .spyOn(docker, 'resolveSelfContainerId')
+        .mockResolvedValue('123456798');
+    docker.configuration = { ...configurationValid, selfupdate: true };
+
+    await expect(docker.trigger(selfContainer)).resolves.toBeUndefined();
+
+    // The swap is delegated, so this process must not stop or remove anything.
+    expect(stop).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+
+    expect(createContainer).toHaveBeenCalledTimes(1);
+    const helperSpec = createContainer.mock.calls[0][0];
+    expect(helperSpec.name).toEqual('wud-self-update');
+    // The helper runs the image WUD runs right now, not the one being installed.
+    expect(helperSpec.Image).toEqual('sha256:currentimage');
+    // Kept after the run: its logs are the only record if the swap fails.
+    expect(helperSpec.HostConfig.AutoRemove).toBe(false);
+    expect(helperSpec.Healthcheck).toEqual({ Test: ['NONE'] });
+    expect(helperSpec.HostConfig.Binds).toEqual([
+        '/var/run/docker.sock:/var/run/docker.sock',
+    ]);
+
+    const payload = JSON.parse(
+        helperSpec.Env[0].replace('WUD_SELF_UPDATE_PAYLOAD=', ''),
+    );
+    expect(payload.containerId).toEqual('123456798');
+    expect(payload.createOptions.Image).toEqual('my-registry/getwud/wud:9.0.3');
+    // The replacement must not inherit this container's id as its hostname.
+    expect(payload.createOptions.Hostname).toBeUndefined();
+
+    docker.configuration = configurationValid;
+    watcherSpy.mockRestore();
+    selfSpy.mockRestore();
+});
+
+test('trigger should refuse to self-update over a remote docker host', async () => {
+    const { dockerApi } = buildSelfUpdateDockerApi();
+    const watcherSpy = jest.spyOn(docker, 'getWatcher').mockReturnValue({
+        dockerApi,
+        configuration: { socket: '/var/run/docker.sock', host: 'remote-host' },
+    });
+    const selfSpy = jest
+        .spyOn(docker, 'resolveSelfContainerId')
+        .mockResolvedValue('123456798');
+    docker.configuration = { ...configurationValid, selfupdate: true };
+
+    await expect(docker.trigger(selfContainer)).rejects.toThrow(
+        /only supported when the watcher talks to Docker over a socket/,
+    );
+
+    docker.configuration = configurationValid;
+    watcherSpy.mockRestore();
+    selfSpy.mockRestore();
+});
+
+test('trigger should update normally when the container is not WUD itself', async () => {
+    const { dockerApi, stop, remove } = buildSelfUpdateDockerApi();
+    const watcherSpy = jest.spyOn(docker, 'getWatcher').mockReturnValue({
+        dockerApi,
+        configuration: { socket: '/var/run/docker.sock' },
+    });
+    const selfSpy = jest
+        .spyOn(docker, 'resolveSelfContainerId')
+        .mockResolvedValue('someothercontainerid');
+
+    await expect(docker.trigger(selfContainer)).resolves.toBeUndefined();
+
+    expect(stop).toHaveBeenCalled();
+    expect(remove).toHaveBeenCalled();
+
+    watcherSpy.mockRestore();
+    selfSpy.mockRestore();
 });
