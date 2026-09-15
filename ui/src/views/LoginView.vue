@@ -88,9 +88,12 @@ export default defineComponent({
   mounted() {
     const errorMsg = this.$route.query.error as string;
     if (errorMsg) {
-      this.$router.replace({
-        query: { ...this.$route.query, error: undefined },
-      });
+      // Use window.history.replaceState() instead of $router.replace() to clean
+      // the URL without triggering beforeRouteEnter again, which would cause an
+      // infinite OIDC redirect loop when the user is denied access (fixes #1258).
+      const url = new URL(window.location.href);
+      url.searchParams.delete("error");
+      window.history.replaceState({}, "", url.toString());
       setTimeout(() => {
         if (this.eventBus) {
           this.eventBus.emit("notify", errorMsg, "error");
