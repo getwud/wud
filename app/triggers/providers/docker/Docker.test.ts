@@ -430,6 +430,7 @@ test('clone should remove hostname and exposed ports when network mode is contai
 test('trigger should not throw when all is ok', async () => {
     await expect(
         docker.trigger({
+            updateAvailable: true,
             watcher: 'test',
             id: '123456789',
             Name: '/container-name',
@@ -498,6 +499,7 @@ test('trigger should not use fallback when multi-network create succeeds', async
 
     await expect(
         docker.trigger({
+            updateAvailable: true,
             watcher: 'test',
             id: '123456789',
             name: 'container-name',
@@ -586,6 +588,7 @@ test('trigger should fallback to primary then connect secondary networks', async
 
     await expect(
         docker.trigger({
+            updateAvailable: true,
             watcher: 'test',
             id: '123456789',
             name: 'container-name',
@@ -680,6 +683,7 @@ test('trigger should throw when fallback cannot connect a secondary network', as
 
     await expect(
         docker.trigger({
+            updateAvailable: true,
             watcher: 'test',
             id: '123456789',
             name: 'container-name',
@@ -697,4 +701,60 @@ test('trigger should throw when fallback cannot connect a secondary network', as
     ).rejects.toThrow('connect failed');
 
     watcherSpy.mockRestore();
+});
+
+test('trigger should skip and return without error when updateAvailable is false', async () => {
+    const watcherSpy = jest.spyOn(docker, 'getWatcher');
+    await expect(
+        docker.trigger({
+            updateAvailable: false,
+            watcher: 'test',
+            id: '123456789',
+            name: 'container-name',
+            image: {
+                name: 'test/test',
+                tag: { value: '1.0.0' },
+                registry: {
+                    name: 'hub',
+                    url: 'my-registry',
+                },
+            },
+            updateKind: {
+                kind: 'unknown',
+            },
+        }),
+    ).resolves.toBeUndefined();
+
+    expect(watcherSpy).not.toHaveBeenCalled();
+    watcherSpy.mockRestore();
+});
+
+test('getNewImageFullName should gracefully handle undefined remoteValue', () => {
+    const mockRegistry = {
+        getImageFullName: jest.fn(
+            (image, tagOrDigest) => `${image.name}:${tagOrDigest}`,
+        ),
+    };
+    const containerWithoutRemoteValue = {
+        name: 'test-container',
+        image: {
+            name: 'test/test',
+            tag: { value: '1.2.3' },
+            registry: { name: 'hub', url: 'my-registry' },
+        },
+        updateKind: {
+            kind: 'unknown',
+            remoteValue: undefined,
+        },
+    };
+
+    const fullName = docker.getNewImageFullName(
+        mockRegistry,
+        containerWithoutRemoteValue,
+    );
+    expect(fullName).toEqual('test/test:1.2.3');
+    expect(mockRegistry.getImageFullName).toHaveBeenCalledWith(
+        containerWithoutRemoteValue.image,
+        '1.2.3',
+    );
 });

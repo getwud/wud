@@ -255,6 +255,30 @@ describe('API Container', () => {
         expect(mockTrigger).toHaveBeenCalledWith({ id: 'container1' });
     });
 
+    test('should return 200 when running trigger on a container with no update available', async () => {
+        const mockTrigger = jest.fn().mockResolvedValue(undefined);
+        (storeContainer.getContainer as jest.Mock).mockReturnValue({
+            id: 'container1',
+            updateAvailable: false,
+            updateKind: { kind: 'unknown' },
+        });
+        (registry.getState as jest.Mock).mockReturnValue({
+            trigger: {
+                'dockercompose.test': { trigger: mockTrigger },
+            },
+        });
+
+        const res = await request(app).post(
+            '/container1/triggers/dockercompose/test',
+        );
+        expect(res.status).toBe(200);
+        expect(mockTrigger).toHaveBeenCalledWith({
+            id: 'container1',
+            updateAvailable: false,
+            updateKind: { kind: 'unknown' },
+        });
+    });
+
     test('should return 500 if running trigger fails', async () => {
         const mockTrigger = jest
             .fn()

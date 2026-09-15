@@ -4,6 +4,7 @@ import path from 'path';
 import yaml from 'yaml';
 import Docker from '../docker/Docker';
 import { getState } from '../../../registry';
+import { fullName } from '../../../model/container';
 
 /**
  * Return true if the container belongs to the compose file.
@@ -101,6 +102,12 @@ class Dockercompose extends Docker {
      * @returns {Promise<void>}
      */
     async trigger(container) {
+        if (!container.updateAvailable) {
+            this.log.info(
+                `No update available for container ${fullName(container)} => skip trigger`,
+            );
+            return;
+        }
         return this.triggerBatch([container]);
     }
 
@@ -110,10 +117,18 @@ class Dockercompose extends Docker {
      * @returns {Promise<void>}
      */
     async triggerBatch(containers) {
+        const containersToUpdate = containers.filter((c) => c.updateAvailable);
+        if (containersToUpdate.length === 0) {
+            this.log.info(
+                'No containers with updates available => skip trigger',
+            );
+            return;
+        }
+
         // Group containers by their compose file
         const containersByComposeFile = new Map();
 
-        for (const container of containers) {
+        for (const container of containersToUpdate) {
             // Filter on containers running on local host
             const watcher = this.getWatcher(container);
             if (watcher.dockerApi.modem.socketPath === '') {
