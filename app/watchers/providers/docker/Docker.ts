@@ -672,13 +672,19 @@ export class Docker extends Watcher {
             );
             return result;
         } else {
-            const watchDigest =
-                !container.image.tag.semver &&
-                registryProvider.shouldWatchDigest(
-                    container.labels?.[wudWatchDigest],
+            const watchDigestLabel = container.labels?.[wudWatchDigest];
+            let watchDigest = false;
+            if (watchDigestLabel !== undefined && watchDigestLabel !== '') {
+                watchDigest = watchDigestLabel.toLowerCase() === 'true';
+            } else if (container.image.digest?.watch !== undefined) {
+                watchDigest = container.image.digest.watch;
+            } else if (!container.image.tag.semver) {
+                watchDigest = registryProvider.shouldWatchDigest(
+                    undefined,
                     container.image.name,
                     this.configuration.watchdigestdefault,
                 );
+            }
 
             if (!container.image.tag.semver && !watchDigest) {
                 this.log.warn(
@@ -849,30 +855,20 @@ export class Docker extends Watcher {
         }
         const parsedTag = parseSemver(transformTag(transformTags, tagName));
         const isSemver = parsedTag !== null && parsedTag !== undefined;
+        const watchDigestLabel = container.Labels[wudWatchDigest];
         let watchDigest = false;
 
-        if (!isSemver) {
+        if (watchDigestLabel !== undefined && watchDigestLabel !== '') {
+            watchDigest = watchDigestLabel.toLowerCase() === 'true';
+        } else if (!isSemver) {
             if (registryProvider) {
                 watchDigest = registryProvider.shouldWatchDigest(
-                    container.Labels[wudWatchDigest],
+                    undefined,
                     parsedImage.path,
                     this.configuration.watchdigestdefault,
                 );
             } else {
-                const watchDigestLabel = container.Labels[wudWatchDigest];
-                if (
-                    watchDigestLabel !== undefined &&
-                    watchDigestLabel.toLowerCase() === 'true'
-                ) {
-                    watchDigest = true;
-                } else if (
-                    watchDigestLabel !== undefined &&
-                    watchDigestLabel.toLowerCase() === 'false'
-                ) {
-                    watchDigest = false;
-                } else {
-                    watchDigest = this.configuration.watchdigestdefault;
-                }
+                watchDigest = this.configuration.watchdigestdefault;
             }
         }
 

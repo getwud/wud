@@ -340,14 +340,13 @@ export class Swarm extends Watcher {
                 KEY_WATCH_DIGEST,
             );
             let watchDigest = false;
-            if (!isSemver) {
-                if (watchDigestLabel !== undefined) {
-                    watchDigest = watchDigestLabel.toLowerCase() === 'true';
-                } else if (
-                    this.configuration.watchdigestdefault !== undefined
-                ) {
-                    watchDigest = this.configuration.watchdigestdefault;
-                }
+            if (watchDigestLabel !== undefined && watchDigestLabel !== '') {
+                watchDigest = watchDigestLabel.toLowerCase() === 'true';
+            } else if (
+                !isSemver &&
+                this.configuration.watchdigestdefault !== undefined
+            ) {
+                watchDigest = this.configuration.watchdigestdefault;
             }
 
             const rawContainer: any = {
@@ -428,13 +427,22 @@ export class Swarm extends Watcher {
             );
         }
 
-        const watchDigest =
-            !container.image.tag.semver &&
-            registryProvider.shouldWatchDigest(
-                getLabelValue(container.labels, KEY_WATCH_DIGEST),
+        const watchDigestLabel = getLabelValue(
+            container.labels,
+            KEY_WATCH_DIGEST,
+        );
+        let watchDigest = false;
+        if (watchDigestLabel !== undefined && watchDigestLabel !== '') {
+            watchDigest = watchDigestLabel.toLowerCase() === 'true';
+        } else if (container.image.digest?.watch !== undefined) {
+            watchDigest = container.image.digest.watch;
+        } else if (!container.image.tag.semver) {
+            watchDigest = registryProvider.shouldWatchDigest(
+                undefined,
                 container.image.name,
                 this.configuration.watchdigestdefault,
             );
+        }
 
         if (!container.image.tag.semver && !watchDigest) {
             logContainer.warn(

@@ -616,12 +616,13 @@ export class Nomad extends Watcher {
             wudWatchDigestCanonical,
         );
         let watchDigest = false;
-        if (!isSemver) {
-            if (watchDigestMeta !== undefined) {
-                watchDigest = watchDigestMeta.toLowerCase() === 'true';
-            } else if (this.configuration.watchdigestdefault !== undefined) {
-                watchDigest = this.configuration.watchdigestdefault;
-            }
+        if (watchDigestMeta !== undefined && watchDigestMeta !== '') {
+            watchDigest = watchDigestMeta.toLowerCase() === 'true';
+        } else if (
+            !isSemver &&
+            this.configuration.watchdigestdefault !== undefined
+        ) {
+            watchDigest = this.configuration.watchdigestdefault;
         }
 
         const currentDigest = extractDigestFromImage(imageName);
@@ -679,14 +680,21 @@ export class Nomad extends Watcher {
             );
         }
 
-        const watchDigest =
-            !container.image.tag.semver &&
-            registryProvider.shouldWatchDigest(
-                container.labels?.[wudWatchDigest] ??
-                    container.labels?.[wudWatchDigestCanonical],
+        const watchDigestMeta =
+            container.labels?.[wudWatchDigest] ??
+            container.labels?.[wudWatchDigestCanonical];
+        let watchDigest = false;
+        if (watchDigestMeta !== undefined && watchDigestMeta !== '') {
+            watchDigest = watchDigestMeta.toLowerCase() === 'true';
+        } else if (container.image.digest?.watch !== undefined) {
+            watchDigest = container.image.digest.watch;
+        } else if (!container.image.tag.semver) {
+            watchDigest = registryProvider.shouldWatchDigest(
+                undefined,
                 container.image.name,
                 this.configuration.watchdigestdefault,
             );
+        }
 
         if (!container.image.tag.semver && !watchDigest) {
             this.log.warn(

@@ -715,12 +715,16 @@ export class Kubernetes extends Watcher {
         // Determine digest watching
         const watchDigestAnnotation = getAnnotation(KEY_WATCH_DIGEST);
         let watchDigest = false;
-        if (!isSemver) {
-            if (watchDigestAnnotation !== undefined) {
-                watchDigest = watchDigestAnnotation.toLowerCase() === 'true';
-            } else if (this.configuration.watchdigestdefault !== undefined) {
-                watchDigest = this.configuration.watchdigestdefault;
-            }
+        if (
+            watchDigestAnnotation !== undefined &&
+            watchDigestAnnotation !== ''
+        ) {
+            watchDigest = watchDigestAnnotation.toLowerCase() === 'true';
+        } else if (
+            !isSemver &&
+            this.configuration.watchdigestdefault !== undefined
+        ) {
+            watchDigest = this.configuration.watchdigestdefault;
         }
 
         // Extract current digest from K8s imageID (from Pod status)
@@ -786,17 +790,26 @@ export class Kubernetes extends Watcher {
             );
         }
 
-        const watchDigest =
-            !container.image.tag.semver &&
-            registryProvider.shouldWatchDigest(
-                getAnnotationValue(
-                    container.labels,
-                    KEY_WATCH_DIGEST,
-                    container.name,
-                ),
+        const watchDigestAnnotation = getAnnotationValue(
+            container.labels,
+            KEY_WATCH_DIGEST,
+            container.name,
+        );
+        let watchDigest = false;
+        if (
+            watchDigestAnnotation !== undefined &&
+            watchDigestAnnotation !== ''
+        ) {
+            watchDigest = watchDigestAnnotation.toLowerCase() === 'true';
+        } else if (container.image.digest?.watch !== undefined) {
+            watchDigest = container.image.digest.watch;
+        } else if (!container.image.tag.semver) {
+            watchDigest = registryProvider.shouldWatchDigest(
+                undefined,
                 container.image.name,
                 this.configuration.watchdigestdefault,
             );
+        }
 
         if (!container.image.tag.semver && !watchDigest) {
             this.log.warn(

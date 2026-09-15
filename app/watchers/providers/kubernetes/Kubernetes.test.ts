@@ -594,6 +594,67 @@ describe('Kubernetes Watcher', () => {
             expect(containers[0].displayName).toBe('Canonical Name');
             expect(containers[0].includeTags).toBe('^2\\.');
         });
+
+        test('respects getwud.app/watch.digest=true when tag is semver', async () => {
+            const deployment = makeDeployment({
+                metadata: {
+                    name: 'digest-test',
+                    namespace: 'default',
+                    annotations: {
+                        'getwud.app/watch.digest': 'true',
+                    },
+                },
+                spec: {
+                    selector: { matchLabels: { app: 'digest-test' } },
+                    template: {
+                        spec: {
+                            containers: [
+                                {
+                                    name: 'app',
+                                    image: 'ghcr.io/immich-app/immich-server:v3',
+                                },
+                            ],
+                        },
+                    },
+                },
+            });
+            mockAppsV1Api.listDeploymentForAllNamespaces.mockResolvedValue({
+                items: [deployment],
+            });
+            const containers = await kubernetes.getContainers();
+            expect(containers).toHaveLength(1);
+            expect(containers[0].image.tag.semver).toBe(true);
+            expect(containers[0].image.digest.watch).toBe(true);
+        });
+
+        test('defaults watch.digest to false when tag is semver and no annotation is present', async () => {
+            const deployment = makeDeployment({
+                metadata: {
+                    name: 'digest-test',
+                    namespace: 'default',
+                },
+                spec: {
+                    selector: { matchLabels: { app: 'digest-test' } },
+                    template: {
+                        spec: {
+                            containers: [
+                                {
+                                    name: 'app',
+                                    image: 'ghcr.io/immich-app/immich-server:v3',
+                                },
+                            ],
+                        },
+                    },
+                },
+            });
+            mockAppsV1Api.listDeploymentForAllNamespaces.mockResolvedValue({
+                items: [deployment],
+            });
+            const containers = await kubernetes.getContainers();
+            expect(containers).toHaveLength(1);
+            expect(containers[0].image.tag.semver).toBe(true);
+            expect(containers[0].image.digest.watch).toBe(false);
+        });
     });
 
     describe('getAnnotationValue helper', () => {
@@ -740,6 +801,53 @@ describe('Kubernetes Watcher', () => {
 
             await kubernetes.watchContainer(mockC as any);
             expect(event.emitContainerReport).toHaveBeenCalled();
+        });
+
+        test('watches digest for semver tag when getwud.app/watch.digest annotation is true', async () => {
+            const mockRegistryProvider = {
+                shouldWatchDigest: jest.fn().mockReturnValue(true),
+                getTags: jest.fn().mockResolvedValue(['v3']),
+                getImageManifestDigest: jest.fn().mockResolvedValue({
+                    digest: 'sha256:remote-digest-123',
+                    created: '2023-01-01',
+                    version: 2,
+                }),
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'hub.public': mockRegistryProvider },
+            });
+
+            const mockC = {
+                id: 'default_deployment_test_immich',
+                name: 'default_deployment_test_immich',
+                watcher: 'test',
+                labels: {
+                    'getwud.app/watch.digest': 'true',
+                },
+                image: {
+                    id: 'sha256:abc',
+                    registry: {
+                        name: 'hub.public',
+                        url: 'https://registry-1.docker.io/v2',
+                    },
+                    name: 'immich-app/immich-server',
+                    tag: { value: 'v3', semver: true },
+                    digest: { watch: true, repo: 'sha256:local-digest-123' },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: { tag: 'v3' },
+                updateAvailable: false,
+                updateKind: { kind: 'unknown' },
+            };
+
+            storeContainer.getContainer.mockReturnValue(undefined);
+            storeContainer.insertContainer.mockReturnValue(mockC);
+
+            await kubernetes.watchContainer(mockC as any);
+            expect(
+                mockRegistryProvider.getImageManifestDigest,
+            ).toHaveBeenCalled();
         });
 
         test('handles error and attaches it to container', async () => {

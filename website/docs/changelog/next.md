@@ -23,3 +23,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [TRIGGER] Prevent HTTP 500 error when manually running docker or dockercompose triggers on containers with no available update (fixes #1254)
 - 🐛 [TRIGGER] Fix the docker trigger leaving WUD stopped when it updated its own container; it now refuses by default with an actionable error instead of failing silently (fixes #1241, #484)
 - 🚀 [TRIGGER] Add selfupdate option to the docker trigger, delegating the swap of the WUD container to a short-lived helper container with health gating and rollback
+- 🐛 [WATCHER] Respect explicit watch digest label for semver tags (fixes #1247, fixes #1191)
