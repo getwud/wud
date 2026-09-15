@@ -19,16 +19,17 @@ This playbook details the structured process for introducing new features, watch
 flowchart TD
     A[Feature Request / Idea] --> B[pm: Scope & Alignment]
     B -->|Out of Scope| C[Draft Polite Rejection / Webhook Alternative]
-    B -->|Approved| D[architect: Implementation Blueprint]
+    B -->|Approved| D[architect: Reasoning Model & Blueprint]
     D --> E{UI Impact?}
     E -->|Yes| F[ux_designer: UI Wireframe & Styling]
     E -->|No| G[dev_fullstack: Feature Branch & Code]
     F --> G
-    G --> H[dev_fullstack: Unit Tests & Joi Validation]
-    H --> I[doc_specialist: Documentation & Changelog]
-    I --> J[qa_tester: E2E Scenarios & CI Checks]
-    J --> K[Open PR via gh pr create]
-    K --> L[Wait for Manfred's Merge Approval]
+    G --> H[dev_fullstack: Unit Tests, Coverage & Initial E2E]
+    H --> I[dev_fullstack: First-Pass Technical Documentation]
+    I --> J[doc_specialist: Polish Docs, CSpell & Markdownlint]
+    J --> K[qa_tester: Audit E2E & Local Verification]
+    K --> L[Open PR & gh pr checks --watch]
+    L --> M[Wait for Manfred's Merge Approval]
 ```
 
 ---
@@ -44,14 +45,18 @@ flowchart TD
 ---
 
 ## Step 2: Architecture Blueprint (`architect`)
-1. **Design Component Hierarchy**:
+> [!IMPORTANT]
+> The Architect **MUST** use an advanced reasoning model (e.g. Claude 3.5 Sonnet, Gemini Pro, GPT-4o, o3-mini; no Flash).
+
+1. **Design Component Hierarchy & Backward Compatibility**:
    - Determine whether the feature is a new Watcher (`app/watchers/`), Registry (`app/registries/`), Trigger (`app/triggers/`), or Storage feature.
-   - Extend relevant base classes (`Watcher`, `Registry`, `Trigger`).
+   - Extend base classes (`Watcher`, `Registry`, `Trigger`).
+   - Guarantee backward compatibility for existing environment variables, Joi schemas, OpenAPI specs, and SQLite tables.
 2. **Define Data Contracts & Joi Validation**:
    - Create explicit TypeScript interfaces.
    - Define strict Joi validation schemas for all newly introduced configuration options.
 3. **Draft Implementation Plan**:
-   - Produce a file-by-file roadmap and test requirements for the developer.
+   - Produce a file-by-file roadmap, mock definitions, and test requirements for the developer.
 
 ---
 
@@ -71,42 +76,56 @@ flowchart TD
    - Implement according to the architect's blueprint.
    - Enforce strict typing with zero `any`.
    - Update component registration in `app/registry/index.ts`.
-3. **Unit Tests**:
-   - Write comprehensive Jest tests covering success paths, error paths, and Joi validation edge cases.
-   - Run: `cd app && npm test` and `npm run lint`.
+3. **Exhaustive Unit Tests & Coverage**:
+   - Write comprehensive Jest tests covering nominal paths, error paths, and Joi validation edge cases.
+   - Verify code coverage: `cd app && npm test` (ensure no coverage regression).
+4. **Initial E2E Test**:
+   - Add initial Gherkin feature and step definitions in `e2e/features/` or Playwright test in `ui-e2e/`.
+5. **First-Pass Technical Documentation**:
+   - Document new environment variables, types, defaults, and Compose snippets in `website/docs/configuration/...`.
 
 ---
 
-## Step 5: Documentation & Changelog (`doc_specialist`)
-1. **Documentation Portal (`website/docs/`)**:
-   - Document new configuration variables, types, and defaults.
-   - Add realistic `docker run` and `docker-compose.yml` examples.
-   - Validate build: `cd website && npm run build`.
-2. **Changelog**:
-   - Add entry to `website/docs/changelog/next.md`:
-     `- 🚀 [COMPONENT] Add support for feature XYZ (fixes #<issue-number>)`
+## Step 5: Documentation Review & Quality Gates (`doc_specialist`)
+1. **Review & Polish**:
+   - Harmonize developer documentation with site style and navigation in `website/sidebars.ts`.
+2. **Linting & Spell Checking**:
+   - Run CSpell and Markdownlint:
+     ```bash
+     cd website && npm run lint:docs
+     ```
+   - Add genuine domain terms to `cspell.json`.
+3. **Static Build Validation**:
+   - Validate build with zero broken links:
+     ```bash
+     cd website && npm run build
+     ```
 
 ---
 
-## Step 6: Integration & E2E Testing (`qa_tester`)
-1. **Backend Integration**:
-   - Add or update Gherkin feature files in `e2e/features/`.
-   - Verify with `cd e2e && npm run test:local`.
-2. **Frontend UI Integration** (if applicable):
-   - Add Playwright tests in `ui-e2e/tests/`.
-   - Verify with `./scripts/run-ui-tests.sh`.
+## Step 6: Integration & E2E Audit (`qa_tester`)
+1. **Audit E2E Tests**:
+   - Challenge boundary conditions, simulate network failures/timeouts, and ensure tests are not flaky.
+2. **Run E2E Suites**:
+   - Backend: `LOCAL_MODE=true ./scripts/run-e2e-tests.sh`
+   - Frontend: `./scripts/run-ui-tests.sh`
 
 ---
 
-## Step 7: Pull Request & Merge Gate
-1. **Commit**:
-   - Author: `Manfred Martin <16061231+fmartinou@users.noreply.github.com>`
+## Step 7: Pull Request & CI Gate
+1. **Commit & Push**:
+   - Author: User's configured Git author (never an AI/bot identity).
    - Message: `🚀 [COMPONENT] Short descriptive title (fixes #<issue-number>)`
+   - Push: `git push -u origin feat/<feature-name>`
 2. **Create PR**:
    ```bash
-   git push -u origin feat/<feature-name>
    gh pr create --title "🚀 [COMPONENT] Short descriptive title" --body "..."
    ```
-3. **Merge Authorization**:
+3. **Mandatory CI Monitoring**:
+   - Watch GitHub Actions pipeline until all checks are green:
+     ```bash
+     gh pr checks <pr-number> --watch
+     ```
+4. **Merge Authorization**:
    - Report PR status and test coverage to Manfred.
    - **Await Manfred's explicit approval before merging.**
