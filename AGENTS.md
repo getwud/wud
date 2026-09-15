@@ -4,6 +4,17 @@ Welcome, AI agent! This document is the single source of truth for working on th
 
 ---
 
+## 🤖 Multi-Agent Framework & Governance (`.agents/`)
+
+WUD defines a formal multi-agent operating model with specialized personas and business workflows:
+- **Personas & Roles**: Detailed boundaries and scopes are defined in [`.agents/personas/`](./.agents/personas/).
+- **Orchestration Workflows**: Step-by-step playbooks for issue resolution, new features, and releases are in [`.agents/workflows/`](./.agents/workflows/).
+- **OpenHands & Platform Portability**: Repository micro-agents and configuration are maintained in [`.openhands/`](./.openhands/) for self-hosted OpenHands compatibility.
+
+Refer to [`.agents/README.md`](./.agents/README.md) for full governance details.
+
+---
+
 ## 🏗️ Project Architecture & Tech Stack
 
 WUD is a modular monorepo structured as follows:
