@@ -21,3 +21,5 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [WATCHER] Add Docker Swarm watcher provider with automated E2E test suite
 - 🐛 [REGISTRY] Fix default ecr.public provider matching for public.ecr.aws images (fixes #1251)
 - 🐛 [TRIGGER] Prevent HTTP 500 error when manually running docker or dockercompose triggers on containers with no available update (fixes #1254)
+- 🐛 [TRIGGER] Fix the docker trigger leaving WUD stopped when it updated its own container; it now refuses by default with an actionable error instead of failing silently (fixes #1241, #484)
+- 🚀 [TRIGGER] Add selfupdate option to the docker trigger, delegating the swap of the WUD container to a short-lived helper container with health gating and rollback

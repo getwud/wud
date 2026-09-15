@@ -6,6 +6,13 @@ import { Container, ContainerImage, fullName } from '../../../model/container';
 import { Docker as DockerWatcher } from '../../../watchers/providers/docker/Docker';
 import Registry from '../../../registries/Registry';
 import { Logger } from 'pino';
+import {
+    SELF_UPDATE_HELPER_NAME,
+    SELF_UPDATE_PAYLOAD_ENV,
+    SelfUpdatePayload,
+    getSelfContainerId,
+    isSelfContainer,
+} from './self';
 
 /**
  * Replace a Docker container with an updated one.
@@ -20,6 +27,8 @@ class Docker extends Trigger {
             dryrun: this.joi.boolean().default(false),
             autoremovetimeout: this.joi.number().default(10_000),
             multinetworkfallback: this.joi.boolean().default(true),
+            selfupdate: this.joi.boolean().default(false),
+            selfupdatetimeout: this.joi.number().default(120_000),
         });
     }
 
@@ -562,6 +571,83 @@ class Docker extends Trigger {
     }
 
     /**
+     * Resolve the id of the container WUD itself runs in (undefined when WUD
+     * does not run in a container, or the runtime does not expose it).
+     */
+    async resolveSelfContainerId(
+        dockerApi: Dockerode,
+    ): Promise<string | undefined> {
+        return getSelfContainerId(dockerApi, this.log);
+    }
+
+    /**
+     * Hand the swap over to a short-lived helper container.
+     *
+     * WUD cannot replace its own container in-process: stopping it kills the
+     * very process that still has to remove, recreate and start it. The helper
+     * runs the image WUD is running *right now* (not the one being installed),
+     * so the code performing the swap is always known to support it.
+     */
+    async spawnSelfUpdateHelper(
+        dockerApi: Dockerode,
+        watcher: DockerWatcher,
+        currentContainerSpec: Dockerode.ContainerInspectInfo,
+        containerToCreate: Dockerode.ContainerCreateOptions,
+        logContainer: Logger,
+    ): Promise<void> {
+        const socketPath = watcher.configuration.socket;
+        if (!socketPath || watcher.configuration.host) {
+            throw new Error(
+                'Self-update is only supported when the watcher talks to Docker over a socket',
+            );
+        }
+
+        const payload: SelfUpdatePayload = {
+            containerId: currentContainerSpec.Id,
+            createOptions: containerToCreate,
+            socketPath: '/var/run/docker.sock',
+            healthTimeoutMs: this.configuration.selfupdatetimeout,
+        };
+
+        // A fixed name, plus removing the previous helper first, keeps exactly
+        // one helper container around. It is deliberately not auto-removed: if
+        // a self-update fails, its logs are the only record of what happened,
+        // and WUD is not running to capture them.
+        const helperName = SELF_UPDATE_HELPER_NAME;
+        try {
+            await dockerApi
+                .getContainer(helperName)
+                .remove({ force: true, v: true });
+            logContainer.debug(`Removed the previous ${helperName} container`);
+        } catch {
+            // No helper from a previous run.
+        }
+
+        logContainer.info(
+            `Delegating the self-update to helper container ${helperName}`,
+        );
+
+        const helper = await dockerApi.createContainer({
+            name: helperName,
+            Image: currentContainerSpec.Image,
+            Env: [`${SELF_UPDATE_PAYLOAD_ENV}=${JSON.stringify(payload)}`],
+            // The helper does not serve HTTP, so the image healthcheck (which
+            // curls the API) would only ever mark it unhealthy.
+            Healthcheck: { Test: ['NONE'] },
+            HostConfig: {
+                AutoRemove: false,
+                Binds: [`${socketPath}:/var/run/docker.sock`],
+                RestartPolicy: { Name: 'no' },
+            },
+        });
+
+        await helper.start();
+        logContainer.info(
+            `Helper container ${helperName} started; this container is about to be replaced`,
+        );
+    }
+
+    /**
      * Update the container.
      */
     async trigger(container: Container) {
@@ -632,6 +718,34 @@ class Docker extends Trigger {
                     currentContainerSpec,
                     newImage,
                 );
+
+                // Replacing the container WUD itself runs in cannot be done in
+                // this process: the stop below would kill the very code that
+                // still has to remove, recreate and start it. Hand it over to a
+                // helper container instead.
+                const selfContainerId =
+                    await this.resolveSelfContainerId(dockerApi);
+                if (isSelfContainer(currentContainerSpec.Id, selfContainerId)) {
+                    if (!this.configuration.selfupdate) {
+                        throw new Error(
+                            'Refusing to update the container WUD runs in: stopping it would abort the update ' +
+                                'and leave the container down. Enable it with ' +
+                                'WUD_TRIGGER_DOCKER_{trigger_name}_SELFUPDATE=true, or exclude WUD from this ' +
+                                'trigger with the wud.trigger.exclude label and update it externally.',
+                        );
+                    }
+                    // Let Docker assign the replacement a fresh hostname rather
+                    // than inheriting this container's id.
+                    delete containerToCreateInspect.Hostname;
+                    await this.spawnSelfUpdateHelper(
+                        dockerApi,
+                        watcher,
+                        currentContainerSpec,
+                        containerToCreateInspect,
+                        logContainer,
+                    );
+                    return;
+                }
 
                 // Stop current container
                 if (currentContainerState.Running) {
