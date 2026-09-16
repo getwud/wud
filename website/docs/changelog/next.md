@@ -25,3 +25,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [TRIGGER] Add selfupdate option to the docker trigger, delegating the swap of the WUD container to a short-lived helper container with health gating and rollback
 - 🐛 [WATCHER] Respect explicit watch digest label for semver tags (fixes #1247, fixes #1191)
 - 🐛 [UI] Fix infinite OIDC redirect loop when user is denied access (fixes #1258)
+- 🛠️ [DOCS] Document trigger template variables and multi-host watcher placeholder (fixes #421)
