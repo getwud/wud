@@ -17,18 +17,20 @@ This playbook details the end-to-end lifecycle for handling incoming user bug re
 
 ```mermaid
 flowchart TD
-    A[New GitHub Issue] --> B[support_triage: Intake & Qualification]
-    B -->|User Error or Question| C[support_triage: Draft Polite Response for Manfred]
-    B -->|Feature Request| D[pm: Transition to New Feature Workflow]
-    B -->|Confirmed Bug| E{Architectural Impact?}
-    E -->|Yes| F[architect: Technical RFC & Blueprint]
-    E -->|No| G[dev_fullstack: Fix Branch & Unit Test]
-    F --> G
-    G --> H[dev_fullstack: Run Tests, Lint & Coverage Check]
-    H --> I[dev_fullstack / doc_specialist: Doc & Changelog Review]
-    I --> J[qa_tester: E2E Validation & gh pr checks --watch]
-    J --> K[Open PR & Report CI Status]
-    K --> L[Wait for Manfred's Merge Approval]
+    A[New GitHub Issue] --> B[support_triage: Silent Intake & Qualification]
+    B -->|Missing Info| C[support_triage: 1 Concise Question for Manfred]
+    B -->|User Error or Question| D[support_triage: Concise Direct Answer for Manfred]
+    B -->|Feature Request| E[pm: Transition to New Feature Workflow]
+    B -->|Confirmed Bug (Silent)| F{Architectural Impact?}
+    F -->|Yes| G[architect: Technical RFC & Blueprint]
+    F -->|No| H[dev_fullstack: Fix Branch & Unit Test]
+    G --> H
+    H --> I[dev_fullstack: Run Tests, Lint & Coverage Check]
+    I --> J[dev_fullstack / doc_specialist: Doc & Changelog Review]
+    J --> K[qa_tester: E2E Validation & gh pr checks --watch]
+    K --> L[Open PR with Full Technical Context & Report CI Status]
+    L --> M[Wait for Manfred's Merge Approval]
+    M --> N[support_triage: Post Concise Closing Comment & Close Issue]
 ```
 
 ---
@@ -43,14 +45,17 @@ flowchart TD
    - Cross-reference logs with matching source code in `app/`.
 3. **Qualification Decision**:
    - **Scenario A: User Configuration Error or Usage Question**
-     - Draft a polite, helpful explanation pointing to documentation and correct configuration syntax.
+     - Draft a concise, human, direct explanation pointing to documentation and correct configuration syntax (max 2-3 sentences, zero AI corporate fluff).
      - Present draft to Manfred. Do NOT post to GitHub without approval.
    - **Scenario B: Feature Request Filed as an Issue**
      - **Route immediately to the Product Manager (`pm`)**: Hand off the issue to the [New Feature Playbook](new_feature.md) to assess value, roadmap fit, and architectural scope.
-   - **Scenario C: Confirmed Bug**
+   - **Scenario C: Confirmed Bug (Silent Triage)**
+     - **DO NOT comment on the issue**: Avoid noisy or robotic comments during investigation.
      - Identify root cause file and line numbers.
-     - Document minimal reproduction steps.
+     - Document minimal reproduction steps for the PR.
      - Proceed to Step 2 (if architectural) or Step 3.
+   - **Exception: Missing Critical Information**
+     - If reproduction is impossible without missing logs or configuration, draft a **single, concise, targeted question** (e.g. *"Could you share your docker-compose labels?"*) for Manfred's approval.
 
 ---
 
@@ -101,9 +106,24 @@ flowchart TD
    - Author: User's configured Git author (never an AI/bot identity).
    - Message: `🐛 [COMPONENT] Fix description (fixes #<issue-number>)`
    - Push to origin: `git push -u origin fix/<issue-number>_<short-description>`
-2. **Open PR**:
+2. **Open PR (Detailed Context Hub)**:
+   - **All technical explanations, root causes, and diff rationale belong on the PR**:
    ```bash
-   gh pr create --title "🐛 [COMPONENT] Fix description (fixes #<issue-number>)" --body "..."
+   gh pr create --title "🐛 [COMPONENT] Fix description (fixes #<issue-number>)" --body "$(cat <<'EOF'
+   ## Problem
+   Brief description of the bug and its root cause.
+
+   ## Solution
+   Explanation of the code changes and why this approach was chosen.
+
+   ## Validation
+   - Unit tests added / updated
+   - Coverage maintained
+   - Linters clean
+
+   Fixes #<issue-number>
+   EOF
+   )"
    ```
 3. **Mandatory CI Pipeline Monitoring**:
    - Monitor remote checks until 100% green:
@@ -113,3 +133,16 @@ flowchart TD
 4. **Report to Manfred**:
    - Provide PR URL, root cause explanation, and confirmation of green CI checks.
    - **NEVER merge into `main` without Manfred's explicit authorization.**
+
+---
+
+## Step 6: Post-Merge Issue Closure (`support_triage`)
+1. **Trigger**: Manfred has validated and merged the Pull Request into `main`.
+2. **Action**:
+   - Draft a minimal, human closing comment (1-2 sentences max, no corporate fluff):
+     > *"Fix merged via #<pr-number>. It will be included in the next release. Thanks for reporting!"*
+   - Once approved by Manfred, post the comment and close the issue:
+     ```bash
+     gh issue comment <issue-number> --body "Fix merged via #<pr-number>. It will be included in the next release. Thanks for reporting!"
+     gh issue close <issue-number>
+     ```

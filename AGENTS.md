@@ -133,6 +133,12 @@ Whenever implementing a feature or bugfix, **strictly adhere to the following wo
 ### 7. Pull Requests & Merging
 - **Explicit Approval Required**: NEVER merge Pull Requests into `main` automatically without Manfred's explicit approval. Always report the status of CI checks and wait for Manfred to validate before merging.
 
+### 8. GitHub Issues & Communication Standards
+- **Zero AI Fluff**: Never post verbose, corporate, or robot-like comments on GitHub issues or PRs. Keep all interactions short, direct, and human.
+- **Silent Triage for Bugs**: When an issue is confirmed as a bug, **do NOT post intermediate analysis comments on the issue**. All technical context, root causes, and diff rationale belong on the Pull Request.
+- **Post-Merge Closure**: Once the PR is merged, close the issue with a single, concise 1-2 sentence acknowledgement (e.g. *"Fix merged via #123. It will be included in the next release. Thanks for reporting!"*).
+- **Approval Required**: Never post comments or close issues directly without Manfred's prior review and approval.
+
 ---
 
 ## 🎯 PR Verification Checklist

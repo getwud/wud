@@ -116,8 +116,11 @@ gh run view <id>
    - **NEVER** merge Pull Requests into `main` automatically without Manfred's explicit approval.
    - Agents must monitor remote CI checks (`gh pr checks <PR> --watch`) and ensure all GitHub Actions jobs pass green before declaring a task completed.
 
-4. **No Direct Unapproved GitHub Comments**  
-   - Never post comments or close GitHub issues directly without prior review and consent from Manfred.
+4. **Human, Concise & Noise-Free GitHub Communication**  
+   - **Zero AI Fluff / Corporate Jargon**: Never post verbose, robotic, or overly elaborate answers on GitHub. Keep all comments short, direct, and human.
+   - **Silent Triage for Bugs**: When an issue is confirmed as a bug, do NOT comment on the issue during analysis. All technical context and root cause details belong in the Pull Request (`Fixes #...`).
+   - **Post-Merge Closure**: Once the PR is merged, the issue is closed with a 1-2 sentence courteous acknowledgement (e.g., *"Fix merged via #123. It will be included in the next release. Thanks for reporting!"*).
+   - **Approval Required**: Never post comments or close issues directly without Manfred's prior review and approval.
 
 5. **Strict Quality Gates & Backward Compatibility**  
    - **Backend unit tests** (`cd app && npm test`): 100% pass, zero coverage regression.

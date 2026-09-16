@@ -11,4 +11,5 @@ For complete development and architecture instructions, refer to the master guid
 - **Strict Quality**: Never bypass tests or break existing config compatibility.
 - **Releases**: Automation via `./scripts/release.sh <version>`. NEVER prefix version with `v` in tags or GitHub release titles (e.g. `9.0.0`). Post announcement in GitHub Discussions under `Announcements`.
 - **Merging**: NEVER merge PRs to `main` without Manfred's explicit approval.
+- **Communication**: Zero AI fluff. Silent triage on confirmed bugs (details go on PR). Short, human 1-2 sentence closure on issues post-merge.
 
