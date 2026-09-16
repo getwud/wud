@@ -17,6 +17,8 @@ forbidden_actions:
   - Never degrade global unit test code coverage
   - Never break backward compatibility for existing environment variables, Joi schemas, OpenAPI contracts, or SQLite tables
   - Never use `any` type in TypeScript where strict typing can be inferred or specified
+  - Never push code without running and passing local linting (`npm run lint` / `npm run lint:fix`) across all touched packages (`app`, `ui`, `e2e`)
+  - Never edit markdown or changelog files (`website/docs/changelog/next.md`) without running and passing documentation lint (`cd website && npm run lint:docs`) and static build (`cd website && npm run build`)
   - Never commit using an AI/bot identity; always use the user's configured Git author
   - Never mention AI, Antigravity, OpenHands, or LLMs in Git commit messages or PR descriptions
 ---
@@ -58,6 +60,10 @@ The **Senior Fullstack Developer** is the primary code craftsman of WUD. Respons
    - **OpenAPI & REST Contracts**: Never change existing response structures or HTTP status codes without versioning.
    - **Database Migrations**: Any SQLite schema change must be an appended migration in `app/store/db/migrations.ts`. Existing migrations must NEVER be modified.
 
+7. **Pre-Push Lint & Documentation Discipline**:
+   - **Code Linting Gate**: ESLint and Prettier must be systematically validated locally (`npm run lint` / `npm run lint:fix`) across all touched packages (`app`, `ui`, `e2e`) before any commit or push. Never let CI fail on preventable formatting, unused imports, or lint errors.
+   - **Documentation & Changelog Gate**: Any change touching `website/` (including changelog entries in `website/docs/changelog/next.md` or configuration docs) must be validated with documentation lint (`cd website && npm run lint:docs`, checking Markdownlint + CSpell) and static build verification (`cd website && npm run build`). Never submit broken markdown links, typos, or Docusaurus build breakages.
+
 ---
 
 ## ⚡ Safe & Auto-Approved Commands
@@ -70,6 +76,8 @@ npm run test:local
 npm run lint
 npm run lint:fix
 npm run build
+cd website && npm run lint:docs
+cd website && npm run build
 
 # Git Inspection & Branching
 git status
@@ -92,6 +100,8 @@ gh run view
 - **NEVER** merge Pull Requests into `main`. Merges must be performed or explicitly approved by Manfred.
 - **NEVER** bypass Joi validation schemas.
 - **NEVER** commit untested code or degrade code coverage.
+- **NEVER** push code without running and passing local linting (`npm run lint` / `npm run lint:fix`) across all touched packages (`app`, `ui`, `e2e`).
+- **NEVER** edit markdown or changelog files (`website/docs/changelog/next.md`) without running and passing documentation lint (`cd website && npm run lint:docs`) and static build (`cd website && npm run build`).
 - **NEVER** declare a task complete before checking that CI checks on GitHub Actions are passing (`gh pr checks <PR> --watch`).
 
 ---
@@ -106,7 +116,8 @@ Before declaring any task complete:
 [ ] Code coverage verified (no coverage degradation)
 [ ] Initial E2E scenario implemented (if watcher/trigger/registry added)
 [ ] Initial technical documentation drafted in website/docs/
-[ ] Lint passing with zero warnings/errors (npm run lint)
+[ ] Mandatory Lint Gate: ESLint passing with zero warnings/errors across all touched packages (`cd app && npm run lint`, `cd ui && npm run lint`, `cd e2e && npm run lint`)
+[ ] Mandatory Website/Doc Gate (if website/ touched or next.md updated): `cd website && npm run lint:docs` (Markdownlint + CSpell) and `cd website && npm run build`
 [ ] Git commit authored with the user's configured Git author
 [ ] PR opened and CI checks monitored until green (gh pr checks <PR> --watch)
 ```
