@@ -468,10 +468,7 @@ describe('reconcileEnv', () => {
             'PORT=8080',
             'USER_CUSTOM=my-value',
         ];
-        const oldImageEnv = [
-            'PATH=/usr/local/bin:/bin',
-            'PORT=3000',
-        ];
+        const oldImageEnv = ['PATH=/usr/local/bin:/bin', 'PORT=3000'];
         const newImageEnv = [
             'PATH=/usr/local/bin:/bin:/new/bin',
             'PORT=3000',
@@ -587,7 +584,9 @@ describe('reconcileCmd & reconcileEntrypoint', () => {
         const oldImageCmd = ['npm', 'start'];
         const newImageCmd = undefined;
 
-        expect(reconcileCmd(containerCmd, oldImageCmd, newImageCmd)).toBeUndefined();
+        expect(
+            reconcileCmd(containerCmd, oldImageCmd, newImageCmd),
+        ).toBeUndefined();
     });
 
     test('reconcileEntrypoint should adopt new image Entrypoint when container equals old image', () => {
@@ -631,7 +630,10 @@ describe('inspectImage', () => {
     });
 
     test('should return image inspect result when available', async () => {
-        const mockInspectData = { Id: 'sha256:1234', Config: { Env: ['FOO=BAR'] } };
+        const mockInspectData = {
+            Id: 'sha256:1234',
+            Config: { Env: ['FOO=BAR'] },
+        };
         const mockDockerApi = {
             getImage: jest.fn(() => ({
                 inspect: jest.fn(() => Promise.resolve(mockInspectData)),
@@ -650,7 +652,9 @@ describe('inspectImage', () => {
     test('should return undefined and log warn when inspect throws', async () => {
         const mockDockerApi = {
             getImage: jest.fn(() => ({
-                inspect: jest.fn(() => Promise.reject(new Error('Image not found'))),
+                inspect: jest.fn(() =>
+                    Promise.reject(new Error('Image not found')),
+                ),
             })),
         };
         const warnSpy = jest.spyOn(log, 'warn');
@@ -696,7 +700,11 @@ describe('cloneContainer with image reconciliation', () => {
         };
         const newImageSpec = {
             Config: {
-                Env: ['PATH=/usr/local/bin:/bin', 'VERSION=2.0.0', 'NEW_IMAGE_VAR=yes'],
+                Env: [
+                    'PATH=/usr/local/bin:/bin',
+                    'VERSION=2.0.0',
+                    'NEW_IMAGE_VAR=yes',
+                ],
                 Labels: { 'version.label': '2.0.0', 'image.new': 'true' },
                 Cmd: ['node', 'server.js'],
                 Entrypoint: ['/docker-entrypoint.sh'],
