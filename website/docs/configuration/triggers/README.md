@@ -131,18 +131,18 @@ Trigger titles and bodies (`SIMPLETITLE`, `SIMPLEBODY`, `BATCHTITLE`, `BATCHBODY
 
 ### Simple Mode Variables
 
-In simple mode (`MODE=simple`), all container properties are accessible via the `container` object. Top-level shorthands (such as `${name}` or `${watcher}`) are legacy aliases preserved for backward compatibility:
+In simple mode (`MODE=simple`), all container properties are accessible via the `container` object:
 
-| Canonical Property | Legacy Shorthand | Description | Example |
-| :--- | :--- | :--- | :--- |
-| `container.name` | `${name}` | Monitored container name | `nginx` |
-| `container.watcher` | `${watcher}` | Watcher or host name that discovered the container | `local`, `host1`, `prod` |
-| `container.id` | `${id}` | Unique container ID | `9d5fa8b3c10a` |
-| `container.updateKind.kind` | `${kind}` | Update category (`tag` or `digest`) | `tag` |
-| `container.updateKind.localValue` | `${local}` | Current local tag or short digest | `1.25.0` |
-| `container.updateKind.remoteValue` | `${remote}` | Target remote tag or short digest | `1.26.0` |
-| `container.updateKind.semverDiff` | `${semver}` | Semver difference level | `major`, `minor`, `patch` |
-| `container.result.link` | `${link}` | Changelog or registry link (if available) | `https://...` |
+| Property | Description | Example |
+| :--- | :--- | :--- |
+| `container.name` | Monitored container name | `nginx` |
+| `container.watcher` | Watcher or host name that discovered the container | `local`, `host1`, `prod` |
+| `container.id` | Unique container ID | `9d5fa8b3c10a` |
+| `container.updateKind.kind` | Update category (`tag` or `digest`) | `tag` |
+| `container.updateKind.localValue` | Current local tag or short digest | `1.25.0` |
+| `container.updateKind.remoteValue` | Target remote tag or short digest | `1.26.0` |
+| `container.updateKind.semverDiff` | Semver difference level | `major`, `minor`, `patch` |
+| `container.result.link` | Changelog or registry link (if available) | `https://...` |
 
 :::tip[Multi-Host Notifications]
 When monitoring multiple Docker daemons or remote hosts using distinct watchers (e.g. `WUD_WATCHER_HOST1_...`, `WUD_WATCHER_HOST2_...`), include `$${container.watcher}` in your `SIMPLEBODY` or `SIMPLETITLE` to identify which host discovered the update.
@@ -152,10 +152,10 @@ When monitoring multiple Docker daemons or remote hosts using distinct watchers 
 
 In batch mode (`MODE=batch`), multiple container updates are grouped into a single notification:
 
-| Variable | Shorthand | Description | Example |
-| :--- | :--- | :--- | :--- |
-| `containers` | — | Array of updated `container` objects | `[ { name: 'web', ... }, ... ]` |
-| `containers.length` | `${count}` | Total number of containers with available updates | `3` |
+| Property | Description | Example |
+| :--- | :--- | :--- |
+| `containers` | Array of updated `container` objects | `[ { name: 'web', ... }, ... ]` |
+| `containers.length` | Total number of containers with available updates | `3` |
 
 ---
 
