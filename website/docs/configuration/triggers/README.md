@@ -127,13 +127,13 @@ In addition to provider-specific settings, all triggers support the following co
 
 ## 📝 Template Placeholders & Variables
 
-Trigger titles and bodies (`SIMPLETITLE`, `SIMPLEBODY`, `BATCHTITLE`, `BATCHBODY`) are evaluated as JavaScript template literals.
+Trigger titles and bodies (`SIMPLETITLE`, `SIMPLEBODY`, `BATCHTITLE`, `BATCHBODY`) are evaluated as JavaScript template literals against the container update data.
 
 ### Simple Mode Variables
 
-In simple mode (`MODE=simple`), both the full `container` object and convenient top-level variables are accessible:
+In simple mode (`MODE=simple`), all container properties are accessible via the `container` object. Top-level shorthands (such as `${name}` or `${watcher}`) are legacy aliases preserved for backward compatibility:
 
-| Variable | Shorthand | Description | Example |
+| Canonical Property | Legacy Shorthand | Description | Example |
 | :--- | :--- | :--- | :--- |
 | `container.name` | `${name}` | Monitored container name | `nginx` |
 | `container.watcher` | `${watcher}` | Watcher or host name that discovered the container | `local`, `host1`, `prod` |
@@ -145,7 +145,7 @@ In simple mode (`MODE=simple`), both the full `container` object and convenient 
 | `container.result.link` | `${link}` | Changelog or registry link (if available) | `https://...` |
 
 :::tip[Multi-Host Notifications]
-When monitoring multiple Docker daemons or remote hosts using distinct watchers (e.g. `WUD_WATCHER_HOST1_...`, `WUD_WATCHER_HOST2_...`), include `$${watcher}` (or `$${container.watcher}`) in your `SIMPLEBODY` or `SIMPLETITLE` to indicate which host or engine detected the update.
+When monitoring multiple Docker daemons or remote hosts using distinct watchers (e.g. `WUD_WATCHER_HOST1_...`, `WUD_WATCHER_HOST2_...`), include `$${container.watcher}` in your `SIMPLEBODY` or `SIMPLETITLE` to identify which host discovered the update.
 :::
 
 ### Batch Mode Variables
@@ -172,7 +172,7 @@ services:
     image: getwud/wud
     environment:
       - WUD_TRIGGER_SMTP_GMAIL_SIMPLETITLE=Container $${container.name} can be updated
-      - WUD_TRIGGER_SMTP_GMAIL_SIMPLEBODY=Container $${name} on host $${watcher} can be updated from $${local} to $${remote}
+      - WUD_TRIGGER_SMTP_GMAIL_SIMPLEBODY=Container $${container.name} on host $${container.watcher} can be updated from $${container.updateKind.localValue} to $${container.updateKind.remoteValue}
 ```
 
 </TabItem>
@@ -181,7 +181,7 @@ services:
 ```bash
 docker run \
   -e 'WUD_TRIGGER_SMTP_GMAIL_SIMPLETITLE=Container ${container.name} can be updated' \
-  -e 'WUD_TRIGGER_SMTP_GMAIL_SIMPLEBODY=Container ${name} on host ${watcher} can be updated from ${local} to ${remote}' \
+  -e 'WUD_TRIGGER_SMTP_GMAIL_SIMPLEBODY=Container ${container.name} on host ${container.watcher} can be updated from ${container.updateKind.localValue} to ${container.updateKind.remoteValue}' \
   getwud/wud
 ```
 
