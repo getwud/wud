@@ -31,6 +31,30 @@ describe('parse', () => {
             input: 'v2.0.6.3-2.0.6.3_beta_2021-06-17-ls112',
             expected: { major: 2, minor: 0, patch: 6, prerelease: [] },
         },
+        {
+            input: '4.0.13.2932-ls274',
+            expected: { major: 4, minor: 0, patch: 13, prerelease: [] },
+        },
+        {
+            input: '4.0.9.1000-ls50',
+            expected: { major: 4, minor: 0, patch: 9, prerelease: [] },
+        },
+        {
+            input: '4.0.20.3014-ls325',
+            expected: { major: 4, minor: 0, patch: 20, prerelease: [] },
+        },
+        {
+            input: '2025.08.05',
+            expected: { major: 2025, minor: 8, patch: 5, prerelease: [] },
+        },
+        {
+            input: '1.02.03',
+            expected: { major: 1, minor: 2, patch: 3, prerelease: [] },
+        },
+        {
+            input: '1.2.3alpha',
+            expected: { major: 1, minor: 2, patch: 3, prerelease: ['alpha'] },
+        },
     ];
 
     test.each(validVersions)(
@@ -159,6 +183,56 @@ describe('isGreater', () => {
             v2: 'stable',
             expected: false,
             desc: 'both invalid versions',
+        },
+
+        // Multi-part (4-segment) tags (e.g. LinuxServer Sonarr tags)
+        {
+            v1: '4.0.13.2932-ls274',
+            v2: '4.0.9.1000-ls50',
+            expected: true,
+            desc: '4-part tag with 2-digit patch vs 1-digit patch',
+        },
+        {
+            v1: '4.0.9.1000-ls50',
+            v2: '4.0.13.2932-ls274',
+            expected: false,
+            desc: '4-part tag with 1-digit patch vs 2-digit patch',
+        },
+        {
+            v1: '4.0.20.3014-ls325',
+            v2: '4.0.13.2932-ls274',
+            expected: true,
+            desc: '4-part tag higher patch',
+        },
+        {
+            v1: '4.0.13.2933-ls275',
+            v2: '4.0.13.2932-ls274',
+            expected: true,
+            desc: '4-part tag same patch newer build/revision',
+        },
+        {
+            v1: '4.0.13.2932-ls274',
+            v2: '4.0.13.2933-ls275',
+            expected: false,
+            desc: '4-part tag same patch older build/revision',
+        },
+        {
+            v1: '4.0.13.1000-ls274',
+            v2: '4.0.13.999-ls274',
+            expected: true,
+            desc: 'numeric-aware comparison with different digit lengths',
+        },
+        {
+            v1: '4.0.13.999-ls274',
+            v2: '4.0.13.1000-ls274',
+            expected: false,
+            desc: 'numeric-aware comparison with fewer digits',
+        },
+        {
+            v1: '2025.08.05',
+            v2: '2025.08.04',
+            expected: true,
+            desc: 'CalVer dot-dates with leading zeros',
         },
     ];
 

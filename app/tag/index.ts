@@ -11,7 +11,8 @@ import log from '../log';
  * @returns {*|SemVer}
  */
 export function parse(rawVersion) {
-    const rawVersionCleaned = semver.clean(rawVersion, { loose: true });
+    // 1. Try strict semver clean and parse first
+    const rawVersionCleaned = semver.clean(rawVersion);
     const rawVersionSemver = semver.parse(
         rawVersionCleaned !== null ? rawVersionCleaned : rawVersion,
     );
@@ -20,8 +21,23 @@ export function parse(rawVersion) {
         return rawVersionSemver;
     }
 
-    // Last chance; try to coerce (all data behind patch digit will be lost).
-    return semver.coerce(rawVersion);
+    // 2. Try loose clean ONLY if the version does not contain 4 or more numeric segments.
+    // node-semver's loose clean regex matches 'X.Y.Z.W' by matching a single digit for Z and
+    // treating the remainder as a loose prerelease without a hyphen (e.g. '4.0.13.2932' -> '4.0.1-3.2932').
+    // Skipping loose clean for 4+ segment versions prevents this corruption.
+    if (!/^\D*\d+(\.\d+){3,}/.test(rawVersion)) {
+        const looseCleaned = semver.clean(rawVersion, { loose: true });
+        if (looseCleaned !== null) {
+            const looseSemver = semver.parse(looseCleaned, { loose: true });
+            if (looseSemver !== null) {
+                return looseSemver;
+            }
+        }
+    }
+
+    // 3. Last chance: try to coerce (with loose: true to tolerate leading zeros like 2025.08.05 or 1.02.03).
+    // All data behind patch digit will be lost.
+    return semver.coerce(rawVersion, { loose: true });
 }
 
 /**
@@ -37,10 +53,13 @@ export function isGreater(version1, version2) {
     if (version1Semver === null || version2Semver === null) {
         return false;
     }
-    // If semver versions are exactly equal, fallback to string comparison.
-    // This allows tags like 'YYYY-MM-DD' (which all coerce to YYYY.0.0) to be correctly ordered.
+    // If semver versions are exactly equal, fallback to numeric-aware string comparison.
+    // This allows tags like 'YYYY-MM-DD' (which all coerce to YYYY.0.0) as well as
+    // multi-part build tags (e.g. 4.0.13.1000 vs 4.0.13.999 or ls100 vs ls99) to be correctly ordered.
     if (semver.eq(version1Semver, version2Semver)) {
-        return version1 > version2;
+        return (
+            version1.localeCompare(version2, undefined, { numeric: true }) > 0
+        );
     }
     return semver.gt(version1Semver, version2Semver);
 }
