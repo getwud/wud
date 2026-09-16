@@ -1,6 +1,11 @@
 // @ts-nocheck
 import { ValidationError } from 'joi';
-import Docker from './Docker';
+import Docker, {
+    reconcileEnv,
+    reconcileLabels,
+    reconcileCmd,
+    reconcileEntrypoint,
+} from './Docker';
 import log from '../../../log';
 
 const configurationValid = {
@@ -427,6 +432,340 @@ test('clone should remove hostname and exposed ports when network mode is contai
     expect(clone.Hostname).toBeUndefined();
     expect(clone.ExposedPorts).toBeUndefined();
     expect(clone.HostConfig.NetworkMode).toEqual('container:sidecar');
+});
+
+describe('reconcileEnv', () => {
+    test('should adopt new image default when container matches old image default (#1201)', () => {
+        const containerEnv = [
+            'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+            'NODE_VERSION=18.16.0',
+            'YARN_VERSION=1.22.19',
+        ];
+        const oldImageEnv = [
+            'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+            'NODE_VERSION=18.16.0',
+            'YARN_VERSION=1.22.19',
+        ];
+        const newImageEnv = [
+            'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+            'NODE_VERSION=20.9.0',
+            'YARN_VERSION=1.22.19',
+            'NEW_FEATURE_ENABLED=true',
+        ];
+
+        const reconciled = reconcileEnv(containerEnv, oldImageEnv, newImageEnv);
+        expect(reconciled).toEqual([
+            'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+            'NODE_VERSION=20.9.0',
+            'YARN_VERSION=1.22.19',
+            'NEW_FEATURE_ENABLED=true',
+        ]);
+    });
+
+    test('should preserve user custom env overrides and container-only envs', () => {
+        const containerEnv = [
+            'PATH=/usr/local/bin:/bin',
+            'PORT=8080',
+            'USER_CUSTOM=my-value',
+        ];
+        const oldImageEnv = [
+            'PATH=/usr/local/bin:/bin',
+            'PORT=3000',
+        ];
+        const newImageEnv = [
+            'PATH=/usr/local/bin:/bin:/new/bin',
+            'PORT=3000',
+            'VERSION=2.0.0',
+        ];
+
+        const reconciled = reconcileEnv(containerEnv, oldImageEnv, newImageEnv);
+        expect(reconciled).toEqual([
+            'PATH=/usr/local/bin:/bin:/new/bin',
+            'PORT=8080',
+            'VERSION=2.0.0',
+            'USER_CUSTOM=my-value',
+        ]);
+    });
+
+    test('should handle empty or undefined inputs gracefully', () => {
+        expect(reconcileEnv(undefined, undefined, ['A=1'])).toEqual(['A=1']);
+        expect(reconcileEnv(['A=2'], undefined, undefined)).toEqual(['A=2']);
+        expect(reconcileEnv(undefined, undefined, undefined)).toEqual([]);
+    });
+});
+
+describe('reconcileLabels', () => {
+    test('should adopt new image default labels when container matches old image defaults', () => {
+        const containerLabels = {
+            'org.opencontainers.image.version': '1.0.0',
+            maintainer: 'alice',
+            'wud.tag.include': '^\\d+',
+        };
+        const oldImageLabels = {
+            'org.opencontainers.image.version': '1.0.0',
+            maintainer: 'alice',
+        };
+        const newImageLabels = {
+            'org.opencontainers.image.version': '2.0.0',
+            maintainer: 'bob',
+            'fresh.label': 'yes',
+        };
+
+        const reconciled = reconcileLabels(
+            containerLabels,
+            oldImageLabels,
+            newImageLabels,
+        );
+        expect(reconciled).toEqual({
+            'org.opencontainers.image.version': '2.0.0',
+            maintainer: 'bob',
+            'fresh.label': 'yes',
+            'wud.tag.include': '^\\d+',
+        });
+    });
+
+    test('should preserve user overridden labels', () => {
+        const containerLabels = {
+            maintainer: 'custom-maintainer',
+        };
+        const oldImageLabels = {
+            maintainer: 'alice',
+        };
+        const newImageLabels = {
+            maintainer: 'bob',
+            other: 'val',
+        };
+
+        const reconciled = reconcileLabels(
+            containerLabels,
+            oldImageLabels,
+            newImageLabels,
+        );
+        expect(reconciled).toEqual({
+            maintainer: 'custom-maintainer',
+            other: 'val',
+        });
+    });
+
+    test('should handle empty or undefined labels gracefully', () => {
+        expect(reconcileLabels(undefined, undefined, { a: '1' })).toEqual({
+            a: '1',
+        });
+        expect(reconcileLabels({ a: '2' }, undefined, undefined)).toEqual({
+            a: '2',
+        });
+        expect(reconcileLabels(undefined, undefined, undefined)).toEqual({});
+    });
+});
+
+describe('reconcileCmd & reconcileEntrypoint', () => {
+    test('reconcileCmd should adopt new image Cmd when container Cmd equals old image Cmd', () => {
+        const containerCmd = ['npm', 'start'];
+        const oldImageCmd = ['npm', 'start'];
+        const newImageCmd = ['node', 'server.js'];
+
+        expect(reconcileCmd(containerCmd, oldImageCmd, newImageCmd)).toEqual([
+            'node',
+            'server.js',
+        ]);
+    });
+
+    test('reconcileCmd should preserve container Cmd when user customized it', () => {
+        const containerCmd = ['npm', 'run', 'custom'];
+        const oldImageCmd = ['npm', 'start'];
+        const newImageCmd = ['node', 'server.js'];
+
+        expect(reconcileCmd(containerCmd, oldImageCmd, newImageCmd)).toEqual([
+            'npm',
+            'run',
+            'custom',
+        ]);
+    });
+
+    test('reconcileCmd should return undefined when new image has no Cmd and user did not customize', () => {
+        const containerCmd = ['npm', 'start'];
+        const oldImageCmd = ['npm', 'start'];
+        const newImageCmd = undefined;
+
+        expect(reconcileCmd(containerCmd, oldImageCmd, newImageCmd)).toBeUndefined();
+    });
+
+    test('reconcileEntrypoint should adopt new image Entrypoint when container equals old image', () => {
+        const containerEntrypoint = ['/entrypoint.sh'];
+        const oldImageEntrypoint = ['/entrypoint.sh'];
+        const newImageEntrypoint = ['/docker-entrypoint.sh'];
+
+        expect(
+            reconcileEntrypoint(
+                containerEntrypoint,
+                oldImageEntrypoint,
+                newImageEntrypoint,
+            ),
+        ).toEqual(['/docker-entrypoint.sh']);
+    });
+
+    test('reconcileEntrypoint should preserve container Entrypoint when user customized it', () => {
+        const containerEntrypoint = ['/my-custom-entrypoint.sh'];
+        const oldImageEntrypoint = ['/entrypoint.sh'];
+        const newImageEntrypoint = ['/docker-entrypoint.sh'];
+
+        expect(
+            reconcileEntrypoint(
+                containerEntrypoint,
+                oldImageEntrypoint,
+                newImageEntrypoint,
+            ),
+        ).toEqual(['/my-custom-entrypoint.sh']);
+    });
+});
+
+describe('inspectImage', () => {
+    test('should return undefined when imageRef is undefined', async () => {
+        const result = await docker.inspectImage({}, undefined, log);
+        expect(result).toBeUndefined();
+    });
+
+    test('should return undefined when dockerApi.getImage is not a function', async () => {
+        const result = await docker.inspectImage({}, 'test:1.0.0', log);
+        expect(result).toBeUndefined();
+    });
+
+    test('should return image inspect result when available', async () => {
+        const mockInspectData = { Id: 'sha256:1234', Config: { Env: ['FOO=BAR'] } };
+        const mockDockerApi = {
+            getImage: jest.fn(() => ({
+                inspect: jest.fn(() => Promise.resolve(mockInspectData)),
+            })),
+        };
+
+        const result = await docker.inspectImage(
+            mockDockerApi,
+            'test:1.0.0',
+            log,
+        );
+        expect(result).toEqual(mockInspectData);
+        expect(mockDockerApi.getImage).toHaveBeenCalledWith('test:1.0.0');
+    });
+
+    test('should return undefined and log warn when inspect throws', async () => {
+        const mockDockerApi = {
+            getImage: jest.fn(() => ({
+                inspect: jest.fn(() => Promise.reject(new Error('Image not found'))),
+            })),
+        };
+        const warnSpy = jest.spyOn(log, 'warn');
+
+        const result = await docker.inspectImage(
+            mockDockerApi,
+            'test:notfound',
+            log,
+        );
+        expect(result).toBeUndefined();
+        expect(warnSpy).toHaveBeenCalledWith(
+            expect.stringContaining('Unable to inspect image test:notfound'),
+        );
+    });
+});
+
+describe('cloneContainer with image reconciliation', () => {
+    const baseContainer = {
+        Name: '/my-app',
+        Id: '123456789',
+        HostConfig: { RestartPolicy: { Name: 'always' } },
+        Config: {
+            Env: ['PATH=/bin', 'VERSION=1.0.0', 'USER_VAR=123'],
+            Labels: { 'version.label': '1.0.0', 'user.label': 'custom' },
+            Cmd: ['npm', 'start'],
+            Entrypoint: ['/entrypoint.sh'],
+        },
+        NetworkSettings: {
+            Networks: {
+                default: {},
+            },
+        },
+    };
+
+    test('should reconcile configuration when both image specs are provided', () => {
+        const oldImageSpec = {
+            Config: {
+                Env: ['PATH=/bin', 'VERSION=1.0.0'],
+                Labels: { 'version.label': '1.0.0' },
+                Cmd: ['npm', 'start'],
+                Entrypoint: ['/entrypoint.sh'],
+            },
+        };
+        const newImageSpec = {
+            Config: {
+                Env: ['PATH=/usr/local/bin:/bin', 'VERSION=2.0.0', 'NEW_IMAGE_VAR=yes'],
+                Labels: { 'version.label': '2.0.0', 'image.new': 'true' },
+                Cmd: ['node', 'server.js'],
+                Entrypoint: ['/docker-entrypoint.sh'],
+            },
+        };
+
+        const clone = docker.cloneContainer(
+            baseContainer,
+            'my-app:2.0.0',
+            oldImageSpec,
+            newImageSpec,
+        );
+
+        expect(clone.name).toEqual('my-app');
+        expect(clone.Image).toEqual('my-app:2.0.0');
+        expect(clone.Env).toEqual([
+            'PATH=/usr/local/bin:/bin',
+            'VERSION=2.0.0',
+            'NEW_IMAGE_VAR=yes',
+            'USER_VAR=123',
+        ]);
+        expect(clone.Labels).toEqual({
+            'version.label': '2.0.0',
+            'image.new': 'true',
+            'user.label': 'custom',
+        });
+        expect(clone.Cmd).toEqual(['node', 'server.js']);
+        expect(clone.Entrypoint).toEqual(['/docker-entrypoint.sh']);
+    });
+
+    test('should fall back to container config when oldImageSpec is missing', () => {
+        const newImageSpec = {
+            Config: {
+                Env: ['VERSION=2.0.0'],
+            },
+        };
+
+        const clone = docker.cloneContainer(
+            baseContainer,
+            'my-app:2.0.0',
+            undefined,
+            newImageSpec,
+        );
+
+        expect(clone.Env).toEqual(baseContainer.Config.Env);
+        expect(clone.Labels).toEqual(baseContainer.Config.Labels);
+        expect(clone.Cmd).toEqual(baseContainer.Config.Cmd);
+        expect(clone.Entrypoint).toEqual(baseContainer.Config.Entrypoint);
+    });
+
+    test('should fall back to container config when newImageSpec is missing', () => {
+        const oldImageSpec = {
+            Config: {
+                Env: ['VERSION=1.0.0'],
+            },
+        };
+
+        const clone = docker.cloneContainer(
+            baseContainer,
+            'my-app:2.0.0',
+            oldImageSpec,
+            undefined,
+        );
+
+        expect(clone.Env).toEqual(baseContainer.Config.Env);
+        expect(clone.Labels).toEqual(baseContainer.Config.Labels);
+        expect(clone.Cmd).toEqual(baseContainer.Config.Cmd);
+        expect(clone.Entrypoint).toEqual(baseContainer.Config.Entrypoint);
+    });
 });
 
 test('trigger should not throw when all is ok', async () => {
@@ -910,4 +1249,137 @@ test('trigger should update normally when the container is not WUD itself', asyn
 
     watcherSpy.mockRestore();
     selfSpy.mockRestore();
+});
+
+test('trigger should reconcile container configuration with old and new image specs', async () => {
+    const oldImageInspect = {
+        Id: 'sha256:oldimage123',
+        Config: {
+            Env: ['PATH=/bin', 'APP_VERSION=1.0.0'],
+            Labels: { 'com.example.version': '1.0.0' },
+            Cmd: ['npm', 'start'],
+            Entrypoint: ['/entrypoint.sh'],
+        },
+    };
+    const newImageInspect = {
+        Id: 'sha256:newimage456',
+        Config: {
+            Env: [
+                'PATH=/usr/local/bin:/bin',
+                'APP_VERSION=2.0.0',
+                'FRESH_ENV=active',
+            ],
+            Labels: {
+                'com.example.version': '2.0.0',
+                'com.example.new': 'yes',
+            },
+            Cmd: ['node', 'index.js'],
+            Entrypoint: ['/docker-entrypoint.sh'],
+        },
+    };
+
+    let createdOptions: any;
+    const createContainer = jest.fn((opts) => {
+        createdOptions = opts;
+        return Promise.resolve({
+            id: 'recreated-id',
+            start: () => Promise.resolve(),
+        });
+    });
+
+    const dockerApi = {
+        createContainer,
+        pull: () => Promise.resolve(),
+        modem: {
+            followProgress: (pullStream, res) => res(),
+        },
+        getImage: jest.fn((imageRef) => ({
+            inspect: () => {
+                if (imageRef === 'sha256:oldimage123') {
+                    return Promise.resolve(oldImageInspect);
+                }
+                return Promise.resolve(newImageInspect);
+            },
+        })),
+        getContainer: () =>
+            Promise.resolve({
+                inspect: () =>
+                    Promise.resolve({
+                        Name: '/my-service',
+                        Id: 'container-12345',
+                        Image: 'sha256:oldimage123',
+                        State: {
+                            Running: true,
+                        },
+                        Config: {
+                            Env: [
+                                'PATH=/bin',
+                                'APP_VERSION=1.0.0',
+                                'USER_CUSTOM=override',
+                            ],
+                            Labels: {
+                                'com.example.version': '1.0.0',
+                                'user.custom.label': 'stay',
+                            },
+                            Cmd: ['npm', 'start'],
+                            Entrypoint: ['/entrypoint.sh'],
+                        },
+                        HostConfig: {
+                            RestartPolicy: { Name: 'always' },
+                        },
+                        NetworkSettings: {
+                            Networks: {
+                                default: {},
+                            },
+                        },
+                    }),
+                stop: () => Promise.resolve(),
+                remove: () => Promise.resolve(),
+            }),
+    };
+
+    const watcherSpy = jest.spyOn(docker, 'getWatcher').mockReturnValue({
+        dockerApi,
+    });
+
+    await expect(
+        docker.trigger({
+            updateAvailable: true,
+            watcher: 'test',
+            id: 'container-12345',
+            name: 'my-service',
+            image: {
+                name: 'test/service',
+                registry: {
+                    name: 'hub',
+                    url: 'my-registry',
+                },
+            },
+            updateKind: {
+                kind: 'tag',
+                remoteValue: '2.0.0',
+            },
+        }),
+    ).resolves.toBeUndefined();
+
+    expect(dockerApi.getImage).toHaveBeenCalledWith('sha256:oldimage123');
+    expect(dockerApi.getImage).toHaveBeenCalledWith(
+        'my-registry/test/service:2.0.0',
+    );
+
+    expect(createdOptions.Env).toEqual([
+        'PATH=/usr/local/bin:/bin',
+        'APP_VERSION=2.0.0',
+        'FRESH_ENV=active',
+        'USER_CUSTOM=override',
+    ]);
+    expect(createdOptions.Labels).toEqual({
+        'com.example.version': '2.0.0',
+        'com.example.new': 'yes',
+        'user.custom.label': 'stay',
+    });
+    expect(createdOptions.Cmd).toEqual(['node', 'index.js']);
+    expect(createdOptions.Entrypoint).toEqual(['/docker-entrypoint.sh']);
+
+    watcherSpy.mockRestore();
 });
