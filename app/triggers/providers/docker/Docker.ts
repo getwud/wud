@@ -15,6 +15,160 @@ import {
 } from './self';
 
 /**
+ * Check if two command / entrypoint definitions are equivalent.
+ */
+function areCommandArraysEqual(
+    a?: string[] | string | null,
+    b?: string[] | string | null,
+): boolean {
+    if (a === b) {
+        return true;
+    }
+    if (!a && !b) {
+        return true;
+    }
+    if (!a || !b) {
+        return false;
+    }
+    const arrA = Array.isArray(a) ? a : [a];
+    const arrB = Array.isArray(b) ? b : [b];
+    if (arrA.length !== arrB.length) {
+        return false;
+    }
+    return arrA.every((val, index) => val === arrB[index]);
+}
+
+function normalizeCommand(
+    cmd?: string[] | string | null,
+): string[] | undefined {
+    if (!cmd) {
+        return undefined;
+    }
+    return Array.isArray(cmd) ? cmd : [cmd];
+}
+
+/**
+ * Reconcile container Env against old and new image Env.
+ * User overrides (envs added or changed in container compared to old image)
+ * are overlaid on top of new image default envs.
+ */
+export function reconcileEnv(
+    containerEnv?: string[],
+    oldImageEnv?: string[],
+    newImageEnv?: string[],
+): string[] {
+    const currentEnvs = containerEnv || [];
+    const oldEnvs = oldImageEnv || [];
+    const newEnvs = newImageEnv || [];
+
+    // Map old image env by key
+    const oldEnvMap = new Map<string, string>();
+    for (const env of oldEnvs) {
+        const index = env.indexOf('=');
+        const key = index === -1 ? env : env.substring(0, index);
+        oldEnvMap.set(key, env);
+    }
+
+    // Determine user overrides: env in container that was not in old image or changed
+    const userOverrides = new Map<string, string>();
+    for (const env of currentEnvs) {
+        const index = env.indexOf('=');
+        const key = index === -1 ? env : env.substring(0, index);
+        if (!oldEnvMap.has(key) || oldEnvMap.get(key) !== env) {
+            userOverrides.set(key, env);
+        }
+    }
+
+    // Reconcile: start with new image envs, replacing any that are overridden by user
+    const reconciledEnvs: string[] = [];
+    const appliedKeys = new Set<string>();
+
+    for (const env of newEnvs) {
+        const index = env.indexOf('=');
+        const key = index === -1 ? env : env.substring(0, index);
+        if (userOverrides.has(key)) {
+            reconciledEnvs.push(userOverrides.get(key)!);
+            appliedKeys.add(key);
+        } else {
+            reconciledEnvs.push(env);
+            appliedKeys.add(key);
+        }
+    }
+
+    // Append remaining user overrides not present in new image
+    for (const [key, env] of userOverrides.entries()) {
+        if (!appliedKeys.has(key)) {
+            reconciledEnvs.push(env);
+            appliedKeys.add(key);
+        }
+    }
+
+    return reconciledEnvs;
+}
+
+/**
+ * Reconcile container Labels against old and new image Labels.
+ * User overrides (labels added or changed in container compared to old image)
+ * are overlaid on top of new image default labels.
+ */
+export function reconcileLabels(
+    containerLabels?: Record<string, string>,
+    oldImageLabels?: Record<string, string>,
+    newImageLabels?: Record<string, string>,
+): Record<string, string> {
+    const currentLabels = containerLabels || {};
+    const oldLabels = oldImageLabels || {};
+    const newLabels = newImageLabels || {};
+
+    const userOverrides: Record<string, string> = {};
+    for (const [key, value] of Object.entries(currentLabels)) {
+        if (
+            !Object.prototype.hasOwnProperty.call(oldLabels, key) ||
+            oldLabels[key] !== value
+        ) {
+            userOverrides[key] = value;
+        }
+    }
+
+    return {
+        ...newLabels,
+        ...userOverrides,
+    };
+}
+
+/**
+ * Reconcile container Cmd against old and new image Cmd.
+ * If container Cmd equals old image Cmd, adopts new image Cmd.
+ * Otherwise, preserves user custom container Cmd.
+ */
+export function reconcileCmd(
+    containerCmd?: string[] | string | null,
+    oldImageCmd?: string[] | string | null,
+    newImageCmd?: string[] | string | null,
+): string[] | undefined {
+    if (areCommandArraysEqual(containerCmd, oldImageCmd)) {
+        return normalizeCommand(newImageCmd);
+    }
+    return normalizeCommand(containerCmd);
+}
+
+/**
+ * Reconcile container Entrypoint against old and new image Entrypoint.
+ * If container Entrypoint equals old image Entrypoint, adopts new image Entrypoint.
+ * Otherwise, preserves user custom container Entrypoint.
+ */
+export function reconcileEntrypoint(
+    containerEntrypoint?: string[] | string | null,
+    oldImageEntrypoint?: string[] | string | null,
+    newImageEntrypoint?: string[] | string | null,
+): string[] | undefined {
+    if (areCommandArraysEqual(containerEntrypoint, oldImageEntrypoint)) {
+        return normalizeCommand(newImageEntrypoint);
+    }
+    return normalizeCommand(containerEntrypoint);
+}
+
+/**
  * Replace a Docker container with an updated one.
  */
 class Docker extends Trigger {
@@ -73,6 +227,35 @@ class Docker extends Trigger {
                 `Error when inspecting container ${container.id}`,
             );
             throw e;
+        }
+    }
+
+    /**
+     * Inspect image (returns undefined if inspection fails).
+     */
+    async inspectImage(
+        dockerApi: Dockerode,
+        imageRef: string | undefined,
+        logContainer: Logger,
+    ): Promise<Dockerode.ImageInspectInfo | undefined> {
+        if (!imageRef) {
+            return undefined;
+        }
+        if (!dockerApi || typeof dockerApi.getImage !== 'function') {
+            return undefined;
+        }
+        this.log.debug(`Inspect image ${imageRef}`);
+        try {
+            const image = await dockerApi.getImage(imageRef);
+            if (!image || typeof image.inspect !== 'function') {
+                return undefined;
+            }
+            return await image.inspect();
+        } catch (e: any) {
+            logContainer.warn(
+                `Unable to inspect image ${imageRef} (${e.message})`,
+            );
+            return undefined;
         }
     }
 
@@ -512,19 +695,54 @@ class Docker extends Trigger {
     cloneContainer(
         currentContainer: Dockerode.ContainerInspectInfo,
         newImage: string,
+        oldImageSpec?: Dockerode.ImageInspectInfo,
+        newImageSpec?: Dockerode.ImageInspectInfo,
     ): Dockerode.ContainerCreateOptions {
         const containerName = currentContainer.Name.replace('/', '');
-        const containerClone = {
+        const containerClone: Dockerode.ContainerCreateOptions = {
             ...currentContainer.Config,
             name: containerName,
             Image: newImage,
             HostConfig: currentContainer.HostConfig,
             NetworkingConfig: {
-                EndpointsConfig: currentContainer.NetworkSettings.Networks,
+                EndpointsConfig: currentContainer.NetworkSettings?.Networks,
             },
         };
 
-        if (containerClone.NetworkingConfig.EndpointsConfig) {
+        if (oldImageSpec && newImageSpec) {
+            containerClone.Env = reconcileEnv(
+                currentContainer.Config?.Env,
+                oldImageSpec.Config?.Env,
+                newImageSpec.Config?.Env,
+            );
+            containerClone.Labels = reconcileLabels(
+                currentContainer.Config?.Labels,
+                oldImageSpec.Config?.Labels,
+                newImageSpec.Config?.Labels,
+            );
+            const reconciledCmd = reconcileCmd(
+                currentContainer.Config?.Cmd,
+                oldImageSpec.Config?.Cmd,
+                newImageSpec.Config?.Cmd,
+            );
+            if (reconciledCmd !== undefined) {
+                containerClone.Cmd = reconciledCmd;
+            } else {
+                delete containerClone.Cmd;
+            }
+            const reconciledEntrypoint = reconcileEntrypoint(
+                currentContainer.Config?.Entrypoint,
+                oldImageSpec.Config?.Entrypoint,
+                newImageSpec.Config?.Entrypoint,
+            );
+            if (reconciledEntrypoint !== undefined) {
+                containerClone.Entrypoint = reconciledEntrypoint;
+            } else {
+                delete containerClone.Entrypoint;
+            }
+        }
+
+        if (containerClone.NetworkingConfig?.EndpointsConfig) {
             Object.values(
                 containerClone.NetworkingConfig.EndpointsConfig,
             ).forEach((endpointConfig) => {
@@ -694,6 +912,13 @@ class Docker extends Trigger {
             );
             const currentContainerState = currentContainerSpec.State;
 
+            // Inspect the old image before it can be pruned
+            const oldImageSpec = await this.inspectImage(
+                dockerApi,
+                currentContainerSpec.Image,
+                logContainer,
+            );
+
             // Try to remove previous pulled images
             if (this.configuration.prune) {
                 await this.pruneImages(
@@ -713,10 +938,19 @@ class Docker extends Trigger {
                     'Do not replace the existing container because dry-run mode is enabled',
                 );
             } else {
+                // Inspect new image
+                const newImageSpec = await this.inspectImage(
+                    dockerApi,
+                    newImage,
+                    logContainer,
+                );
+
                 // Clone current container spec
                 const containerToCreateInspect = this.cloneContainer(
                     currentContainerSpec,
                     newImage,
+                    oldImageSpec,
+                    newImageSpec,
                 );
 
                 // Replacing the container WUD itself runs in cannot be done in
