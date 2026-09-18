@@ -167,6 +167,18 @@
           <v-card-actions>
             <v-row>
               <v-col class="text-center">
+                <v-btn
+                  v-if="container.updateAvailable && canWrite"
+                  small
+                  color="primary"
+                  variant="flat"
+                  class="mr-2"
+                  @click="dialogUpdate = true"
+                >
+                  Update
+                  <v-icon right>mdi-package-down</v-icon>
+                </v-btn>
+
                 <v-dialog
                   v-model="dialogDelete"
                   width="500"
@@ -225,6 +237,13 @@
                     </v-card-subtitle>
                   </v-card>
                 </v-dialog>
+
+                <container-update-dialog
+                  v-if="container.updateAvailable && canWrite"
+                  v-model="dialogUpdate"
+                  :container="container"
+                  :new-version="newVersion"
+                />
               </v-col>
             </v-row>
           </v-card-actions>
@@ -237,11 +256,13 @@
 <script lang="ts">
 import { useDisplay } from "vuetify";
 import { getRegistryProviderIcon } from "@/services/registry";
+import { getUser } from "@/services/auth";
 import ContainerDetail from "@/components/ContainerDetail.vue";
 import ContainerError from "@/components/ContainerError.vue";
 import ContainerImage from "@/components/ContainerImage.vue";
 import ContainerTriggers from "@/components/ContainerTriggers.vue";
 import ContainerUpdate from "@/components/ContainerUpdate.vue";
+import ContainerUpdateDialog from "@/components/ContainerUpdateDialog.vue";
 import IconRenderer from "@/components/IconRenderer.vue";
 import { defineComponent } from "vue";
 
@@ -256,6 +277,7 @@ export default defineComponent({
     ContainerImage,
     ContainerTriggers,
     ContainerUpdate,
+    ContainerUpdateDialog,
     IconRenderer,
   },
 
@@ -276,16 +298,31 @@ export default defineComponent({
       type: Boolean,
       required: false,
     },
+    canWriteProp: {
+      type: Boolean,
+      required: false,
+      default: undefined,
+    },
   },
   data() {
     return {
       showDetail: false,
       dialogDelete: false,
+      dialogUpdate: false,
       tab: 0,
       deleteEnabled: false,
+      currentUser: null as any,
     };
   },
   computed: {
+    canWrite(): boolean {
+      if (this.canWriteProp !== undefined) {
+        return this.canWriteProp;
+      }
+      if (!this.currentUser) return true;
+      return this.currentUser.role === "admin" || this.currentUser.role === "rw";
+    },
+
     registryIcon() {
       return getRegistryProviderIcon(this.container.image.registry.name);
     },
@@ -371,8 +408,13 @@ export default defineComponent({
     },
   },
 
-  mounted() {
+  async mounted() {
     this.deleteEnabled = (this as any).$serverConfig?.feature?.delete || false;
+    try {
+      this.currentUser = await getUser();
+    } catch {
+      // ignore
+    }
   },
 });
 </script>

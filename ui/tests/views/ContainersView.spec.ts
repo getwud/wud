@@ -570,4 +570,25 @@ describe('ContainersView', () => {
       expect(wrapper.vm.drawerTab).toBe('update');
     });
   });
+
+  describe('manual update dialog', () => {
+    it('opens update dialog on openUpdateDialog', () => {
+      expect(wrapper.vm.dialogUpdate).toBe(false);
+      expect(wrapper.vm.containerToUpdate).toBeNull();
+
+      wrapper.vm.openUpdateDialog(mockContainers[0]);
+
+      expect(wrapper.vm.dialogUpdate).toBe(true);
+      expect(wrapper.vm.containerToUpdate).toEqual(mockContainers[0]);
+    });
+
+    it('refreshes containers on onContainerUpdated', async () => {
+      const { getAllContainers } = require('@/services/container');
+      getAllContainers.mockClear();
+
+      await wrapper.vm.onContainerUpdated();
+
+      expect(getAllContainers).toHaveBeenCalled();
+    });
+  });
 });

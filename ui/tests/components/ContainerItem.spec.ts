@@ -152,4 +152,43 @@ describe('ContainerItem', () => {
     });
     expect(wrapper.vm.newVersion).toBe('sha256:12345678...');
   });
+
+  it('shows update button when update is available and user has write access', async () => {
+    wrapper.vm.showDetail = true;
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.canWrite).toBe(true);
+    expect(wrapper.vm.dialogUpdate).toBe(false);
+
+    const updateBtn = wrapper.findAll('.v-btn').find((btn) => btn.text().includes('Update'));
+    expect(updateBtn).toBeDefined();
+
+    await updateBtn.trigger('click');
+    expect(wrapper.vm.dialogUpdate).toBe(true);
+  });
+
+  it('hides update button when update is not available', async () => {
+    wrapper.vm.showDetail = true;
+    await wrapper.setProps({
+      container: {
+        ...mockContainer,
+        updateAvailable: false,
+      },
+    });
+    await wrapper.vm.$nextTick();
+
+    const updateBtn = wrapper.findAll('.v-btn').find((btn) => btn.text().includes('Update'));
+    expect(updateBtn).toBeUndefined();
+  });
+
+  it('hides update button when user is read-only', async () => {
+    wrapper.vm.showDetail = true;
+    await wrapper.setProps({
+      canWriteProp: false,
+    });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.canWrite).toBe(false);
+    const updateBtn = wrapper.findAll('.v-btn').find((btn) => btn.text().includes('Update'));
+    expect(updateBtn).toBeUndefined();
+  });
 });

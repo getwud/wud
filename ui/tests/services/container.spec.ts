@@ -141,5 +141,21 @@ describe('Container Service', () => {
       );
       expect(result).toEqual(mockResult);
     });
+
+    it('throws error when response is not ok', async () => {
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        statusText: 'Internal Server Error',
+        json: async () => ({ message: 'Execution error' })
+      });
+
+      await expect(
+        runTrigger({
+          containerId: 'container1',
+          triggerType: 'webhook',
+          triggerName: 'trigger1'
+        })
+      ).rejects.toThrow('Execution error');
+    });
   });
 });
