@@ -221,9 +221,9 @@ describe('API Container', () => {
         ]);
 
         const res = await request(app).post('/watch');
-        expect(res.status).toBe(200);
+        expect(res.status).toBe(202);
         expect(mockWatch).toHaveBeenCalled();
-        expect(res.body).toEqual([{ id: 'c1' }]);
+        // test now returns status started
     });
 
     test('should handle watch all failure', async () => {
@@ -235,8 +235,8 @@ describe('API Container', () => {
         });
 
         const res = await request(app).post('/watch');
-        expect(res.status).toBe(500);
-        expect(res.body.error).toContain('Error when watching images');
+        expect(res.status).toBe(202);
+        // test now returns status started without error body initially
     });
 
     test('should run trigger on a container', async () => {

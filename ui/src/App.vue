@@ -16,6 +16,7 @@
         </v-col>
       </v-row>
     </v-main>
+    <live-watch-hud />
   </v-app>
 </template>
 
@@ -32,6 +33,7 @@ import {
 } from "vue";
 import { getUser } from "@/services/auth";
 import NavigationDrawer from "@/components/NavigationDrawer.vue";
+import LiveWatchHud from "@/components/LiveWatchHud.vue";
 import SnackBar from "@/components/SnackBar.vue";
 import { getServer } from "@/services/server";
 import { useRoute } from "vue-router";
@@ -41,6 +43,7 @@ export default defineComponent({
   components: {
     NavigationDrawer,
     SnackBar,
+    LiveWatchHud,
   },
   setup() {
     const route = useRoute();

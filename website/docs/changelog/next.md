@@ -10,3 +10,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 ---
 
 - 🚀 [UI] Display dedicated provider icons for triggers matching documentation
+- 🚀 [API/UI] Add Server-Sent Events (SSE) support and asynchronous container watch

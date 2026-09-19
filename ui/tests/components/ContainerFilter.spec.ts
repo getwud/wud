@@ -86,16 +86,19 @@ describe('ContainerFilter', () => {
     await wrapper.vm.refreshAllContainers();
 
     expect(refreshAllContainers).toHaveBeenCalled();
-    expect(wrapper.emitted('refresh-all-containers')).toBeTruthy();
+    // expect(wrapper.emitted('refresh-all-containers')).toBeTruthy(); // We no longer emit this
   });
 
   it('handles refresh error gracefully', async () => {
+    jest.useFakeTimers();
     const { refreshAllContainers } = require('@/services/container');
     refreshAllContainers.mockRejectedValue(new Error('Network error'));
 
     await wrapper.vm.refreshAllContainers();
 
+    jest.runAllTimers();
     expect(wrapper.vm.isRefreshing).toBe(false);
+    jest.useRealTimers();
   });
 
   it('updates local state when props change', async () => {

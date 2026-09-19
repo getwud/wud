@@ -305,9 +305,9 @@ export default defineComponent({
     async refreshAllContainers() {
       this.isRefreshing = true;
       try {
-        const body = await refreshAllContainers();
-        (this as any).$eventBus.emit("notify", "All containers refreshed");
-        this.$emit("refresh-all-containers", body);
+        await refreshAllContainers();
+        (this as any).$eventBus.emit("notify", "Watch started. Live updates enabled.");
+        // we no longer emit refresh-all-containers because updates come via SSE
       } catch (e: any) {
         (this as any).$eventBus.emit(
           "notify",
@@ -315,7 +315,9 @@ export default defineComponent({
           "error",
         );
       } finally {
-        this.isRefreshing = false;
+        setTimeout(() => {
+          this.isRefreshing = false;
+        }, 500);
       }
     },
   },
