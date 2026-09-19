@@ -11,12 +11,12 @@
     <v-card-text class="pa-3">
       <div class="d-flex justify-space-between text-caption mb-1">
         <span>Progress</span>
-        <span>{{ processed }} / {{ total }}</span>
+        <span>{{ totalProcessed }} / {{ totalCount }}</span>
       </div>
       <v-progress-linear :model-value="progressPercent" color="primary" height="8" rounded></v-progress-linear>
       
       <div v-if="currentContainer" class="text-caption mt-2 text-truncate">
-        Inspecting: <strong>{{ currentContainer.name }}</strong>
+        Inspecting: <strong>{{ currentContainer.name }}</strong> ({{ currentWatcher }})
       </div>
     </v-card-text>
   </v-card>
@@ -27,34 +27,59 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { eventService } from '../services/event';
 
 const isVisible = ref(false);
-const processed = ref(0);
-const total = ref(0);
+const watchers = ref<Record<string, { processed: number; total: number; active: boolean }>>({});
 const currentContainer = ref<any>(null);
+const currentWatcher = ref<string>('');
+
+const totalCount = computed(() => Object.values(watchers.value).reduce((sum, w) => sum + w.total, 0));
+const totalProcessed = computed(() => Object.values(watchers.value).reduce((sum, w) => sum + w.processed, 0));
+const allFinished = computed(() => Object.values(watchers.value).every(w => !w.active));
 
 const progressPercent = computed(() => {
-  if (total.value === 0) return 0;
-  return Math.round((processed.value / total.value) * 100);
+  if (totalCount.value === 0) return 0;
+  return Math.round((totalProcessed.value / totalCount.value) * 100);
 });
 
 const onWatchStart = (data: any) => {
   isVisible.value = true;
-  total.value = data.total || 0;
-  processed.value = 0;
-  currentContainer.value = null;
+  if (data.watcher) {
+    watchers.value[data.watcher] = {
+      processed: 0,
+      total: data.total || 0,
+      active: true,
+    };
+  }
 };
 
 const onWatchProgress = (data: any) => {
-  processed.value = data.processed;
-  total.value = data.total;
+  if (data.watcher && watchers.value[data.watcher]) {
+    watchers.value[data.watcher].processed = data.processed;
+    watchers.value[data.watcher].total = data.total;
+  } else if (data.watcher) {
+    watchers.value[data.watcher] = {
+      processed: data.processed,
+      total: data.total,
+      active: true,
+    };
+  }
   currentContainer.value = data.container;
+  currentWatcher.value = data.watcher;
 };
 
 const onWatchStop = (data: any) => {
-  processed.value = data.processed;
-  total.value = data.total;
-  setTimeout(() => {
-    isVisible.value = false;
-  }, 3000);
+  if (data.watcher && watchers.value[data.watcher]) {
+    watchers.value[data.watcher].processed = data.processed;
+    watchers.value[data.watcher].total = data.total;
+    watchers.value[data.watcher].active = false;
+  }
+  
+  if (allFinished.value) {
+    setTimeout(() => {
+      if (allFinished.value) {
+        isVisible.value = false;
+      }
+    }, 3000);
+  }
 };
 
 onMounted(() => {
