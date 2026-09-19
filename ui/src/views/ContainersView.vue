@@ -95,11 +95,11 @@
             <template #[`item.registry`]="{ item }">
               <div class="d-flex align-center">
                 <IconRenderer 
-                  :icon="getRegistryProviderIcon(item.raw ? item.raw.image.registry.name : item.image.registry.name)"
+                  :icon="getRegistryProviderIcon(item.raw ? item.raw?.image?.registry?.name : item.image?.registry?.name)"
                   :size="20"
                   :margin-right="8"
                 />
-                {{ item.raw ? item.raw.image.registry.name : item.image.registry.name }}
+                {{ item.raw ? item.raw?.image?.registry?.name : item.image?.registry?.name }}
               </div>
             </template>
 
@@ -615,7 +615,7 @@ export default defineComponent({
       return [...new Set(allLabels)].sort();
     },
     registries() {
-      return [...new Set(this.containers.map((c) => c.image.registry.name).sort())];
+      return [...new Set(this.containers.map((c) => c.image?.registry?.name).filter(Boolean).sort())];
     },
     watchers() {
       return [...new Set(this.containers.map((c) => c.watcher).sort())];
