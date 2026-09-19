@@ -215,6 +215,13 @@
                 <v-list density="compact">
                   <v-list-item
                     v-if="(item.raw ? item.raw.updateAvailable : item.updateAvailable) && canWrite"
+                    prepend-icon="mdi-package-down"
+                    title="Update container"
+                    class="text-primary"
+                    @click.stop="openUpdateDialog(item.raw || item)"
+                  />
+                  <v-list-item
+                    v-if="(item.raw ? item.raw.updateAvailable : item.updateAvailable) && canWrite"
                     prepend-icon="mdi-bell-sleep"
                     title="Snooze update"
                     @click.stop="openSnoozeDialog(item.raw || item)"
@@ -276,6 +283,16 @@
               </div>
             </div>
           </div>
+          <v-btn
+            v-if="selectedContainer.updateAvailable && canWrite"
+            icon="mdi-package-down"
+            color="primary"
+            variant="text"
+            size="small"
+            class="mr-1"
+            @click="openUpdateDialog(selectedContainer)"
+            title="Update container"
+          ></v-btn>
           <v-btn
             v-if="selectedContainer.updateAvailable && canWrite"
             icon="mdi-bell-sleep"
@@ -405,6 +422,14 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Update Container Dialog -->
+    <container-update-dialog
+      v-if="containerToUpdate"
+      v-model="dialogUpdate"
+      :container="containerToUpdate"
+      @updated="onContainerUpdated"
+    />
   </v-container>
 </template>
 
@@ -415,6 +440,7 @@ import ContainerError from "@/components/ContainerError.vue";
 import ContainerImage from "@/components/ContainerImage.vue";
 import ContainerTriggers from "@/components/ContainerTriggers.vue";
 import ContainerUpdate from "@/components/ContainerUpdate.vue";
+import ContainerUpdateDialog from "@/components/ContainerUpdateDialog.vue";
 import IconRenderer from "@/components/IconRenderer.vue";
 import {
   deleteContainer,
@@ -434,6 +460,7 @@ export default defineComponent({
     ContainerImage,
     ContainerTriggers,
     ContainerUpdate,
+    ContainerUpdateDialog,
     IconRenderer,
   },
 
@@ -476,6 +503,9 @@ export default defineComponent({
       containerToSnooze: null as any,
       snoozeDuration: "indefinitely",
       snoozeLoading: false,
+
+      dialogUpdate: false,
+      containerToUpdate: null as any,
     };
   },
 
@@ -702,6 +732,23 @@ export default defineComponent({
         (this as any).$eventBus.emit("notify", `Error when trying to delete the container (${e.message})`, "error");
       }
       this.containerToDelete = null;
+    },
+
+    openUpdateDialog(container: any) {
+      this.containerToUpdate = container;
+      this.dialogUpdate = true;
+    },
+
+    async onContainerUpdated() {
+      try {
+        this.containers = (await getAllContainers()) || [];
+      } catch (e: any) {
+        (this as any).$eventBus?.emit(
+          "notify",
+          `Error when trying to refresh containers (${e.message})`,
+          "error",
+        );
+      }
     },
 
     openSnoozeDialog(container: any) {
