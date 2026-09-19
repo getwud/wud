@@ -522,6 +522,35 @@ export class Docker extends Watcher {
     /**
      * Watch main method.
      */
+    async watch() {
+        let containers: Container[] = [];
+
+        // Dispatch event to notify start watching
+        event.emitWatcherStart(this);
+
+        // List images to watch
+        try {
+            containers = await this.getContainers();
+        } catch (e: any) {
+            this.log.warn(
+                `Error when trying to get the list of the containers to watch (${e.message})`,
+            );
+        }
+        try {
+            const containerReports =
+                await this.processWatchContainers(containers);
+            event.emitContainerReports(containerReports);
+            return containerReports;
+        } catch (e: any) {
+            this.log.warn(
+                `Error when processing some containers (${e.message})`,
+            );
+            return [];
+        } finally {
+            // Dispatch event to notify stop watching
+            event.emitWatcherStop(this);
+        }
+    }
 
     /**
      * Watch a Container.

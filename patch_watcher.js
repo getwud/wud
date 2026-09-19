@@ -1,17 +1,13 @@
-import Component from '../registry/Component';
-import { Container } from '../model/container';
-import * as event from '../event';
+const fs = require('fs');
+let content = fs.readFileSync('app/watchers/Watcher.ts', 'utf8');
 
-/**
- * Watcher abstract class.
- */
-abstract class Watcher extends Component {
-    /**
-     * Watch main method.
-     * @returns {Promise<any[]>}
-     */
-    abstract watch(): Promise<any[]>;
-
+if (!content.includes('processWatchContainers')) {
+    content = content.replace(
+        "import { Container } from '../model/container';",
+        "import { Container } from '../model/container';\nimport * as event from '../event';"
+    );
+    
+    const processMethod = `
     /**
      * Process a list of containers and emit progress.
      * @param containers
@@ -35,19 +31,18 @@ abstract class Watcher extends Component {
                     container,
                 });
                 return report;
-            }),
+            })
         );
 
         event.emitWatchStop({ watcher: this.name, processed, total });
         return containerReports;
     }
-
-    /**
-     * Watch a Container.
-     * @param container
-     * @returns {Promise<any>}
-     */
-    abstract watchContainer(container: Container): Promise<any>;
+`;
+    
+    content = content.replace(
+        'abstract watch(): Promise<any[]>;',
+        'abstract watch(): Promise<any[]>;\n' + processMethod
+    );
+    
+    fs.writeFileSync('app/watchers/Watcher.ts', content);
 }
-
-export default Watcher;

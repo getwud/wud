@@ -353,6 +353,34 @@ export class Nomad extends Watcher {
         return containerReports;
     }
 
+    async watch() {
+        let containers: Container[] = [];
+
+        event.emitWatcherStart(this);
+
+        try {
+            containers = await this.getContainers();
+        } catch (e: any) {
+            this.log.warn(
+                `Error when trying to get the list of Nomad workloads to watch (${e.message})`,
+            );
+        }
+
+        try {
+            const containerReports =
+                await this.processWatchContainers(containers);
+            event.emitContainerReports(containerReports);
+            return containerReports;
+        } catch (e: any) {
+            this.log.warn(
+                `Error when processing some Nomad containers (${e.message})`,
+            );
+            return [];
+        } finally {
+            event.emitWatcherStop(this);
+        }
+    }
+
     async watchContainer(container: Container) {
         const logContainer = this.log.child({
             container: fullName(container),

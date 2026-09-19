@@ -548,6 +548,32 @@ export class Swarm extends Watcher {
         return containerReport;
     }
 
+    async watch() {
+        let containers: Container[] = [];
+        event.emitWatcherStart(this);
+
+        try {
+            containers = await this.getContainers();
+        } catch (e: any) {
+            this.log.warn(`Error getting Swarm services: ${e.message}`);
+        }
+
+        try {
+            const containerReports =
+                await this.processWatchContainers(containers);
+            event.emitContainerReports(containerReports);
+            this.updatePrometheusGauge(containers);
+            return containerReports;
+        } catch (e: any) {
+            this.log.warn(
+                `Error when processing some Swarm containers (${e.message})`,
+            );
+            return [];
+        } finally {
+            event.emitWatcherStop(this);
+        }
+    }
+
     async watchFromCron() {
         if (!this.log || typeof this.log.info !== 'function') return [];
         this.log.info(`Cron started (${this.configuration.cron})`);
