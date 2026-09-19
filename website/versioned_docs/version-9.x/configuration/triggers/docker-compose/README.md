@@ -29,6 +29,14 @@ import TabItem from '@theme/TabItem';
   </ConfigOption>
 
   <ConfigOption
+    name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_COMPOSEFILELABEL"
+    required={false}
+    type="string"
+    defaultValue="wud.compose.file">
+    Label name on container to override the compose file path
+  </ConfigOption>
+
+  <ConfigOption
     name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_DRYRUN"
     required={false}
     type="boolean"
@@ -39,9 +47,23 @@ import TabItem from '@theme/TabItem';
   <ConfigOption name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_FILE"
     type="path"
     required={false}
-    defaultValue="com.docker.compose.project.config_files"
-    supported="Valid mounted file path">
-    Path to the `docker-compose.yml` file inside the WUD container
+    defaultValue="Auto-detected via Docker Compose labels"
+    supported="Valid mounted file path or template string">
+    Path or template for the `docker-compose.yml` file (e.g. `/stacks/${container.labels['com.docker.compose.project']}/docker-compose.yml`). If omitted, auto-detected from `com.docker.compose.project.config_files` or `com.docker.compose.project.working_dir`.
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_PATHMAPPING_HOST"
+    required={false}
+    type="path">
+    Host path prefix to replace with container path prefix when using auto-detection or templated paths
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_PATHMAPPING_CONTAINER"
+    required={false}
+    type="path">
+    Container path prefix where host compose directories are mounted inside WUD
   </ConfigOption>
 
   <ConfigOption
@@ -105,3 +127,35 @@ services:
 
 </TabItem>
 </Tabs>
+
+### Auto-Detection with Path Mapping
+
+When WUD manages multiple Docker Compose stacks, you can mount the parent directory containing all stacks and let WUD auto-detect compose files via Docker Compose labels (`com.docker.compose.project.config_files` or `com.docker.compose.project.working_dir`). Path mapping translates host paths to container mount paths automatically:
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/stacks:/stacks
+    environment:
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_PATHMAPPING_HOST=/opt/stacks
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_PATHMAPPING_CONTAINER=/stacks
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_BACKUP=true
+```
+
+### Dynamic File Path with Template Strings
+
+You can also use string interpolation in the `FILE` variable to resolve paths dynamically using container attributes:
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/stacks:/stacks
+    environment:
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_FILE=/stacks/$${container.labels['com.docker.compose.project']}/docker-compose.yml
+```

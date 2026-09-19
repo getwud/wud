@@ -17,6 +17,7 @@ Configuring users via static environment variables (`WUD_AUTH_BASIC_{auth_name}_
 - **To manage local users**: Manage users and their roles (`admin`, `rw`, `ro`) directly in the Web UI under **Configuration > Users**.
 - **For external scripts and CI/CD automation**: Use **Personal API Tokens** (`Authorization: Bearer wud_...`) generated from **My Profile** instead of sharing static credentials.
 - **For Single Sign-On**: Use [**OpenID Connect (OIDC)**](../oidc/README.md).
+
 :::
 
 ### Variables
@@ -65,6 +66,7 @@ User accounts and their hashed passwords are now persisted directly in the WUD d
   `WUD_AUTH_BASIC_JOHN_HASH='$apr1$aefKbZEa$ZSA5Y3zv9vDQOxr283NGx/'`
 - Or **escape `\$`** with backslashes in double-quoted strings:
   `WUD_AUTH_BASIC_JOHN_HASH="\$apr1\$aefKbZEa\$ZSA5Y3zv9vDQOxr283NGx/"`
+
 :::
 
 :::warning[**Known limitation:** Passwords containing colon characters (`:`) are not supported due to a limitation in the underlying `passport-http` library. Authentication will fail if your password contains a colon. Use passwords without colons until this is resolved.]

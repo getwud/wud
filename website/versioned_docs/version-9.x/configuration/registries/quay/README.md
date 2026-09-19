@@ -92,7 +92,7 @@ docker run \
 
 ![Quay.io create robot account](./quay_01.png)
 
-3. Robot account names follow the format `<namespace>+<account>`.
+1. Robot account names follow the format `<namespace>+<account>`.
    - Set the part before the `+` as `WUD_REGISTRY_QUAY_{registry_name}_NAMESPACE`.
    - Set the part after the `+` as `WUD_REGISTRY_QUAY_{registry_name}_ACCOUNT`.
    - Copy the generated token string into `WUD_REGISTRY_QUAY_{registry_name}_TOKEN`.

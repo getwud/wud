@@ -281,7 +281,7 @@ You can use [Grafana](https://grafana.com/) to visualize charts and dashboards b
 A ready-to-use overview dashboard is available at `grafana/overview.json`.
 
 You can import it into any Grafana instance by selecting an existing Prometheus data source.
-An interactive preview of the dashboard is available [here](https://theforge.grafana.net/dashboard/snapshot/FskV8Lgi41VwD6jnSPnJxzLzz6B42QZF).
+An interactive preview of the dashboard is available [on Grafana Cloud](https://theforge.grafana.net/dashboard/snapshot/FskV8Lgi41VwD6jnSPnJxzLzz6B42QZF).
 
 ### Watched containers
 

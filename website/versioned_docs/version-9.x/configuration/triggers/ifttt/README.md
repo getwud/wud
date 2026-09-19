@@ -89,10 +89,12 @@ When triggering the webhook, WUD supplies the following ingredient variables to 
 ## 📖 Setup Guide
 
 ### 1. Obtain your IFTTT Webhook Key
+
 1. Navigate to [IFTTT Maker Webhooks](https://ifttt.com/maker_webhooks) and click **Connect**.
 2. Go to [Webhooks Settings](https://ifttt.com/maker_webhooks/settings) and copy the secret key component from the URL.
 
 ### 2. Create an IFTTT Applet
+
 1. Open [IFTTT Applet Creator](https://ifttt.com/create).
 2. For **If This**, choose **Webhooks** > **Receive a web request** and enter your event name (e.g. `wud-container`).
 3. For **Then That**, pick your desired action (e.g. send an email, push notification, or smart home action) referencing `{{Value1}}` and `{{Value2}}`.

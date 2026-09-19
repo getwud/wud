@@ -15,7 +15,7 @@ Browse release notes and detailed changes by version series:
 
 | Version Series | Status | Latest Release | Release Notes |
 | :--- | :--- | :--- | :--- |
-| **v9.x** | **Current** | [9.0.2](https://github.com/getwud/wud/releases/tag/9.0.2) (September 12, 2026) | [**View v9.x Changelog →**](./v9.md) |
+| **v9.x** | **Current** | [9.1.0](https://github.com/getwud/wud/releases/tag/9.1.0) (September 19, 2026) | [**View v9.x Changelog →**](./v9.md) |
 | **v8.x** | Maintenance | [8.4.0](https://github.com/getwud/wud/releases/tag/8.4.0) (2026-09-03) | [**View v8.x Changelog →**](./v8.md) |
 | **v7.x** | Maintenance | [7.2.0](https://github.com/getwud/wud/releases/tag/7.2.0) (2024-12-19) | [**View v7.x Changelog →**](./v7.md) |
 | **v6.x** | Historical | [6.6.1](https://github.com/getwud/wud/releases/tag/6.6.1) (2024-10-05) | [**View v6.x Changelog →**](./v6.md) |
@@ -27,6 +27,7 @@ Browse release notes and detailed changes by version series:
 ## 🔖 Semantic Versioning
 
 WUD follows [Semantic Versioning (SemVer)](https://semver.org/):
+
 - **Major (`X.0.0`)**: Incompatible API or configuration changes.
 - **Minor (`0.X.0`)**: Backwards-compatible new features and enhancements.
 - **Patch (`0.0.X`)**: Backwards-compatible bug fixes and optimizations.

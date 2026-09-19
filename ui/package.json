@@ -1,6 +1,6 @@
 {
   "name": "wud-ui",
-  "version": "9.0.2",
+  "version": "9.1.0",
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",

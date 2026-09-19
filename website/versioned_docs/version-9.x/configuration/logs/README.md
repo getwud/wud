@@ -28,7 +28,7 @@ You can adjust the log level and output format using environment variables.
 
 ### UI Live Logs
 
-You can view the logs in real-time directly from the WUD User Interface. 
+You can view the logs in real-time directly from the WUD User Interface.
 Navigate to **Monitoring** > **Logs** in the sidebar menu to see a live stream of the application logs. The UI displays the logs in a formatted table regardless of the `WUD_LOG_FORMAT` setting.
 
 ### Examples

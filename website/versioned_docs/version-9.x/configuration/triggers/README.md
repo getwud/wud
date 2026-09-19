@@ -80,6 +80,14 @@ In addition to provider-specific settings, all triggers support the following co
   </ConfigOption>
 
   <ConfigOption
+    name="WUD_TRIGGER_{trigger_type}_{trigger_name}_ONDIGEST"
+    required={false}
+    type="boolean"
+    defaultValue="true">
+    Enable or disable notifications when only the image digest has changed (without semver tag bump)
+  </ConfigOption>
+
+  <ConfigOption
     name="WUD_TRIGGER_{trigger_type}_{trigger_name}_SIMPLEBODY"
     required={false}
     type="string"
@@ -117,6 +125,40 @@ In addition to provider-specific settings, all triggers support the following co
 
 ---
 
+## 📝 Template Placeholders & Variables
+
+Trigger titles and bodies (`SIMPLETITLE`, `SIMPLEBODY`, `BATCHTITLE`, `BATCHBODY`) are evaluated as JavaScript template literals against the container update data.
+
+### Simple Mode Variables
+
+In simple mode (`MODE=simple`), all container properties are accessible via the `container` object:
+
+| Property | Description | Example |
+| :--- | :--- | :--- |
+| `container.name` | Monitored container name | `nginx` |
+| `container.watcher` | Watcher or host name that discovered the container | `local`, `host1`, `prod` |
+| `container.id` | Unique container ID | `9d5fa8b3c10a` |
+| `container.updateKind.kind` | Update category (`tag` or `digest`) | `tag` |
+| `container.updateKind.localValue` | Current local tag or short digest | `1.25.0` |
+| `container.updateKind.remoteValue` | Target remote tag or short digest | `1.26.0` |
+| `container.updateKind.semverDiff` | Semver difference level | `major`, `minor`, `patch` |
+| `container.result.link` | Changelog or registry link (if available) | `https://...` |
+
+:::tip[Multi-Host Notifications]
+When monitoring multiple Docker daemons or remote hosts using distinct watchers (e.g. `WUD_WATCHER_HOST1_...`, `WUD_WATCHER_HOST2_...`), include `$${container.watcher}` in your `SIMPLEBODY` or `SIMPLETITLE` to identify which host discovered the update.
+:::
+
+### Batch Mode Variables
+
+In batch mode (`MODE=batch`), multiple container updates are grouped into a single notification:
+
+| Property | Description | Example |
+| :--- | :--- | :--- |
+| `containers` | Array of updated `container` objects | `[ { name: 'web', ... }, ... ]` |
+| `containers.length` | Total number of containers with available updates | `3` |
+
+---
+
 ## 🚀 Examples
 
 ### Customizing Notification Content
@@ -130,7 +172,7 @@ services:
     image: getwud/wud
     environment:
       - WUD_TRIGGER_SMTP_GMAIL_SIMPLETITLE=Container $${container.name} can be updated
-      - WUD_TRIGGER_SMTP_GMAIL_SIMPLEBODY=Container $${container.name} can be updated from $${container.updateKind.localValue} to $${container.updateKind.remoteValue}
+      - WUD_TRIGGER_SMTP_GMAIL_SIMPLEBODY=Container $${container.name} on host $${container.watcher} can be updated from $${container.updateKind.localValue} to $${container.updateKind.remoteValue}
 ```
 
 </TabItem>
@@ -139,7 +181,7 @@ services:
 ```bash
 docker run \
   -e 'WUD_TRIGGER_SMTP_GMAIL_SIMPLETITLE=Container ${container.name} can be updated' \
-  -e 'WUD_TRIGGER_SMTP_GMAIL_SIMPLEBODY=Container ${container.name} can be updated from ${container.updateKind.localValue} to ${container.updateKind.remoteValue}' \
+  -e 'WUD_TRIGGER_SMTP_GMAIL_SIMPLEBODY=Container ${container.name} on host ${container.watcher} can be updated from ${container.updateKind.localValue} to ${container.updateKind.remoteValue}' \
   getwud/wud
 ```
 

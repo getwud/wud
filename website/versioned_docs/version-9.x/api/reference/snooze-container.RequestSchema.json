@@ -1,0 +1,1 @@
+{"title":"Body","body":{"content":{"application/json":{"schema":{"type":"object","properties":{"version":{"type":"string","description":"Candidate version to snooze"},"until":{"type":"integer","description":"Timestamp until which the update is snoozed"}}}}}}}

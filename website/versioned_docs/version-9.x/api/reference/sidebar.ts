@@ -92,6 +92,18 @@ const sidebar: SidebarsConfig = {
         },
         {
           type: "doc",
+          id: "api/reference/snooze-container",
+          label: "Snooze update for a container",
+          className: "api-method post",
+        },
+        {
+          type: "doc",
+          id: "api/reference/unsnooze-container",
+          label: "Unsnooze update for a container",
+          className: "api-method delete",
+        },
+        {
+          type: "doc",
           id: "api/reference/get-container-triggers",
           label: "Get triggers for a container",
           className: "api-method get",

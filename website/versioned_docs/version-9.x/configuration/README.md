@@ -23,8 +23,10 @@ Understanding where each setting is applied is essential:
 | **Docker Labels** (`wud.*`) | **Monitored containers** | Per-container | Tag filtering regex, release link templates, digest watching, display names, trigger overrides |
 
 :::tip[Rule of Thumb]
+
 - **Configure WUD globally**: Pass `WUD_*` environment variables to the **WUD container** (e.g. configure a Telegram bot token, Docker Hub credentials, or storage path).
 - **Customize a specific application**: Attach `wud.*` labels to the **monitored container** (e.g. enforce semver pattern `^\d+\.\d+\.\d+$`, watch digests on mutable tags, or customize the changelog link). For full details, see the [Container Labels Guide](./watchers/labels.md).
+
 :::
 
 ---

@@ -3,26 +3,39 @@ import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-# Docker Watchers
+# Watchers Overview
 
 <DocHero
   icon="docker"
-  badge="⚡ Active by Default"
+  badge="Multi-Orchestrator"
   badgeType="default"
-  description="Watchers are responsible for discovering and scanning Docker containers on local or remote Docker daemons."
+  description="Watchers are responsible for discovering and scanning containers across your infrastructure, whether on Docker daemons or Kubernetes clusters."
 />
+
+## Supported Environments
+
+WUD provides dedicated watchers tailored for your infrastructure:
+
+| Environment | Documentation | Description |
+| :--- | :--- | :--- |
+| 🐳 **Docker** | [**Docker Configuration ↓**](#docker-configuration) | Local sockets, Remote TCP daemons, and Docker Compose stacks. |
+| 🐝 **Docker Swarm** | [**Docker Swarm Watcher Guide →**](./swarm/README.md) | Swarm manager socket/TCP, services, stack namespaces, digests. |
+| ☸️ **Kubernetes** | [**Kubernetes Watcher Guide →**](./kubernetes/README.md) | In-cluster RBAC, Deployments, StatefulSets, DaemonSets, CronJobs. |
+| 🎯 **Nomad** | [**Nomad Watcher Guide →**](./nomad/README.md) | HashiCorp Nomad jobs (`service`, `batch`, `system`) and task groups. |
+
+---
+
+## Docker Configuration
 
 :::info[Default Watcher]
 If no watcher is explicitly configured, a default watcher named `local` is automatically created, monitoring `/var/run/docker.sock`.
 :::
 
-:::tip[Per-Container Configuration]
-To customize how WUD monitors specific containers (opt-in/opt-out, tag filtering, semver transforms, custom display names, or trigger routing), see the [**Container Labels**](labels.md) documentation.
+:::tip[Per-Workload Configuration]
+To customize how WUD monitors specific containers or workloads (opt-in/opt-out, tag filtering, semver transforms, custom display names, or trigger routing), see the comprehensive [**Workload Customization guide**](labels.md).
 :::
 
----
-
-## Configuration Options
+### Configuration Options
 
 <ConfigList>
   <ConfigOption
@@ -48,6 +61,14 @@ To customize how WUD monitors specific containers (opt-in/opt-out, tag filtering
     defaultValue="0 * * * *"
     supported="[Valid CRON expression](https://crontab.guru/)">
     CRON schedule for automatic checks
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_WATCHER_{watcher_name}_DELAY"
+    type="string"
+    required={false}
+    supported="Duration string (e.g. `30s`, `10m`, `24h`, `3d`, `1w`)">
+    Cool-down period before considering an update available for discovered containers
   </ConfigOption>
 
   <ConfigOption
@@ -136,14 +157,14 @@ To customize how WUD monitors specific containers (opt-in/opt-out, tag filtering
 
 :::info[Multiple & Remote Watchers]
 You can configure multiple watchers to monitor both local and remote Docker hosts simultaneously.
+
 - **Remote Hosts**: For remote Docker TCP and mutual TLS setup, see [**Remote Daemons & TLS Security**](remote-tls.md).
 - **Rate Limits & Digests**: To learn how digest polling works and prevent Docker Hub quota exhaustion, see [**Digest & Rate Limits**](digest-rate-limits.md).
 - **Per-Container Rules**: To configure tag filtering and routing per container, see [**Container Labels**](labels.md).
+
 :::
 
 ---
-
-
 
 ## Examples
 

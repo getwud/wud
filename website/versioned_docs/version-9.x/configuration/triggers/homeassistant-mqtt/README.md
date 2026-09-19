@@ -51,6 +51,7 @@ docker run \
 ### 🔄 Update Entity & One-Click Install
 
 Containers are exposed in Home Assistant as native **`update` entities** (e.g. `update.wud_local_my_container`):
+
 - **Installed Version**: Displays the current image tag (or digest).
 - **Latest Version**: Displays the available update tag (or truncated digest for digest-based updates).
 - **Update Action ("Install" button)**: When clicking **Install** on an update entity in Home Assistant, an MQTT command is sent to WUD via `command_topic` (`{topic}/{watcher}/{container}/install` with payload `INSTALL`).
@@ -58,13 +59,16 @@ Containers are exposed in Home Assistant as native **`update` entities** (e.g. `
 
 :::tip[Requirements for One-Click Install]
 To enable the **Install** button to perform container updates, make sure you have configured an update trigger such as:
+
 - [Docker Trigger](../docker/README.md) for standalone containers.
 - [Docker Compose Trigger](../docker-compose/README.md) for compose stacks.
+
 :::
 
 ### 📦 Device Topology (Per-Watcher Devices)
 
 To keep Home Assistant devices organized and clean:
+
 - **Watcher Devices**: Each watcher gets its own dedicated device (e.g. `wud (local)` for a watcher named `local`). All containers monitored by this watcher are grouped under this device.
 - **Global WUD Device**: Represents the core WUD service, providing connection status (`binary_sensor`), total container count (`sensor`), total update count (`sensor`), and global update status (`binary_sensor`).
 
@@ -75,6 +79,7 @@ When upgrading to this version, if the legacy monolithic **wud** device already 
 ### 🔐 MQTT Permissions & Broker ACLs
 
 When using an MQTT broker with Access Control Lists (ACLs) enabled (e.g. Mosquitto):
+
 - **Read & Write on WUD Topics**: WUD requires both publish and subscribe permissions on `{topic}/#` (by default `wud/container/#`) to publish container states and listen for install commands on `{topic}/+/+/install`.
 - **Write on Discovery Topics**: WUD needs publish permissions on `{prefix}/#` (by default `homeassistant/#`) to register entities via auto-discovery and publish empty retained tombstones when containers are removed.
 

@@ -42,6 +42,7 @@ Retry timing is fixed and is not separately configurable.
 These registries **work out of the box with zero configuration** for public images.
 
 You only need to configure environment variables if you want to:
+
 - Access **private repositories**
 - Increase **API rate limits** (e.g. Docker Hub authenticated tier)
 - Connect to a **self-hosted instance** (e.g. on-premise Forgejo or Quay)

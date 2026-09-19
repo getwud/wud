@@ -7,7 +7,7 @@ import TabItem from '@theme/TabItem';
 
 If you encounter an error like the following during startup on a Raspberry Pi:
 
-```
+```text
 #
 # Fatal error in , line 0
 # unreachable code
