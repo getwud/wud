@@ -96,6 +96,74 @@ describe("ContainerTrigger.vue", () => {
     expect(vm.triggerIcon).toBe("logos:custom-logo");
   });
 
+  it("computes default fallback icon for unknown trigger type", () => {
+    const wrapper = mount(ContainerTrigger, {
+      props: {
+        trigger: {
+          id: "unknown.test",
+          type: "unknown",
+          name: "test",
+        },
+        updateAvailable: true,
+        containerId: "c1",
+      },
+      global: {
+        stubs: {
+          RouterLink: {
+            template: "<a><slot /></a>",
+          },
+        },
+      },
+    });
+
+    const vm = wrapper.vm as any;
+    expect(vm.triggerIcon).toBe("mdi-bell-ring");
+  });
+
+  it("computes triggerIcon correctly when trigger has no configuration", () => {
+    const wrapper = mount(ContainerTrigger, {
+      props: {
+        trigger: {
+          id: "slack.default",
+          type: "slack",
+          name: "default",
+        },
+        updateAvailable: true,
+        containerId: "c1",
+      },
+      global: {
+        stubs: {
+          RouterLink: {
+            template: "<a><slot /></a>",
+          },
+        },
+      },
+    });
+
+    const vm = wrapper.vm as any;
+    expect(vm.triggerIcon).toBe("logos:slack-icon");
+  });
+
+  it("computes default fallback icon when trigger has empty properties", () => {
+    const wrapper = mount(ContainerTrigger, {
+      props: {
+        trigger: {},
+        updateAvailable: true,
+        containerId: "c1",
+      },
+      global: {
+        stubs: {
+          RouterLink: {
+            template: "<a><slot /></a>",
+          },
+        },
+      },
+    });
+
+    const vm = wrapper.vm as any;
+    expect(vm.triggerIcon).toBe("mdi-bell-ring");
+  });
+
   it("handles canWrite according to user role", async () => {
     const wrapper = mount(ContainerTrigger, {
       props: {

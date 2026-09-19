@@ -9,7 +9,7 @@
           {{ trigger.type }} {{ trigger.name }}
         </router-link>
       </v-list-item-title>
-      <v-list-item-subtitle>
+      <v-list-item-subtitle v-if="trigger?.configuration?.threshold">
         (threshold {{ trigger.configuration.threshold }})
       </v-list-item-subtitle>
       <template v-slot:append>
