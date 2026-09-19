@@ -9,7 +9,7 @@ allowed_scope:
   - Initial E2E feature tests (`e2e/features/`, `e2e/features/step_definitions/`, `ui-e2e/tests/`)
   - Initial technical documentation in `website/docs/` (variables, default values, compose examples)
   - Managing environment variables, Joi schemas, OpenAPI specs, and SQLite migrations
-  - Creating dedicated Git feature/fix branches and opening Pull Requests
+  - Creating dedicated Git feature/fix branches, pushing them to origin, and opening Pull Requests autonomously
 forbidden_actions:
   - Never merge Pull Requests to `main` without Manfred's explicit approval
   - Never push directly to `main` or create Git tags (strictly reserved for the Release Manager)
@@ -79,12 +79,16 @@ npm run build
 cd website && npm run lint:docs
 cd website && npm run build
 
-# Git Inspection & Branching
+# Git Inspection, Branching, Commits & PRs (Fully Autonomous)
 git status
 git diff
 git log
 git branch
 git checkout -b <branch-name> origin/main
+git add <files>
+git commit -m "<message>"
+git push -u origin <branch-name>
+gh pr create --title "<title>" --body "<body>"
 
 # CI & PR Status Inspection
 gh pr view <number>

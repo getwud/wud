@@ -329,34 +329,6 @@ export class Kubernetes extends Watcher {
      * Main watch method. Discovers all workloads, maps them to WUD Containers,
      * then calls watchContainer() on each.
      */
-    async watch() {
-        let containers: Container[] = [];
-
-        event.emitWatcherStart(this);
-
-        try {
-            containers = await this.getContainers();
-        } catch (e: any) {
-            this.log.warn(
-                `Error when trying to get the list of workloads to watch (${e.message})`,
-            );
-        }
-
-        try {
-            const containerReports = await Promise.all(
-                containers.map((container) => this.watchContainer(container)),
-            );
-            event.emitContainerReports(containerReports);
-            return containerReports;
-        } catch (e: any) {
-            this.log.warn(
-                `Error when processing some containers (${e.message})`,
-            );
-            return [];
-        } finally {
-            event.emitWatcherStop(this);
-        }
-    }
 
     /**
      * Watch a single WUD Container (find new version, update store).

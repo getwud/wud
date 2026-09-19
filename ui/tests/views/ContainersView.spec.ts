@@ -586,9 +586,9 @@ describe('ContainersView', () => {
       const { getAllContainers } = require('@/services/container');
       getAllContainers.mockClear();
 
-      await wrapper.vm.onContainerUpdated();
+      await wrapper.vm.onSseContainerUpdated({ id: "container1", name: "test-container" });
 
-      expect(getAllContainers).toHaveBeenCalled();
+      expect(wrapper.vm.containers).toContainEqual(expect.objectContaining({ id: "container1" }));
     });
   });
 });
