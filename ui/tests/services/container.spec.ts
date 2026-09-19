@@ -45,7 +45,7 @@ describe('Container Service', () => {
 
       const result = await refreshAllContainers();
 
-      expect(fetch).toHaveBeenCalledWith('/api/containers/watch', {
+      expect(fetch).toHaveBeenCalledWith('/api/containers/watch?async=true', {
         method: 'POST',
         credentials: 'include'
       });

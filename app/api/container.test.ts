@@ -221,9 +221,25 @@ describe('API Container', () => {
         ]);
 
         const res = await request(app).post('/watch');
-        expect(res.status).toBe(202);
+        expect(res.status).toBe(200);
         expect(mockWatch).toHaveBeenCalled();
-        // test now returns status started
+        expect(res.body).toEqual([{ id: 'c1' }]);
+    });
+
+    test('should watch all containers async', async () => {
+        const mockWatch = jest.fn().mockResolvedValue(true);
+        (registry.getState as jest.Mock).mockReturnValue({
+            watcher: {
+                'docker.local': { watch: mockWatch },
+            },
+        });
+        (storeContainer.getContainers as jest.Mock).mockReturnValue([
+            { id: 'c1' },
+        ]);
+
+        const res = await request(app).post('/watch?async=true');
+        expect(res.status).toBe(202);
+        expect(res.body).toEqual({ status: 'started', jobId: expect.any(String) });
     });
 
     test('should handle watch all failure', async () => {
@@ -235,8 +251,8 @@ describe('API Container', () => {
         });
 
         const res = await request(app).post('/watch');
-        expect(res.status).toBe(202);
-        // test now returns status started without error body initially
+        expect(res.status).toBe(500);
+        expect(res.body.error).toContain('Error when watching images');
     });
 
     test('should run trigger on a container', async () => {
