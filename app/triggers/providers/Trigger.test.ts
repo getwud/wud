@@ -430,6 +430,15 @@ test('mustTrigger should still honor trigger exclude when include by default is 
     ).toBeFalsy();
 });
 
+test('renderTemplate should replace placeholders when called', () => {
+    expect(
+        trigger.renderTemplate('Hello ${name} on ${watcher}', {
+            name: 'my-app',
+            watcher: 'local',
+        }),
+    ).toEqual('Hello my-app on local');
+});
+
 test('renderSimpleTitle should replace placeholders when called', async () => {
     expect(
         trigger.renderSimpleTitle({

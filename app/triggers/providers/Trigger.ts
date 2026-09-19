@@ -21,47 +21,6 @@ export interface ContainerReport {
     changed: boolean;
 }
 
-/**
- * Render body or title simple template.
- * @param template
- * @param container
- * @returns {*}
- */
-function renderSimple(template: string, container: Container) {
-    // Set deprecated vars for backward compatibility
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const id = container.id;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const name = container.name;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const watcher = container.watcher;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const kind =
-        container.updateKind && container.updateKind.kind
-            ? container.updateKind.kind
-            : '';
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const semver =
-        container.updateKind && container.updateKind.semverDiff
-            ? container.updateKind.semverDiff
-            : '';
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const local =
-        container.updateKind && container.updateKind.localValue
-            ? container.updateKind.localValue
-            : '';
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const remote =
-        container.updateKind && container.updateKind.remoteValue
-            ? container.updateKind.remoteValue
-            : '';
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const link =
-        container.result && container.result.link ? container.result.link : '';
-
-    return eval('`' + template + '`');
-}
-
 function renderBatch(template: string, containers: Container[]) {
     // Set deprecated vars for backward compatibility
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -450,12 +409,55 @@ class Trigger extends Component {
     }
 
     /**
+     * Render a template with container context.
+     * @param template
+     * @param container
+     * @returns {string}
+     */
+    renderTemplate(template: string, container: Container): string {
+        // Set deprecated vars for backward compatibility
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const id = container.id;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const name = container.name;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const watcher = container.watcher;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const kind =
+            container.updateKind && container.updateKind.kind
+                ? container.updateKind.kind
+                : '';
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const semver =
+            container.updateKind && container.updateKind.semverDiff
+                ? container.updateKind.semverDiff
+                : '';
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const local =
+            container.updateKind && container.updateKind.localValue
+                ? container.updateKind.localValue
+                : '';
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const remote =
+            container.updateKind && container.updateKind.remoteValue
+                ? container.updateKind.remoteValue
+                : '';
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const link =
+            container.result && container.result.link
+                ? container.result.link
+                : '';
+
+        return eval('`' + template + '`');
+    }
+
+    /**
      * Render trigger title simple.
      * @param container
      * @returns {*}
      */
     renderSimpleTitle(container: Container) {
-        return renderSimple(this.configuration.simpletitle!, container);
+        return this.renderTemplate(this.configuration.simpletitle!, container);
     }
 
     /**
@@ -464,7 +466,7 @@ class Trigger extends Component {
      * @returns {*}
      */
     renderSimpleBody(container: Container) {
-        return renderSimple(this.configuration.simplebody!, container);
+        return this.renderTemplate(this.configuration.simplebody!, container);
     }
 
     /**
