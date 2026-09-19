@@ -2,14 +2,14 @@
   <v-card variant="outlined">
     <v-list-item>
       <template v-slot:prepend>
-        <v-icon>mdi-bell-ring</v-icon>
+        <IconRenderer :icon="triggerIcon" :size="20" :margin-right="8" />
       </template>
       <v-list-item-title class="text-capitalize">
         <router-link to="/configuration/triggers">
           {{ trigger.type }} {{ trigger.name }}
         </router-link>
       </v-list-item-title>
-      <v-list-item-subtitle>
+      <v-list-item-subtitle v-if="trigger?.configuration?.threshold">
         (threshold {{ trigger.configuration.threshold }})
       </v-list-item-subtitle>
       <template v-slot:append>
@@ -30,11 +30,17 @@
 </template>
 
 <script lang="ts">
+import IconRenderer from "@/components/IconRenderer.vue";
 import { runTrigger } from "@/services/container";
+import { getTriggerProviderIcon } from "@/services/trigger";
 import { getUser } from "@/services/auth";
 import { defineComponent } from "vue";
 
 export default defineComponent({
+  name: "ContainerTrigger",
+  components: {
+    IconRenderer,
+  },
   props: {
     trigger: {
       type: Object,
@@ -56,6 +62,13 @@ export default defineComponent({
     };
   },
   computed: {
+    triggerIcon(): string {
+      return (
+        this.trigger?.icon ||
+        this.trigger?.configuration?.icon ||
+        getTriggerProviderIcon(this.trigger?.type, this.trigger)
+      );
+    },
     canWrite(): boolean {
       if (!this.currentUser) return true;
       return this.currentUser.role === "admin" || this.currentUser.role === "rw";
@@ -78,17 +91,16 @@ export default defineComponent({
           triggerType: this.trigger.type,
           triggerName: this.trigger.name,
         });
-        (this as any).$eventBus.emit("notify", "Trigger executed with success");
+        (this as any).$eventBus?.emit("notify", "Trigger executed with success");
       } catch (err: any) {
-        (this as any).$eventBus.emit(
+        (this as any).$eventBus?.emit(
           "notify",
-          `Trigger executed with error (${err.message}})`,
+          `Trigger executed with error (${err.message})`,
           "error",
         );
       } finally {
         this.isTriggering = false;
       }
-      this.isTriggering = false;
     },
   },
 });
