@@ -32,6 +32,39 @@ describe('Dockercompose Trigger', () => {
     testTriggerProvider(Dockercompose, configurationValid, {
         testTemplateRenders: false,
     });
+
+    test('should validate configuration when pathmapping is valid', () => {
+        const config = {
+            ...configurationValid,
+            pathmapping: {
+                host: '/srv/docker',
+                container: '/docker',
+            },
+        };
+        expect(() => dockercompose.validateConfiguration(config)).not.toThrow();
+    });
+
+    test('should throw error when pathmapping is missing host or container', () => {
+        const configMissingHost = {
+            ...configurationValid,
+            pathmapping: {
+                container: '/docker',
+            },
+        };
+        expect(() =>
+            dockercompose.validateConfiguration(configMissingHost),
+        ).toThrow();
+
+        const configMissingContainer = {
+            ...configurationValid,
+            pathmapping: {
+                host: '/srv/docker',
+            },
+        };
+        expect(() =>
+            dockercompose.validateConfiguration(configMissingContainer),
+        ).toThrow();
+    });
 });
 
 const container = {
@@ -141,6 +174,163 @@ test('automatic compose label is used without explicit configuration', () => {
     ).toBe('/some/path/automatic-compose.yaml');
 });
 
+describe('Dockercompose - template and path resolution', () => {
+    test('interpolated file path resolves container labels', () => {
+        dockercompose.configuration = {
+            file: '/compose/${container.labels["com.docker.compose.project"]}/docker-compose.yml',
+            composeFileLabel: 'wud.compose.file',
+        };
+
+        expect(
+            dockercompose.getComposeFileForContainer({
+                name: 'my-service',
+                labels: {
+                    'com.docker.compose.project': 'my-stack',
+                },
+            }),
+        ).toBe('/compose/my-stack/docker-compose.yml');
+    });
+
+    test('templated file returns null and logs warning when evaluation throws', () => {
+        const warnSpy = jest
+            .spyOn(dockercompose.log, 'warn')
+            .mockImplementation(() => {});
+        dockercompose.configuration = {
+            file: '${container.labels.nested.nonexistent}/docker-compose.yml',
+            composeFileLabel: 'wud.compose.file',
+        };
+
+        const result = dockercompose.getComposeFileForContainer({
+            name: 'my-service',
+            labels: undefined,
+        });
+
+        expect(result).toBeNull();
+        expect(warnSpy).toHaveBeenCalled();
+        warnSpy.mockRestore();
+    });
+
+    test('templated file applies pathmapping if host prefix matches', () => {
+        dockercompose.configuration = {
+            file: '${container.labels["com.docker.compose.project.working_dir"]}/docker-compose.yml',
+            composeFileLabel: 'wud.compose.file',
+            pathmapping: {
+                host: '/home/user/docker',
+                container: '/compose',
+            },
+        };
+
+        expect(
+            dockercompose.getComposeFileForContainer({
+                name: 'my-service',
+                labels: {
+                    'com.docker.compose.project.working_dir':
+                        '/home/user/docker/project1',
+                },
+            }),
+        ).toBe('/compose/project1/docker-compose.yml');
+    });
+
+    test('auto-detects first file when config_files is comma-separated', () => {
+        dockercompose.configuration = {
+            composeFileLabel: 'wud.compose.file',
+        };
+
+        expect(
+            dockercompose.getComposeFileForContainer({
+                labels: {
+                    'com.docker.compose.project.config_files':
+                        '/path/to/docker-compose.yml, /path/to/docker-compose.override.yml',
+                },
+            }),
+        ).toBe('/path/to/docker-compose.yml');
+    });
+
+    test('auto-detects compose file from working_dir when config_files is not set', () => {
+        dockercompose.configuration = {
+            composeFileLabel: 'wud.compose.file',
+        };
+
+        expect(
+            dockercompose.getComposeFileForContainer({
+                labels: {
+                    'com.docker.compose.project.working_dir':
+                        '/home/user/myproject',
+                },
+            }),
+        ).toBe('/home/user/myproject/docker-compose.yml');
+    });
+
+    test('auto-detection with pathmapping translates host path to container path', () => {
+        dockercompose.configuration = {
+            composeFileLabel: 'wud.compose.file',
+            pathmapping: {
+                host: '/home/user/stacks',
+                container: '/var/compose',
+            },
+        };
+
+        expect(
+            dockercompose.getComposeFileForContainer({
+                labels: {
+                    'com.docker.compose.project.config_files':
+                        '/home/user/stacks/nextcloud/docker-compose.yml',
+                },
+            }),
+        ).toBe('/var/compose/nextcloud/docker-compose.yml');
+    });
+
+    test('pathmapping handles trailing slashes on host and container paths cleanly', () => {
+        dockercompose.configuration = {
+            composeFileLabel: 'wud.compose.file',
+            pathmapping: {
+                host: '/home/user/stacks/',
+                container: '/var/compose/',
+            },
+        };
+
+        expect(
+            dockercompose.getComposeFileForContainer({
+                labels: {
+                    'com.docker.compose.project.working_dir':
+                        '/home/user/stacks/nginx',
+                },
+            }),
+        ).toBe('/var/compose/nginx/docker-compose.yml');
+    });
+
+    test('pathmapping does not modify path when host prefix does not match', () => {
+        dockercompose.configuration = {
+            composeFileLabel: 'wud.compose.file',
+            pathmapping: {
+                host: '/home/user/stacks',
+                container: '/var/compose',
+            },
+        };
+
+        expect(
+            dockercompose.getComposeFileForContainer({
+                labels: {
+                    'com.docker.compose.project.config_files':
+                        '/opt/docker/other/docker-compose.yml',
+                },
+            }),
+        ).toBe('/opt/docker/other/docker-compose.yml');
+    });
+
+    test('returns null when no compose file or label can be found', () => {
+        dockercompose.configuration = {
+            composeFileLabel: 'wud.compose.file',
+        };
+
+        expect(
+            dockercompose.getComposeFileForContainer({
+                labels: {},
+            }),
+        ).toBeNull();
+    });
+});
+
 import fs from 'fs/promises';
 jest.mock('fs/promises');
 
@@ -155,6 +345,28 @@ describe('Dockercompose Trigger - file operations', () => {
         await dockercompose.initTrigger();
         expect(fs.access).toHaveBeenCalledWith(configurationValid.file);
         expect(dockercompose.configuration.mode).toBe('batch');
+    });
+
+    test('initTrigger should skip file access if file contains template expression', async () => {
+        (fs.access as jest.Mock).mockResolvedValue(undefined);
+        dockercompose.configuration.file =
+            '/compose/${container.labels["com.docker.compose.project"]}/docker-compose.yml';
+        await dockercompose.initTrigger();
+        expect(fs.access).not.toHaveBeenCalled();
+    });
+
+    test('initTrigger should check mapped path when static file and pathmapping configured', async () => {
+        (fs.access as jest.Mock).mockResolvedValue(undefined);
+        dockercompose.configuration.file =
+            '/home/user/docker/project/docker-compose.yml';
+        dockercompose.configuration.pathmapping = {
+            host: '/home/user/docker',
+            container: '/compose',
+        };
+        await dockercompose.initTrigger();
+        expect(fs.access).toHaveBeenCalledWith(
+            '/compose/project/docker-compose.yml',
+        );
     });
 
     test('initTrigger should throw error if file access fails', async () => {

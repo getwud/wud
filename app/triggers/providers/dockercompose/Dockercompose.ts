@@ -40,6 +40,13 @@ class Dockercompose extends Docker {
         return schemaDocker.append({
             // Make file optional since we now support per-container compose files
             file: this.joi.string().optional(),
+            pathmapping: this.joi
+                .object()
+                .keys({
+                    host: this.joi.string().required(),
+                    container: this.joi.string().required(),
+                })
+                .optional(),
             backup: this.joi.boolean().default(false),
             // Add configuration for the label name to look for
             composeFileLabel: this.joi.string().default('wud.compose.file'),
@@ -50,13 +57,17 @@ class Dockercompose extends Docker {
         // Force mode=batch to avoid docker-compose concurrent operations
         this.configuration.mode = 'batch';
 
-        // Check default docker-compose file exists if specified
-        if (this.configuration.file) {
+        // Check default docker-compose file exists if specified and not templated
+        if (
+            this.configuration.file &&
+            !this.configuration.file.includes('${')
+        ) {
+            const filePathToCheck = this.mapPath(this.configuration.file);
             try {
-                await fs.access(this.configuration.file);
+                await fs.access(filePathToCheck);
             } catch (e) {
                 this.log.error(
-                    `The default file ${this.configuration.file} does not exist`,
+                    `The default file ${filePathToCheck} does not exist`,
                 );
                 throw e;
             }
@@ -64,33 +75,88 @@ class Dockercompose extends Docker {
     }
 
     /**
+     * Map host path to container path if pathmapping is configured.
+     * @param filePath
+     * @returns {string}
+     */
+    mapPath(filePath) {
+        if (!this.configuration.pathmapping || !filePath) {
+            return filePath;
+        }
+        const { host, container } = this.configuration.pathmapping;
+        if (filePath.startsWith(host)) {
+            const relativePath = filePath
+                .substring(host.length)
+                .replace(/^[/\\]+/, '');
+            return path.join(container, relativePath);
+        }
+        return filePath;
+    }
+
+    /**
      * Get the compose file path for a specific container.
-     * First checks for a label, then falls back to default configuration.
+     * Priority:
+     * 1. Container label override (e.g. wud.compose.file)
+     * 2. Configured template file (this.configuration.file)
+     * 3. Auto-detection (com.docker.compose.project.config_files or com.docker.compose.project.working_dir)
+     * 4. Path mapping translation if configured
      * @param container
      * @returns {string|null}
      */
     getComposeFileForContainer(container) {
-        // Check if container has a custom wud compose file label
+        // 1. Check if container has a custom wud compose file label
         const composeFileLabel = this.configuration.composeFileLabel;
         if (container.labels && container.labels[composeFileLabel]) {
             const labelValue = container.labels[composeFileLabel];
             // Convert relative paths to absolute paths
-            return path.isAbsolute(labelValue)
+            const resolvedPath = path.isAbsolute(labelValue)
                 ? labelValue
                 : path.resolve(labelValue);
+            return this.mapPath(resolvedPath);
         }
 
-        // Prefer an explicitly configured trigger-level compose file
+        // 2. Configured template file
         if (this.configuration.file) {
-            return this.configuration.file;
+            let filePath = this.configuration.file;
+            if (filePath.includes('${')) {
+                try {
+                    filePath = this.renderTemplate(filePath, container);
+                } catch (e) {
+                    this.log.warn(
+                        `Error rendering compose file template '${this.configuration.file}' for container ${container.name || 'unknown'}: ${e.message}`,
+                    );
+                    return null;
+                }
+            }
+            return this.mapPath(filePath);
         }
 
-        // Fall back to Docker Compose's automatically generated label
+        // 3. Fall back to Docker Compose's automatically generated labels
         if (
             container.labels &&
             container.labels['com.docker.compose.project.config_files']
         ) {
-            return container.labels['com.docker.compose.project.config_files'];
+            const configFiles =
+                container.labels['com.docker.compose.project.config_files'];
+            const firstFile = configFiles.split(',')[0].trim();
+            if (firstFile) {
+                return this.mapPath(firstFile);
+            }
+        }
+
+        if (
+            container.labels &&
+            container.labels['com.docker.compose.project.working_dir']
+        ) {
+            const workingDir =
+                container.labels[
+                    'com.docker.compose.project.working_dir'
+                ].trim();
+            if (workingDir) {
+                return this.mapPath(
+                    path.join(workingDir, 'docker-compose.yml'),
+                );
+            }
         }
 
         return null;
