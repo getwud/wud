@@ -226,6 +226,25 @@ describe('API Container', () => {
         expect(res.body).toEqual([{ id: 'c1' }]);
     });
 
+    test('should watch all containers async', async () => {
+        const mockWatch = jest.fn().mockResolvedValue(true);
+        (registry.getState as jest.Mock).mockReturnValue({
+            watcher: {
+                'docker.local': { watch: mockWatch },
+            },
+        });
+        (storeContainer.getContainers as jest.Mock).mockReturnValue([
+            { id: 'c1' },
+        ]);
+
+        const res = await request(app).post('/watch?async=true');
+        expect(res.status).toBe(202);
+        expect(res.body).toEqual({
+            status: 'started',
+            jobId: expect.any(String),
+        });
+    });
+
     test('should handle watch all failure', async () => {
         const mockWatch = jest.fn().mockRejectedValue(new Error('fail watch'));
         (registry.getState as jest.Mock).mockReturnValue({

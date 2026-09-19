@@ -559,9 +559,8 @@ export class Swarm extends Watcher {
         }
 
         try {
-            const containerReports = await Promise.all(
-                containers.map((container) => this.watchContainer(container)),
-            );
+            const containerReports =
+                await this.processWatchContainers(containers);
             event.emitContainerReports(containerReports);
             this.updatePrometheusGauge(containers);
             return containerReports;

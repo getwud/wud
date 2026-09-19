@@ -26,7 +26,7 @@
         @oldest-first-changed="onOldestFirstChanged"
         @group-by-label-changed="onGroupByLabelChanged"
         @update-kind-changed="onUpdateKindChanged"
-        @refresh-all-containers="onRefreshAllContainers"
+        
         @reset-filters="onResetFilters"
       />
       
@@ -95,11 +95,11 @@
             <template #[`item.registry`]="{ item }">
               <div class="d-flex align-center">
                 <IconRenderer 
-                  :icon="getRegistryProviderIcon(item.raw ? item.raw.image.registry.name : item.image.registry.name)"
+                  :icon="getRegistryProviderIcon(item.raw ? item.raw?.image?.registry?.name : item.image?.registry?.name)"
                   :size="20"
                   :margin-right="8"
                 />
-                {{ item.raw ? item.raw.image.registry.name : item.image.registry.name }}
+                {{ item.raw ? item.raw?.image?.registry?.name : item.image?.registry?.name }}
               </div>
             </template>
 
@@ -450,6 +450,7 @@ import {
 } from "@/services/container";
 import { getRegistryProviderIcon } from "@/services/registry";
 import { getUser } from "@/services/auth";
+import { eventService } from "@/services/event";
 import { defineComponent } from "vue";
 
 export default defineComponent({
@@ -506,6 +507,7 @@ export default defineComponent({
 
       dialogUpdate: false,
       containerToUpdate: null as any,
+      animatedRows: new Set<string>(),
     };
   },
 
@@ -520,6 +522,10 @@ export default defineComponent({
   },
 
   async mounted() {
+    this._onSseContainerUpdated = this.onSseContainerUpdated.bind(this);
+    eventService.on("container:updated", this._onSseContainerUpdated);
+    this._onSseContainerReport = this.onSseContainerReport.bind(this);
+    eventService.on("container:report", this._onSseContainerReport);
     this.deleteEnabled = (this as any).$serverConfig?.feature?.delete || false;
     try {
       this.currentUser = await getUser();
@@ -528,6 +534,10 @@ export default defineComponent({
     }
   },
 
+  unmounted() {
+    eventService.off("container:updated", this._onSseContainerUpdated);
+    eventService.off("container:report", this._onSseContainerReport);
+  },
   computed: {
     canWrite(): boolean {
       if (!this.currentUser) return true;
@@ -605,7 +615,7 @@ export default defineComponent({
       return [...new Set(allLabels)].sort();
     },
     registries() {
-      return [...new Set(this.containers.map((c) => c.image.registry.name).sort())];
+      return [...new Set(this.containers.map((c) => c.image?.registry?.name).filter(Boolean).sort())];
     },
     watchers() {
       return [...new Set(this.containers.map((c) => c.watcher).sort())];
@@ -734,6 +744,24 @@ export default defineComponent({
       this.containerToDelete = null;
     },
 
+    
+        onSseContainerUpdated(container) {
+      const idx = this.containers.findIndex(c => c.id === container.id);
+      if (idx !== -1) {
+        this.containers[idx] = { ...this.containers[idx], ...container };
+      } else {
+        this.containers.push(container);
+      }
+      this.animatedRows.add(container.id);
+      setTimeout(() => {
+        this.animatedRows.delete(container.id);
+      }, 2000);
+    },
+    onSseContainerReport(_report) {
+      // Not strictly necessary since we get individual updates, but for full coverage
+      // if report contains full container data
+    },
+
     openUpdateDialog(container: any) {
       this.containerToUpdate = container;
       this.dialogUpdate = true;
@@ -846,6 +874,9 @@ export default defineComponent({
       this.updateQueryParams();
     },
     
+    onRefreshAllContainers(containersRefreshed: any[]) {
+      this.containers = containersRefreshed;
+    },
     updateQueryParams() {
       const query: any = {};
       if (this.registrySelected) query["registry"] = this.registrySelected;
@@ -858,15 +889,7 @@ export default defineComponent({
       this.$router.push({ query });
     },
     
-    onRefreshAllContainers(containersRefreshed: any[]) {
-      this.containers = containersRefreshed;
-      if (this.selectedContainer) {
-        const updated = this.containers.find((c) => c.id === this.selectedContainer.id);
-        if (updated) {
-          this.selectedContainer = updated;
-        }
-      }
-    },
+    
   },
 
   async beforeRouteEnter(to, from, next) {
@@ -957,5 +980,14 @@ export default defineComponent({
 :deep(.v-data-table tbody tr:hover .icon-renderer) {
   transform: scale(1.1);
   transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes row-flash-anim {
+  0% { background-color: rgba(var(--v-theme-primary), 0.3); }
+  100% { background-color: transparent; }
+}
+
+:deep(.v-data-table tbody tr.row-flash) {
+  animation: row-flash-anim 2s ease-out;
 }
 </style>

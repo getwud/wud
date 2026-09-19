@@ -200,3 +200,16 @@ config.global.provide = {
     forward: jest.fn()
   }
 };
+// Mock EventSource for JSDOM
+class MockEventSource {
+    onmessage: any = null;
+    onopen: any = null;
+    onerror: any = null;
+    constructor(public url: string) {
+        setTimeout(() => {
+            if (this.onopen) this.onopen();
+        }, 10);
+    }
+    close() {}
+}
+global.EventSource = MockEventSource as any;

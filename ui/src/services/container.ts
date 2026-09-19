@@ -17,7 +17,7 @@ async function refreshAllContainers() {
   if (isDemoMode()) {
     return mockService.refreshAllContainers();
   }
-  const response = await fetch(url("api/containers/watch"), {
+  const response = await fetch(url("api/containers/watch?async=true"), {
     method: "POST",
     credentials: "include",
   });

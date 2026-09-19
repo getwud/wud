@@ -90,12 +90,46 @@ export function deleteContainer(req, res) {
  * @param res
  * @returns {Promise<void>}
  */
+let currentWatchJobId = null;
+
 export async function watchContainers(req, res) {
+    const isAsync = req.query.async === 'true';
+
     try {
-        await Promise.all(
-            Object.values(getWatchers()).map((watcher) => watcher.watch()),
-        );
-        getContainers(req, res);
+        if (!isAsync) {
+            await Promise.all(
+                Object.values(getWatchers()).map((watcher) => watcher.watch()),
+            );
+            return getContainers(req, res);
+        }
+
+        if (currentWatchJobId) {
+            return res
+                .status(202)
+                .json({ status: 'started', jobId: currentWatchJobId });
+        }
+
+        currentWatchJobId = require('crypto').randomUUID();
+        const jobId = currentWatchJobId;
+
+        res.status(202).json({ status: 'started', jobId });
+
+        // Run async
+        (async () => {
+            try {
+                await Promise.all(
+                    Object.values(getWatchers()).map((watcher) =>
+                        watcher.watch(),
+                    ),
+                );
+            } catch (err) {
+                log.error(`Error in background watch: ${err.message}`);
+            } finally {
+                if (currentWatchJobId === jobId) {
+                    currentWatchJobId = null;
+                }
+            }
+        })();
     } catch (e) {
         res.status(500).json({
             error: `Error when watching images (${e.message})`,

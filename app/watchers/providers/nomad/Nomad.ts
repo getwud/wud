@@ -367,9 +367,8 @@ export class Nomad extends Watcher {
         }
 
         try {
-            const containerReports = await Promise.all(
-                containers.map((container) => this.watchContainer(container)),
-            );
+            const containerReports =
+                await this.processWatchContainers(containers);
             event.emitContainerReports(containerReports);
             return containerReports;
         } catch (e: any) {

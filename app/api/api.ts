@@ -14,6 +14,7 @@ import * as storeRouter from './store';
 import * as serverRouter from './server';
 import * as userRouter from './user';
 import * as profileRouter from './profile';
+import * as eventRouter from './event';
 import { requireAuthentication } from './auth';
 
 /**
@@ -41,6 +42,9 @@ export function init() {
 
     // Mount app router
     router.use('/app', appRouter.init());
+
+    // Mount events router
+    router.use('/events', eventRouter.init());
 
     // Routes to protect after this line
     router.use(requireAuthentication);

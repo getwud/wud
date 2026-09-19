@@ -11,6 +11,11 @@ const WUD_CONTAINER_REMOVED = 'wud:container-removed';
 const WUD_CONTAINER_REPORT = 'wud:container-report';
 const WUD_CONTAINER_REPORTS = 'wud:container-reports';
 
+// Watcher events
+const WUD_WATCH_START = 'wud:watch-start';
+const WUD_WATCH_PROGRESS = 'wud:watch-progress';
+const WUD_WATCH_STOP = 'wud:watch-stop';
+
 // Watcher related events
 const WUD_WATCHER_START = 'wud:watcher-start';
 const WUD_WATCHER_STOP = 'wud:watcher-stop';
@@ -109,4 +114,59 @@ export function emitWatcherStop(watcher) {
 
 export function registerWatcherStop(handler) {
     eventEmitter.on(WUD_WATCHER_STOP, handler);
+}
+
+export function emitWatchStart(data) {
+    eventEmitter.emit(WUD_WATCH_START, data);
+}
+
+export function registerWatchStart(handler) {
+    eventEmitter.on(WUD_WATCH_START, handler);
+}
+
+export function emitWatchProgress(data) {
+    eventEmitter.emit(WUD_WATCH_PROGRESS, data);
+}
+
+export function registerWatchProgress(handler) {
+    eventEmitter.on(WUD_WATCH_PROGRESS, handler);
+}
+
+export function emitWatchStop(data) {
+    eventEmitter.emit(WUD_WATCH_STOP, data);
+}
+
+export function registerWatchStop(handler) {
+    eventEmitter.on(WUD_WATCH_STOP, handler);
+}
+
+export function unregisterContainerReports(handler) {
+    eventEmitter.off(WUD_CONTAINER_REPORTS, handler);
+}
+export function unregisterContainerReport(handler) {
+    eventEmitter.off(WUD_CONTAINER_REPORT, handler);
+}
+export function unregisterContainerAdded(handler) {
+    eventEmitter.off(WUD_CONTAINER_ADDED, handler);
+}
+export function unregisterContainerUpdated(handler) {
+    eventEmitter.off(WUD_CONTAINER_UPDATED, handler);
+}
+export function unregisterContainerRemoved(handler) {
+    eventEmitter.off(WUD_CONTAINER_REMOVED, handler);
+}
+export function unregisterWatcherStart(handler) {
+    eventEmitter.off(WUD_WATCHER_START, handler);
+}
+export function unregisterWatcherStop(handler) {
+    eventEmitter.off(WUD_WATCHER_STOP, handler);
+}
+export function unregisterWatchStart(handler) {
+    eventEmitter.off(WUD_WATCH_START, handler);
+}
+export function unregisterWatchProgress(handler) {
+    eventEmitter.off(WUD_WATCH_PROGRESS, handler);
+}
+export function unregisterWatchStop(handler) {
+    eventEmitter.off(WUD_WATCH_STOP, handler);
 }
