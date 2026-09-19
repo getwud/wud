@@ -86,6 +86,7 @@ export function init() {
             'result_digest',
             'result_link',
             'result_tag',
+            'result_version',
             'snoozed_until',
             'snoozed_version',
             'stack',
