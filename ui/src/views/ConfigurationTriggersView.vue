@@ -52,7 +52,11 @@
         <!-- Type Column -->
         <template #[`item.type`]="{ item }">
           <div class="d-flex align-center">
-            <v-icon size="small" class="mr-2 text-primary">mdi-bell-outline</v-icon>
+            <IconRenderer
+              :icon="(item.raw ? item.raw.icon : item.icon) || getTriggerProviderIcon(item.raw ? item.raw.type : item.type, item.raw || item)"
+              :size="20"
+              :margin-right="8"
+            />
             <v-chip label color="primary" variant="tonal" size="small" class="font-weight-medium">
               {{ item.raw ? item.raw.type : item.type }}
             </v-chip>
@@ -98,7 +102,11 @@
         <!-- Drawer Header -->
         <v-toolbar flat color="surface" class="border-b px-2">
           <div class="d-flex align-center overflow-hidden mr-2" style="flex: 1">
-            <v-icon :icon="triggerIcon" size="24" class="mr-2 text-primary flex-shrink-0" />
+            <IconRenderer
+              :icon="selectedTrigger.icon || getTriggerProviderIcon(selectedTrigger.type, selectedTrigger)"
+              :size="24"
+              class="mr-2 text-primary flex-shrink-0"
+            />
             <div class="text-truncate">
               <div class="text-subtitle-1 font-weight-bold text-truncate">
                 {{ selectedTrigger.name }}
@@ -156,8 +164,9 @@
 
 <script lang="ts">
 import ConfigurationDrawerContent from "@/components/ConfigurationDrawerContent.vue";
+import IconRenderer from "@/components/IconRenderer.vue";
 import TriggerTestDialog from "@/components/TriggerTestDialog.vue";
-import { getAllTriggers, getTriggerIcon } from "@/services/trigger";
+import { getAllTriggers, getTriggerIcon, getTriggerProviderIcon } from "@/services/trigger";
 import { getUser } from "@/services/auth";
 import { defineComponent } from "vue";
 
@@ -165,6 +174,7 @@ export default defineComponent({
   name: "ConfigurationTriggersView",
   components: {
     ConfigurationDrawerContent,
+    IconRenderer,
     TriggerTestDialog,
   },
 
@@ -257,6 +267,9 @@ export default defineComponent({
   },
 
   methods: {
+    getTriggerProviderIcon(provider: string, triggerItem?: any): string {
+      return getTriggerProviderIcon(provider, triggerItem);
+    },
     getConfigurationCount(item: any): string {
       const count = Object.keys(item.configuration || {}).length;
       return `${count} ${count === 1 ? "param" : "params"}`;
@@ -272,7 +285,12 @@ export default defineComponent({
       this.isLoading = true;
       try {
         const triggers = await getAllTriggers();
-        this.triggers = triggers.sort((t1: any, t2: any) => (t1.id || "").localeCompare(t2.id || ""));
+        this.triggers = triggers
+          .map((trigger: any) => ({
+            ...trigger,
+            icon: trigger.configuration?.icon || getTriggerProviderIcon(trigger.type, trigger),
+          }))
+          .sort((t1: any, t2: any) => (t1.id || "").localeCompare(t2.id || ""));
         if (this.selectedTrigger) {
           const updated = this.triggers.find((t) => t.id === this.selectedTrigger.id);
           if (updated) {
@@ -294,7 +312,13 @@ export default defineComponent({
   async beforeRouteEnter(to, from, next) {
     try {
       const triggers = await getAllTriggers();
-      next((vm: any) => (vm.triggers = triggers));
+      const triggersWithIcons = triggers
+        .map((trigger: any) => ({
+          ...trigger,
+          icon: trigger.configuration?.icon || getTriggerProviderIcon(trigger.type, trigger),
+        }))
+        .sort((t1: any, t2: any) => (t1.id || "").localeCompare(t2.id || ""));
+      next((vm: any) => (vm.triggers = triggersWithIcons));
     } catch (e: any) {
       next((vm: any) => {
         vm.$eventBus?.emit(
@@ -319,5 +343,10 @@ export default defineComponent({
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   z-index: 1;
   position: relative;
+}
+
+:deep(.v-data-table tbody tr:hover .icon-renderer) {
+  transform: scale(1.1);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 </style>
