@@ -93,10 +93,10 @@ export function deleteContainer(req, res) {
 let currentWatchJobId = null;
 
 export async function watchContainers(req, res) {
-    const isSync = req.query.sync === 'true';
+    const isAsync = req.query.async === 'true';
 
     try {
-        if (isSync) {
+        if (!isAsync) {
             await Promise.all(
                 Object.values(getWatchers()).map((watcher) => watcher.watch()),
             );
