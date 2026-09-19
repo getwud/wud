@@ -143,7 +143,6 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 > Changes below are merged on \`main\` and will be included in the upcoming release.
 
 ---
-
 `;
 fs.writeFileSync(nextFile, resetNext, 'utf8');
 console.log(`✅ Updated ${targetChangelogFile} and reset next.md for version ${version}`);
