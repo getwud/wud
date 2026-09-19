@@ -239,7 +239,10 @@ describe('API Container', () => {
 
         const res = await request(app).post('/watch?async=true');
         expect(res.status).toBe(202);
-        expect(res.body).toEqual({ status: 'started', jobId: expect.any(String) });
+        expect(res.body).toEqual({
+            status: 'started',
+            jobId: expect.any(String),
+        });
     });
 
     test('should handle watch all failure', async () => {
