@@ -173,6 +173,7 @@
                   color="primary"
                   variant="flat"
                   class="mr-2"
+                  title="Update container"
                   @click="dialogUpdate = true"
                 >
                   Update

@@ -34,22 +34,24 @@ describe('ContainerUpdateDialog.vue', () => {
 
   const mockTriggers = [
     {
-      id: 'webhook.hook1',
-      type: 'webhook',
-      name: 'hook1',
-      configuration: { threshold: 'minor' },
+      id: 'smtp.admin',
+      type: 'smtp',
+      name: 'admin',
+    },
+    {
+      id: 'telegram.alerts',
+      type: 'telegram',
+      name: 'alerts',
     },
     {
       id: 'docker.local',
       type: 'docker',
       name: 'local',
-      configuration: {},
     },
     {
-      id: 'mqtt.main',
-      type: 'mqtt',
+      id: 'dockercompose.main',
+      type: 'dockercompose',
       name: 'main',
-      configuration: {},
     },
   ];
 
@@ -85,7 +87,7 @@ describe('ContainerUpdateDialog.vue', () => {
     expect(wrapper.text()).toContain('1.25.0');
   });
 
-  it('loads triggers and pre-selects docker trigger when present', async () => {
+  it('filters out non-updater triggers (e.g. smtp, telegram)', async () => {
     const wrapper = mount(ContainerUpdateDialog, {
       props: {
         modelValue: true,
@@ -97,16 +99,44 @@ describe('ContainerUpdateDialog.vue', () => {
     await wrapper.vm.$nextTick();
 
     expect(containerService.getContainerTriggers).toHaveBeenCalledWith('c-123456');
+    const triggerTypes = (wrapper.vm as any).triggers.map((t: any) => t.type);
+    expect(triggerTypes).toEqual(['docker', 'dockercompose']);
+    expect(triggerTypes).not.toContain('smtp');
+    expect(triggerTypes).not.toContain('telegram');
+  });
+
+  it('renders direct single trigger confirmation without v-select when exactly 1 updater is available', async () => {
+    const singleUpdater = [
+      { id: 'smtp.mail', type: 'smtp', name: 'mail' },
+      { id: 'docker.local', type: 'docker', name: 'local' },
+    ];
+    (containerService.getContainerTriggers as jest.Mock).mockResolvedValueOnce(singleUpdater);
+
+    const wrapper = mount(ContainerUpdateDialog, {
+      props: {
+        modelValue: true,
+        container: mockContainer,
+      },
+    });
+
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
+
+    expect((wrapper.vm as any).triggers).toHaveLength(1);
     expect((wrapper.vm as any).selectedTriggerKey).toBe('docker.local');
-    expect((wrapper.vm as any).selectedTrigger).toEqual(mockTriggers[1]);
+    expect((wrapper.vm as any).singleTriggerLabel).toBe('docker (local)');
+    expect(wrapper.find('.v-select').exists()).toBe(false);
+    expect(wrapper.text()).toContain('Target trigger');
+    expect(wrapper.text()).toContain('docker (local)');
   });
 
-  it('pre-selects dockercompose trigger when docker is not present', async () => {
-    const composeTriggers = [
-      { id: 'webhook.hook1', type: 'webhook', name: 'hook1' },
-      { id: 'dockercompose.main', type: 'dockercompose', name: 'main' },
+  it('renders v-select with intelligent preselection when multiple updaters are available', async () => {
+    const multipleUpdaters = [
+      { id: 'command.restart', type: 'command', name: 'restart' },
+      { id: 'docker.local', type: 'docker', name: 'local' },
+      { id: 'nomad.job', type: 'nomad', name: 'job' },
     ];
-    (containerService.getContainerTriggers as jest.Mock).mockResolvedValueOnce(composeTriggers);
+    (containerService.getContainerTriggers as jest.Mock).mockResolvedValueOnce(multipleUpdaters);
 
     const wrapper = mount(ContainerUpdateDialog, {
       props: {
@@ -118,16 +148,18 @@ describe('ContainerUpdateDialog.vue', () => {
     await wrapper.vm.$nextTick();
     await wrapper.vm.$nextTick();
 
-    expect((wrapper.vm as any).selectedTriggerKey).toBe('dockercompose.main');
-    expect((wrapper.vm as any).selectedTrigger).toEqual(composeTriggers[1]);
+    expect((wrapper.vm as any).triggers).toHaveLength(3);
+    expect(wrapper.find('.v-select').exists()).toBe(true);
+    expect((wrapper.vm as any).selectedTriggerKey).toBe('docker.local');
+    expect((wrapper.vm as any).selectedTrigger).toEqual(multipleUpdaters[1]);
   });
 
-  it('pre-selects first trigger when neither docker nor dockercompose is present', async () => {
-    const otherTriggers = [
-      { id: 'webhook.hook1', type: 'webhook', name: 'hook1' },
-      { id: 'mqtt.main', type: 'mqtt', name: 'main' },
+  it('pre-selects dockercompose trigger when docker is not present among multiple updaters', async () => {
+    const composeUpdaters = [
+      { id: 'command.run', type: 'command', name: 'run' },
+      { id: 'dockercompose.prod', type: 'dockercompose', name: 'prod' },
     ];
-    (containerService.getContainerTriggers as jest.Mock).mockResolvedValueOnce(otherTriggers);
+    (containerService.getContainerTriggers as jest.Mock).mockResolvedValueOnce(composeUpdaters);
 
     const wrapper = mount(ContainerUpdateDialog, {
       props: {
@@ -139,12 +171,15 @@ describe('ContainerUpdateDialog.vue', () => {
     await wrapper.vm.$nextTick();
     await wrapper.vm.$nextTick();
 
-    expect((wrapper.vm as any).selectedTriggerKey).toBe('webhook.hook1');
-    expect((wrapper.vm as any).selectedTrigger).toEqual(otherTriggers[0]);
+    expect((wrapper.vm as any).selectedTriggerKey).toBe('dockercompose.prod');
   });
 
-  it('handles empty triggers gracefully', async () => {
-    (containerService.getContainerTriggers as jest.Mock).mockResolvedValueOnce([]);
+  it('shows empty state warning and disables update button when no updater trigger is configured', async () => {
+    const notifyOnlyTriggers = [
+      { id: 'telegram.bot', type: 'telegram', name: 'bot' },
+      { id: 'discord.channel', type: 'discord', name: 'channel' },
+    ];
+    (containerService.getContainerTriggers as jest.Mock).mockResolvedValueOnce(notifyOnlyTriggers);
 
     const wrapper = mount(ContainerUpdateDialog, {
       props: {
@@ -159,7 +194,12 @@ describe('ContainerUpdateDialog.vue', () => {
     expect((wrapper.vm as any).triggers).toHaveLength(0);
     expect((wrapper.vm as any).selectedTriggerKey).toBeNull();
     expect((wrapper.vm as any).selectedTrigger).toBeUndefined();
-    expect(wrapper.text()).toContain('No triggers available for this container.');
+    expect(wrapper.text()).toContain(
+      'No update trigger (docker, dockercompose, command, nomad) is configured for this container.',
+    );
+
+    const updateBtn = wrapper.findAll('.v-btn').find((btn) => btn.text().includes('Update'));
+    expect(updateBtn?.attributes('disabled')).toBeDefined();
   });
 
   it('handles triggers fetching failure gracefully', async () => {
@@ -179,7 +219,12 @@ describe('ContainerUpdateDialog.vue', () => {
     expect((wrapper.vm as any).selectedTriggerKey).toBeNull();
   });
 
-  it('runs trigger on confirm and emits success notification', async () => {
+  it('runs trigger on confirm and emits success notification and updated event', async () => {
+    const singleUpdater = [
+      { id: 'docker.local', type: 'docker', name: 'local' },
+    ];
+    (containerService.getContainerTriggers as jest.Mock).mockResolvedValueOnce(singleUpdater);
+
     const wrapper = mount(ContainerUpdateDialog, {
       props: {
         modelValue: true,
@@ -207,7 +252,7 @@ describe('ContainerUpdateDialog.vue', () => {
       'Update triggered successfully for Nginx Service',
     );
     expect(wrapper.emitted('updated')).toBeTruthy();
-    expect(wrapper.emitted('updated')![0]).toEqual([mockTriggers[1]]);
+    expect(wrapper.emitted('updated')![0]).toEqual([singleUpdater[0]]);
     expect(wrapper.emitted('update:modelValue')).toBeTruthy();
     expect(wrapper.emitted('update:modelValue')![0]).toEqual([false]);
   });

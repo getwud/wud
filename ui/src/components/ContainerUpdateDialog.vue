@@ -62,12 +62,32 @@
           <span class="text-caption text-grey">Loading triggers...</span>
         </div>
 
-        <div
+        <v-alert
           v-else-if="triggers.length === 0"
-          class="text-caption text-warning py-2"
+          type="warning"
+          variant="tonal"
+          density="compact"
+          class="mt-3 text-caption"
         >
-          <v-icon color="warning" size="small" class="mr-1">mdi-alert-circle</v-icon>
-          No triggers available for this container.
+          No update trigger (docker, dockercompose, command, nomad) is configured for this container.
+        </v-alert>
+
+        <div
+          v-else-if="triggers.length === 1"
+          class="mt-3 py-2 px-3 rounded border bg-surface-light d-flex align-center justify-space-between"
+        >
+          <div class="d-flex align-center">
+            <v-icon color="primary" size="small" class="mr-2">mdi-cog-play-outline</v-icon>
+            <div>
+              <div class="text-caption text-grey">Target trigger</div>
+              <div class="text-body-2 font-weight-medium">
+                {{ singleTriggerLabel }}
+              </div>
+            </div>
+          </div>
+          <v-chip label size="small" variant="tonal" color="primary">
+            {{ triggers[0].type }}
+          </v-chip>
         </div>
 
         <v-select
@@ -100,7 +120,7 @@
           color="primary"
           size="small"
           :loading="isUpdating"
-          :disabled="!selectedTrigger || isUpdating"
+          :disabled="!selectedTrigger || isUpdating || triggers.length === 0"
           prepend-icon="mdi-package-down"
           @click="confirmUpdate"
         >
@@ -114,6 +134,8 @@
 <script lang="ts">
 import { defineComponent, inject, PropType } from "vue";
 import { getContainerTriggers, runTrigger } from "@/services/container";
+
+export const UPDATER_TRIGGER_TYPES = ["docker", "dockercompose", "command", "nomad"];
 
 interface TriggerConfig {
   threshold?: string;
@@ -233,6 +255,11 @@ export default defineComponent({
       }
       return version;
     },
+    singleTriggerLabel(): string {
+      if (this.triggers.length !== 1) return "";
+      const t = this.triggers[0];
+      return `${t.type} (${t.name})`;
+    },
     triggerOptions(): Array<{ title: string; value: string; trigger: ContainerTriggerItem }> {
       return (this.triggers || []).map((t) => ({
         title: `${t.type} (${t.name})`,
@@ -286,8 +313,10 @@ export default defineComponent({
       if (!this.container?.id) return;
       this.loadingTriggers = true;
       try {
-        const triggers = (await getContainerTriggers(this.container.id)) || [];
-        this.triggers = triggers;
+        const rawTriggers = (await getContainerTriggers(this.container.id)) || [];
+        this.triggers = rawTriggers.filter((t: ContainerTriggerItem) =>
+          UPDATER_TRIGGER_TYPES.includes(t.type),
+        );
         this.selectDefaultTrigger();
       } catch {
         this.triggers = [];
