@@ -1,4 +1,5 @@
 import { BrandIcon } from '@site/src/components/DocHero';
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 
 # Monitoring
 
@@ -44,10 +45,23 @@ WUD exposes various metrics that [Prometheus](https://prometheus.io/) can scrape
 
 ### Configuration
 
-| Env var                  |    Required    | Description                                          | Supported values | Default value when missing |
-| ------------------------ | :------------: | ---------------------------------------------------- | ---------------- | -------------------------- |
-| `WUD_PROMETHEUS_ENABLED` | :white_circle: | Whether to expose Prometheus metrics                 | `true`, `false`  | `true`                     |
-| `WUD_PROMETHEUS_AUTH`    | :white_circle: | Whether to require authentication to scrape metrics  | `true`, `false`  | `true`                     |
+<ConfigList>
+  <ConfigOption
+    name="WUD_PROMETHEUS_ENABLED"
+    type="boolean"
+    required={false}
+    defaultValue="true">
+    Whether to expose Prometheus metrics
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_PROMETHEUS_AUTH"
+    type="boolean"
+    required={false}
+    defaultValue="true">
+    Whether to require authentication to scrape metrics
+  </ConfigOption>
+</ConfigList>
 
 ### Endpoint
 

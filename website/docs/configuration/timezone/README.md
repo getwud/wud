@@ -1,3 +1,4 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
@@ -31,6 +32,17 @@ docker run -v /etc/localtime:/etc/localtime:ro ... getwud/wud
 </Tabs>
 
 ### Option 2: Set the `TZ` environment variable
+
+<ConfigList>
+  <ConfigOption
+    name="TZ"
+    type="string"
+    required={false}
+    defaultValue="UTC"
+    supported="Standard IANA timezone (e.g., Europe/Paris, America/New_York)">
+    System timezone used for CRON scheduling, trigger cooldowns, and timestamped logs
+  </ConfigOption>
+</ConfigList>
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
