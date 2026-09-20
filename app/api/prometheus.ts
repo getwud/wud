@@ -3,12 +3,7 @@ import express from 'express';
 import nocache from 'nocache';
 import { output } from '../prometheus';
 import { requireAuthentication } from './auth';
-
-/**
- * Prometheus Metrics router.
- * @type {Router}
- */
-const router = express.Router();
+import { getPrometheusConfiguration } from '../configuration';
 
 /**
  * Return Prometheus Metrics as String.
@@ -26,10 +21,15 @@ async function outputMetrics(req, res) {
  * @returns {*}
  */
 export function init() {
+    const router = express.Router();
     router.use(nocache());
 
+    const prometheusConfiguration = getPrometheusConfiguration();
+
     // Routes to protect after this line
-    router.use(requireAuthentication);
+    if (prometheusConfiguration.auth === true) {
+        router.use(requireAuthentication);
+    }
 
     router.get('/', outputMetrics);
     return router;

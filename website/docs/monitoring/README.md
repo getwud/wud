@@ -44,9 +44,10 @@ WUD exposes various metrics that [Prometheus](https://prometheus.io/) can scrape
 
 ### Configuration
 
-| Env var                  |    Required    | Description                          | Supported values | Default value when missing |
-| ------------------------ | :------------: | ------------------------------------ | ---------------- | -------------------------- |
-| `WUD_PROMETHEUS_ENABLED` | :white_circle: | Whether to expose Prometheus metrics | `true`, `false`  | `true`                     |
+| Env var                  |    Required    | Description                                          | Supported values | Default value when missing |
+| ------------------------ | :------------: | ---------------------------------------------------- | ---------------- | -------------------------- |
+| `WUD_PROMETHEUS_ENABLED` | :white_circle: | Whether to expose Prometheus metrics                 | `true`, `false`  | `true`                     |
+| `WUD_PROMETHEUS_AUTH`    | :white_circle: | Whether to require authentication to scrape metrics  | `true`, `false`  | `true`                     |
 
 ### Endpoint
 
