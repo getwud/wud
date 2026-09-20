@@ -153,16 +153,32 @@ test('replaceSecrets must read secret in file', async () => {
 
 test('getPrometheusConfiguration should result in enabled by default', () => {
     delete configuration.wudEnvVars.WUD_PROMETHEUS_ENABLED;
+    delete configuration.wudEnvVars.WUD_PROMETHEUS_AUTH;
     expect(configuration.getPrometheusConfiguration()).toStrictEqual({
         enabled: true,
+        auth: true,
     });
 });
 
 test('getPrometheusConfiguration should be disabled when overridden', () => {
     configuration.wudEnvVars.WUD_PROMETHEUS_ENABLED = 'false';
+    delete configuration.wudEnvVars.WUD_PROMETHEUS_AUTH;
     expect(configuration.getPrometheusConfiguration()).toStrictEqual({
         enabled: false,
+        auth: true,
     });
+    delete configuration.wudEnvVars.WUD_PROMETHEUS_ENABLED;
+});
+
+test('getPrometheusConfiguration should have auth enabled by default', () => {
+    delete configuration.wudEnvVars.WUD_PROMETHEUS_AUTH;
+    expect(configuration.getPrometheusConfiguration().auth).toBe(true);
+});
+
+test('getPrometheusConfiguration should have auth disabled when overridden', () => {
+    configuration.wudEnvVars.WUD_PROMETHEUS_AUTH = 'false';
+    expect(configuration.getPrometheusConfiguration().auth).toBe(false);
+    delete configuration.wudEnvVars.WUD_PROMETHEUS_AUTH;
 });
 
 test('getAuthenticationConfigurations should return auth providers and exclude admin key', () => {

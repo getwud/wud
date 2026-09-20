@@ -180,6 +180,7 @@ export function getPrometheusConfiguration() {
     const configurationFromEnv = get('wud.prometheus', wudEnvVars);
     const configurationSchema = joi.object().keys({
         enabled: joi.boolean().default(true),
+        auth: joi.boolean().default(true),
     });
 
     // Validate Configuration
