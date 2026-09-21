@@ -1,6 +1,7 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import { ContainerImage } from '../../../model/container';
 import DockerRegistryV2 from '../../DockerRegistryV2';
+import { getUserAgent } from '../../Registry';
 import { AnySchema } from 'joi';
 
 /**
@@ -62,6 +63,7 @@ class Dhi extends DockerRegistryV2 {
             url: `https://dhi.io/token?service=registry.docker.io&scope=repository:${image.name}:pull&grant_type=password`,
             headers: {
                 Accept: 'application/json',
+                'User-Agent': getUserAgent(),
             },
         };
 

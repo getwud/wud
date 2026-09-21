@@ -210,6 +210,9 @@ test('authenticate should use public ecr token endpoint for public.ecr.aws even 
         expect.objectContaining({
             method: 'GET',
             url: 'https://public.ecr.aws/token/',
+            headers: expect.objectContaining({
+                'User-Agent': expect.stringMatching(/^wud\/.+/),
+            }),
         }),
     );
     expect(result.headers?.Authorization).toBe('Bearer public-token-123');

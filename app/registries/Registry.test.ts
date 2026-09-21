@@ -9,7 +9,7 @@ jest.mock('../prometheus/registry', () => ({
     }),
 }));
 
-import Registry from './Registry';
+import Registry, { getUserAgent } from './Registry';
 
 const registry = new Registry();
 registry.register('registry', 'hub', 'test', {});
@@ -339,6 +339,11 @@ test('getImageManifestDigest should throw when no digest found', async () => {
     ).rejects.toEqual(new Error('Unexpected error; no manifest found'));
 });
 
+test('getUserAgent should return wud formatted user agent', () => {
+    expect(getUserAgent()).toMatch(/^wud\/.+/);
+    expect(Registry.getUserAgent()).toEqual(getUserAgent());
+});
+
 test('callRegistry should call authenticate', async () => {
     axios.mockResolvedValue({ data: {} });
     const registryMocked = new Registry();
@@ -350,6 +355,24 @@ test('callRegistry should call authenticate', async () => {
         method: 'get',
     });
     expect(spyAuthenticate).toHaveBeenCalledTimes(1);
+});
+
+test('callRegistry should send User-Agent header with wud version', async () => {
+    axios.mockResolvedValue({ data: {} });
+    const registryMocked = new Registry();
+    registryMocked.log = log;
+    await registryMocked.callRegistry({
+        image: {},
+        url: 'https://registry.example.com/v2/',
+        method: 'get',
+    });
+    expect(axios).toHaveBeenCalledWith(
+        expect.objectContaining({
+            headers: expect.objectContaining({
+                'User-Agent': getUserAgent(),
+            }),
+        }),
+    );
 });
 
 describe('registry request throttling', () => {

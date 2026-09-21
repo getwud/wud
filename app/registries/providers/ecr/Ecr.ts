@@ -2,7 +2,7 @@ import { ECRClient, GetAuthorizationTokenCommand } from '@aws-sdk/client-ecr';
 import { ContainerImage } from '../../../model/container';
 import axios, { AxiosRequestConfig } from 'axios';
 import joi from 'joi';
-import { RegistryTagsList } from '../../Registry';
+import { RegistryTagsList, getUserAgent } from '../../Registry';
 import DockerRegistryV2 from '../../DockerRegistryV2';
 
 const ECR_PUBLIC_GALLERY_HOSTNAME = 'public.ecr.aws';
@@ -100,6 +100,7 @@ export class Ecr extends DockerRegistryV2 {
                 url: 'https://public.ecr.aws/token/',
                 headers: {
                     Accept: 'application/json',
+                    'User-Agent': getUserAgent(),
                 },
             });
             requestOptionsWithAuth.headers =

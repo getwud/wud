@@ -1,5 +1,6 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import DockerRegistryV2 from '../../DockerRegistryV2';
+import { getUserAgent } from '../../Registry';
 import { ContainerImage } from '../../../model/container';
 
 /**
@@ -30,6 +31,7 @@ class Gcr extends DockerRegistryV2 {
             url: `https://gcr.io/v2/token?scope=repository:${image.name}:pull`,
             headers: {
                 Accept: 'application/json',
+                'User-Agent': getUserAgent(),
                 Authorization: `Basic ${Gcr.base64Encode(
                     '_json_key',
                     JSON.stringify({

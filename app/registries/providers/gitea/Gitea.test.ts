@@ -131,6 +131,7 @@ test('should authenticate with credentials', async () => {
         url: 'https://gitea.acme.com/v2/token?service=container_registry&scope=repository:test/image:pull',
         headers: {
             Accept: 'application/json',
+            'User-Agent': expect.stringMatching(/^wud\/.+/),
             Authorization: 'Basic base64credentials',
         },
     });
@@ -153,6 +154,7 @@ test('should authenticate without credentials', async () => {
         url: 'https://gitea.acme.com/v2/token?service=container_registry&scope=repository:test/image:pull',
         headers: {
             Accept: 'application/json',
+            'User-Agent': expect.stringMatching(/^wud\/.+/),
         },
     });
     expect(result.headers.Authorization).toBe('Bearer public-token');
