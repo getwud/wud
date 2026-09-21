@@ -239,11 +239,18 @@ function pruneOldContainers(
     });
 }
 
-function getContainerName(container: any) {
+export function getContainerName(container: any) {
+    if (!container) {
+        return '';
+    }
     let containerName = '';
     const names = container.Names;
     if (names && names.length > 0) {
         [containerName] = names;
+    } else if (container.Name) {
+        containerName = container.Name;
+    } else if (container.name) {
+        containerName = container.name;
     }
     // Strip ugly forward slash
     containerName = containerName.replace(/\//, '');
@@ -412,6 +419,7 @@ export class Docker extends Watcher {
                     'unpause',
                     'die',
                     'update',
+                    'rename',
                 ],
             },
         };
@@ -463,7 +471,12 @@ export class Docker extends Watcher {
                 const container =
                     await this.dockerApi.getContainer(containerId);
                 const containerInspect = await container.inspect();
-                const newStatus = containerInspect.State.Status;
+                const newStatus = containerInspect.State?.Status;
+                const newName =
+                    getContainerName(containerInspect) ||
+                    (dockerEvent.Actor?.Attributes?.name
+                        ? dockerEvent.Actor.Attributes.name.replace(/\//, '')
+                        : undefined);
                 const containerFound = storeContainer.getContainer(containerId);
                 if (containerFound) {
                     // Child logger for the container to process
@@ -471,12 +484,25 @@ export class Docker extends Watcher {
                         container: fullName(containerFound),
                     });
                     const oldStatus = containerFound.status;
-                    containerFound.status = newStatus;
-                    if (oldStatus !== newStatus) {
-                        storeContainer.updateContainer(containerFound);
+                    const oldName = containerFound.name;
+                    let isUpdated = false;
+
+                    if (newStatus && oldStatus !== newStatus) {
+                        containerFound.status = newStatus;
                         logContainer.info(
                             `Status changed from ${oldStatus} to ${newStatus}`,
                         );
+                        isUpdated = true;
+                    }
+                    if (newName && oldName !== newName) {
+                        containerFound.name = newName;
+                        logContainer.info(
+                            `Name changed from ${oldName} to ${newName}`,
+                        );
+                        isUpdated = true;
+                    }
+                    if (isUpdated) {
+                        storeContainer.updateContainer(containerFound);
                     }
                 }
             } catch (e: any) {
@@ -757,6 +783,13 @@ export class Docker extends Watcher {
     }
 
     /**
+     * Get container name.
+     */
+    getContainerName(container: any) {
+        return getContainerName(container);
+    }
+
+    /**
      * Add image detail to Container.
      */
     async addImageDetailsToContainer(
@@ -789,11 +822,30 @@ export class Docker extends Watcher {
             containerInStore.error === undefined
         ) {
             this.log.debug(`Container ${containerInStore.id} already in store`);
+            let isUpdated = false;
             if (stack && !containerInStore.stack) {
                 containerInStore.stack = stack;
+                isUpdated = true;
             }
             if (delay && containerInStore.delay !== delay) {
                 containerInStore.delay = delay;
+                isUpdated = true;
+            }
+            const currentContainerName = this.getContainerName(container);
+            if (
+                currentContainerName &&
+                containerInStore.name !== currentContainerName
+            ) {
+                if (this.log && typeof this.log.info === 'function') {
+                    this.log.info(
+                        `Container ${containerInStore.id} renamed from ${containerInStore.name} to ${currentContainerName}`,
+                    );
+                }
+                containerInStore.name = currentContainerName;
+                isUpdated = true;
+            }
+            if (isUpdated) {
+                storeContainer.updateContainer(containerInStore);
             }
             return containerInStore;
         }
