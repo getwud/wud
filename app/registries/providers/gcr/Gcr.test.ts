@@ -23,6 +23,7 @@ test('validatedConfiguration should throw error when configuration is missing', 
 });
 
 test('authenticate should call ecr auth endpoint', async () => {
+    const { default: axios } = await import('axios');
     await expect(
         gcr.authenticate({} as ContainerImage, { headers: {} }),
     ).resolves.toEqual({
@@ -30,6 +31,13 @@ test('authenticate should call ecr auth endpoint', async () => {
             Authorization: 'Bearer xxxxx',
         },
     });
+    expect(axios).toHaveBeenCalledWith(
+        expect.objectContaining({
+            headers: expect.objectContaining({
+                'User-Agent': expect.stringMatching(/^wud\/.+/),
+            }),
+        }),
+    );
 });
 
 test('authenticate should return requestOptions when clientemail is empty', async () => {

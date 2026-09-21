@@ -1,5 +1,6 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import DockerRegistryV2 from '../../DockerRegistryV2';
+import { getUserAgent } from '../../Registry';
 import { ContainerImage } from '../../../model/container';
 
 /**
@@ -54,6 +55,7 @@ class Gitlab extends DockerRegistryV2 {
             url: `${this.configuration.authurl}/jwt/auth?service=container_registry&scope=repository:${image.name}:pull`,
             headers: {
                 Accept: 'application/json',
+                'User-Agent': getUserAgent(),
             } as Record<string, string>,
         };
         // Gitlab rejects invalid credentials with 401 even for public projects,

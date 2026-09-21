@@ -1,5 +1,6 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import Custom from '../custom/Custom';
+import { getUserAgent } from '../../Registry';
 import { ContainerImage } from '../../../model/container';
 
 /**
@@ -76,6 +77,7 @@ class Gitea extends Custom {
             url: `${this.configuration.url}/v2/token?service=container_registry&scope=repository:${image.name}:pull`,
             headers: {
                 Accept: 'application/json',
+                'User-Agent': getUserAgent(),
             },
         };
 

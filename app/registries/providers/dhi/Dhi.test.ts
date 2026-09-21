@@ -61,6 +61,7 @@ describe('Docker Hardened Images (DHI) Registry tests', () => {
             url: 'https://dhi.io/token?service=registry.docker.io&scope=repository:alpine:pull&grant_type=password',
             headers: {
                 Accept: 'application/json',
+                'User-Agent': expect.stringMatching(/^wud\/.+/),
                 Authorization: `Basic ${Buffer.from('testuser:testtoken').toString('base64')}`,
             },
         });
