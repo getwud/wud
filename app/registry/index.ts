@@ -156,13 +156,13 @@ async function registerComponent(
 }
 
 /**
- * Register all found components.
+ * Register all found components of a given kind.
  * @param kind
  * @param configurations
  * @param path
  * @returns {*[]}
  */
-async function registerComponents(
+async function registerComponentsOfKind(
     kind: ComponentKind,
     configurations: Record<string, any>,
     path: string,
@@ -278,7 +278,7 @@ async function registerWatchers() {
 async function registerTriggers() {
     const configurations = getTriggerConfigurations();
     try {
-        await registerComponents(
+        await registerComponentsOfKind(
             'trigger',
             configurations,
             '../triggers/providers',
@@ -322,7 +322,7 @@ async function registerRegistries() {
     };
 
     try {
-        await registerComponents(
+        await registerComponentsOfKind(
             'registry',
             registriesToRegister,
             '../registries/providers',
@@ -352,7 +352,7 @@ async function registerAuthentications() {
                 '../authentications/providers',
             );
         }
-        await registerComponents(
+        await registerComponentsOfKind(
             'authentication',
             configurations,
             '../authentications/providers',
@@ -450,7 +450,12 @@ async function deregisterAll() {
     }
 }
 
-export async function init() {
+/**
+ * Register all components (registries, triggers, watchers, authentications)
+ * and subscribe them to their events.
+ * Pure registration: no background task is started.
+ */
+export async function registerComponents() {
     // Register triggers
     await registerTriggers();
 
@@ -462,16 +467,27 @@ export async function init() {
 
     // Register authentications
     await registerAuthentications();
+}
 
+/**
+ * Install signal handlers so WUD can gracefully deregister components.
+ * NOT called in one-shot mode.
+ */
+export function startBackground() {
     // Gracefully exit when possible
     process.on('SIGINT', deregisterAll);
     process.on('SIGTERM', deregisterAll);
 }
 
+export async function init() {
+    await registerComponents();
+    startBackground();
+}
+
 // The following exports are meant for testing only
 export {
     registerComponent as testable_registerComponent,
-    registerComponents as testable_registerComponents,
+    registerComponentsOfKind as testable_registerComponents,
     registerRegistries as testable_registerRegistries,
     registerTriggers as testable_registerTriggers,
     registerWatchers as testable_registerWatchers,

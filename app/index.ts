@@ -1,11 +1,9 @@
 // @ts-nocheck
 import { getVersion } from './configuration';
 import log from './log';
-import { store } from './store';
-import * as registry from './registry';
-import * as api from './api';
-import * as prometheus from './prometheus';
-import { bootstrapAuth } from './store/auth_bootstrap';
+import { bootstrap } from './runtime/bootstrap';
+import { getRunMode, isOneshot } from './runtime/mode';
+import { exitOneshot, runOneShot } from './runtime/oneshot';
 import Dockerode from 'dockerode';
 import {
     SelfUpdatePayload,
@@ -36,21 +34,18 @@ async function main() {
         return;
     }
 
+    // One-shot headless mode: single scan, JSON output, then exit.
+    // exitOneshot flushes stdout before terminating: trigger connections
+    // (e.g. MQTT clients) may otherwise keep the event loop alive.
+    if (isOneshot()) {
+        exitOneshot(await runOneShot(process.argv));
+        return;
+    }
+
     log.info(`WUD is starting (version = ${getVersion()})`);
 
-    // Init store
-    await store.init();
-
-    // Bootstrap authentication
-    await bootstrapAuth();
-
-    // Start Prometheus registry
-    prometheus.init();
-
-    // Init registry
-    await registry.init();
-
-    // Init api
-    await api.init();
+    // Server startup order: store.init -> bootstrapAuth -> prometheus.init
+    // -> registry.init -> api.init
+    await bootstrap({ mode: getRunMode() });
 }
 main();

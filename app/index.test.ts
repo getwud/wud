@@ -8,26 +8,18 @@ jest.mock('./log', () => ({
     info: jest.fn(),
 }));
 
-jest.mock('./store', () => ({
-    store: {
-        init: jest.fn().mockResolvedValue(),
-    },
+jest.mock('./runtime/bootstrap', () => ({
+    bootstrap: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('./registry', () => ({
-    init: jest.fn().mockResolvedValue(),
+jest.mock('./runtime/mode', () => ({
+    getRunMode: jest.fn(() => 'server'),
+    isOneshot: jest.fn(() => false),
 }));
 
-jest.mock('./api', () => ({
-    init: jest.fn().mockResolvedValue(),
-}));
-
-jest.mock('./prometheus', () => ({
-    init: jest.fn(),
-}));
-
-jest.mock('./store/auth_bootstrap', () => ({
-    bootstrapAuth: jest.fn().mockResolvedValue(undefined),
+jest.mock('./runtime/oneshot', () => ({
+    runOneShot: jest.fn().mockResolvedValue(0),
+    exitOneshot: jest.fn(),
 }));
 
 describe('Main Application', () => {
@@ -37,14 +29,11 @@ describe('Main Application', () => {
         jest.resetModules();
     });
 
-    test('should initialize all components in correct order', async () => {
+    test('should start the server through the bootstrap orchestrator', async () => {
         const { default: log } = await import('./log');
-        const store = await import('./store');
-        const registry = await import('./registry');
-        const api = await import('./api');
-        const { bootstrapAuth } = await import('./store/auth_bootstrap');
-        const prometheus = await import('./prometheus');
         const { getVersion } = await import('./configuration');
+        const { bootstrap } = await import('./runtime/bootstrap');
+        const { isOneshot } = await import('./runtime/mode');
 
         // Import and run the main module
         await import('./index');
@@ -52,15 +41,48 @@ describe('Main Application', () => {
         // Wait for async operations to complete
         await new Promise((resolve) => setImmediate(resolve));
 
-        // Verify initialization order and calls
-        expect(getVersion).toHaveBeenCalled();
+        // Server mode: bootstrap is called with mode server
+        expect(isOneshot).toHaveBeenCalled();
+        expect(bootstrap).toHaveBeenCalledWith({ mode: 'server' });
         expect(log.info).toHaveBeenCalledWith(
             'WUD is starting (version = 1.0.0)',
         );
-        expect(store.store.init).toHaveBeenCalled();
-        expect(bootstrapAuth).toHaveBeenCalled();
-        expect(prometheus.init).toHaveBeenCalled();
-        expect(registry.init).toHaveBeenCalled();
-        expect(api.init).toHaveBeenCalled();
+        expect(getVersion).toHaveBeenCalled();
+    });
+
+    test('should run the one-shot mode and exit with its result', async () => {
+        const { isOneshot } = await import('./runtime/mode');
+        const { runOneShot, exitOneshot } = await import('./runtime/oneshot');
+        const { bootstrap } = await import('./runtime/bootstrap');
+
+        isOneshot.mockReturnValue(true);
+        runOneShot.mockResolvedValue(1);
+
+        // The one-shot entry receives the raw process argv (program tokens
+        // included) so the CLI can adapt to node/binary invocation layouts.
+        const rawArgv = process.argv;
+
+        // Import and run the main module
+        await import('./index');
+
+        // Wait for async operations to complete
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(runOneShot).toHaveBeenCalledWith(rawArgv);
+        expect(exitOneshot).toHaveBeenCalledWith(1);
+        expect(bootstrap).not.toHaveBeenCalled();
+    });
+
+    test('should exit 0 for a successful one-shot run', async () => {
+        const { isOneshot } = await import('./runtime/mode');
+        const { runOneShot, exitOneshot } = await import('./runtime/oneshot');
+
+        isOneshot.mockReturnValue(true);
+        runOneShot.mockResolvedValue(0);
+
+        await import('./index');
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(exitOneshot).toHaveBeenCalledWith(0);
     });
 });

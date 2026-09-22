@@ -2,6 +2,7 @@ import pino from 'pino';
 import { Writable } from 'stream';
 import { EventEmitter } from 'events';
 import { getLogLevel } from '../configuration';
+import { isOneshot } from '../runtime/mode';
 
 export interface LogRecord {
     level: number;
@@ -39,8 +40,12 @@ export const memoryStream = new Writable({
 
 const logLevel = getLogLevel() as pino.LevelWithSilent;
 
+// One-shot mode keeps stdout clean for the JSON output contract:
+// diagnostics go to stderr.
+const outputStream: Writable = isOneshot() ? process.stderr : process.stdout;
+
 const streams: pino.StreamEntry<pino.LevelWithSilent>[] = [
-    { stream: process.stdout, level: logLevel },
+    { stream: outputStream, level: logLevel },
     { stream: memoryStream, level: logLevel },
 ];
 
