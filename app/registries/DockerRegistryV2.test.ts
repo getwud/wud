@@ -135,6 +135,16 @@ describe('DockerRegistryV2 base class tests', () => {
             expect(masked.privatekey).toBe('m**********y');
         });
 
+        test('should mask proxy password in configuration', () => {
+            registry.configuration = {
+                url: 'https://testreg.io',
+                proxy: 'http://user:supersecret@proxy:8080',
+            };
+
+            const masked = registry.maskConfiguration();
+            expect(masked.proxy).toBe('http://user:***@proxy:8080/');
+        });
+
         test('should support maskSensitiveFields helper', () => {
             registry.configuration = {
                 customField: 'secretvalue',

@@ -1,5 +1,7 @@
 // @ts-nocheck
 import axios from 'axios';
+import { HttpsProxyAgent } from 'https-proxy-agent';
+import { SocksProxyAgent } from 'socks-proxy-agent';
 import log from '../log';
 
 jest.mock('axios');
@@ -375,6 +377,99 @@ test('callRegistry should send User-Agent header with wud version', async () => 
     );
 });
 
+describe('proxy handling', () => {
+    const originalEnv = { ...process.env };
+
+    beforeEach(() => {
+        delete process.env.HTTP_PROXY;
+        delete process.env.HTTPS_PROXY;
+        delete process.env.http_proxy;
+        delete process.env.https_proxy;
+        delete process.env.NO_PROXY;
+        delete process.env.no_proxy;
+        axios.mockClear();
+    });
+
+    afterAll(() => {
+        process.env = originalEnv;
+    });
+
+    test('callRegistry should use HttpsProxyAgent when registry has proxy configured', async () => {
+        axios.mockResolvedValue({ data: {} });
+        const registryMocked = new Registry();
+        registryMocked.log = log;
+        registryMocked.configuration = {
+            proxy: 'http://custom-proxy:3128',
+        };
+        await registryMocked.callRegistry({
+            image: {},
+            url: 'https://registry-1.docker.io/v2/',
+            method: 'get',
+        });
+        expect(axios).toHaveBeenCalledWith(
+            expect.objectContaining({
+                httpsAgent: expect.any(HttpsProxyAgent),
+                proxy: false,
+            }),
+        );
+    });
+
+    test('callRegistry should use HttpsProxyAgent when HTTPS_PROXY environment variable is set', async () => {
+        process.env.HTTPS_PROXY = 'http://corp-proxy:3128';
+        axios.mockResolvedValue({ data: {} });
+        const registryMocked = new Registry();
+        registryMocked.log = log;
+        await registryMocked.callRegistry({
+            image: {},
+            url: 'https://registry-1.docker.io/v2/',
+            method: 'get',
+        });
+        expect(axios).toHaveBeenCalledWith(
+            expect.objectContaining({
+                httpsAgent: expect.any(HttpsProxyAgent),
+                proxy: false,
+            }),
+        );
+    });
+
+    test('callRegistry should use SocksProxyAgent when proxy URL is socks', async () => {
+        process.env.HTTPS_PROXY = 'socks5://corp-proxy:1080';
+        axios.mockResolvedValue({ data: {} });
+        const registryMocked = new Registry();
+        registryMocked.log = log;
+        await registryMocked.callRegistry({
+            image: {},
+            url: 'https://registry-1.docker.io/v2/',
+            method: 'get',
+        });
+        expect(axios).toHaveBeenCalledWith(
+            expect.objectContaining({
+                httpsAgent: expect.any(SocksProxyAgent),
+                httpAgent: expect.any(SocksProxyAgent),
+                proxy: false,
+            }),
+        );
+    });
+
+    test('callRegistry should not use proxy when NO_PROXY matches registry URL', async () => {
+        process.env.HTTPS_PROXY = 'http://corp-proxy:3128';
+        process.env.NO_PROXY = '.docker.io,localhost';
+        axios.mockResolvedValue({ data: {} });
+        const registryMocked = new Registry();
+        registryMocked.log = log;
+        await registryMocked.callRegistry({
+            image: {},
+            url: 'https://registry-1.docker.io/v2/',
+            method: 'get',
+        });
+        expect(axios).toHaveBeenCalledWith(
+            expect.not.objectContaining({
+                proxy: false,
+            }),
+        );
+    });
+});
+
 describe('registry request throttling', () => {
     const request = (registryMocked: Registry, url = 'url') =>
         registryMocked.callRegistry({
@@ -416,6 +511,22 @@ describe('registry request throttling', () => {
         ).toThrow();
         expect(() =>
             registryMocked.validateConfiguration({ concurrency: 1.5 }),
+        ).toThrow();
+    });
+
+    test('should validate optional proxy configuration', () => {
+        const registryMocked = new Registry();
+
+        expect(
+            registryMocked.validateConfiguration({
+                proxy: 'http://proxy.example.com:8080',
+            }),
+        ).toEqual({
+            concurrency: 2,
+            proxy: 'http://proxy.example.com:8080',
+        });
+        expect(() =>
+            registryMocked.validateConfiguration({ proxy: 'invalid-url' }),
         ).toThrow();
     });
 

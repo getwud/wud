@@ -37,6 +37,31 @@ Retry timing is fixed and is not separately configurable.
 
 ---
 
+## Proxy Support
+
+When running in an environment behind a corporate or forward HTTP proxy, WUD automatically routes outgoing registry requests through the proxy using standard environment variables:
+
+- `HTTP_PROXY` / `http_proxy`: Proxy URL for HTTP requests (e.g. `http://proxy.corp.example.com:3128`)
+- `HTTPS_PROXY` / `https_proxy`: Proxy URL for HTTPS requests (e.g. `http://proxy.corp.example.com:3128` or `socks5://proxy.corp.example.com:1080`)
+- `NO_PROXY` / `no_proxy`: Comma-separated list of domain suffixes or IP addresses to bypass the proxy (e.g. `localhost,127.0.0.1,.internal.company.com`)
+
+HTTPS requests through HTTP proxies are established via `CONNECT` tunneling.
+
+You can also configure a dedicated proxy on a specific registry instance:
+
+<ConfigList>
+  <ConfigOption
+    name="WUD_REGISTRY_{REGISTRY_TYPE}_{REGISTRY_NAME}_PROXY"
+    required={false}
+    type="string"
+    defaultValue="undefined"
+    supported="Valid HTTP/HTTPS/SOCKS proxy URL">
+    Dedicated proxy URL to route requests for this registry instance.
+  </ConfigOption>
+</ConfigList>
+
+---
+
 ## ⚡ Active by Default (Zero-Config for Public Images)
 
 These registries **work out of the box with zero configuration** for public images.

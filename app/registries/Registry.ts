@@ -4,6 +4,7 @@ import Component, { ComponentConfiguration } from '../registry/Component';
 import { getSummaryTags } from '../prometheus/registry';
 import { ContainerImage } from '../model/container';
 import { getVersion } from '../configuration';
+import { applyProxyConfig } from '../http/proxy';
 
 const DEFAULT_CONCURRENCY = 2;
 const MAX_RATE_LIMIT_RETRIES = 2;
@@ -64,9 +65,10 @@ export class Registry extends Component {
             configuration !== null &&
             typeof configuration === 'object' &&
             !Array.isArray(configuration);
-        const { concurrency, ...providerConfiguration } = isObjectConfiguration
-            ? configuration
-            : { concurrency: undefined };
+        const { concurrency, proxy, ...providerConfiguration } =
+            isObjectConfiguration
+                ? configuration
+                : { concurrency: undefined, proxy: undefined };
 
         const concurrencyValidated = this.joi
             .number()
@@ -78,6 +80,15 @@ export class Registry extends Component {
             throw concurrencyValidated.error;
         }
 
+        const proxyValidated = this.joi
+            .string()
+            .uri()
+            .optional()
+            .validate(proxy);
+        if (proxyValidated.error) {
+            throw proxyValidated.error;
+        }
+
         const providerSchema = this.getConfigurationSchema();
         let providerConfigurationValidated = providerSchema.validate(
             isObjectConfiguration ? providerConfiguration : configuration,
@@ -85,7 +96,8 @@ export class Registry extends Component {
         if (
             providerConfigurationValidated.error &&
             isObjectConfiguration &&
-            Object.hasOwn(configuration, 'concurrency') &&
+            (Object.hasOwn(configuration, 'concurrency') ||
+                Object.hasOwn(configuration, 'proxy')) &&
             Object.keys(providerConfiguration).length === 0
         ) {
             const anonymousConfigurationValidated = providerSchema.validate('');
@@ -104,6 +116,9 @@ export class Registry extends Component {
                 ? providerConfigurationValidated.value
                 : {}),
             concurrency: concurrencyValidated.value,
+            ...(proxyValidated.value !== undefined
+                ? { proxy: proxyValidated.value }
+                : {}),
         };
     }
 
@@ -389,15 +404,18 @@ export class Registry extends Component {
         resolveWithFullResponse?: boolean;
     }): Promise<T | AxiosResponse<T>> {
         // Request options
-        const axiosOptions: AxiosRequestConfig = {
-            url,
-            method,
-            headers: {
-                'User-Agent': getUserAgent(),
-                ...(headers || {}),
+        const axiosOptions: AxiosRequestConfig = applyProxyConfig(
+            {
+                url,
+                method,
+                headers: {
+                    'User-Agent': getUserAgent(),
+                    ...(headers || {}),
+                },
+                responseType: 'json',
             },
-            responseType: 'json',
-        };
+            this.configuration?.proxy,
+        );
         let axiosOptionsWithAuth: AxiosRequestConfig | undefined;
 
         for (let retry = 0; ; retry += 1) {

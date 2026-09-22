@@ -2,6 +2,7 @@ import axios, { AxiosRequestConfig } from 'axios';
 import Custom from '../custom/Custom';
 import { getUserAgent } from '../../Registry';
 import { ContainerImage } from '../../../model/container';
+import { applyProxyConfig } from '../../../http/proxy';
 
 /**
  * Docker Hub integration.
@@ -94,6 +95,10 @@ class Hub extends Custom {
         const credentials = this.getAuthCredentials();
         if (credentials) {
             axiosConfig.headers.Authorization = `Basic ${credentials}`;
+        }
+
+        if (this.configuration?.proxy) {
+            applyProxyConfig(axiosConfig, this.configuration.proxy);
         }
 
         const response = await axios(axiosConfig);
