@@ -14,7 +14,12 @@ jest.mock('../../../event');
 jest.mock('../../../store/container');
 jest.mock('../../../registry');
 jest.mock('../../../model/container');
-jest.mock('../../../tag');
+jest.mock('../../../tag', () => ({
+    ...jest.requireActual('../../../tag'),
+    parse: jest.fn(),
+    isGreater: jest.fn(),
+    transform: jest.fn(),
+}));
 jest.mock('../../../prometheus/watcher');
 jest.mock('parse-docker-image-name');
 jest.mock('fs');

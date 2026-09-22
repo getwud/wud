@@ -20,8 +20,16 @@ describe('parse', () => {
             expected: { major: 0, minor: 6, patch: 12, prerelease: ['ls132'] },
         },
         {
-            input: 'fix__50',
-            expected: { major: 50, minor: 0, patch: 0, prerelease: [] },
+            input: 'linux-amd64-2.11.1-alpine',
+            expected: { major: 2, minor: 11, patch: 1, prerelease: ['alpine'] },
+        },
+        {
+            input: 'amd64-2.1.0',
+            expected: { major: 2, minor: 1, patch: 0, prerelease: [] },
+        },
+        {
+            input: 'windowsltsc2022-amd64-2.9.3',
+            expected: { major: 2, minor: 9, patch: 3, prerelease: [] },
         },
         {
             input: 'version-zobi-1.2.3-alpha1',
@@ -66,7 +74,20 @@ describe('parse', () => {
         },
     );
 
-    const invalidVersions = ['latest', 'stable', 'main', 'invalid', ''];
+    const invalidVersions = [
+        'latest',
+        'stable',
+        'main',
+        'invalid',
+        '',
+        'fix__50',
+        'fix__69',
+        'feature__502_specific_triggers',
+        '32bit-stretch',
+        '13696b1',
+        'cf1f086c-ls51',
+        '98239515-ls42',
+    ];
 
     test.each(invalidVersions)(
         'should return null for invalid version: %s',
@@ -233,6 +254,160 @@ describe('isGreater', () => {
             v2: '2025.08.04',
             expected: true,
             desc: 'CalVer dot-dates with leading zeros',
+        },
+
+        // Bare major tags vs variant/architecture tags (#1278, #1271)
+        {
+            v1: '32bit-stretch',
+            v2: '8',
+            expected: false,
+            desc: 'architecture tag with leading digits vs bare major tag',
+        },
+        {
+            v1: '8-libreoffice-cloudrun',
+            v2: '8',
+            expected: false,
+            desc: 'variant tag vs bare major tag',
+        },
+        {
+            v1: '8',
+            v2: '8-libreoffice-cloudrun',
+            expected: true,
+            desc: 'bare major tag vs variant tag',
+        },
+        {
+            v1: '9',
+            v2: '8',
+            expected: true,
+            desc: 'bare major tag upgrade',
+        },
+        {
+            v1: '2-slim-rootless',
+            v2: '2',
+            expected: false,
+            desc: 'variant tag vs bare tag',
+        },
+
+        // OS flavor drift (#1109, #509, #514)
+        {
+            v1: '8.8-trixie',
+            v2: '8.8-alpine',
+            expected: false,
+            desc: 'different OS flavors with same version',
+        },
+        {
+            v1: '8.9-alpine',
+            v2: '8.8-alpine',
+            expected: true,
+            desc: 'same OS flavor with higher minor version',
+        },
+        {
+            v1: '17.2-bullseye',
+            v2: '16.3',
+            expected: false,
+            desc: 'flavor variant vs bare version',
+        },
+        {
+            v1: '17.2',
+            v2: '16.3',
+            expected: true,
+            desc: 'bare version upgrade',
+        },
+
+        // Numeric suffix ordering (Checkmk #1276)
+        {
+            v1: '2.5.0p9',
+            v2: '2.5.0p13',
+            expected: false,
+            desc: 'numeric patchlevel p9 vs p13',
+        },
+        {
+            v1: '2.5.0p14',
+            v2: '2.5.0p13',
+            expected: true,
+            desc: 'numeric patchlevel p14 vs p13',
+        },
+
+        // Pre-release vs stable channel (#883, #759, #69)
+        {
+            v1: '2025.12-rc2',
+            v2: '2025.10',
+            expected: false,
+            desc: 'prerelease vs stable release',
+        },
+        {
+            v1: '18rc1-trixie',
+            v2: '18.0-trixie',
+            expected: false,
+            desc: 'prerelease vs stable release of same version',
+        },
+        {
+            v1: '18.1-trixie',
+            v2: '18.0-trixie',
+            expected: true,
+            desc: 'stable patch release within same flavor',
+        },
+
+        // Branches and git commit hashes (#71, #69, #530)
+        {
+            v1: '13696b1',
+            v2: '2021.9.1',
+            expected: false,
+            desc: 'git commit hash vs CalVer release',
+        },
+        {
+            v1: 'fix__69',
+            v2: '5.7.0',
+            expected: false,
+            desc: 'branch tag with issue number vs release',
+        },
+
+        // Legacy CalVer vs SemVer (#866, #335)
+        {
+            v1: '2021.12.16',
+            v2: '10.11.4',
+            expected: false,
+            desc: 'legacy 4-digit CalVer tag vs SemVer release',
+        },
+        {
+            v1: '20.04.1',
+            v2: '4.6.2',
+            expected: false,
+            desc: 'legacy Ubuntu CalVer tag vs SemVer release',
+        },
+
+        // Architecture-prefixed versions (#135, #625)
+        {
+            v1: 'windowsltsc2022-amd64-2.9.3',
+            v2: '2.27.1',
+            expected: false,
+            desc: 'windows platform prefixed version vs linux release',
+        },
+        {
+            v1: 'linux-amd64-2.13.1-alpine',
+            v2: 'linux-amd64-2.11.1-alpine',
+            expected: true,
+            desc: 'arch-prefixed higher minor version',
+        },
+        {
+            v1: 'linux-amd64-2.9.3-alpine',
+            v2: 'linux-amd64-2.11.1-alpine',
+            expected: false,
+            desc: 'arch-prefixed lower minor version',
+        },
+
+        // 4-segment versions (Emby #375)
+        {
+            v1: '4.9.0.12',
+            v2: '4.9.0.9',
+            expected: true,
+            desc: '4-segment version 12 vs 9',
+        },
+        {
+            v1: '4.9.0.9',
+            v2: '4.9.0.12',
+            expected: false,
+            desc: '4-segment version 9 vs 12',
         },
     ];
 
