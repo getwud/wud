@@ -10,6 +10,8 @@ import {
     parse as parseSemver,
     isGreater as isGreaterSemver,
     transform as transformTag,
+    extractTagComponents,
+    isPrerelease,
 } from '../../../tag';
 import * as event from '../../../event';
 import {
@@ -74,7 +76,7 @@ function getRegistries() {
 /**
  * Filter candidate tags (based on tag name).
  */
-function getTagCandidates(
+export function getTagCandidates(
     container: Container,
     tags: string[],
     logContainer: any,
@@ -105,38 +107,55 @@ function getTagCandidates(
     if (container.image.tag.semver) {
         if (filteredTags.length === 0) {
             logContainer.warn(
-                'No tags found after filtering; check you regex filters',
+                'No tags found after filtering; check your regex filters',
             );
         }
 
-        // If user has not specified custom include regex, default to keep current prefix
-        // Prefix is almost-always standardized around "must stay the same" for tags
-        if (!container.includeTags) {
-            const currentTag = container.image.tag.value;
-            const match = currentTag.match(/^(.*?)(\d+.*)$/);
-            const currentPrefix = match ? match[1] : '';
+        const currentTag = container.image.tag.value;
+        const currentComponents = extractTagComponents(currentTag);
 
-            if (currentPrefix) {
-                // Retain only tags with the same non-empty prefix
+        // If user has not specified custom include regex:
+        if (!container.includeTags) {
+            // Retain prefix consistency
+            if (currentComponents.prefix) {
                 filteredTags = filteredTags.filter((tag) =>
-                    tag.startsWith(currentPrefix),
+                    tag.startsWith(currentComponents.prefix),
                 );
             } else {
                 // Retain only tags that start with a number (no prefix)
                 filteredTags = filteredTags.filter((tag) => /^\d/.test(tag));
             }
 
+            // Exclude pre-releases if current tag is a stable release
+            if (!currentComponents.isPrerelease) {
+                filteredTags = filteredTags.filter((tag) => !isPrerelease(tag));
+            }
+
+            // Default flavor/suffix matching:
+            // if current tag has no flavor/distro suffix (e.g. 8, 18), only match candidate tags that also have no suffix (or matching suffix).
+            if (!currentComponents.flavor) {
+                filteredTags = filteredTags.filter((tag) => {
+                    const tagComp = extractTagComponents(tag);
+                    return !tagComp.flavor;
+                });
+            } else {
+                filteredTags = filteredTags.filter((tag) => {
+                    const tagComp = extractTagComponents(tag);
+                    return tagComp.flavor === currentComponents.flavor;
+                });
+            }
+
             // Ensure we throw good errors when we've prefix-related issues
             if (filteredTags.length === 0) {
-                if (currentPrefix) {
+                if (currentComponents.prefix) {
                     logContainer.warn(
                         "No tags found with existing prefix: '" +
-                            currentPrefix +
+                            currentComponents.prefix +
                             "'; check your regex filters",
                     );
                 } else {
                     logContainer.warn(
-                        'No tags found starting with a number (no prefix); check your regex filters',
+                        'No tags found matching current channel; check your regex filters',
                     );
                 }
             }
@@ -149,18 +168,14 @@ function getTagCandidates(
                 null,
         );
 
-        // Remove prefix and suffix (keep only digits and dots)
-        const numericPart = container.image.tag.value.match(/(\d+(\.\d+)*)/);
-
-        if (numericPart) {
-            const referenceGroups = numericPart[0].split('.').length;
+        // Keep only tags with the same number of numeric segments
+        if (currentComponents.version) {
+            const referenceGroups = currentComponents.version.split('.').length;
 
             filteredTags = filteredTags.filter((tag) => {
-                const tagNumericPart = tag.match(/(\d+(\.\d+)*)/);
-                if (!tagNumericPart) return false; // skip tags without numeric part
-                const tagGroups = tagNumericPart[0].split('.').length;
-
-                // Keep only tags with the same number of numeric segments
+                const tagComp = extractTagComponents(tag);
+                if (!tagComp.version) return false;
+                const tagGroups = tagComp.version.split('.').length;
                 return tagGroups === referenceGroups;
             });
         }
@@ -240,11 +255,18 @@ function pruneOldContainers(
     });
 }
 
-function getContainerName(container: any) {
+export function getContainerName(container: any) {
+    if (!container) {
+        return '';
+    }
     let containerName = '';
     const names = container.Names;
     if (names && names.length > 0) {
         [containerName] = names;
+    } else if (container.Name) {
+        containerName = container.Name;
+    } else if (container.name) {
+        containerName = container.name;
     }
     // Strip ugly forward slash
     containerName = containerName.replace(/\//, '');
@@ -422,6 +444,7 @@ export class Docker extends Watcher {
                     'unpause',
                     'die',
                     'update',
+                    'rename',
                 ],
             },
         };
@@ -473,7 +496,12 @@ export class Docker extends Watcher {
                 const container =
                     await this.dockerApi.getContainer(containerId);
                 const containerInspect = await container.inspect();
-                const newStatus = containerInspect.State.Status;
+                const newStatus = containerInspect.State?.Status;
+                const newName =
+                    getContainerName(containerInspect) ||
+                    (dockerEvent.Actor?.Attributes?.name
+                        ? dockerEvent.Actor.Attributes.name.replace(/\//, '')
+                        : undefined);
                 const containerFound = storeContainer.getContainer(containerId);
                 if (containerFound) {
                     // Child logger for the container to process
@@ -481,12 +509,25 @@ export class Docker extends Watcher {
                         container: fullName(containerFound),
                     });
                     const oldStatus = containerFound.status;
-                    containerFound.status = newStatus;
-                    if (oldStatus !== newStatus) {
-                        storeContainer.updateContainer(containerFound);
+                    const oldName = containerFound.name;
+                    let isUpdated = false;
+
+                    if (newStatus && oldStatus !== newStatus) {
+                        containerFound.status = newStatus;
                         logContainer.info(
                             `Status changed from ${oldStatus} to ${newStatus}`,
                         );
+                        isUpdated = true;
+                    }
+                    if (newName && oldName !== newName) {
+                        containerFound.name = newName;
+                        logContainer.info(
+                            `Name changed from ${oldName} to ${newName}`,
+                        );
+                        isUpdated = true;
+                    }
+                    if (isUpdated) {
+                        storeContainer.updateContainer(containerFound);
                     }
                 }
             } catch (e: any) {
@@ -770,6 +811,13 @@ export class Docker extends Watcher {
     }
 
     /**
+     * Get container name.
+     */
+    getContainerName(container: any) {
+        return getContainerName(container);
+    }
+
+    /**
      * Add image detail to Container.
      */
     async addImageDetailsToContainer(
@@ -806,11 +854,30 @@ export class Docker extends Watcher {
             containerInStore.error === undefined
         ) {
             this.log.debug(`Container ${containerInStore.id} already in store`);
+            let isUpdated = false;
             if (stack && !containerInStore.stack) {
                 containerInStore.stack = stack;
+                isUpdated = true;
             }
             if (delay && containerInStore.delay !== delay) {
                 containerInStore.delay = delay;
+                isUpdated = true;
+            }
+            const currentContainerName = this.getContainerName(container);
+            if (
+                currentContainerName &&
+                containerInStore.name !== currentContainerName
+            ) {
+                if (this.log && typeof this.log.info === 'function') {
+                    this.log.info(
+                        `Container ${containerInStore.id} renamed from ${containerInStore.name} to ${currentContainerName}`,
+                    );
+                }
+                containerInStore.name = currentContainerName;
+                isUpdated = true;
+            }
+            if (isUpdated) {
+                storeContainer.updateContainer(containerInStore);
             }
             return containerInStore;
         }

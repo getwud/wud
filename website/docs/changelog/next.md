@@ -10,6 +10,9 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 ---
 
 - 🚀 [CLI] Add one-shot headless mode (`WUD_RUN_MODE=oneshot`): run `wud watch` as a single scan with JSON output on stdout, exit codes for CI, `--fail-on-update`, `--update-available`, `--format=ndjson`, and `version`/`--help` commands. No database is created. See [One-Shot Headless Mode](../configuration/oneshot.md).
+- 🚀 [REGISTRY] Add custom User-Agent to registry requests (fixes #685)
+- 🐛 [WATCHER] Fix container temporary name persistence when containers are renamed (fixes #770)
 - 🚀 [PROMETHEUS] Add option to disable authentication for metrics endpoint (#878)
 - 🚀 [UI] Display dedicated provider icons for triggers matching documentation
 - 🚀 [API/UI] Add Server-Sent Events (SSE) support and asynchronous container watch
+- 🐛 [TAG] Harden tag candidate filtering and SemVer comparison against exotic variants and pre-releases (fixes #1278)

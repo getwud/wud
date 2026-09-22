@@ -1,5 +1,5 @@
 // @ts-nocheck
-import Docker from './Docker';
+import Docker, { getContainerName } from './Docker';
 import Registry from '../../../registries/Registry';
 import * as event from '../../../event';
 import * as storeContainer from '../../../store/container';
@@ -14,7 +14,12 @@ jest.mock('../../../event');
 jest.mock('../../../store/container');
 jest.mock('../../../registry');
 jest.mock('../../../model/container');
-jest.mock('../../../tag');
+jest.mock('../../../tag', () => ({
+    ...jest.requireActual('../../../tag'),
+    parse: jest.fn(),
+    isGreater: jest.fn(),
+    transform: jest.fn(),
+}));
 jest.mock('../../../prometheus/watcher');
 jest.mock('parse-docker-image-name');
 jest.mock('fs');
@@ -103,6 +108,12 @@ describe('Docker Watcher', () => {
         fullName.mockReturnValue('test_container');
 
         docker = new Docker();
+    });
+
+    afterEach(async () => {
+        if (docker) {
+            await docker.deregisterComponent();
+        }
     });
 
     describe('Configuration', () => {
@@ -297,6 +308,7 @@ describe('Docker Watcher', () => {
                             'unpause',
                             'die',
                             'update',
+                            'rename',
                         ],
                     },
                 },
@@ -420,6 +432,166 @@ describe('Docker Watcher', () => {
             );
             expect(mockContainer.inspect).toHaveBeenCalled();
             expect(storeContainer.updateContainer).toHaveBeenCalled();
+        });
+
+        test('should update container name on rename event', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockChildLog = { info: jest.fn() };
+            const mockLog = {
+                child: jest.fn().mockReturnValue(mockChildLog),
+                debug: jest.fn(),
+            };
+            docker.log = mockLog;
+            mockContainer.inspect.mockResolvedValue({
+                Name: '/new-container-name',
+                State: { Status: 'running' },
+            });
+            const existingContainer = {
+                id: 'container123',
+                name: 'old-container-name',
+                status: 'running',
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const event = JSON.stringify({
+                Action: 'rename',
+                Actor: {
+                    ID: 'container123',
+                    Attributes: {
+                        name: 'new-container-name',
+                        oldName: 'old-container-name',
+                    },
+                },
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+
+            expect(mockDockerApi.getContainer).toHaveBeenCalledWith(
+                'container123',
+            );
+            expect(mockContainer.inspect).toHaveBeenCalled();
+            expect(existingContainer.name).toBe('new-container-name');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: 'container123',
+                    name: 'new-container-name',
+                }),
+            );
+            expect(mockChildLog.info).toHaveBeenCalledWith(
+                'Name changed from old-container-name to new-container-name',
+            );
+        });
+
+        test('should update container name on rename event using Actor.Attributes.name fallback', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockChildLog = { info: jest.fn() };
+            const mockLog = {
+                child: jest.fn().mockReturnValue(mockChildLog),
+                debug: jest.fn(),
+            };
+            docker.log = mockLog;
+            mockContainer.inspect.mockResolvedValue({
+                State: { Status: 'running' },
+            });
+            const existingContainer = {
+                id: 'container123',
+                name: 'old-container-name',
+                status: 'running',
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const event = JSON.stringify({
+                Action: 'rename',
+                Actor: {
+                    ID: 'container123',
+                    Attributes: {
+                        name: 'fallback-name',
+                        oldName: 'old-container-name',
+                    },
+                },
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+
+            expect(existingContainer.name).toBe('fallback-name');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: 'container123',
+                    name: 'fallback-name',
+                }),
+            );
+        });
+
+        test('should update both status and name when both change on event', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockChildLog = { info: jest.fn() };
+            const mockLog = {
+                child: jest.fn().mockReturnValue(mockChildLog),
+                debug: jest.fn(),
+            };
+            docker.log = mockLog;
+            mockContainer.inspect.mockResolvedValue({
+                Name: '/renamed-container',
+                State: { Status: 'running' },
+            });
+            const existingContainer = {
+                id: 'container789',
+                name: 'initial-container',
+                status: 'stopped',
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const event = JSON.stringify({
+                Action: 'start',
+                Actor: {
+                    ID: 'container789',
+                },
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+
+            expect(existingContainer.status).toBe('running');
+            expect(existingContainer.name).toBe('renamed-container');
+            expect(mockChildLog.info).toHaveBeenCalledWith(
+                'Status changed from stopped to running',
+            );
+            expect(mockChildLog.info).toHaveBeenCalledWith(
+                'Name changed from initial-container to renamed-container',
+            );
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: 'container789',
+                    status: 'running',
+                    name: 'renamed-container',
+                }),
+            );
+        });
+
+        test('should not update container in store when neither status nor name changed on event', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockChildLog = { info: jest.fn() };
+            const mockLog = {
+                child: jest.fn().mockReturnValue(mockChildLog),
+                debug: jest.fn(),
+            };
+            docker.log = mockLog;
+            mockContainer.inspect.mockResolvedValue({
+                Name: '/same-name',
+                State: { Status: 'running' },
+            });
+            const existingContainer = {
+                id: 'container789',
+                name: 'same-name',
+                status: 'running',
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const event = JSON.stringify({
+                Action: 'update',
+                Actor: {
+                    ID: 'container789',
+                },
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+
+            expect(storeContainer.updateContainer).not.toHaveBeenCalled();
         });
 
         test('should handle container not found during event processing', async () => {
@@ -1316,6 +1488,58 @@ describe('Docker Watcher', () => {
             }
         });
 
+        test('should update container name in store when name changed during polling', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = { debug: jest.fn(), info: jest.fn() };
+            docker.log = mockLog;
+            const existingContainer = {
+                id: '123',
+                name: 'temp-name',
+                result: { tag: '2.0.0' },
+                error: undefined,
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const result = await docker.addImageDetailsToContainer({
+                Id: '123',
+                Names: ['/final-name'],
+            });
+
+            expect(result.name).toBe('final-name');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: '123',
+                    name: 'final-name',
+                }),
+            );
+            expect(mockLog.info).toHaveBeenCalledWith(
+                'Container 123 renamed from temp-name to final-name',
+            );
+            expect(mockDockerApi.getImage).not.toHaveBeenCalled();
+        });
+
+        test('should not update container in store when name has not changed during polling', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = { debug: jest.fn(), info: jest.fn() };
+            docker.log = mockLog;
+            const existingContainer = {
+                id: '123',
+                name: 'final-name',
+                result: { tag: '2.0.0' },
+                error: undefined,
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const result = await docker.addImageDetailsToContainer({
+                Id: '123',
+                Names: ['/final-name'],
+            });
+
+            expect(result.name).toBe('final-name');
+            expect(storeContainer.updateContainer).not.toHaveBeenCalled();
+            expect(mockDockerApi.getImage).not.toHaveBeenCalled();
+        });
+
         test('should add image details to new container', async () => {
             await docker.register('watcher', 'docker', 'test', {});
             const container = {
@@ -1930,6 +2154,27 @@ describe('Docker Watcher', () => {
             const container = { Names: ['/test-container'] };
             const name = container.Names[0].replace(/\//, '');
             expect(name).toBe('test-container');
+        });
+
+        test('should extract container name correctly using getContainerName helper and method', async () => {
+            expect(getContainerName({ Names: ['/container-names'] })).toBe(
+                'container-names',
+            );
+            expect(getContainerName({ Name: '/container-name' })).toBe(
+                'container-name',
+            );
+            expect(getContainerName({ Name: 'container-no-slash' })).toBe(
+                'container-no-slash',
+            );
+            expect(getContainerName({ name: 'model-name' })).toBe('model-name');
+            expect(getContainerName({})).toBe('');
+            expect(getContainerName(null)).toBe('');
+            expect(getContainerName(undefined)).toBe('');
+
+            // Test docker instance method delegation
+            expect(docker.getContainerName({ Names: ['/instance-cont'] })).toBe(
+                'instance-cont',
+            );
         });
 
         test('should get repo digest from image', async () => {

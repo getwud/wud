@@ -89,6 +89,7 @@ describe('Docker Hub Registry tests', () => {
             url: 'https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/nginx:pull&grant_type=password',
             headers: {
                 Accept: 'application/json',
+                'User-Agent': expect.stringMatching(/^wud\/.+/),
                 Authorization: 'Basic base64credentials',
             },
         });
@@ -111,6 +112,7 @@ describe('Docker Hub Registry tests', () => {
             url: 'https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/nginx:pull&grant_type=password',
             headers: {
                 Accept: 'application/json',
+                'User-Agent': expect.stringMatching(/^wud\/.+/),
             },
         });
         expect(result.headers.Authorization).toBe('Bearer public-token');

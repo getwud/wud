@@ -141,6 +141,7 @@ test('authenticate should not send basic credentials when none are configured', 
         url: 'https://gitlab.com/jwt/auth?service=container_registry&scope=repository:test/image:pull',
         headers: {
             Accept: 'application/json',
+            'User-Agent': expect.stringMatching(/^wud\/.+/),
         },
     });
 });
@@ -173,6 +174,7 @@ test('authenticate should use custom username when configured', async () => {
         url: 'https://gitlab.com/jwt/auth?service=container_registry&scope=repository:test/image:pull',
         headers: {
             Accept: 'application/json',
+            'User-Agent': expect.stringMatching(/^wud\/.+/),
             Authorization: `Basic ${Gitlab.base64Encode('custom-user', 'abcdef')}`,
         },
     });

@@ -1,5 +1,6 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import Custom from '../custom/Custom';
+import { getUserAgent } from '../../Registry';
 import { ContainerImage } from '../../../model/container';
 
 /**
@@ -85,6 +86,7 @@ class Hub extends Custom {
             url: `https://auth.docker.io/token?service=registry.docker.io&scope=repository:${image.name}:pull&grant_type=password`,
             headers: {
                 Accept: 'application/json',
+                'User-Agent': getUserAgent(),
             },
         };
 

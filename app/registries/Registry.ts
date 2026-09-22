@@ -3,6 +3,7 @@ import log from '../log';
 import Component, { ComponentConfiguration } from '../registry/Component';
 import { getSummaryTags } from '../prometheus/registry';
 import { ContainerImage } from '../model/container';
+import { getVersion } from '../configuration';
 
 const DEFAULT_CONCURRENCY = 2;
 const MAX_RATE_LIMIT_RETRIES = 2;
@@ -41,10 +42,18 @@ export interface RegistryManifestResponse {
     }[];
 }
 
+export function getUserAgent(): string {
+    return `wud/${getVersion()}`;
+}
+
 /**
  * Docker Registry Abstract class.
  */
 export class Registry extends Component {
+    static getUserAgent(): string {
+        return getUserAgent();
+    }
+
     private activeRequests = 0;
     private readonly pendingRequests: (() => void)[] = [];
 
@@ -383,7 +392,10 @@ export class Registry extends Component {
         const axiosOptions: AxiosRequestConfig = {
             url,
             method,
-            headers,
+            headers: {
+                'User-Agent': getUserAgent(),
+                ...(headers || {}),
+            },
             responseType: 'json',
         };
         let axiosOptionsWithAuth: AxiosRequestConfig | undefined;
