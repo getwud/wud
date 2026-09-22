@@ -12,6 +12,7 @@ import {
     readSelfUpdatePayload,
     runSelfUpdate,
 } from './triggers/providers/docker/self';
+import './http/proxy';
 
 /**
  * Run as a one-shot helper that replaces the WUD container, then exit.

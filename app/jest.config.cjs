@@ -35,6 +35,7 @@ module.exports = {
     coverageDirectory: 'coverage',
     collectCoverageFrom: [
         '**/*.{js,ts}',
+        '!**/*.d.ts',
         '!**/node_modules/**',
         '!**/dist/**',
         '!**/coverage/**',

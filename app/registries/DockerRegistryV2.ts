@@ -1,6 +1,7 @@
 import { AxiosRequestConfig } from 'axios';
 import { ContainerImage } from '../model/container';
 import Registry from './Registry';
+import { maskProxy } from '../http/proxy';
 
 /**
  * Docker Registry V2 Base class.
@@ -92,6 +93,9 @@ export class DockerRegistryV2 extends Registry {
                 masked[field] = DockerRegistryV2.mask(masked[field]);
             }
         });
+        if (masked.proxy) {
+            masked.proxy = maskProxy(masked.proxy);
+        }
         return masked;
     }
 
