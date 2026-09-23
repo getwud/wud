@@ -29,61 +29,33 @@ The core principle for multi-host monitoring in WUD is simple:
 To monitor multiple Docker daemons from a single WUD instance, define a separate watcher configuration block for each target host. Each watcher has an identifier (`<NAME>`), its own connection settings, independent polling schedule, jitter, and real-time event listener.
 
 ```mermaid
-flowchart TD
-    subgraph Central["Central Host / Management Node"]
-        WUD["WUD (What's Up Docker?)<br/>Single Management Instance"]
-        SQLite[("SQLite Database<br/>Scoped per Watcher")]
-        UI["Web UI & Dashboard<br/>Host Filter & Badges"]
-        WUD --> SQLite
-        WUD --> UI
-    end
+flowchart LR
+    WUD["Central WUD Instance<br/>(Single Container)"]
 
-    subgraph HostLocal["Local Host (local)"]
-        LocalSocket["/var/run/docker.sock"]
-    end
+    H1["Local Host<br/>(/var/run/docker.sock)"]
+    H2["Remote Cloud VPS<br/>(docker-socket-proxy :2375)"]
+    H3["Remote Node<br/>(SSH Socket Tunnel)"]
+    H4["Remote Homelab / NAS<br/>(Tailscale / WireGuard Mesh)"]
+    H5["Production Server<br/>(Mutual TLS :2376)"]
 
-    subgraph HostVPS1["Remote Cloud VPS (vps1)"]
-        SocketProxy["docker-socket-proxy<br/>(Port 2375 - Read-Only)"]
-    end
-
-    subgraph HostVPS2["Remote Node (vps2)"]
-        SSHTunnel["SSH Socket Tunnel<br/>(/var/run/vps2.sock)"]
-    end
-
-    subgraph HostMesh["Remote Homelab (nas)"]
-        Mesh["Tailscale / WireGuard Mesh<br/>(Private Overlay IP)"]
-    end
-
-    subgraph HostProd["Production Server (prod)"]
-        MTLS["Docker Engine TCP<br/>(Port 2376 - Mutual TLS)"]
-    end
-
-    WUD -->|"1. Local Socket"| LocalSocket
-    WUD -->|"2. TCP / HTTP Proxy"| SocketProxy
-    WUD -->|"3. Tunneled Socket"| SSHTunnel
-    WUD -->|"4. Encrypted Mesh"| Mesh
-    WUD -->|"5. Mutual TLS"| MTLS
+    WUD -->|"1. Local Socket"| H1
+    WUD -->|"2. Read-Only TCP Proxy"| H2
+    WUD -->|"3. Tunneled Socket"| H3
+    WUD -->|"4. Encrypted Overlay"| H4
+    WUD -->|"5. Mutual TLS"| H5
 ```
 
 ---
 
-## 2. How WUD Differentiates Containers Across Hosts
+## 2. Identifying Containers by Host (Notifications & Home Assistant)
 
-When monitoring dozens of containers across multiple servers, clear organization and fault isolation are essential. WUD handles multi-host environments natively across all components:
+Every container discovered by WUD is automatically tagged with its watcher identifier (`<NAME>`), acting as the host identifier across the entire platform.
 
-### 🖥️ Web UI & Topbar Filtering
+### Host Identifier in WUD
 
-- **Host Badges**: Every container card in the Grid view and every row in the Table view displays a dedicated badge with its watcher name (for example, `local`, `vps1`, `nas`).
-- **Watcher Filter**: The top navigation bar includes an interactive Watcher filter dropdown. You can switch between viewing all containers across your fleet or isolating containers on a specific host with a single click.
-- **Search Integration**: The search bar instantly filters containers by name, image, or watcher host.
+When configuring a watcher (for example, `WUD_WATCHER_VPS1_HOST=...`), WUD records `vps1` as the container host tag (`watcher`). In the Web UI, every container card and table row displays its watcher badge, allowing instant filtering and search across your fleet.
 
-### 🗄️ Database Isolation & Fault Tolerance
-
-- **Partitioned Persistence**: All container states, image digests, and update statuses are stored in SQLite and partitioned by the `watcher` identifier.
-- **Independent Pruning**: Container inventory synchronization is strictly scoped per watcher. If containers are stopped or removed on `vps1`, only `vps1` container records are pruned.
-- **Network Resilience**: If a remote host temporarily loses internet connectivity or reboots, WUD logs the connection timeout for that watcher. The container records from healthy hosts (`local`, `nas`) remain completely unaffected, preventing false alerts or data loss.
-
-### 🔔 Notification Context & Templating
+### Notifications Context & Templating
 
 All notification triggers (including Discord, Slack, Telegram, Webhooks, Apprise, Matrix, and Email) expose the watcher name in the templating context:
 
@@ -95,7 +67,7 @@ All notification triggers (including Discord, Slack, Telegram, Webhooks, Apprise
 [${container.watcher}] Container ${container.name} can be updated to ${container.updateKind.remoteValue}
 ```
 
-### 🏠 Home Assistant MQTT Topology
+### Home Assistant Integration
 
 When using the [Home Assistant MQTT trigger](../triggers/homeassistant-mqtt/README.md) with auto-discovery enabled:
 
@@ -105,7 +77,7 @@ When using the [Home Assistant MQTT trigger](../triggers/homeassistant-mqtt/READ
 
 ---
 
-## 3. Remote Host Connection Strategies
+## 3. Remote Host Connection Strategies (Socket Proxy, SSH Tunnel, Mesh Network, mTLS)
 
 WUD supports two connection primitives per watcher:
 
@@ -486,78 +458,7 @@ docker run -d \
 
 ---
 
-## 4. Bonus Pattern: Decentralized Headless WUD + Central MQTT Hub
-
-In edge locations, firewalled subnets, or air-gapped homelabs where inbound connections to remote nodes are completely blocked, central polling may not be practical.
-
-Instead of running one central WUD instance reaching out to remote nodes, you can invert the architecture:
-
-1. Run a lightweight **Headless WUD Agent** on each remote node.
-2. Disable the Web UI and HTTP server with `WUD_SERVER_ENABLED=false`.
-3. The remote WUD agent monitors its local `/var/run/docker.sock` and pushes update events **outbound** to a central message bus or notification channel:
-   - Central [MQTT Broker](../triggers/mqtt/README.md) (with [Home Assistant MQTT](../triggers/homeassistant-mqtt/README.md) discovery enabled)
-   - Central [Webhook](../triggers/http/README.md) or Webhook receiver
-   - Central messaging platforms ([Discord](../triggers/discord/README.md), [Slack](../triggers/slack/README.md), [Ntfy](../triggers/ntfy/README.md), [Gotify](../triggers/gotify/README.md), [Telegram](../triggers/telegram/README.md))
-
-```mermaid
-flowchart TD
-    subgraph CentralHub["Central Monitoring Hub"]
-        MQTT["Mosquitto / EMQX Broker"]
-        HASS["Home Assistant"]
-        Chat["Discord / Slack / Telegram"]
-        MQTT --> HASS
-    end
-
-    subgraph Node1["Remote VPS 1 (Headless WUD)"]
-        WUD1["WUD Agent<br/>WUD_SERVER_ENABLED=false<br/>Watcher: vps1"] -->|"Outbound MQTT (1883/8883)"| MQTT
-        WUD1 -->|"Outbound HTTPS Webhook"| Chat
-    end
-
-    subgraph Node2["Remote Edge Device (Headless WUD)"]
-        WUD2["WUD Agent<br/>WUD_SERVER_ENABLED=false<br/>Watcher: edge"] -->|"Outbound MQTT (1883/8883)"| MQTT
-        WUD2 -->|"Outbound HTTPS Webhook"| Chat
-    end
-```
-
-### Headless Remote Agent Recipe
-
-Deploy this minimal `docker-compose.yml` on any remote server. It consumes minimal RAM and CPU, opens no inbound ports, and connects outbound to your central MQTT broker:
-
-```yaml
-services:
-  wud-agent:
-    image: getwud/wud:latest
-    container_name: wud-agent
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - wud-agent-data:/var/lib/wud
-    environment:
-      # Disable HTTP server and web dashboard
-      - WUD_SERVER_ENABLED=false
-
-      # Monitor local docker socket under a unique watcher name
-      - WUD_WATCHER_VPS1_SOCKET=/var/run/docker.sock
-      - WUD_WATCHER_VPS1_CRON=0 */2 * * *
-
-      # Push outbound notifications to central MQTT (with Home Assistant discovery)
-      - WUD_TRIGGER_MQTT_CENTRAL_URL=mqtts://mqtt.example.com:8883
-      - WUD_TRIGGER_MQTT_CENTRAL_USER=vps1_client
-      - WUD_TRIGGER_MQTT_CENTRAL_PASSWORD=SecretPassword123
-      - WUD_TRIGGER_MQTT_CENTRAL_HASS_ENABLED=true
-      - WUD_TRIGGER_MQTT_CENTRAL_HASS_DISCOVERY=true
-
-      # Optional: Send push alerts directly to your Discord/Telegram channel
-      - WUD_TRIGGER_DISCORD_ALERTS_URL=https://discord.com/api/webhooks/123/xyz
-      - WUD_TRIGGER_DISCORD_ALERTS_SIMPLEBODY=[vps1] Container ${container.name} has update ${container.updateKind.remoteValue}
-
-volumes:
-  wud-agent-data:
-```
-
----
-
-## 5. Full Production Multi-Host Example
+## 4. Full Production Multi-Host Example (Docker Compose)
 
 Here is a complete, production-ready `docker-compose.yml` showcasing a central WUD dashboard monitoring:
 
