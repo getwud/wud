@@ -435,4 +435,75 @@ describe('Dockercompose Trigger - file operations', () => {
 
         expect(dockercompose.processComposeFile).not.toHaveBeenCalled();
     });
+
+    test('triggerBatch should skip containers when watcher is not found without throwing', async () => {
+        dockercompose.getWatcher = jest.fn().mockReturnValue(undefined);
+        dockercompose.processComposeFile = jest.fn();
+
+        await expect(
+            dockercompose.triggerBatch([
+                { ...container, watcher: 'nonexistent' } as any,
+            ]),
+        ).resolves.toBeUndefined();
+
+        expect(dockercompose.processComposeFile).not.toHaveBeenCalled();
+    });
+
+    test('triggerBatch should skip containers when watcher has no dockerApi without throwing', async () => {
+        dockercompose.getWatcher = jest.fn().mockReturnValue({});
+        dockercompose.processComposeFile = jest.fn();
+
+        await expect(
+            dockercompose.triggerBatch([
+                { ...container, watcher: 'nonexistent' } as any,
+            ]),
+        ).resolves.toBeUndefined();
+
+        expect(dockercompose.processComposeFile).not.toHaveBeenCalled();
+    });
+
+    test('triggerBatch should skip containers when watcher modem socketPath is empty string', async () => {
+        dockercompose.getWatcher = jest.fn().mockReturnValue({
+            dockerApi: { modem: { socketPath: '' } },
+        });
+        dockercompose.processComposeFile = jest.fn();
+
+        await expect(
+            dockercompose.triggerBatch([
+                { ...container, watcher: 'remote' } as any,
+            ]),
+        ).resolves.toBeUndefined();
+
+        expect(dockercompose.processComposeFile).not.toHaveBeenCalled();
+    });
+
+    test('triggerBatch should handle undefined modem safely', async () => {
+        (fs.access as jest.Mock).mockResolvedValue(undefined);
+        dockercompose.getWatcher = jest.fn().mockReturnValue({
+            dockerApi: {},
+        });
+        dockercompose.processComposeFile = jest
+            .fn()
+            .mockResolvedValue(undefined);
+
+        await expect(
+            dockercompose.triggerBatch([container as any]),
+        ).resolves.toBeUndefined();
+
+        expect(dockercompose.processComposeFile).toHaveBeenCalled();
+    });
+
+    test('trigger should skip container when watcher is not found without throwing', async () => {
+        dockercompose.getWatcher = jest.fn().mockReturnValue(undefined);
+        dockercompose.processComposeFile = jest.fn();
+
+        await expect(
+            dockercompose.trigger({
+                ...container,
+                watcher: 'nonexistent',
+            } as any),
+        ).resolves.toBeUndefined();
+
+        expect(dockercompose.processComposeFile).not.toHaveBeenCalled();
+    });
 });
