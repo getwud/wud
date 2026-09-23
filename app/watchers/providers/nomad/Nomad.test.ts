@@ -550,6 +550,42 @@ describe('Nomad Watcher - Version Lookup & Watch Cycle', () => {
         expect(result.digest).toBe('sha256:remote-digest-123');
     });
 
+    test('mapTaskToWudContainer should update container watcher in store when watcher name changed', async () => {
+        const existing = {
+            id: 'nomad_default_job1_group1_task1',
+            name: 'task1',
+            watcher: 'old-nomad',
+            result: { tag: '2.0.0' },
+            error: undefined,
+        } as any;
+        (storeContainer.getContainer as jest.Mock).mockReturnValue(existing);
+        const job = { Name: 'job1', Meta: {} };
+        const group = { Name: 'group1', Meta: {} };
+        const task = {
+            Name: 'task1',
+            Meta: {},
+            Config: { image: 'nginx:1.0.0' },
+        };
+
+        const result = await watcher.mapNomadTaskToWudContainer({
+            job: job as any,
+            group: group as any,
+            task: task as any,
+            namespace: 'default',
+            imageName: 'nginx:1.0.0',
+            mergedMeta: {},
+            architecture: 'amd64',
+        });
+
+        expect(result.watcher).toBe('nomad_test');
+        expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: 'nomad_default_job1_group1_task1',
+                watcher: 'nomad_test',
+            }),
+        );
+    });
+
     test('watchContainer should record errors gracefully when registry fails', async () => {
         (registry.getState as jest.Mock).mockReturnValue({
             registry: {},

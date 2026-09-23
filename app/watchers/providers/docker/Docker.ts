@@ -838,6 +838,10 @@ export class Docker extends Watcher {
         ) {
             this.log.debug(`Container ${containerInStore.id} already in store`);
             let isUpdated = false;
+            if (containerInStore.watcher !== this.name) {
+                containerInStore.watcher = this.name;
+                isUpdated = true;
+            }
             if (stack && !containerInStore.stack) {
                 containerInStore.stack = stack;
                 isUpdated = true;
