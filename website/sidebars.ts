@@ -168,7 +168,7 @@ const sidebars = {
     {
       type: 'doc',
       id: 'configuration/watchers/remote-tls',
-      label: 'Remote Daemons & TLS',
+      label: 'Remote Daemons & Multi-Host',
     },
     {
       type: 'doc',

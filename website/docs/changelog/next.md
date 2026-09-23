@@ -16,3 +16,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [API/UI] Add Server-Sent Events (SSE) support and asynchronous container watch
 - 🐛 [TAG] Harden tag candidate filtering and SemVer comparison against exotic variants and pre-releases (fixes #1278)
 - 🐛 [REGISTRY] Fix HTTPS proxy support for outgoing requests (fixes #982)
+- 📚 [DOCS] Comprehensive guide for remote Docker hosts and multi-host monitoring (fixes #579)
