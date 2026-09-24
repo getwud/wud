@@ -373,4 +373,107 @@ describe('Swarm Watcher - Version Lookup & Watch Cycle', () => {
         expect(mockRegistry.getImageManifestDigest).toHaveBeenCalled();
         expect(result.digest).toBe('sha256:remote-digest-123');
     });
+
+    describe('one-shot mode', () => {
+        const originalRunMode = process.env.WUD_RUN_MODE;
+
+        beforeEach(() => {
+            process.env.WUD_RUN_MODE = 'oneshot';
+        });
+
+        afterEach(() => {
+            if (originalRunMode === undefined) {
+                delete process.env.WUD_RUN_MODE;
+            } else {
+                process.env.WUD_RUN_MODE = originalRunMode;
+            }
+        });
+
+        test('init should disable cron and watchatstart in one-shot mode', async () => {
+            const cronMock = require('node-cron');
+            cronMock.schedule.mockClear();
+            storeContainer.getContainers.mockClear();
+
+            const oneshotWatcher = new Swarm();
+            await oneshotWatcher.register('watcher', 'swarm', 'test', {
+                cron: '0 * * * *',
+                watchatstart: true,
+            });
+
+            expect(cronMock.schedule).not.toHaveBeenCalled();
+            expect(storeContainer.getContainers).not.toHaveBeenCalled();
+            expect(oneshotWatcher.watchCron).toBeUndefined();
+            expect(oneshotWatcher.watchCronTimeout).toBeUndefined();
+        });
+
+        test('mapContainerToContainerReport should be stateless in one-shot mode', () => {
+            storeContainer.getContainer.mockClear();
+            storeContainer.insertContainer.mockClear();
+            storeContainer.updateContainer.mockClear();
+
+            const containerWithUpdate = {
+                id: 'swarm-c1',
+                updateAvailable: true,
+            };
+            const reportWithUpdate =
+                watcher.mapContainerToContainerReport(containerWithUpdate);
+            expect(reportWithUpdate.container).toBe(containerWithUpdate);
+            expect(reportWithUpdate.changed).toBe(true);
+
+            const containerWithoutUpdate = {
+                id: 'swarm-c2',
+                updateAvailable: false,
+            };
+            const reportWithoutUpdate = watcher.mapContainerToContainerReport(
+                containerWithoutUpdate,
+            );
+            expect(reportWithoutUpdate.container).toBe(containerWithoutUpdate);
+            expect(reportWithoutUpdate.changed).toBe(false);
+
+            expect(storeContainer.getContainer).not.toHaveBeenCalled();
+            expect(storeContainer.insertContainer).not.toHaveBeenCalled();
+            expect(storeContainer.updateContainer).not.toHaveBeenCalled();
+        });
+
+        test('getContainers should not query store or prune in one-shot mode', async () => {
+            storeContainer.getContainer.mockClear();
+            storeContainer.getContainers.mockClear();
+            storeContainer.deleteContainer.mockClear();
+
+            (registry.getState as jest.Mock).mockReturnValue({
+                registry: {
+                    hub: {
+                        getId: () => 'hub',
+                        match: () => true,
+                        normalizeImage: (img: any) => img,
+                        shouldWatchDigest: () => false,
+                    },
+                },
+            });
+
+            watcher.docker = {
+                listServices: jest.fn().mockResolvedValue([
+                    {
+                        ID: 'srv1',
+                        Spec: {
+                            Name: 'myservice',
+                            TaskTemplate: {
+                                ContainerSpec: {
+                                    Image: 'nginx:1.20',
+                                },
+                            },
+                        },
+                    },
+                ]),
+                listTasks: jest.fn().mockResolvedValue([]),
+            };
+
+            const containers = await watcher.getContainers();
+
+            expect(containers).toHaveLength(1);
+            expect(storeContainer.getContainer).not.toHaveBeenCalled();
+            expect(storeContainer.getContainers).not.toHaveBeenCalled();
+            expect(storeContainer.deleteContainer).not.toHaveBeenCalled();
+        });
+    });
 });

@@ -10,6 +10,8 @@ import {
     filterContainers,
     sortContainers,
     probeDockerConnections,
+    stripProgramTokens,
+    isLaunchToken,
     EXIT_OK,
     EXIT_ERROR,
     ONESHOT_USAGE,
@@ -96,6 +98,56 @@ function buildWatcher(reports, dockerApi = undefined) {
 beforeEach(() => {
     jest.clearAllMocks();
     mockRegistryState.watcher = {};
+});
+
+describe('stripProgramTokens', () => {
+    test('should strip node dist/index to []', () => {
+        expect(stripProgramTokens(['node', 'dist/index'])).toEqual([]);
+    });
+
+    test('should strip wud to []', () => {
+        expect(stripProgramTokens(['wud'])).toEqual([]);
+    });
+
+    test('should preserve empty array []', () => {
+        expect(stripProgramTokens([])).toEqual([]);
+    });
+
+    test('should strip node dist/index before watch', () => {
+        expect(stripProgramTokens(['node', 'dist/index', 'watch'])).toEqual([
+            'watch',
+        ]);
+    });
+
+    test('should strip wud before version', () => {
+        expect(stripProgramTokens(['wud', 'version'])).toEqual(['version']);
+    });
+
+    test('should strip wud before unknown command', () => {
+        expect(stripProgramTokens(['wud', 'unknown'])).toEqual(['unknown']);
+    });
+
+    test('should strip node dist/index before unknown command', () => {
+        expect(stripProgramTokens(['node', 'dist/index', 'bar'])).toEqual([
+            'bar',
+        ]);
+    });
+
+    test('should identify launch tokens correctly', () => {
+        expect(isLaunchToken('node')).toBe(true);
+        expect(isLaunchToken('node.exe')).toBe(true);
+        expect(isLaunchToken('/usr/local/bin/node')).toBe(true);
+        expect(isLaunchToken('wud')).toBe(true);
+        expect(isLaunchToken('/usr/bin/wud')).toBe(true);
+        expect(isLaunchToken('dist/index')).toBe(true);
+        expect(isLaunchToken('dist/index.js')).toBe(true);
+        expect(isLaunchToken('/app/dist/index')).toBe(true);
+        expect(isLaunchToken('/app/dist/index.js')).toBe(true);
+        expect(isLaunchToken('')).toBe(false);
+        expect(isLaunchToken('watch')).toBe(false);
+        expect(isLaunchToken('version')).toBe(false);
+        expect(isLaunchToken('--help')).toBe(false);
+    });
 });
 
 describe('parseArgs', () => {
@@ -234,6 +286,16 @@ describe('probeDockerConnections', () => {
         expect(ping).toHaveBeenCalledTimes(1);
     });
 
+    test('should ignore watchers without ping function on dockerApi', async () => {
+        await expect(
+            probeDockerConnections([
+                { dockerApi: {} },
+                { dockerApi: null },
+                {},
+            ]),
+        ).resolves.toBeUndefined();
+    });
+
     test('should propagate a ping failure', async () => {
         const ping = jest.fn().mockRejectedValue(new Error('socket not found'));
         await expect(
@@ -272,6 +334,82 @@ describe('runOneShot', () => {
         const code = await runOneShot(['node', 'dist/index', 'version']);
         expect(code).toBe(EXIT_OK);
         expect(spy).toHaveBeenCalledWith(expect.any(String));
+        spy.mockRestore();
+    });
+
+    test('should run version with wud version', async () => {
+        const spy = jest.spyOn(console, 'log').mockImplementation(() => {});
+        const code = await runOneShot(['wud', 'version']);
+        expect(code).toBe(EXIT_OK);
+        expect(spy).toHaveBeenCalledWith(expect.any(String));
+        spy.mockRestore();
+    });
+
+    test('should default to watch with empty argv []', async () => {
+        mockRegistryState.watcher = {
+            'docker.local': buildWatcher([
+                {
+                    container: buildContainer({ result: { tag: '1.0.0' } }),
+                    changed: false,
+                },
+            ]),
+        };
+        const spy = jest.spyOn(console, 'log').mockImplementation(() => {});
+        const code = await runOneShot([]);
+        expect(code).toBe(EXIT_OK);
+        spy.mockRestore();
+    });
+
+    test('should default to watch with ["node", "dist/index"]', async () => {
+        mockRegistryState.watcher = {
+            'docker.local': buildWatcher([
+                {
+                    container: buildContainer({ result: { tag: '1.0.0' } }),
+                    changed: false,
+                },
+            ]),
+        };
+        const spy = jest.spyOn(console, 'log').mockImplementation(() => {});
+        const code = await runOneShot(['node', 'dist/index']);
+        expect(code).toBe(EXIT_OK);
+        spy.mockRestore();
+    });
+
+    test('should default to watch with ["wud"]', async () => {
+        mockRegistryState.watcher = {
+            'docker.local': buildWatcher([
+                {
+                    container: buildContainer({ result: { tag: '1.0.0' } }),
+                    changed: false,
+                },
+            ]),
+        };
+        const spy = jest.spyOn(console, 'log').mockImplementation(() => {});
+        const code = await runOneShot(['wud']);
+        expect(code).toBe(EXIT_OK);
+        spy.mockRestore();
+    });
+
+    test('should run watch with ["node", "dist/index", "watch"]', async () => {
+        mockRegistryState.watcher = {
+            'docker.local': buildWatcher([
+                {
+                    container: buildContainer({ result: { tag: '1.0.0' } }),
+                    changed: false,
+                },
+            ]),
+        };
+        const spy = jest.spyOn(console, 'log').mockImplementation(() => {});
+        const code = await runOneShot(['node', 'dist/index', 'watch']);
+        expect(code).toBe(EXIT_OK);
+        spy.mockRestore();
+    });
+
+    test('should fail with ["wud", "unknown"]', async () => {
+        const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const code = await runOneShot(['wud', 'unknown']);
+        expect(code).toBe(EXIT_ERROR);
+        expect(spy).toHaveBeenCalledWith(expect.stringContaining('unknown'));
         spy.mockRestore();
     });
 
@@ -431,40 +569,56 @@ describe('runOneShot', () => {
 });
 
 describe('exitOneshot', () => {
-    test('should flush stdout and exit with the given code', () => {
+    test('should flush stdout and stderr and exit with the given code', () => {
         const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {
             throw new Error('process.exit called');
         });
-        const writeSpy = jest
+        const stdoutSpy = jest
             .spyOn(process.stdout, 'write')
+            .mockImplementation((_chunk, callback) => {
+                callback?.();
+                return true;
+            });
+        const stderrSpy = jest
+            .spyOn(process.stderr, 'write')
             .mockImplementation((_chunk, callback) => {
                 callback?.();
                 return true;
             });
 
         expect(() => exitOneshot(1)).toThrow('process.exit called');
-        expect(writeSpy).toHaveBeenCalledWith('', expect.any(Function));
+        expect(stdoutSpy).toHaveBeenCalledWith('', expect.any(Function));
+        expect(stderrSpy).toHaveBeenCalledWith('', expect.any(Function));
 
         exitSpy.mockRestore();
-        writeSpy.mockRestore();
+        stdoutSpy.mockRestore();
+        stderrSpy.mockRestore();
     });
 
-    test('should flush stdout and exit 0', () => {
+    test('should flush stdout and stderr and exit 0', () => {
         const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {
             throw new Error('process.exit called');
         });
-        const writeSpy = jest
+        const stdoutSpy = jest
             .spyOn(process.stdout, 'write')
+            .mockImplementation((_chunk, callback) => {
+                callback?.();
+                return true;
+            });
+        const stderrSpy = jest
+            .spyOn(process.stderr, 'write')
             .mockImplementation((_chunk, callback) => {
                 callback?.();
                 return true;
             });
 
         expect(() => exitOneshot(0)).toThrow('process.exit called');
-        expect(writeSpy).toHaveBeenCalledWith('', expect.any(Function));
+        expect(stdoutSpy).toHaveBeenCalledWith('', expect.any(Function));
+        expect(stderrSpy).toHaveBeenCalledWith('', expect.any(Function));
 
         exitSpy.mockRestore();
-        writeSpy.mockRestore();
+        stdoutSpy.mockRestore();
+        stderrSpy.mockRestore();
     });
 });
 

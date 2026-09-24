@@ -112,7 +112,7 @@ function buildContainerFromRows(
  * without touching the database.
  */
 export function completeContainerShapeForApi(container: Container): Container {
-    const raw: any = {
+    const raw: Partial<Container> = {
         id: container.id,
         name: container.name,
         displayName: container.displayName,

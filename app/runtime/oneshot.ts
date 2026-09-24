@@ -10,6 +10,7 @@ import { Container } from '../model/container';
 import * as registry from '../registry';
 import * as storeContainer from '../store/container';
 import Watcher from '../watchers/Watcher';
+import { waitForPendingEvents } from '../event';
 import { bootstrap } from './bootstrap';
 
 export const EXIT_OK = 0;
@@ -54,21 +55,35 @@ const DEFAULT_ARGS: OneShotParsedArgs = {
 };
 
 /**
- * Strip the leading program components from argv. `node dist/index watch`
- * (interpreter + script), `wud watch` (binary alias) and `watch` (direct
- * call) surface different argv layouts, so every leading token that is
- * neither a known command nor an option is dropped. A lone final token is
- * never stripped, so an unknown command is still reported as such.
+ * Test whether a token is a launch token (interpreter, entry point or CLI alias).
  */
-function stripProgramTokens(argv: string[]): string[] {
+export function isLaunchToken(token: string): boolean {
+    if (!token) {
+        return false;
+    }
+    const normalized = token.replace(/\\/g, '/');
+    const base = normalized.split('/').pop() ?? '';
+    return (
+        base === 'node' ||
+        base === 'node.exe' ||
+        base === 'wud' ||
+        base === 'index' ||
+        base === 'index.js' ||
+        normalized === 'dist/index' ||
+        normalized === 'dist/index.js' ||
+        normalized.endsWith('/dist/index') ||
+        normalized.endsWith('/dist/index.js')
+    );
+}
+
+/**
+ * Strip leading launch tokens (`node`, `.../index`, `dist/index`, `wud`).
+ * If only launch tokens are present, returns `[]`.
+ */
+export function stripProgramTokens(argv: string[]): string[] {
     const args = [...argv];
-    while (
-        args.length > 1 &&
-        !args[0].startsWith('-') &&
-        args[0] !== 'watch' &&
-        args[0] !== 'version'
-    ) {
-        args.splice(0, 1);
+    while (args.length > 0 && isLaunchToken(args[0])) {
+        args.shift();
     }
     return args;
 }
@@ -205,7 +220,7 @@ export async function probeDockerConnections(
                 dockerApi?: DockerSocketProbe;
             }
         ).dockerApi;
-        if (dockerApi) {
+        if (dockerApi && typeof dockerApi.ping === 'function') {
             await dockerApi.ping();
         }
     }
@@ -214,8 +229,9 @@ export async function probeDockerConnections(
 async function runWatch(parsed: OneShotParsedArgs): Promise<number> {
     try {
         await bootstrap({ mode: 'oneshot' });
-    } catch (e: any) {
-        log.error(`WUD one-shot failed to start (${e.message})`);
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : String(e);
+        log.error(`WUD one-shot failed to start (${message})`);
         return EXIT_ERROR;
     }
 
@@ -229,8 +245,9 @@ async function runWatch(parsed: OneShotParsedArgs): Promise<number> {
 
     try {
         await probeDockerConnections(watchers);
-    } catch (e: any) {
-        log.error(`Unable to reach the Docker socket (${e.message})`);
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : String(e);
+        log.error(`Unable to reach the Docker socket (${message})`);
         return EXIT_ERROR;
     }
 
@@ -248,10 +265,13 @@ async function runWatch(parsed: OneShotParsedArgs): Promise<number> {
                     report.container as Container,
                 ),
             );
-    } catch (e: any) {
-        log.error(`Error during the watch (${e.message})`);
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : String(e);
+        log.error(`Error during the watch (${message})`);
         return EXIT_ERROR;
     }
+
+    await waitForPendingEvents();
 
     containers = sortContainers(containers);
     const updatesAvailable = containers.some(
@@ -276,18 +296,20 @@ async function runWatch(parsed: OneShotParsedArgs): Promise<number> {
 }
 
 /**
- * Flush stdout and terminate the process. A one-shot run must always exit:
+ * Flush stdout and stderr then terminate the process. A one-shot run must always exit:
  * the scan reuses the server engine, so trigger connections (e.g. MQTT
  * clients or Docker event streams) may keep the event loop alive, and a
  * pending exit could silently hang CI pipelines.
  * @param code the exit code to use
  */
 export function exitOneshot(code: number): void {
-    // The stdout stream is a single queue: an empty write appended after the
-    // JSON output only resolves once everything before it was flushed, so
+    // The stdout and stderr streams are single queues: an empty write appended
+    // after the output only resolves once everything before it was flushed, so
     // the CLI contract survives process.exit().
     process.stdout.write('', () => {
-        process.exit(code);
+        process.stderr.write('', () => {
+            process.exit(code);
+        });
     });
 }
 
@@ -300,8 +322,9 @@ export async function runOneShot(argv: string[]): Promise<number> {
     let parsed: OneShotParsedArgs;
     try {
         parsed = parseArgs(stripProgramTokens(argv));
-    } catch (e: any) {
-        console.error(`WUD one-shot: ${e.message}\n`);
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : String(e);
+        console.error(`WUD one-shot: ${message}\n`);
         console.error(ONESHOT_USAGE);
         return EXIT_ERROR;
     }

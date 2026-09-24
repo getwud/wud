@@ -74,7 +74,7 @@ Explore the documentation for each component below:
   <NavigationCard
     icon="mdi-console-line"
     title="One-Shot Headless Mode"
-    href="/docs/configuration/oneshot"
+    href="./oneshot"
     description="Run WUD as a single-shot CLI (wud watch) for CI pipelines and cron jobs, without a database."
   />
 

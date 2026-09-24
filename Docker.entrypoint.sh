@@ -5,6 +5,9 @@ set -e
 # JSON output on stdout is never piped through pino-pretty.
 # Usage: docker run -e WUD_RUN_MODE=oneshot getwud/wud watch
 if [ "${WUD_RUN_MODE}" == "oneshot" ]; then
+  if [ "$1" == "node" ] && [ "$2" == "dist/index" ]; then
+    shift 2
+  fi
   exec node dist/index "$@"
 fi
 
