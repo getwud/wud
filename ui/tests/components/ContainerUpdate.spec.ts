@@ -11,6 +11,7 @@ const mockUpdateKind = {
 const mockResult = {
   tag: '2.0.0',
   created: '2023-01-02T00:00:00Z',
+  version: '2.3.7',
   digest: 'sha256:abcdef123456'
 };
 
@@ -111,6 +112,43 @@ describe('ContainerUpdate', () => {
   it('handles missing result gracefully', async () => {
     await wrapper.setProps({ result: null });
     expect(wrapper.exists()).toBe(true);
+  });
+
+  describe('when an update is available', () => {
+    // The shared wrapper above omits updateAvailable, so the whole list is
+    // hidden and only props can be asserted. These mount with it enabled so the
+    // rendered rows can be checked.
+    const mountAvailable = (result) =>
+      mount(ContainerUpdate, {
+        props: {
+          updateKind: mockUpdateKind,
+          updateAvailable: true,
+          result
+        }
+      });
+
+    it('renders the remote version reported by the registry', () => {
+      const available = mountAvailable(mockResult);
+      expect(available.text()).toContain('Version');
+      expect(available.text()).toContain('2.3.7');
+      available.unmount();
+    });
+
+    it('renders the remote build date', () => {
+      const available = mountAvailable(mockResult);
+      expect(available.text()).toContain('Built');
+      available.unmount();
+    });
+
+    it('omits both rows when the registry reported neither', () => {
+      const available = mountAvailable({
+        tag: '2.0.0',
+        digest: 'sha256:abcdef123456'
+      });
+      expect(available.text()).not.toContain('Version');
+      expect(available.text()).not.toContain('Built');
+      available.unmount();
+    });
   });
 
   it('computes correct update type', () => {
