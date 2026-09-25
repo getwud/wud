@@ -10,7 +10,7 @@ import {
     hookSchema,
     parseContainerHooks,
 } from './HookManager';
-import { Container } from '../../model/container';
+import { Container, ContainerImage } from '../../model/container';
 import { getState } from '../../registry';
 
 jest.mock('../../registry');
@@ -339,8 +339,12 @@ describe('HookManager', () => {
                     Env: [
                         'WUD_CONTAINER_NAME=frontend',
                         'WUD_CONTAINER_ID=c123',
+                        'WUD_IMAGE_NAME=frontend',
+                        'WUD_IMAGE_REGISTRY=docker.io',
                         'WUD_IMAGE_OLD_TAG=1.0.0',
                         'WUD_IMAGE_NEW_TAG=1.1.0',
+                        'WUD_IMAGE_OLD=frontend:1.0.0',
+                        'WUD_IMAGE_NEW=frontend:1.1.0',
                         'WUD_WATCHER_NAME=local_daemon',
                         'WUD_TRIGGER_NAME=docker_local',
                         'WUD_HOOK_PHASE=pre',
@@ -349,6 +353,150 @@ describe('HookManager', () => {
             );
             expect(mockLog.info).toHaveBeenCalledWith(
                 expect.stringContaining('all tests passed'),
+            );
+        });
+
+        it('should format WUD_IMAGE_NEW with @ when update is a digest', async () => {
+            const stream = new PassThrough();
+            mockExec.start.mockResolvedValue(stream);
+
+            const digestContainer: Container = {
+                ...testContainer,
+                updateKind: {
+                    kind: 'digest',
+                    localValue:
+                        'sha256:9a82d5773ccfcb73ba341619fd44790a30750731568c25a6e070c2c44aa30bde',
+                    remoteValue:
+                        'sha256:6cdd479147e4d2f1f853c7205ead7e2a0b0ccbad6e3ff0986e01936cbd179c17',
+                },
+            };
+
+            const context: HookContext = {
+                triggerName: 'docker_local',
+                dockerApi: mockDockerApi,
+                log: mockLog,
+            };
+
+            const hook: Hook = {
+                phase: 'pre',
+                type: 'exec',
+                command: 'echo test',
+                target: 'self',
+            };
+
+            const runPromise = HookManager.runHooks(
+                'pre',
+                digestContainer,
+                [hook],
+                context,
+            );
+            stream.end();
+            await runPromise;
+
+            expect(mockTargetContainer.exec).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    Env: expect.arrayContaining([
+                        'WUD_IMAGE_NAME=frontend',
+                        'WUD_IMAGE_REGISTRY=docker.io',
+                        'WUD_IMAGE_OLD=frontend:1.0.0',
+                        'WUD_IMAGE_NEW=frontend@sha256:6cdd479147e4d2f1f853c7205ead7e2a0b0ccbad6e3ff0986e01936cbd179c17',
+                        'WUD_IMAGE_NEW_TAG=sha256:6cdd479147e4d2f1f853c7205ead7e2a0b0ccbad6e3ff0986e01936cbd179c17',
+                    ]),
+                }),
+            );
+        });
+
+        it('should handle container with missing image and tag properties gracefully', async () => {
+            const stream = new PassThrough();
+            mockExec.start.mockResolvedValue(stream);
+
+            const emptyImageContainer: Container = {
+                ...testContainer,
+                image: undefined as unknown as ContainerImage,
+                updateKind: undefined,
+                result: undefined,
+            };
+
+            const context: HookContext = {
+                triggerName: 'docker_local',
+                dockerApi: mockDockerApi,
+                log: mockLog,
+            };
+
+            const hook: Hook = {
+                phase: 'pre',
+                type: 'exec',
+                command: 'echo test',
+                target: 'self',
+            };
+
+            const runPromise = HookManager.runHooks(
+                'pre',
+                emptyImageContainer,
+                [hook],
+                context,
+            );
+            stream.end();
+            await runPromise;
+
+            expect(mockTargetContainer.exec).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    Env: expect.arrayContaining([
+                        'WUD_IMAGE_NAME=',
+                        'WUD_IMAGE_REGISTRY=',
+                        'WUD_IMAGE_OLD_TAG=',
+                        'WUD_IMAGE_NEW_TAG=',
+                        'WUD_IMAGE_OLD=',
+                        'WUD_IMAGE_NEW=',
+                    ]),
+                }),
+            );
+        });
+
+        it('should format WUD_IMAGE_OLD and WUD_IMAGE_NEW with name only when tags are empty', async () => {
+            const stream = new PassThrough();
+            mockExec.start.mockResolvedValue(stream);
+
+            const untaggedContainer: Container = {
+                ...testContainer,
+                image: {
+                    ...testContainer.image,
+                    tag: { value: '', semver: false },
+                },
+                updateKind: undefined,
+                result: undefined,
+            };
+
+            const context: HookContext = {
+                triggerName: 'docker_local',
+                dockerApi: mockDockerApi,
+                log: mockLog,
+            };
+
+            const hook: Hook = {
+                phase: 'pre',
+                type: 'exec',
+                command: 'echo test',
+                target: 'self',
+            };
+
+            const runPromise = HookManager.runHooks(
+                'pre',
+                untaggedContainer,
+                [hook],
+                context,
+            );
+            stream.end();
+            await runPromise;
+
+            expect(mockTargetContainer.exec).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    Env: expect.arrayContaining([
+                        'WUD_IMAGE_NAME=frontend',
+                        'WUD_IMAGE_OLD=frontend',
+                        'WUD_IMAGE_NEW=frontend',
+                    ]),
+                }),
             );
         });
 

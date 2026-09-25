@@ -149,13 +149,43 @@ async function executeExecHook(
 
     const targetContainer = dockerApi.getContainer(targetIdOrName);
 
+    const imageName = container.image?.name || '';
+    const imageRegistry = container.image?.registry?.name || '';
+    const oldTag = container.image?.tag?.value || '';
+    const newTag =
+        container.updateKind?.remoteValue || container.result?.tag || '';
+
+    const isOldDigest = oldTag.includes(':');
+    const isNewDigest =
+        container.updateKind?.kind === 'digest' || newTag.includes(':');
+
+    const formatImageRef = (
+        name: string,
+        tagOrDigest: string,
+        isDigest: boolean,
+    ): string => {
+        if (!name) {
+            return '';
+        }
+        if (!tagOrDigest) {
+            return name;
+        }
+        const sep = isDigest ? '@' : ':';
+        return `${name}${sep}${tagOrDigest}`;
+    };
+
+    const imageOld = formatImageRef(imageName, oldTag, isOldDigest);
+    const imageNew = formatImageRef(imageName, newTag, isNewDigest);
+
     const envVars = [
         `WUD_CONTAINER_NAME=${container.name || ''}`,
         `WUD_CONTAINER_ID=${container.id || ''}`,
-        `WUD_IMAGE_OLD_TAG=${container.image?.tag?.value || ''}`,
-        `WUD_IMAGE_NEW_TAG=${
-            container.updateKind?.remoteValue || container.result?.tag || ''
-        }`,
+        `WUD_IMAGE_NAME=${imageName}`,
+        `WUD_IMAGE_REGISTRY=${imageRegistry}`,
+        `WUD_IMAGE_OLD_TAG=${oldTag}`,
+        `WUD_IMAGE_NEW_TAG=${newTag}`,
+        `WUD_IMAGE_OLD=${imageOld}`,
+        `WUD_IMAGE_NEW=${imageNew}`,
         `WUD_WATCHER_NAME=${container.watcher || ''}`,
         `WUD_TRIGGER_NAME=${triggerName || ''}`,
         `WUD_HOOK_PHASE=${hook.phase}`,

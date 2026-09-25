@@ -100,6 +100,24 @@ Before the Compose file is modified and services are recreated, WUD runs all con
 | `exec` (Type B) | `target: "<container_name>"` | Executes a shell command inside another container (e.g. running migrations or DB dumps). |
 | `trigger` (Type C) | `trigger: "<trigger_name>"` | Calls another WUD trigger (e.g. Slack, MQTT, Webhook). |
 
+### Environment Variables Injected into `exec` Hooks
+
+When executing commands inside containers, WUD injects contextual environment variables:
+
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `WUD_CONTAINER_NAME` | Name of the target container | `nextcloud` |
+| `WUD_CONTAINER_ID` | Docker ID of the target container | `a1b2c3d4e5f6` |
+| `WUD_IMAGE_NAME` | Name/repository of the container image | `linuxserver/nextcloud` |
+| `WUD_IMAGE_REGISTRY` | Registry of the container image | `docker.io` |
+| `WUD_IMAGE_OLD_TAG` | Current tag of the container image | `27.0.1` |
+| `WUD_IMAGE_NEW_TAG` | New tag being deployed | `27.1.0` |
+| `WUD_IMAGE_OLD` | Full old image reference (name:tag or name@digest) | `linuxserver/nextcloud:27.0.1` |
+| `WUD_IMAGE_NEW` | Full new image reference (name:tag or name@digest) | `linuxserver/nextcloud:27.1.0` |
+| `WUD_WATCHER_NAME` | Watcher that detected the update | `local` |
+| `WUD_TRIGGER_NAME` | Trigger executing the hook | `local` |
+| `WUD_HOOK_PHASE` | Current hook phase | `pre` or `post` |
+
 ### Configuration via Container Labels
 
 Hooks are defined via labels on compose services:
