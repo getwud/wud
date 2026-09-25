@@ -3,6 +3,7 @@ title: One-Shot Headless Mode (CLI)
 description: Run WUD as a single-shot CLI (wud watch) for CI pipelines and cron jobs, without a database.
 ---
 
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
@@ -24,10 +25,16 @@ No store file is created, no web server is started, and the process always exits
 
 The mode is selected exclusively with the `WUD_RUN_MODE` environment variable:
 
-| `WUD_RUN_MODE` | Behavior |
-| :--- | :--- |
-| unset (default) | **Server mode** — long-running web UI + API + watchers (unchanged). |
-| `oneshot` | **Headless CLI** — single scan, JSON on stdout, exit. |
+<ConfigList>
+  <ConfigOption
+    name="WUD_RUN_MODE"
+    required={false}
+    type="string"
+    defaultValue="server"
+    supported="`server`, `oneshot`">
+    Execution mode for WUD. Set to `oneshot` to run a single scan and exit, or `server` (default) to start the long-running web UI, REST API, and background watchers.
+  </ConfigOption>
+</ConfigList>
 
 When `WUD_RUN_MODE=oneshot` is set, the entry point used is:
 
