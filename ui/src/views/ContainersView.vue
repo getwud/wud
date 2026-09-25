@@ -521,11 +521,20 @@ export default defineComponent({
     },
   },
 
-  async mounted() {
+  created() {
+    this._onSseContainerAdded = this.onSseContainerAdded.bind(this);
     this._onSseContainerUpdated = this.onSseContainerUpdated.bind(this);
-    eventService.on("container:updated", this._onSseContainerUpdated);
+    this._onSseContainerRemoved = this.onSseContainerRemoved.bind(this);
     this._onSseContainerReport = this.onSseContainerReport.bind(this);
-    eventService.on("container:report", this._onSseContainerReport);
+    this._onSseWatchStop = this.onSseWatchStop.bind(this);
+  },
+
+  async mounted() {
+    eventService.on("wud:container-added", this._onSseContainerAdded);
+    eventService.on("wud:container-updated", this._onSseContainerUpdated);
+    eventService.on("wud:container-removed", this._onSseContainerRemoved);
+    eventService.on("wud:container-report", this._onSseContainerReport);
+    eventService.on("wud:watch-stop", this._onSseWatchStop);
     this.deleteEnabled = (this as any).$serverConfig?.feature?.delete || false;
     try {
       this.currentUser = await getUser();
@@ -535,8 +544,11 @@ export default defineComponent({
   },
 
   unmounted() {
-    eventService.off("container:updated", this._onSseContainerUpdated);
-    eventService.off("container:report", this._onSseContainerReport);
+    eventService.off("wud:container-added", this._onSseContainerAdded);
+    eventService.off("wud:container-updated", this._onSseContainerUpdated);
+    eventService.off("wud:container-removed", this._onSseContainerRemoved);
+    eventService.off("wud:container-report", this._onSseContainerReport);
+    eventService.off("wud:watch-stop", this._onSseWatchStop);
   },
   computed: {
     canWrite(): boolean {
@@ -744,30 +756,63 @@ export default defineComponent({
       this.containerToDelete = null;
     },
 
-    
-        onSseContainerUpdated(container) {
-      const idx = this.containers.findIndex(c => c.id === container.id);
+    onSseContainerAdded(container: any) {
+      if (!container || !container.id) return;
+      const idx = this.containers.findIndex((c) => c.id === container.id);
       if (idx !== -1) {
         this.containers[idx] = { ...this.containers[idx], ...container };
       } else {
         this.containers.push(container);
+      }
+      if (this.selectedContainer && this.selectedContainer.id === container.id) {
+        this.selectedContainer = { ...this.selectedContainer, ...container };
       }
       this.animatedRows.add(container.id);
       setTimeout(() => {
         this.animatedRows.delete(container.id);
       }, 2000);
     },
-    onSseContainerReport(_report) {
-      // Not strictly necessary since we get individual updates, but for full coverage
-      // if report contains full container data
+
+    onSseContainerUpdated(container: any) {
+      if (!container || !container.id) return;
+      const idx = this.containers.findIndex((c) => c.id === container.id);
+      if (idx !== -1) {
+        this.containers[idx] = { ...this.containers[idx], ...container };
+      } else {
+        this.containers.push(container);
+      }
+      if (this.selectedContainer && this.selectedContainer.id === container.id) {
+        this.selectedContainer = { ...this.selectedContainer, ...container };
+      }
+      this.animatedRows.add(container.id);
+      setTimeout(() => {
+        this.animatedRows.delete(container.id);
+      }, 2000);
     },
 
-    openUpdateDialog(container: any) {
-      this.containerToUpdate = container;
-      this.dialogUpdate = true;
+    onSseContainerRemoved(container: any) {
+      const id = typeof container === "string" ? container : container?.id;
+      if (!id) return;
+      this.containers = this.containers.filter((c) => c.id !== id);
+      if (this.selectedContainer && this.selectedContainer.id === id) {
+        this.drawerOpen = false;
+        this.selectedContainer = null;
+      }
     },
 
-    async onContainerUpdated() {
+    onSseContainerReport(report: any) {
+      if (report?.container) {
+        this.onSseContainerUpdated(report.container);
+      } else if (report?.id) {
+        this.onSseContainerUpdated(report);
+      }
+    },
+
+    async onSseWatchStop() {
+      await this.refreshContainers();
+    },
+
+    async refreshContainers() {
       try {
         this.containers = (await getAllContainers()) || [];
       } catch (e: any) {
@@ -777,6 +822,15 @@ export default defineComponent({
           "error",
         );
       }
+    },
+
+    openUpdateDialog(container: any) {
+      this.containerToUpdate = container;
+      this.dialogUpdate = true;
+    },
+
+    async onContainerUpdated() {
+      await this.refreshContainers();
     },
 
     openSnoozeDialog(container: any) {
