@@ -26,7 +26,7 @@ The root agent **MUST ALWAYS** define and delegate operational tasks to speciali
 | **Backend/Frontend code, unit tests, bug fixes, Git conflicts, PR creation** | `dev_fullstack` | [`.agents/personas/dev_fullstack.md`](./.agents/personas/dev_fullstack.md) |
 | **E2E tests (Cucumber, Playwright), CI monitoring (`gh pr checks --watch`)** | `qa_tester` | [`.agents/personas/qa_tester.md`](./.agents/personas/qa_tester.md) |
 | **Docusaurus docs, CSpell, Markdownlint** | `doc_specialist` | [`.agents/personas/doc_specialist.md`](./.agents/personas/doc_specialist.md) |
-| **Release preparation, `release.sh`, GitHub Discussions announcement** | `release_manager` | [`.agents/personas/release_manager.md`](./.agents/personas/release_manager.md) |
+| **Release preparation, `release.sh`, GitHub Release & Discussions** | `release_manager` | [`.agents/personas/release_manager.md`](./.agents/personas/release_manager.md) |
 | **Architecture blueprints & provider designs** | `architect` | [`.agents/personas/architect.md`](./.agents/personas/architect.md) |
 | **Feature scoping & roadmap** | `pm` | [`.agents/personas/pm.md`](./.agents/personas/pm.md) |
 | **UI/UX design & Vuetify styling** | `ux_designer` | [`.agents/personas/ux_designer.md`](./.agents/personas/ux_designer.md) |
@@ -41,7 +41,7 @@ Every task must follow the step-by-step sequencing defined in:
 2. **New Feature**: [`.agents/workflows/new_feature.md`](./.agents/workflows/new_feature.md)  
    `pm` ➔ `architect` ➔ `dev_fullstack` ➔ `doc_specialist` ➔ `qa_tester` ➔ PR review by Manfred
 3. **Release**: [`.agents/workflows/release_process.md`](./.agents/workflows/release_process.md)  
-   `release_manager` ➔ Approval by Manfred ➔ Release execution
+   `release_manager` ➔ Approval by Manfred ➔ Release execution (`release.sh` + GitHub Release)
 
 ---
 

@@ -19,9 +19,10 @@ flowchart TD
     C --> D{Manfred Approval}
     D -->|Rejected / Postponed| E[Resume Development]
     D -->|Approved| F[release_manager: Execute ./scripts/release.sh]
-    F --> G[Push main & annotated tag to origin]
-    G --> H[CI Pipeline: Build & Publish Multi-Arch Docker Images]
-    H --> I[release_manager: Post GitHub Discussion Announcement]
+    F --> G[Push main & tag to origin]
+    G --> H[release_manager: Publish GitHub Release via gh release create]
+    H --> I[CI Pipeline: Build & Publish Multi-Arch Docker Images & Docs]
+    I --> J[release_manager: Post GitHub Discussion Announcement]
 ```
 
 ---
@@ -74,17 +75,28 @@ git push origin <version>
 
 ---
 
-## Step 5: CI Release Monitoring (`qa_tester`)
-1. Monitor the GitHub Actions release workflow:
-   ```bash
-   gh run list --workflow=release.yml
-   ```
-2. Verify that:
-   - Multi-architecture Docker images (`linux/amd64`, `linux/arm64`, `linux/arm/v7`) are built and pushed to Docker Hub and GHCR.
-   - GitHub Release is published with the generated changelog notes.
+## Step 5: Publish GitHub Release (`release_manager`)
+**Mandatory step**: Pushing the Git tag does **not** create the GitHub Release. Publish the GitHub Release immediately so its publication timestamp reflects the real release time:
+```bash
+MAJOR=$(echo "<version>" | cut -d. -f1)
+NOTES=$(sed -n '/## \['"<version>"'\]/,/---/p' "website/docs/changelog/v${MAJOR}.md" | sed '1d;$d')
+gh release create "<version>" --title "<version>" --notes "$NOTES"
+```
+*Rule: NEVER prefix the tag or title with `v` (e.g. use `9.1.0`, never `v9.1.0`).*
 
 ---
 
-## Step 6: Post-Release Community Announcement (`release_manager`)
+## Step 6: CI Release Monitoring (`qa_tester` / `release_manager`)
+1. Monitor the GitHub Actions CI workflow:
+   ```bash
+   gh run list --workflow=ci.yml
+   ```
+2. Verify that:
+   - Multi-architecture Docker images (`linux/amd64`, `linux/arm64`) are built and pushed to Docker Hub and GHCR.
+   - Documentation is built and deployed to GitHub Pages (`getwud.app`).
+
+---
+
+## Step 7: Post-Release Community Announcement (`release_manager`)
 1. Post a celebratory release announcement in GitHub Discussions under the **Announcements** category on Manfred's behalf.
 2. Highlight the major features, bug fixes, and link to documentation.
