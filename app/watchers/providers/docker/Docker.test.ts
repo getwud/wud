@@ -1518,6 +1518,34 @@ describe('Docker Watcher', () => {
             expect(mockDockerApi.getImage).not.toHaveBeenCalled();
         });
 
+        test('should update container watcher in store when watcher name changed', async () => {
+            await docker.register('watcher', 'docker', 'local', {});
+            const mockLog = { debug: jest.fn(), info: jest.fn() };
+            docker.log = mockLog;
+            const existingContainer = {
+                id: '123',
+                name: 'final-name',
+                watcher: 'docker',
+                result: { tag: '2.0.0' },
+                error: undefined,
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const result = await docker.addImageDetailsToContainer({
+                Id: '123',
+                Names: ['/final-name'],
+            });
+
+            expect(result.watcher).toBe('local');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: '123',
+                    watcher: 'local',
+                }),
+            );
+            expect(mockDockerApi.getImage).not.toHaveBeenCalled();
+        });
+
         test('should not update container in store when name has not changed during polling', async () => {
             await docker.register('watcher', 'docker', 'test', {});
             const mockLog = { debug: jest.fn(), info: jest.fn() };
@@ -1525,6 +1553,7 @@ describe('Docker Watcher', () => {
             const existingContainer = {
                 id: '123',
                 name: 'final-name',
+                watcher: 'test',
                 result: { tag: '2.0.0' },
                 error: undefined,
             };

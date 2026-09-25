@@ -197,7 +197,14 @@ class Dockercompose extends Docker {
         for (const container of containersToUpdate) {
             // Filter on containers running on local host
             const watcher = this.getWatcher(container);
-            if (watcher.dockerApi.modem.socketPath === '') {
+            if (!watcher || !watcher.dockerApi) {
+                this.log.warn(
+                    `Cannot update container ${container.name} because watcher ${container.watcher} not found`,
+                );
+                continue;
+            }
+
+            if (watcher.dockerApi.modem?.socketPath === '') {
                 this.log.warn(
                     `Cannot update container ${container.name} because not running on local host`,
                 );

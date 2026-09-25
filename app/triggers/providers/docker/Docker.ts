@@ -190,10 +190,10 @@ class Docker extends Trigger {
      * Get watcher responsible for the container.
      */
 
-    getWatcher(container: Container) {
-        return getState().watcher[
-            `docker.${container.watcher}`
-        ] as DockerWatcher;
+    getWatcher(container: Container): DockerWatcher | undefined {
+        return getState().watcher[`docker.${container.watcher}`] as
+            | DockerWatcher
+            | undefined;
     }
 
     /**
@@ -881,6 +881,14 @@ class Docker extends Trigger {
 
         // Get watcher
         const watcher = this.getWatcher(container);
+        if (!watcher || !watcher.dockerApi) {
+            logContainer.error(
+                `Watcher ${container.watcher} not found for container ${fullName(container)}`,
+            );
+            throw new Error(
+                `Watcher ${container.watcher} not found for container ${fullName(container)}`,
+            );
+        }
 
         // Get dockerApi from watcher
         const { dockerApi } = watcher;

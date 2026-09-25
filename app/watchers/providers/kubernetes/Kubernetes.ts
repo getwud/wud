@@ -706,6 +706,10 @@ export class Kubernetes extends Watcher {
             containerInStore.error === undefined
         ) {
             this.log.debug(`Container ${containerId} already in store`);
+            if (containerInStore.watcher !== this.name) {
+                containerInStore.watcher = this.name;
+                storeContainer.updateContainer(containerInStore);
+            }
             return containerInStore;
         }
 

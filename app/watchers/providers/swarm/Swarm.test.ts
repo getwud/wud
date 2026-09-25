@@ -303,6 +303,39 @@ describe('Swarm Watcher - Service Discovery & Mapping', () => {
             'test_old_service',
         );
     });
+
+    test('should update container watcher in store when watcher name differs', async () => {
+        mockDocker.listServices.mockResolvedValue([
+            {
+                Spec: {
+                    Name: 'web',
+                    Labels: {},
+                    TaskTemplate: {
+                        ContainerSpec: {
+                            Image: 'nginx:1.0.0',
+                            Labels: {},
+                        },
+                    },
+                },
+            },
+        ]);
+        const existing = {
+            id: 'test_web',
+            name: 'web',
+            watcher: 'old-swarm',
+            result: { tag: '1.0.0' },
+            error: undefined,
+        };
+        (storeContainer.getContainer as jest.Mock).mockReturnValue(existing);
+
+        const containers = await watcher.getContainers();
+        expect(containers[0].watcher).toBe('test');
+        expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+            expect.objectContaining({
+                watcher: 'test',
+            }),
+        );
+    });
 });
 
 describe('Swarm Watcher - Version Lookup & Watch Cycle', () => {

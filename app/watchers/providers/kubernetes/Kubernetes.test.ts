@@ -922,6 +922,38 @@ describe('Kubernetes Watcher', () => {
             expect(storeContainer.updateContainer).toHaveBeenCalled();
             expect(report.changed).toBe(false);
         });
+
+        test('should update container watcher in store when watcher name changed in mapWorkloadContainerToWudContainer', async () => {
+            const existing = {
+                id: 'k8s_default_Deployment_web_nginx',
+                name: 'nginx',
+                watcher: 'old-k8s',
+                result: { tag: '2.0.0' },
+                error: undefined,
+            } as any;
+            storeContainer.getContainer.mockReturnValue(existing);
+            const workload = {
+                namespace: 'default',
+                kind: 'Deployment',
+                name: 'web',
+                annotations: {},
+            };
+            const containerSpec = { name: 'nginx', image: 'nginx:1.0.0' };
+
+            const result = await kubernetes.mapWorkloadContainerToWudContainer(
+                workload as any,
+                containerSpec as any,
+                'amd64',
+            );
+
+            expect(result.watcher).toBe('test');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: 'k8s_default_Deployment_web_nginx',
+                    watcher: 'test',
+                }),
+            );
+        });
     });
 
     // ─── Workload Types Tests ───────────────────────────────────────────────────

@@ -319,6 +319,10 @@ export class Swarm extends Watcher {
                 containerInStore !== undefined &&
                 containerInStore.error === undefined
             ) {
+                if (containerInStore.watcher !== this.name) {
+                    containerInStore.watcher = this.name;
+                    storeContainer.updateContainer(containerInStore);
+                }
                 currentContainers.push(containerInStore);
                 continue;
             }

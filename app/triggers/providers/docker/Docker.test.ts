@@ -1078,6 +1078,66 @@ test('trigger should skip and return without error when updateAvailable is false
     watcherSpy.mockRestore();
 });
 
+test('trigger should throw when watcher is not found', async () => {
+    const watcherSpy = jest
+        .spyOn(docker, 'getWatcher')
+        .mockReturnValue(undefined);
+    await expect(
+        docker.trigger({
+            updateAvailable: true,
+            watcher: 'test-watcher',
+            id: '123456789',
+            name: 'container-name',
+            image: {
+                name: 'test/test',
+                tag: { value: '1.0.0', semver: true },
+                registry: {
+                    name: 'hub',
+                    url: 'my-registry',
+                },
+            },
+            updateKind: {
+                kind: 'tag',
+                remoteValue: '2.0.0',
+            },
+        }),
+    ).rejects.toThrow(
+        'Watcher test-watcher not found for container test-watcher_container-name',
+    );
+
+    watcherSpy.mockRestore();
+});
+
+test('trigger should throw when watcher dockerApi is missing', async () => {
+    const watcherSpy = jest
+        .spyOn(docker, 'getWatcher')
+        .mockReturnValue({} as any);
+    await expect(
+        docker.trigger({
+            updateAvailable: true,
+            watcher: 'test-watcher',
+            id: '123456789',
+            name: 'container-name',
+            image: {
+                name: 'test/test',
+                tag: { value: '1.0.0', semver: true },
+                registry: {
+                    name: 'hub',
+                    url: 'my-registry',
+                },
+            },
+            updateKind: {
+                kind: 'tag',
+                remoteValue: '2.0.0',
+            },
+        }),
+    ).rejects.toThrow(
+        'Watcher test-watcher not found for container test-watcher_container-name',
+    );
+
+    watcherSpy.mockRestore();
+});
+
 test('getNewImageFullName should gracefully handle undefined remoteValue', () => {
     const mockRegistry = {
         getImageFullName: jest.fn(
