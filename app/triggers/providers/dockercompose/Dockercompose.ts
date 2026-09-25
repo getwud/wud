@@ -5,6 +5,7 @@ import yaml from 'yaml';
 import Docker from '../docker/Docker';
 import { getState } from '../../../registry';
 import { fullName } from '../../../model/container';
+import { HookManager } from '../../hooks/HookManager';
 
 /**
  * Return true if the container belongs to the compose file.
@@ -284,6 +285,20 @@ class Dockercompose extends Docker {
                 `Do not replace existing docker-compose file ${composeFile} (dry-run mode enabled)`,
             );
         } else {
+            // Quality Gate Pre-update hooks for all containers in this compose stack
+            for (const container of containersFiltered) {
+                const watcher = this.getWatcher(container);
+                await HookManager.runPreHooks(
+                    container,
+                    this.configuration.hooks,
+                    {
+                        triggerName: this.name,
+                        dockerApi: watcher?.dockerApi,
+                        log: this.log,
+                    },
+                );
+            }
+
             // Backup docker-compose file
             if (this.configuration.backup) {
                 const backupFile = `${composeFile}.back`;
@@ -309,8 +324,26 @@ class Dockercompose extends Docker {
         // Update all containers
         // (super.notify will take care of the dry-run mode for each container as well)
         await Promise.all(
-            containersFiltered.map((container) => super.trigger(container)),
+            containersFiltered.map((container) =>
+                super.trigger(container, { runHooks: false }),
+            ),
         );
+
+        // Post-update hooks for all containers in this compose stack
+        if (!this.configuration.dryrun) {
+            for (const container of containersFiltered) {
+                const watcher = this.getWatcher(container);
+                await HookManager.runPostHooks(
+                    container,
+                    this.configuration.hooks,
+                    {
+                        triggerName: this.name,
+                        dockerApi: watcher?.dockerApi,
+                        log: this.log,
+                    },
+                );
+            }
+        }
     }
 
     /**

@@ -1,6 +1,7 @@
 import log from '../../../log';
 import Dockercompose, { doesContainerBelongToCompose } from './Dockercompose';
 import { testTriggerProvider } from '../TriggerTestHelper';
+import { HookManager } from '../../hooks/HookManager';
 
 jest.mock('../../../registry', () => ({
     getState() {
@@ -505,5 +506,124 @@ describe('Dockercompose Trigger - file operations', () => {
         ).resolves.toBeUndefined();
 
         expect(dockercompose.processComposeFile).not.toHaveBeenCalled();
+    });
+
+    test('validateConfiguration should accept valid hooks in configuration', () => {
+        const configWithHooks = {
+            ...configurationValid,
+            hooks: [
+                {
+                    type: 'exec',
+                    phase: 'pre',
+                    command: 'echo "backup"',
+                },
+                {
+                    type: 'trigger',
+                    phase: 'post',
+                    trigger: 'slack',
+                },
+            ],
+        };
+        const validated = dockercompose.validateConfiguration(configWithHooks);
+        expect(validated.hooks).toHaveLength(2);
+    });
+
+    test('processComposeFile should execute pre-hooks and post-hooks', async () => {
+        dockercompose.processComposeFile =
+            Dockercompose.prototype.processComposeFile;
+        dockercompose.configuration = {
+            ...configurationValid,
+            dryrun: false,
+        };
+        const preSpy = jest
+            .spyOn(HookManager, 'runPreHooks')
+            .mockResolvedValue(undefined);
+        const postSpy = jest
+            .spyOn(HookManager, 'runPostHooks')
+            .mockResolvedValue(undefined);
+
+        dockercompose.getComposeFileAsObject = jest
+            .fn()
+            .mockResolvedValue(composeMatching);
+        dockercompose.getComposeFile = jest
+            .fn()
+            .mockResolvedValue(
+                Buffer.from('services:\n  test:\n    image: test/test:1.2.3'),
+            );
+        dockercompose.writeComposeFile = jest.fn().mockResolvedValue(undefined);
+        dockercompose.getWatcher = jest.fn().mockReturnValue({
+            dockerApi: {},
+        });
+        const superTriggerSpy = jest
+            .spyOn(Object.getPrototypeOf(Dockercompose.prototype), 'trigger')
+            .mockResolvedValue(undefined);
+
+        const testContainer = {
+            ...container,
+            id: 'c1',
+            watcher: 'local',
+        };
+
+        await dockercompose.processComposeFile('/path/compose.yml', [
+            testContainer,
+        ]);
+
+        expect(preSpy).toHaveBeenCalledTimes(1);
+        expect(dockercompose.writeComposeFile).toHaveBeenCalled();
+        expect(superTriggerSpy).toHaveBeenCalledWith(testContainer, {
+            runHooks: false,
+        });
+        expect(postSpy).toHaveBeenCalledTimes(1);
+
+        preSpy.mockRestore();
+        postSpy.mockRestore();
+        superTriggerSpy.mockRestore();
+    });
+
+    test('processComposeFile should abort and NOT write compose file or update containers if pre-hook fails', async () => {
+        dockercompose.processComposeFile =
+            Dockercompose.prototype.processComposeFile;
+        dockercompose.configuration = {
+            ...configurationValid,
+            dryrun: false,
+        };
+        const preSpy = jest
+            .spyOn(HookManager, 'runPreHooks')
+            .mockRejectedValue(new Error('Pre-hook failed'));
+        const postSpy = jest
+            .spyOn(HookManager, 'runPostHooks')
+            .mockResolvedValue(undefined);
+
+        dockercompose.getComposeFileAsObject = jest
+            .fn()
+            .mockResolvedValue(composeMatching);
+        dockercompose.writeComposeFile = jest.fn();
+        dockercompose.getWatcher = jest.fn().mockReturnValue({
+            dockerApi: {},
+        });
+        const superTriggerSpy = jest
+            .spyOn(Object.getPrototypeOf(Dockercompose.prototype), 'trigger')
+            .mockResolvedValue(undefined);
+
+        const testContainer = {
+            ...container,
+            id: 'c1',
+            watcher: 'local',
+        };
+
+        await expect(
+            dockercompose.processComposeFile('/path/compose.yml', [
+                testContainer,
+            ]),
+        ).rejects.toThrow('Pre-hook failed');
+
+        expect(preSpy).toHaveBeenCalledTimes(1);
+        expect(dockercompose.writeComposeFile).not.toHaveBeenCalled();
+        expect(superTriggerSpy).not.toHaveBeenCalled();
+        expect(postSpy).not.toHaveBeenCalled();
+
+        preSpy.mockRestore();
+        postSpy.mockRestore();
+        superTriggerSpy.mockRestore();
     });
 });

@@ -123,6 +123,91 @@ does not expose it there, declare it explicitly:
 
 ---
 
+## 🪝 Pre & Post Update Hooks
+
+Hooks allow you to run automated tasks **before** (`pre`) and **after** (`post`) a container is updated.
+
+### Quality Gate (Safety First)
+
+Pre-update hooks act as a **Quality Gate**:
+
+- If a pre-hook fails (non-zero exit code or timeout), **the update process is aborted immediately**.
+- The existing container is **never stopped or removed**, ensuring service continuity and preventing broken deployments.
+
+### Hook Types
+
+| Type | Target | Description |
+| :--- | :--- | :--- |
+| `exec` (Type A) | `target: "self"` (default) | Runs a shell command inside the container being updated. |
+| `exec` (Type B) | `target: "<container_name>"` | Runs a shell command inside another local container (e.g. running a DB dump before updating a web app). |
+| `trigger` (Type C) | `trigger: "<trigger_name>"` | Declares a chained invocation of another WUD trigger (e.g. sending a Slack notification). |
+
+### Environment Variables Injected into `exec` Hooks
+
+When executing commands inside containers, WUD injects contextual environment variables:
+
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `WUD_CONTAINER_NAME` | Name of the target container | `nextcloud` |
+| `WUD_CONTAINER_ID` | Docker ID of the target container | `a1b2c3d4e5f6` |
+| `WUD_IMAGE_NAME` | Name/repository of the container image | `linuxserver/nextcloud` |
+| `WUD_IMAGE_REGISTRY` | Registry of the container image | `docker.io` |
+| `WUD_IMAGE_OLD_TAG` | Current tag of the container image | `27.0.1` |
+| `WUD_IMAGE_NEW_TAG` | New tag being deployed | `27.1.0` |
+| `WUD_IMAGE_OLD` | Full old image reference (name:tag or name@digest) | `linuxserver/nextcloud:27.0.1` |
+| `WUD_IMAGE_NEW` | Full new image reference (name:tag or name@digest) | `linuxserver/nextcloud:27.1.0` |
+| `WUD_WATCHER_NAME` | Watcher that detected the update | `local` |
+| `WUD_TRIGGER_NAME` | Trigger executing the hook | `local` |
+| `WUD_HOOK_PHASE` | Current hook phase | `pre` or `post` |
+
+### Configuration via Container Labels
+
+You can configure hooks directly on your containers using Docker labels. Use numeric indexes (`1`, `2`, ...) to control the execution order:
+
+| Label | Description | Default |
+| :--- | :--- | :--- |
+| `wud.hook.<index>.phase` | Phase to execute: `pre` or `post` | **Required** |
+| `wud.hook.<index>.type` | Hook type: `exec` or `trigger` | **Required** |
+| `wud.hook.<index>.command` | Shell command to execute (for `exec` type) | **Required** for `exec` |
+| `wud.hook.<index>.target` | Container target (`self` or container name) | `self` |
+| `wud.hook.<index>.trigger` | Name of chained trigger (for `trigger` type) | **Required** for `trigger` |
+| `wud.hook.<index>.timeout` | Execution timeout in milliseconds | `60000` (60s) |
+
+#### Concrete Examples
+
+##### Pre-update MySQL database backup (Type B)
+
+A web service updates its backend after taking a database backup in a separate MySQL container:
+
+```yaml
+labels:
+  - "wud.hook.1.phase=pre"
+  - "wud.hook.1.type=exec"
+  - "wud.hook.1.target=mysql-db"
+  - "wud.hook.1.command=mysqldump -u root -psecret mydb > /backups/mydb-pre-update.sql"
+  - "wud.hook.1.timeout=120000"
+```
+
+##### Pre-update Maintenance Mode and Post-update Slack Notification
+
+```yaml
+labels:
+  # Put app in maintenance mode before update
+  - "wud.hook.1.phase=pre"
+  - "wud.hook.1.type=exec"
+  - "wud.hook.1.command=php occ maintenance:mode --on"
+  # Turn off maintenance mode after update
+  - "wud.hook.2.phase=post"
+  - "wud.hook.2.type=exec"
+  - "wud.hook.2.command=php occ maintenance:mode --off"
+  # Trigger chained notification
+  - "wud.hook.3.phase=post"
+  - "wud.hook.3.type=trigger"
+  - "wud.hook.3.trigger=slack"
+```
+
+---
+
 ## 🚀 Examples
 
 ### Auto-Update Standalone Containers with Pruning

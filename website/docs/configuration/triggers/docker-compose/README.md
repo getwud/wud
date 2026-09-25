@@ -81,6 +81,65 @@ This trigger supports all [common trigger configuration options](../README.md#co
 
 ---
 
+## 🪝 Pre & Post Update Hooks
+
+Like the Docker trigger, the Docker Compose trigger supports **Pre-update** and **Post-update** hooks.
+
+### Quality Gate (Stack Protection)
+
+Before the Compose file is modified and services are recreated, WUD runs all configured `pre` hooks across the stack services:
+
+- If any pre-hook fails (exit code != 0 or timeout), **the entire update is cancelled**.
+- The `docker-compose.yml` file is **not modified**, no backup file is generated, and running containers remain untouched.
+
+### Hook Types
+
+| Type | Target | Description |
+| :--- | :--- | :--- |
+| `exec` (Type A) | `target: "self"` (default) | Executes a shell command inside the container being updated. |
+| `exec` (Type B) | `target: "<container_name>"` | Executes a shell command inside another container (e.g. running migrations or DB dumps). |
+| `trigger` (Type C) | `trigger: "<trigger_name>"` | Calls another WUD trigger (e.g. Slack, MQTT, Webhook). |
+
+### Environment Variables Injected into `exec` Hooks
+
+When executing commands inside containers, WUD injects contextual environment variables:
+
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `WUD_CONTAINER_NAME` | Name of the target container | `nextcloud` |
+| `WUD_CONTAINER_ID` | Docker ID of the target container | `a1b2c3d4e5f6` |
+| `WUD_IMAGE_NAME` | Name/repository of the container image | `linuxserver/nextcloud` |
+| `WUD_IMAGE_REGISTRY` | Registry of the container image | `docker.io` |
+| `WUD_IMAGE_OLD_TAG` | Current tag of the container image | `27.0.1` |
+| `WUD_IMAGE_NEW_TAG` | New tag being deployed | `27.1.0` |
+| `WUD_IMAGE_OLD` | Full old image reference (name:tag or name@digest) | `linuxserver/nextcloud:27.0.1` |
+| `WUD_IMAGE_NEW` | Full new image reference (name:tag or name@digest) | `linuxserver/nextcloud:27.1.0` |
+| `WUD_WATCHER_NAME` | Watcher that detected the update | `local` |
+| `WUD_TRIGGER_NAME` | Trigger executing the hook | `local` |
+| `WUD_HOOK_PHASE` | Current hook phase | `pre` or `post` |
+
+### Configuration via Container Labels
+
+Hooks are defined via labels on compose services:
+
+```yaml
+services:
+  web:
+    image: my-app:1.0.0
+    labels:
+      # Quality Gate: database migration check before update
+      - "wud.hook.1.phase=pre"
+      - "wud.hook.1.type=exec"
+      - "wud.hook.1.command=npm run db:check"
+      - "wud.hook.1.timeout=30000"
+      # Post-update: notify Slack
+      - "wud.hook.2.phase=post"
+      - "wud.hook.2.type=trigger"
+      - "wud.hook.2.trigger=slack"
+```
+
+---
+
 ## 🚀 Examples
 
 ### Auto-Update Compose Services with Mounted Compose File

@@ -6,6 +6,7 @@ import Docker, {
     reconcileCmd,
     reconcileEntrypoint,
 } from './Docker';
+import { HookManager } from '../../hooks/HookManager';
 import log from '../../../log';
 
 const configurationValid = {
@@ -1450,4 +1451,87 @@ test('trigger should reconcile container configuration with old and new image sp
     expect(createdOptions.Entrypoint).toEqual(['/docker-entrypoint.sh']);
 
     watcherSpy.mockRestore();
+});
+
+test('validateConfiguration should accept valid hooks in configuration', async () => {
+    const configWithHooks = {
+        ...configurationValid,
+        hooks: [
+            {
+                type: 'exec',
+                phase: 'pre',
+                command: 'echo "hello"',
+            },
+            {
+                type: 'trigger',
+                phase: 'post',
+                trigger: 'slack',
+            },
+        ],
+    };
+    const validated = docker.validateConfiguration(configWithHooks);
+    expect(validated.hooks).toHaveLength(2);
+});
+
+test('trigger should execute pre-hooks and post-hooks during update', async () => {
+    const preSpy = jest
+        .spyOn(HookManager, 'runPreHooks')
+        .mockResolvedValue(undefined);
+    const postSpy = jest
+        .spyOn(HookManager, 'runPostHooks')
+        .mockResolvedValue(undefined);
+
+    await expect(
+        docker.trigger({
+            updateAvailable: true,
+            watcher: 'test',
+            id: '123456789',
+            name: 'container-name',
+            image: {
+                name: 'test/test',
+                registry: {
+                    name: 'hub',
+                    url: 'my-registry',
+                },
+            },
+            updateKind: {
+                remoteValue: '4.5.6',
+            },
+        }),
+    ).resolves.toBeUndefined();
+
+    expect(preSpy).toHaveBeenCalledTimes(1);
+    expect(postSpy).toHaveBeenCalledTimes(1);
+    preSpy.mockRestore();
+    postSpy.mockRestore();
+});
+
+test('trigger should abort and NOT stop container if pre-hook fails (Quality Gate)', async () => {
+    const preSpy = jest
+        .spyOn(HookManager, 'runPreHooks')
+        .mockRejectedValue(new Error('Pre-hook backup failed'));
+    const stopSpy = jest.spyOn(docker, 'stopContainer');
+
+    await expect(
+        docker.trigger({
+            updateAvailable: true,
+            watcher: 'test',
+            id: '123456789',
+            name: 'container-name',
+            image: {
+                name: 'test/test',
+                registry: {
+                    name: 'hub',
+                    url: 'my-registry',
+                },
+            },
+            updateKind: {
+                remoteValue: '4.5.6',
+            },
+        }),
+    ).rejects.toThrow('Pre-hook backup failed');
+
+    expect(stopSpy).not.toHaveBeenCalled();
+    preSpy.mockRestore();
+    stopSpy.mockRestore();
 });

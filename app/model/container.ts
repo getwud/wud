@@ -32,6 +32,10 @@ export interface ContainerResult {
     created?: string;
     version?: string;
     link?: string;
+    hook?: {
+        phase: string;
+        parentTrigger: string;
+    };
 }
 
 export interface ContainerUpdateKind {
@@ -194,6 +198,10 @@ const schema = joi.object({
         created: joi.string().isoDate(),
         version: joi.string(),
         link: joi.string(),
+        hook: joi.object({
+            phase: joi.string().valid('pre', 'post'),
+            parentTrigger: joi.string(),
+        }),
     }),
     error: joi.object({
         message: joi.string().min(1).required(),
