@@ -27,12 +27,17 @@ function runOneshot(commandArgs) {
 // which takes minutes against the remote registries used by the e2e fixtures.
 const ONE_SHOT_STEP_TIMEOUT = 600 * 1000; // 10 minutes
 
-When(/^I run the WUD one-shot watch command$/, function runOneShotWatch() {
-    this.oneshotResult = runOneshot(['watch']);
-}, ONE_SHOT_STEP_TIMEOUT);
+When(
+    /^I run the WUD one-shot watch command$/,
+    { timeout: ONE_SHOT_STEP_TIMEOUT },
+    function runOneShotWatch() {
+        this.oneshotResult = runOneshot(['watch']);
+    },
+);
 
 When(
     /^I run the WUD one-shot watch command with (.*)$/,
+    { timeout: ONE_SHOT_STEP_TIMEOUT },
     function runOneShotWatchWithOption(option) {
         this.oneshotResult = runOneshot(['watch', option]);
     },
@@ -40,6 +45,7 @@ When(
 
 When(
     /^I run the WUD one-shot (version|--help) command$/,
+    { timeout: ONE_SHOT_STEP_TIMEOUT },
     function runOneShotSimpleCommand(command) {
         this.oneshotResult = runOneshot([command]);
     },

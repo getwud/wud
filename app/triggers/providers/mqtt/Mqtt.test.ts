@@ -168,3 +168,93 @@ test.each(containerData)(
         );
     },
 );
+
+test('initTrigger in oneshot mode should not configure will or update connection sensor', async () => {
+    const originalEnv = process.env.WUD_RUN_MODE;
+    process.env.WUD_RUN_MODE = 'oneshot';
+    try {
+        mqtt.configuration = {
+            ...configurationValid,
+            user: 'user',
+            password: 'password',
+            clientid: 'wud',
+            hass: {
+                enabled: true,
+                discovery: true,
+                prefix: 'homeassistant',
+            },
+        };
+        const spy = jest.spyOn(mqttClient, 'connect');
+        await mqtt.initTrigger();
+        expect(spy).toHaveBeenCalledWith('mqtt://host:1883', {
+            clientId: 'wud',
+            username: 'user',
+            password: 'password',
+            rejectUnauthorized: true,
+            manualConnect: true,
+            reconnectPeriod: 10000,
+        });
+
+        const updateConnectionStatusSpy = jest.spyOn(
+            mqtt.hass,
+            'updateConnectionStatusSensor',
+        );
+
+        // Simulate connect event
+        const connectHandler = mqtt.client.on.mock.calls.find(
+            ([event]) => event === 'connect',
+        )[1];
+        connectHandler();
+        expect(updateConnectionStatusSpy).not.toHaveBeenCalled();
+
+        // Deregister component
+        await mqtt.deregisterComponent();
+        expect(updateConnectionStatusSpy).not.toHaveBeenCalled();
+    } finally {
+        if (originalEnv === undefined) {
+            delete process.env.WUD_RUN_MODE;
+        } else {
+            process.env.WUD_RUN_MODE = originalEnv;
+        }
+    }
+});
+
+test('connect event and deregisterComponent in server mode should update connection sensor', async () => {
+    const originalEnv = process.env.WUD_RUN_MODE;
+    delete process.env.WUD_RUN_MODE;
+    try {
+        mqtt.configuration = {
+            ...configurationValid,
+            user: 'user',
+            password: 'password',
+            clientid: 'wud',
+            hass: {
+                enabled: true,
+                discovery: true,
+                prefix: 'homeassistant',
+            },
+        };
+        await mqtt.initTrigger();
+        const updateConnectionStatusSpy = jest.spyOn(
+            mqtt.hass,
+            'updateConnectionStatusSensor',
+        );
+
+        // Simulate connect event
+        const connectHandler = mqtt.client.on.mock.calls.find(
+            ([event]) => event === 'connect',
+        )[1];
+        connectHandler();
+        expect(updateConnectionStatusSpy).toHaveBeenCalledWith(true);
+
+        // Deregister component
+        await mqtt.deregisterComponent();
+        expect(updateConnectionStatusSpy).toHaveBeenCalledWith(false);
+    } finally {
+        if (originalEnv === undefined) {
+            delete process.env.WUD_RUN_MODE;
+        } else {
+            process.env.WUD_RUN_MODE = originalEnv;
+        }
+    }
+});

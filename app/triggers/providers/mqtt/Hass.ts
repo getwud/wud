@@ -13,6 +13,7 @@ import * as registry from '../../../registry';
 import Watcher from '../../../watchers/Watcher';
 import { MqqtConfiguration as MqttConfiguration } from './Mqtt';
 import { Logger } from 'pino';
+import { isOneshot } from '../../../runtime/mode';
 
 const HASS_MANUFACTURER = 'wud';
 const HASS_ENTITY_VALUE_TEMPLATE = '{{ value_json.image_tag_value }}';
@@ -135,46 +136,50 @@ class Hass {
             this.removeContainerSensor(container),
         );
         // Subscribe to watcher events to sync HA
-        registerWatcherStart((watcher) =>
-            this.updateWatcherSensors({ watcher, isRunning: true }),
-        );
-        registerWatcherStop(async (watcher) => {
-            await this.updateWatcherSensors({ watcher, isRunning: false });
-            await this.updateContainerSensors({
-                watcher: watcher.name,
-            } as Container);
-        });
-
-        // Subscribe to install command pattern
-        if (typeof this.client.subscribe === 'function') {
-            this.client.subscribe(`${this.configuration.topic}/+/+/install`);
-        }
-        if (typeof this.client.on === 'function') {
-            this.client.on('message', async (topic, message) => {
-                const prefix = `${this.configuration.topic}/`;
-                const suffix = '/install';
-                if (
-                    topic.startsWith(prefix) &&
-                    topic.endsWith(suffix) &&
-                    message &&
-                    message.toString() === 'INSTALL'
-                ) {
-                    const middle = topic.substring(
-                        prefix.length,
-                        topic.length - suffix.length,
-                    );
-                    const parts = middle.split('/');
-                    if (parts.length === 2) {
-                        await this.handleInstallCommand(topic);
-                    }
-                }
+        if (!isOneshot()) {
+            registerWatcherStart((watcher) =>
+                this.updateWatcherSensors({ watcher, isRunning: true }),
+            );
+            registerWatcherStop(async (watcher) => {
+                await this.updateWatcherSensors({ watcher, isRunning: false });
+                await this.updateContainerSensors({
+                    watcher: watcher.name,
+                } as Container);
             });
-        }
 
-        // Publish global sensors once at startup if containers exist
-        const containers = containerStore.getContainers();
-        if (containers && containers.length > 0) {
-            await this.updateContainerSensors(containers[0]);
+            // Subscribe to install command pattern
+            if (typeof this.client.subscribe === 'function') {
+                this.client.subscribe(
+                    `${this.configuration.topic}/+/+/install`,
+                );
+            }
+            if (typeof this.client.on === 'function') {
+                this.client.on('message', async (topic, message) => {
+                    const prefix = `${this.configuration.topic}/`;
+                    const suffix = '/install';
+                    if (
+                        topic.startsWith(prefix) &&
+                        topic.endsWith(suffix) &&
+                        message &&
+                        message.toString() === 'INSTALL'
+                    ) {
+                        const middle = topic.substring(
+                            prefix.length,
+                            topic.length - suffix.length,
+                        );
+                        const parts = middle.split('/');
+                        if (parts.length === 2) {
+                            await this.handleInstallCommand(topic);
+                        }
+                    }
+                });
+            }
+
+            // Publish global sensors once at startup if containers exist
+            const containers = containerStore.getContainers();
+            if (containers && containers.length > 0) {
+                await this.updateContainerSensors(containers[0]);
+            }
         }
     }
 
