@@ -1,3 +1,4 @@
+import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
@@ -13,10 +14,25 @@ If you are upgrading from an older version of WUD that used LokiJS (`wud.json`),
 
 ### Configuration Options
 
-| Environment Variable | Description | Default |
-| --- | --- | --- |
-| `WUD_STORE_PATH` | Directory where database files are stored | `/store` |
-| `WUD_STORE_FILE` | Name of the SQLite database file | `wud.sqlite` |
+<ConfigList>
+  <ConfigOption
+    name="WUD_STORE_PATH"
+    type="path"
+    required={false}
+    defaultValue="/store"
+    supported="Directory path">
+    Directory where database files are stored
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_STORE_FILE"
+    type="string"
+    required={false}
+    defaultValue="wud.sqlite"
+    supported="File name">
+    Name of the SQLite database file
+  </ConfigOption>
+</ConfigList>
 
 ### Examples
 

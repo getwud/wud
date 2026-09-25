@@ -72,6 +72,14 @@ To customize how WUD monitors specific containers or workloads (opt-in/opt-out, 
   </ConfigOption>
 
   <ConfigOption
+    name="WUD_WATCHER_{watcher_name}_EXCLUDE"
+    type="string"
+    required={false}
+    supported="Regular expression pattern (e.g. `^ix-.*`, `.*-dev$`)">
+    Regex pattern to exclude containers by name from being watched. Can be overridden per container with `wud.watch=true` label
+  </ConfigOption>
+
+  <ConfigOption
     name="WUD_WATCHER_{watcher_name}_HOST"
     type="string"
     required={false}
@@ -158,7 +166,7 @@ To customize how WUD monitors specific containers or workloads (opt-in/opt-out, 
 :::info[Multiple & Remote Watchers]
 You can configure multiple watchers to monitor both local and remote Docker hosts simultaneously.
 
-- **Remote Hosts**: For remote Docker TCP and mutual TLS setup, see [**Remote Daemons & TLS Security**](remote-tls.md).
+- **Remote & Multi-Host**: For remote Docker connections, security proxies, SSH tunnels, mesh networks, and mutual TLS, see [**Remote Daemons & Multi-Host**](remote-tls.md).
 - **Rate Limits & Digests**: To learn how digest polling works and prevent Docker Hub quota exhaustion, see [**Digest & Rate Limits**](digest-rate-limits.md).
 - **Per-Container Rules**: To configure tag filtering and routing per container, see [**Container Labels**](labels.md).
 
@@ -317,6 +325,38 @@ docker run -d \
   -e WUD_WATCHER_LOCAL_SOCKET="/var/run/docker.sock" \
   -e WUD_WATCHER_PROD_HOST="prod-docker-host" \
   -e WUD_WATCHER_STAGING_HOST="staging-docker-host" \
+  getwud/wud
+```
+
+</TabItem>
+</Tabs>
+
+### 6. Exclude specific containers by name with a regex pattern
+
+Exclude all containers matching a regex pattern (e.g. development, system, or TrueNAS SCALE internal apps) from being monitored:
+
+<Tabs>
+<TabItem value="docker-compose" label="Docker Compose">
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - WUD_WATCHER_LOCAL_SOCKET=/var/run/docker.sock
+      - WUD_WATCHER_LOCAL_EXCLUDE=^ix-.*
+```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+```bash
+docker run -d \
+  -v /var/run/docker.sock:/var/run/docker.sock:ro \
+  -e WUD_WATCHER_LOCAL_SOCKET="/var/run/docker.sock" \
+  -e WUD_WATCHER_LOCAL_EXCLUDE="^ix-.*" \
   getwud/wud
 ```
 
