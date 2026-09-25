@@ -81,6 +81,47 @@ This trigger supports all [common trigger configuration options](../README.md#co
 
 ---
 
+## 🪝 Pre & Post Update Hooks
+
+Like the Docker trigger, the Docker Compose trigger supports **Pre-update** and **Post-update** hooks.
+
+### Quality Gate (Stack Protection)
+
+Before the Compose file is modified and services are recreated, WUD runs all configured `pre` hooks across the stack services:
+
+- If any pre-hook fails (exit code != 0 or timeout), **the entire update is cancelled**.
+- The `docker-compose.yml` file is **not modified**, no backup file is generated, and running containers remain untouched.
+
+### Hook Types
+
+| Type | Target | Description |
+| :--- | :--- | :--- |
+| `exec` (Type A) | `target: "self"` (default) | Executes a shell command inside the container being updated. |
+| `exec` (Type B) | `target: "<container_name>"` | Executes a shell command inside another container (e.g. running migrations or DB dumps). |
+| `trigger` (Type C) | `trigger: "<trigger_name>"` | Calls another WUD trigger (e.g. Slack, MQTT, Webhook). |
+
+### Configuration via Container Labels
+
+Hooks are defined via labels on compose services:
+
+```yaml
+services:
+  web:
+    image: my-app:1.0.0
+    labels:
+      # Quality Gate: database migration check before update
+      - "wud.hook.1.phase=pre"
+      - "wud.hook.1.type=exec"
+      - "wud.hook.1.command=npm run db:check"
+      - "wud.hook.1.timeout=30000"
+      # Post-update: notify Slack
+      - "wud.hook.2.phase=post"
+      - "wud.hook.2.type=trigger"
+      - "wud.hook.2.trigger=slack"
+```
+
+---
+
 ## 🚀 Examples
 
 ### Auto-Update Compose Services with Mounted Compose File

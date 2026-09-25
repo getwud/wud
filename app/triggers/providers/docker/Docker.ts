@@ -1,11 +1,12 @@
 import parse from 'parse-docker-image-name';
 import Dockerode from 'dockerode';
-import Trigger from '../Trigger';
+import Trigger, { TriggerConfiguration } from '../Trigger';
 import { getState } from '../../../registry';
 import { Container, ContainerImage, fullName } from '../../../model/container';
 import { Docker as DockerWatcher } from '../../../watchers/providers/docker/Docker';
 import Registry from '../../../registries/Registry';
 import { Logger } from 'pino';
+import { HookManager, hookSchema, Hook } from '../../hooks/HookManager';
 import {
     SELF_UPDATE_HELPER_NAME,
     SELF_UPDATE_PAYLOAD_ENV,
@@ -168,10 +169,22 @@ export function reconcileEntrypoint(
     return normalizeCommand(containerEntrypoint);
 }
 
+export interface DockerConfiguration extends TriggerConfiguration {
+    prune?: boolean;
+    dryrun?: boolean;
+    autoremovetimeout?: number;
+    multinetworkfallback?: boolean;
+    selfupdate?: boolean;
+    selfupdatetimeout?: number;
+    hooks?: Hook[];
+}
+
 /**
  * Replace a Docker container with an updated one.
  */
 class Docker extends Trigger {
+    declare public configuration: DockerConfiguration;
+
     /**
      * Get the Trigger configuration schema.
      */
@@ -183,6 +196,7 @@ class Docker extends Trigger {
             multinetworkfallback: this.joi.boolean().default(true),
             selfupdate: this.joi.boolean().default(false),
             selfupdatetimeout: this.joi.number().default(120_000),
+            hooks: this.joi.array().items(hookSchema).optional(),
         });
     }
 
@@ -868,7 +882,7 @@ class Docker extends Trigger {
     /**
      * Update the container.
      */
-    async trigger(container: Container) {
+    async trigger(container: Container, options?: { runHooks?: boolean }) {
         // Child logger for the container to process
         const logContainer = this.log.child({ container: fullName(container) });
 
@@ -989,6 +1003,19 @@ class Docker extends Trigger {
                     return;
                 }
 
+                // Quality Gate Pre-update hooks
+                if (options?.runHooks ?? true) {
+                    await HookManager.runPreHooks(
+                        container,
+                        this.configuration.hooks,
+                        {
+                            triggerName: this.name,
+                            dockerApi,
+                            log: logContainer,
+                        },
+                    );
+                }
+
                 // Stop current container
                 if (currentContainerState.Running) {
                     await this.stopContainer(
@@ -1034,6 +1061,19 @@ class Docker extends Trigger {
                         newContainer,
                         container.name,
                         logContainer,
+                    );
+                }
+
+                // Post-update hooks
+                if (options?.runHooks ?? true) {
+                    await HookManager.runPostHooks(
+                        container,
+                        this.configuration.hooks,
+                        {
+                            triggerName: this.name,
+                            dockerApi,
+                            log: logContainer,
+                        },
                     );
                 }
 

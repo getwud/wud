@@ -20,3 +20,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [REGISTRY] Fix HTTPS proxy support for outgoing requests (fixes #982)
 - 🐛 [TRIGGER] Gracefully handle missing watcher in Docker and Docker Compose triggers (fixes #1287)
 - 📚 [DOCS] Comprehensive guide for remote Docker hosts and multi-host monitoring (fixes #579)
+- 🚀 [TRIGGER] Add Pre and Post Update Hooks support for Docker and Docker Compose triggers
