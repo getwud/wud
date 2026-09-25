@@ -72,6 +72,14 @@ To customize how WUD monitors specific containers or workloads (opt-in/opt-out, 
   </ConfigOption>
 
   <ConfigOption
+    name="WUD_WATCHER_{watcher_name}_EXCLUDE"
+    type="string"
+    required={false}
+    supported="Regular expression pattern (e.g. `^ix-.*`, `.*-dev$`)">
+    Regex pattern to exclude containers by name from being watched. Can be overridden per container with `wud.watch=true` label
+  </ConfigOption>
+
+  <ConfigOption
     name="WUD_WATCHER_{watcher_name}_HOST"
     type="string"
     required={false}
@@ -317,6 +325,38 @@ docker run -d \
   -e WUD_WATCHER_LOCAL_SOCKET="/var/run/docker.sock" \
   -e WUD_WATCHER_PROD_HOST="prod-docker-host" \
   -e WUD_WATCHER_STAGING_HOST="staging-docker-host" \
+  getwud/wud
+```
+
+</TabItem>
+</Tabs>
+
+### 6. Exclude specific containers by name with a regex pattern
+
+Exclude all containers matching a regex pattern (e.g. development, system, or TrueNAS SCALE internal apps) from being monitored:
+
+<Tabs>
+<TabItem value="docker-compose" label="Docker Compose">
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - WUD_WATCHER_LOCAL_SOCKET=/var/run/docker.sock
+      - WUD_WATCHER_LOCAL_EXCLUDE=^ix-.*
+```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+```bash
+docker run -d \
+  -v /var/run/docker.sock:/var/run/docker.sock:ro \
+  -e WUD_WATCHER_LOCAL_SOCKET="/var/run/docker.sock" \
+  -e WUD_WATCHER_LOCAL_EXCLUDE="^ix-.*" \
   getwud/wud
 ```
 

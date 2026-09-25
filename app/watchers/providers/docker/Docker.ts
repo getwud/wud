@@ -58,6 +58,8 @@ export interface DockerWatcherConfiguration extends ComponentConfiguration {
     watchdigestdefault?: boolean;
     watchevents: boolean;
     watchatstart: boolean;
+    delay?: string;
+    exclude?: string;
 }
 
 // The delay before starting the watcher when the app is started
@@ -290,16 +292,41 @@ function getRepoDigest(containerImage: any) {
 
 /**
  * Return true if container must be watched.
+ * Priority order:
+ * 1. If container label wud.watch is defined and not empty, its value takes precedence (wud.watch.toLowerCase() === 'true').
+ * 2. Else, if an exclude regex is configured on the watcher and the container name matches it, container is NOT watched (return false).
+ * 3. Else, watchByDefault applies.
  * @param wudWatchLabelValue the value of the wud.watch label
  * @param watchByDefault true if containers must be watched by default
+ * @param containerName the name of the container
+ * @param excludeRegex optional regex pattern to exclude containers by name
+ * @param log optional logger to log invalid regex warnings
  */
-function isContainerToWatch(
-    wudWatchLabelValue: string,
-    watchByDefault: boolean,
+export function isContainerToWatch(
+    wudWatchLabelValue?: string,
+    watchByDefault = true,
+    containerName?: string,
+    excludeRegex?: string,
+    log?: Pick<Logger, 'warn'>,
 ) {
-    return wudWatchLabelValue !== undefined && wudWatchLabelValue !== ''
-        ? wudWatchLabelValue.toLowerCase() === 'true'
-        : watchByDefault;
+    if (wudWatchLabelValue !== undefined && wudWatchLabelValue !== '') {
+        return wudWatchLabelValue.toLowerCase() === 'true';
+    }
+    if (excludeRegex && containerName) {
+        try {
+            const regex = new RegExp(excludeRegex);
+            if (regex.test(containerName)) {
+                return false;
+            }
+        } catch (e: any) {
+            if (log) {
+                log.warn(
+                    `Invalid exclude regex '${excludeRegex}': ${e.message}`,
+                );
+            }
+        }
+    }
+    return watchByDefault;
 }
 
 /**
@@ -332,6 +359,7 @@ export class Docker extends Watcher {
             watchevents: this.joi.boolean().default(true),
             watchatstart: this.joi.boolean().default(true),
             delay: this.joi.string().optional(),
+            exclude: this.joi.string().optional(),
         });
     }
 
@@ -649,8 +677,11 @@ export class Docker extends Watcher {
         // Filter on containers to watch
         const filteredContainers = containers.filter((container) =>
             isContainerToWatch(
-                container.Labels[wudWatch],
+                container.Labels ? container.Labels[wudWatch] : undefined,
                 this.configuration.watchbydefault,
+                this.getContainerName(container),
+                this.configuration.exclude,
+                this.log,
             ),
         );
         const containerPromises = filteredContainers.map((container) =>

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import Docker, { getContainerName } from './Docker';
+import Docker, { getContainerName, isContainerToWatch } from './Docker';
 import Registry from '../../../registries/Registry';
 import * as event from '../../../event';
 import * as storeContainer from '../../../store/container';
@@ -149,6 +149,14 @@ describe('Docker Watcher', () => {
             const config = {
                 socket: '/var/run/docker.sock',
                 delay: '24h',
+            };
+            expect(() => docker.validateConfiguration(config)).not.toThrow();
+        });
+
+        test('should validate configuration with exclude option', async () => {
+            const config = {
+                socket: '/var/run/docker.sock',
+                exclude: '^ix-.*',
             };
             expect(() => docker.validateConfiguration(config)).not.toThrow();
         });
@@ -937,6 +945,74 @@ describe('Docker Watcher', () => {
             const result = await docker.getContainers();
 
             expect(result).toHaveLength(1);
+        });
+
+        test('should exclude container matching exclude regex when watchbydefault=true', async () => {
+            const containers = [
+                { Id: '1', Labels: {}, Names: ['/ix-app-1'] },
+                { Id: '2', Labels: {}, Names: ['/my-app'] },
+            ];
+            mockDockerApi.listContainers.mockResolvedValue(containers);
+            docker.addImageDetailsToContainer = jest
+                .fn()
+                .mockImplementation((c) => Promise.resolve({ id: c.Id }));
+
+            await docker.register('watcher', 'docker', 'test', {
+                watchbydefault: true,
+                exclude: '^ix-.*',
+            });
+            const result = await docker.getContainers();
+
+            expect(result).toHaveLength(1);
+            expect(result[0].id).toBe('2');
+        });
+
+        test('should watch container matching exclude regex when wud.watch=true label is explicitly set', async () => {
+            const containers = [
+                {
+                    Id: '1',
+                    Labels: { 'wud.watch': 'true' },
+                    Names: ['/ix-app-1'],
+                },
+                { Id: '2', Labels: {}, Names: ['/ix-app-2'] },
+            ];
+            mockDockerApi.listContainers.mockResolvedValue(containers);
+            docker.addImageDetailsToContainer = jest
+                .fn()
+                .mockImplementation((c) => Promise.resolve({ id: c.Id }));
+
+            await docker.register('watcher', 'docker', 'test', {
+                watchbydefault: true,
+                exclude: '^ix-.*',
+            });
+            const result = await docker.getContainers();
+
+            expect(result).toHaveLength(1);
+            expect(result[0].id).toBe('1');
+        });
+
+        test('should watch container not matching exclude regex following watchbydefault', async () => {
+            const containers = [
+                { Id: '1', Labels: {}, Names: ['/regular-app'] },
+            ];
+            mockDockerApi.listContainers.mockResolvedValue(containers);
+            docker.addImageDetailsToContainer = jest
+                .fn()
+                .mockImplementation((c) => Promise.resolve({ id: c.Id }));
+
+            await docker.register('watcher', 'docker', 'test', {
+                watchbydefault: true,
+                exclude: '^ix-.*',
+            });
+            const resultWatched = await docker.getContainers();
+            expect(resultWatched).toHaveLength(1);
+
+            await docker.register('watcher', 'docker', 'test', {
+                watchbydefault: false,
+                exclude: '^ix-.*',
+            });
+            const resultNotWatched = await docker.getContainers();
+            expect(resultNotWatched).toHaveLength(0);
         });
 
         test('should prune old containers', async () => {
@@ -2233,6 +2309,64 @@ describe('Docker Watcher', () => {
 
         test('should handle null inputs for old containers', async () => {
             expect([].filter(() => false)).toEqual([]);
+        });
+
+        describe('isContainerToWatch', () => {
+            test('should return true when wud.watch is true even if regex matches', () => {
+                expect(
+                    isContainerToWatch('true', true, 'ix-app-1', '^ix-.*'),
+                ).toBe(true);
+                expect(
+                    isContainerToWatch('TRUE', false, 'ix-app-1', '^ix-.*'),
+                ).toBe(true);
+            });
+
+            test('should return false when wud.watch is false even if regex does not match', () => {
+                expect(
+                    isContainerToWatch('false', true, 'my-app', '^ix-.*'),
+                ).toBe(false);
+            });
+
+            test('should return false when container name matches exclude regex and no label', () => {
+                expect(
+                    isContainerToWatch(undefined, true, 'ix-app-1', '^ix-.*'),
+                ).toBe(false);
+            });
+
+            test('should return watchByDefault when container name does not match exclude regex and no label', () => {
+                expect(
+                    isContainerToWatch(undefined, true, 'my-app', '^ix-.*'),
+                ).toBe(true);
+                expect(
+                    isContainerToWatch(undefined, false, 'my-app', '^ix-.*'),
+                ).toBe(false);
+            });
+
+            test('should return watchByDefault when no exclude regex is set', () => {
+                expect(
+                    isContainerToWatch(undefined, true, 'my-app', undefined),
+                ).toBe(true);
+                expect(
+                    isContainerToWatch(undefined, false, 'my-app', undefined),
+                ).toBe(false);
+            });
+
+            test('should handle invalid exclude regex gracefully and log warning', () => {
+                const mockLog = { warn: jest.fn() };
+                const result = isContainerToWatch(
+                    undefined,
+                    true,
+                    'my-app',
+                    '[invalid(regex',
+                    mockLog,
+                );
+                expect(result).toBe(true);
+                expect(mockLog.warn).toHaveBeenCalledWith(
+                    expect.stringContaining(
+                        "Invalid exclude regex '[invalid(regex'",
+                    ),
+                );
+            });
         });
     });
 });
