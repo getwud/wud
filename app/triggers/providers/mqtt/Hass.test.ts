@@ -69,6 +69,38 @@ test('init must subscribe to install topic pattern', () => {
     expect(mqttClientMock.subscribe).toHaveBeenCalledWith('topic/+/+/install');
 });
 
+test('init in oneshot mode must not subscribe to install topic pattern', async () => {
+    const originalEnv = process.env.WUD_RUN_MODE;
+    process.env.WUD_RUN_MODE = 'oneshot';
+    try {
+        const oneshotClientMock = {
+            publish: jest.fn(),
+            subscribe: jest.fn(),
+            on: jest.fn(),
+        };
+        const oneshotHass = new Hass({
+            configuration: {
+                topic: 'topic',
+                hass: {
+                    discovery: true,
+                    prefix: 'homeassistant',
+                    devicename: 'wud',
+                    deviceid: 'wud',
+                },
+            },
+            log,
+        });
+        await oneshotHass.init(oneshotClientMock);
+        expect(oneshotClientMock.subscribe).not.toHaveBeenCalled();
+    } finally {
+        if (originalEnv === undefined) {
+            delete process.env.WUD_RUN_MODE;
+        } else {
+            process.env.WUD_RUN_MODE = originalEnv;
+        }
+    }
+});
+
 test('publishDiscoveryMessage must publish a discovery message expected by HA', async () => {
     await hass.publishDiscoveryMessage({
         discoveryTopic: 'my/discovery',

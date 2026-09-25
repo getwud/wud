@@ -31,6 +31,7 @@ import {
     wudTagDelay,
 } from './label';
 import * as storeContainer from '../../../store/container';
+import { isOneshot } from '../../../runtime/mode';
 import {
     validate as validateContainer,
     fullName,
@@ -344,6 +345,15 @@ export class Docker extends Watcher {
                 "WUD_WATCHER_{watcher_name}_WATCHDIGEST environment variable is deprecated and won't be supported in upcoming versions",
             );
         }
+
+        // One-shot mode: run a single scan, never schedule background tasks
+        if (isOneshot()) {
+            this.log.info(
+                'One-shot mode: cron, watch at start and docker events are disabled',
+            );
+            return;
+        }
+
         this.log.info(`Cron scheduled (${this.configuration.cron})`);
         this.watchCron = cron.schedule(
             this.configuration.cron,
@@ -670,16 +680,19 @@ export class Docker extends Watcher {
             (imagePromise) => imagePromise !== undefined,
         );
 
-        // Prune old containers from the store
-        try {
-            const containersFromTheStore = storeContainer.getContainers({
-                watcher: this.name,
-            });
-            pruneOldContainers(containersToReturn, containersFromTheStore);
-        } catch (e: any) {
-            this.log.warn(
-                `Error when trying to prune the old containers (${e.message})`,
-            );
+        // Prune old containers from the store (never in one-shot mode:
+        // the store is not initialized and there is no previous state)
+        if (!isOneshot()) {
+            try {
+                const containersFromTheStore = storeContainer.getContainers({
+                    watcher: this.name,
+                });
+                pruneOldContainers(containersToReturn, containersFromTheStore);
+            } catch (e: any) {
+                this.log.warn(
+                    `Error when trying to prune the old containers (${e.message})`,
+                );
+            }
         }
         this.updatePrometheusGauge(containersToReturn);
 
@@ -831,7 +844,11 @@ export class Docker extends Watcher {
             this.configuration.delay;
 
         // Is container already in store? just return it :)
-        const containerInStore = storeContainer.getContainer(containerId);
+        // One-shot mode: never read from the store (not initialized).
+        // stack/delay are never re-read from a previous state.
+        const containerInStore = isOneshot()
+            ? undefined
+            : storeContainer.getContainer(containerId);
         if (
             containerInStore !== undefined &&
             containerInStore.error === undefined
@@ -988,6 +1005,15 @@ export class Docker extends Watcher {
      * Process a Container with result and map to a containerReport.
      */
     mapContainerToContainerReport(containerWithResult: Container) {
+        // One-shot mode: stateless, no store read/write.
+        // changed === updateAvailable ("update available right now").
+        if (isOneshot()) {
+            return {
+                container: containerWithResult,
+                changed: containerWithResult.updateAvailable,
+            };
+        }
+
         const logContainer = this.log.child({
             container: fullName(containerWithResult),
         });

@@ -42,6 +42,66 @@ test.each(eventTestCases)(
         emitter();
 
         // Ensure handler is called
-        expect(handlerMock.mock.calls.length === 1);
+        expect(handlerMock).toHaveBeenCalledTimes(1);
     },
 );
+
+describe('waitForPendingEvents', () => {
+    test('should wait for asynchronous container report handlers to complete', async () => {
+        let reportFinished = false;
+        let reportsFinished = false;
+
+        const reportHandler = jest.fn(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            reportFinished = true;
+        });
+        const reportsHandler = jest.fn(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            reportsFinished = true;
+        });
+
+        event.registerContainerReport(reportHandler);
+        event.registerContainerReports(reportsHandler);
+
+        event.emitContainerReport({ id: 'c1' });
+        event.emitContainerReports([{ id: 'c1' }]);
+
+        expect(reportFinished).toBe(false);
+        expect(reportsFinished).toBe(false);
+
+        await event.waitForPendingEvents();
+
+        expect(reportFinished).toBe(true);
+        expect(reportsFinished).toBe(true);
+
+        event.unregisterContainerReport(reportHandler);
+        event.unregisterContainerReports(reportsHandler);
+    });
+
+    test('should settle even if an async handler rejects', async () => {
+        const failingHandler = jest.fn(async () => {
+            throw new Error('trigger failure');
+        });
+
+        event.registerContainerReport(failingHandler);
+        event.emitContainerReport({ id: 'c2' });
+
+        await expect(event.waitForPendingEvents()).resolves.toBeUndefined();
+
+        event.unregisterContainerReport(failingHandler);
+    });
+
+    test('should properly unregister wrapped handlers', () => {
+        const handler = jest.fn();
+        event.registerContainerReport(handler);
+        event.unregisterContainerReport(handler);
+        event.emitContainerReport({ id: 'c3' });
+        expect(handler).not.toHaveBeenCalled();
+
+        const reportsHandler = jest.fn();
+        event.registerContainerReports(reportsHandler);
+        event.unregisterContainerReports(reportsHandler);
+        event.emitContainerReports([{ id: 'c3' }]);
+        expect(reportsHandler).not.toHaveBeenCalled();
+    });
+});

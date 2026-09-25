@@ -39,6 +39,7 @@ import {
     Container,
 } from '../../../model/container';
 import * as registry from '../../../registry';
+import { isOneshot } from '../../../runtime/mode';
 import { getWatchContainerGauge } from '../../../prometheus/watcher';
 import Watcher from '../../Watcher';
 import { ComponentConfiguration } from '../../../registry/Component';
@@ -250,6 +251,13 @@ export class Kubernetes extends Watcher {
     async init() {
         this.initK8sClient();
 
+        if (isOneshot()) {
+            this.log.info(
+                'One-shot mode: cron and watch at start are disabled',
+            );
+            return;
+        }
+
         this.log.info(`Cron scheduled (${this.configuration.cron})`);
         this.watchCron = cron.schedule(
             this.configuration.cron,
@@ -427,16 +435,19 @@ export class Kubernetes extends Watcher {
             (result) => !(result instanceof Error) && result !== undefined,
         );
 
-        // Prune old containers from the store
-        try {
-            const containersFromStore = storeContainer.getContainers({
-                watcher: this.name,
-            });
-            pruneOldContainers(containersWithImage, containersFromStore);
-        } catch (e: any) {
-            this.log.warn(
-                `Error when trying to prune the old containers (${e.message})`,
-            );
+        // Prune old containers from the store (never in one-shot mode)
+        if (!isOneshot()) {
+            try {
+                const containersFromStore = storeContainer.getContainers({
+                    watcher: this.name,
+                });
+                pruneOldContainers(containersWithImage, containersFromStore);
+            } catch (e: unknown) {
+                const message = e instanceof Error ? e.message : String(e);
+                this.log.warn(
+                    `Error when trying to prune the old containers (${message})`,
+                );
+            }
         }
 
         this.updatePrometheusGauge(containersWithImage);
@@ -686,7 +697,10 @@ export class Kubernetes extends Watcher {
         );
 
         // Check if already in store (skip API call for image details)
-        const containerInStore = storeContainer.getContainer(containerId);
+        // One-shot mode: never read from the store (not initialized)
+        const containerInStore = isOneshot()
+            ? undefined
+            : storeContainer.getContainer(containerId);
         if (
             containerInStore !== undefined &&
             containerInStore.error === undefined
@@ -1030,6 +1044,15 @@ export class Kubernetes extends Watcher {
      * Mirrors Docker.mapContainerToContainerReport().
      */
     mapContainerToContainerReport(containerWithResult: Container) {
+        // One-shot mode: stateless, no store read/write.
+        // changed === updateAvailable ("update available right now").
+        if (isOneshot()) {
+            return {
+                container: containerWithResult,
+                changed: containerWithResult.updateAvailable,
+            };
+        }
+
         const logContainer = this.log.child({
             container: fullName(containerWithResult),
         });

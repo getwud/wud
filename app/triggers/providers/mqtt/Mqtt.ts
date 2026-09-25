@@ -7,6 +7,7 @@ import {
     registerContainerUpdated,
 } from '../../../event';
 import { Container, flatten } from '../../../model/container';
+import { isOneshot } from '../../../runtime/mode';
 
 const containerDefaultTopic = 'wud/container';
 const hassDefaultPrefix = 'homeassistant';
@@ -152,7 +153,7 @@ class Mqtt extends Trigger {
         options.rejectUnauthorized = this.configuration.tls.rejectunauthorized;
         options.manualConnect = true;
         options.reconnectPeriod = 10000; // Reconnect every 10 seconds
-        if (this.hass) {
+        if (this.hass && !isOneshot()) {
             options.will = this.hass.getWill();
         }
         this.client = mqtt.connect(this.configuration.url, options);
@@ -160,7 +161,7 @@ class Mqtt extends Trigger {
         // Register MQTT connection event handlers
         this.client.on('connect', () => {
             this.log.debug('MQTT client connected');
-            if (this.hass) {
+            if (this.hass && !isOneshot()) {
                 this.hass.updateConnectionStatusSensor(true);
             }
         });
@@ -229,7 +230,7 @@ class Mqtt extends Trigger {
      * Deregister the component
      */
     async deregisterComponent(): Promise<void> {
-        if (this.hass) {
+        if (this.hass && !isOneshot()) {
             this.hass.updateConnectionStatusSensor(false);
         }
         this.client.end(true);

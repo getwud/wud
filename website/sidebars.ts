@@ -122,6 +122,11 @@ const sidebars = {
         },
         {
           type: 'doc',
+          id: 'configuration/oneshot',
+          label: 'One-Shot Headless Mode',
+        },
+        {
+          type: 'doc',
           id: 'configuration/logs/README',
           label: 'Logging',
         },

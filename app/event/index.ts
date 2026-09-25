@@ -20,6 +20,21 @@ const WUD_WATCH_STOP = 'wud:watch-stop';
 const WUD_WATCHER_START = 'wud:watcher-start';
 const WUD_WATCHER_STOP = 'wud:watcher-stop';
 
+const pendingHandlers: Promise<any>[] = [];
+const wrappedContainerReportsHandlers = new Map();
+const wrappedContainerReportHandlers = new Map();
+
+/**
+ * Wait for all pending asynchronous event handlers to settle.
+ */
+export async function waitForPendingEvents(): Promise<void> {
+    while (pendingHandlers.length > 0) {
+        await Promise.allSettled(
+            pendingHandlers.splice(0, pendingHandlers.length),
+        );
+    }
+}
+
 /**
  * Emit ContainerReports event.
  * @param containerReports
@@ -33,7 +48,15 @@ export function emitContainerReports(containerReports) {
  * @param handler
  */
 export function registerContainerReports(handler) {
-    eventEmitter.on(WUD_CONTAINER_REPORTS, handler);
+    const wrapped = (...args) => {
+        const res = handler(...args);
+        if (res && typeof res.then === 'function') {
+            pendingHandlers.push(res);
+        }
+        return res;
+    };
+    wrappedContainerReportsHandlers.set(handler, wrapped);
+    eventEmitter.on(WUD_CONTAINER_REPORTS, wrapped);
 }
 
 /**
@@ -49,7 +72,15 @@ export function emitContainerReport(containerReport) {
  * @param handler
  */
 export function registerContainerReport(handler) {
-    eventEmitter.on(WUD_CONTAINER_REPORT, handler);
+    const wrapped = (...args) => {
+        const res = handler(...args);
+        if (res && typeof res.then === 'function') {
+            pendingHandlers.push(res);
+        }
+        return res;
+    };
+    wrappedContainerReportHandlers.set(handler, wrapped);
+    eventEmitter.on(WUD_CONTAINER_REPORT, wrapped);
 }
 
 /**
@@ -141,10 +172,14 @@ export function registerWatchStop(handler) {
 }
 
 export function unregisterContainerReports(handler) {
-    eventEmitter.off(WUD_CONTAINER_REPORTS, handler);
+    const wrapped = wrappedContainerReportsHandlers.get(handler) || handler;
+    eventEmitter.off(WUD_CONTAINER_REPORTS, wrapped);
+    wrappedContainerReportsHandlers.delete(handler);
 }
 export function unregisterContainerReport(handler) {
-    eventEmitter.off(WUD_CONTAINER_REPORT, handler);
+    const wrapped = wrappedContainerReportHandlers.get(handler) || handler;
+    eventEmitter.off(WUD_CONTAINER_REPORT, wrapped);
+    wrappedContainerReportHandlers.delete(handler);
 }
 export function unregisterContainerAdded(handler) {
     eventEmitter.off(WUD_CONTAINER_ADDED, handler);

@@ -251,6 +251,31 @@ describe('Docker Watcher', () => {
             docker.init();
             expect(docker.configuration.watchatstart).toBe(false);
         });
+
+        test('should not schedule background tasks in one-shot mode', async () => {
+            const previousRunMode = process.env.WUD_RUN_MODE;
+            process.env.WUD_RUN_MODE = 'oneshot';
+            try {
+                await docker.register('watcher', 'docker', 'test', {
+                    cron: '0 * * * *',
+                    watchevents: true,
+                    watchatstart: true,
+                });
+                docker.init();
+                expect(mockCron.schedule).not.toHaveBeenCalled();
+                expect(mockDebounce).not.toHaveBeenCalled();
+                expect(docker.watchCron).toBeUndefined();
+                expect(docker.watchCronTimeout).toBeUndefined();
+                expect(docker.listenDockerEventsTimeout).toBeUndefined();
+                expect(storeContainer.getContainers).not.toHaveBeenCalled();
+            } finally {
+                if (previousRunMode === undefined) {
+                    delete process.env.WUD_RUN_MODE;
+                } else {
+                    process.env.WUD_RUN_MODE = previousRunMode;
+                }
+            }
+        });
     });
 
     describe('Deregistration', () => {
@@ -817,6 +842,42 @@ describe('Docker Watcher', () => {
             expect(recoveredReport.container.error).toBeUndefined();
             expect(recoveredReport.changed).toBe(true);
         });
+
+        test('mapContainerToContainerReport should be stateless in one-shot mode', async () => {
+            const previousRunMode = process.env.WUD_RUN_MODE;
+            process.env.WUD_RUN_MODE = 'oneshot';
+            try {
+                const updatedContainer = {
+                    id: 'test123',
+                    updateAvailable: true,
+                };
+                const updatedReport =
+                    docker.mapContainerToContainerReport(updatedContainer);
+
+                expect(updatedReport.container).toBe(updatedContainer);
+                expect(updatedReport.changed).toBe(true);
+
+                const idleContainer = {
+                    id: 'test456',
+                    updateAvailable: false,
+                };
+                const idleReport =
+                    docker.mapContainerToContainerReport(idleContainer);
+
+                expect(idleReport.container).toBe(idleContainer);
+                expect(idleReport.changed).toBe(false);
+
+                expect(storeContainer.getContainer).not.toHaveBeenCalled();
+                expect(storeContainer.insertContainer).not.toHaveBeenCalled();
+                expect(storeContainer.updateContainer).not.toHaveBeenCalled();
+            } finally {
+                if (previousRunMode === undefined) {
+                    delete process.env.WUD_RUN_MODE;
+                } else {
+                    process.env.WUD_RUN_MODE = previousRunMode;
+                }
+            }
+        });
     });
 
     describe('Container Retrieval', () => {
@@ -904,6 +965,30 @@ describe('Docker Watcher', () => {
             expect(mockLog.warn).toHaveBeenCalledWith(
                 expect.stringContaining('Store error'),
             );
+        });
+
+        test('should not prune containers in one-shot mode', async () => {
+            const previousRunMode = process.env.WUD_RUN_MODE;
+            process.env.WUD_RUN_MODE = 'oneshot';
+            try {
+                storeContainer.getContainers.mockReturnValue([
+                    { id: 'old1' },
+                    { id: 'old2' },
+                ]);
+                mockDockerApi.listContainers.mockResolvedValue([]);
+
+                await docker.register('watcher', 'docker', 'test', {});
+                await docker.getContainers();
+
+                expect(storeContainer.getContainers).not.toHaveBeenCalled();
+                expect(storeContainer.deleteContainer).not.toHaveBeenCalled();
+            } finally {
+                if (previousRunMode === undefined) {
+                    delete process.env.WUD_RUN_MODE;
+                } else {
+                    process.env.WUD_RUN_MODE = previousRunMode;
+                }
+            }
         });
     });
 
@@ -1337,6 +1422,70 @@ describe('Docker Watcher', () => {
 
             expect(result).toBe(existingContainer);
             expect(mockDockerApi.getImage).not.toHaveBeenCalled();
+        });
+
+        test('should not re-read the store in one-shot mode', async () => {
+            const previousRunMode = process.env.WUD_RUN_MODE;
+            process.env.WUD_RUN_MODE = 'oneshot';
+            try {
+                await docker.register('watcher', 'docker', 'test', {});
+                const existingContainer = {
+                    id: '123',
+                    result: { tag: '2.0.0' },
+                    error: undefined,
+                };
+                storeContainer.getContainer.mockReturnValue(existingContainer);
+
+                const container = {
+                    Id: '123',
+                    Image: 'nginx:1.0.0',
+                    Names: ['/test-container'],
+                    State: 'running',
+                    Labels: {},
+                };
+                mockImage.inspect.mockResolvedValue({
+                    Id: 'image123',
+                    Architecture: 'amd64',
+                    Os: 'linux',
+                    Created: '2023-01-01',
+                    RepoDigests: ['nginx@sha256:abc123'],
+                });
+                mockTag.parse.mockReturnValue({
+                    major: 1,
+                    minor: 0,
+                    patch: 0,
+                });
+                registry.getState.mockReturnValue({
+                    registry: {
+                        hub: {
+                            normalizeImage: jest.fn((image) => image),
+                            getId: () => 'hub',
+                            match: () => true,
+                            shouldWatchDigest: jest.fn(() => false),
+                        },
+                    },
+                });
+                const containerModule = await import(
+                    '../../../model/container'
+                );
+                // @ts-ignore
+                containerModule.validate.mockReturnValue({ id: '123' });
+
+                const result =
+                    await docker.addImageDetailsToContainer(container);
+
+                // Store re-read skipped: image details are fetched, the
+                // previously stored container is ignored
+                expect(storeContainer.getContainer).not.toHaveBeenCalled();
+                expect(mockDockerApi.getImage).toHaveBeenCalled();
+                expect(result).toBeDefined();
+            } finally {
+                if (previousRunMode === undefined) {
+                    delete process.env.WUD_RUN_MODE;
+                } else {
+                    process.env.WUD_RUN_MODE = previousRunMode;
+                }
+            }
         });
 
         test('should update container name in store when name changed during polling', async () => {

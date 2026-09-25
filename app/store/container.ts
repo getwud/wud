@@ -103,6 +103,89 @@ function buildContainerFromRows(
 }
 
 /**
+ * Apply the exact shape cleaning of the store read-back path
+ * (buildContainerFromRows) to an already validated container.
+ * Pure, side-effect free: returns a NEW validated container whose key set is
+ * byte-identical with GET /api/containers output (absent fields serialize
+ * as null, never as missing keys).
+ * Used by the one-shot headless mode to produce API-compatible output
+ * without touching the database.
+ */
+export function completeContainerShapeForApi(container: Container): Container {
+    const raw: Partial<Container> = {
+        id: container.id,
+        name: container.name,
+        displayName: container.displayName,
+        displayIcon: container.displayIcon,
+        status: container.status,
+        watcher: container.watcher,
+        stack: container.stack ?? undefined,
+        includeTags: container.includeTags ?? undefined,
+        excludeTags: container.excludeTags ?? undefined,
+        transformTags: container.transformTags ?? undefined,
+        linkTemplate: container.linkTemplate ?? undefined,
+        link: container.link ?? undefined,
+        triggerInclude: container.triggerInclude ?? undefined,
+        triggerExclude: container.triggerExclude ?? undefined,
+        labels: container.labels ?? undefined,
+        snoozedVersion: container.snoozedVersion ?? undefined,
+        snoozedUntil: container.snoozedUntil ?? undefined,
+        delay: container.delay ?? undefined,
+    };
+
+    if (container.image) {
+        raw.image = {
+            id: container.image.id,
+            registry: {
+                name: container.image.registry.name,
+                url: container.image.registry.url,
+            },
+            name: container.image.name,
+            tag: {
+                value: container.image.tag.value,
+                semver: container.image.tag.semver,
+            },
+            digest: {
+                watch: container.image.digest.watch,
+                value: container.image.digest.value ?? undefined,
+                repo: container.image.digest.repo ?? undefined,
+            },
+            architecture: container.image.architecture,
+            os: container.image.os,
+            variant: container.image.variant ?? undefined,
+            created: container.image.created ?? undefined,
+        };
+    }
+
+    if (container.result && (container.result.tag || container.result.digest)) {
+        raw.result = {
+            tag: container.result.tag ?? undefined,
+            digest: container.result.digest ?? undefined,
+            created: container.result.created ?? undefined,
+            link: container.result.link ?? undefined,
+        };
+    }
+
+    if (container.error) {
+        raw.error = {
+            message: container.error.message,
+        };
+    }
+
+    raw.updateAvailable = container.updateAvailable;
+    if (container.updateKind) {
+        raw.updateKind = {
+            kind: container.updateKind.kind,
+            localValue: container.updateKind.localValue ?? undefined,
+            remoteValue: container.updateKind.remoteValue ?? undefined,
+            semverDiff: container.updateKind.semverDiff ?? undefined,
+        };
+    }
+
+    return validateContainer(raw);
+}
+
+/**
  * Insert new Container.
  */
 export function insertContainer(container: any): Container {

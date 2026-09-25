@@ -312,6 +312,56 @@ test('registerAuthentications should register basic auth by default', async () =
     ]);
 });
 
+test('registerComponents should register components without signal handlers', async () => {
+    const processSpy = jest.spyOn(process, 'on');
+    registries = {
+        hub: {
+            private: {
+                login: 'login',
+                token: 'token',
+            },
+        },
+    };
+    triggers = {
+        mock: {
+            mock1: {},
+        },
+    };
+    watchers = {
+        watcher1: {
+            host: 'host1',
+        },
+    };
+    authentications = {
+        basic: {
+            john: {
+                user: 'john',
+                hash: 'hash',
+            },
+        },
+    };
+    await registry.registerComponents();
+    expect(Object.keys(registry.getState().registry)).toContain('hub.private');
+    expect(Object.keys(registry.getState().trigger)).toEqual(['mock.mock1']);
+    expect(Object.keys(registry.getState().watcher)).toEqual([
+        'docker.watcher1',
+    ]);
+    expect(Object.keys(registry.getState().authentication)).toEqual([
+        'basic.john',
+    ]);
+    // Pure registration: no signal handlers installed
+    expect(processSpy).not.toHaveBeenCalled();
+    processSpy.mockRestore();
+});
+
+test('startBackground should install SIGINT and SIGTERM handlers', async () => {
+    const processSpy = jest.spyOn(process, 'on');
+    registry.startBackground();
+    expect(processSpy).toHaveBeenCalledWith('SIGINT', expect.any(Function));
+    expect(processSpy).toHaveBeenCalledWith('SIGTERM', expect.any(Function));
+    processSpy.mockRestore();
+});
+
 test('init should register all components', async () => {
     registries = {
         hub: {
