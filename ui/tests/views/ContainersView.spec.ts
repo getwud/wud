@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils';
 import ContainersView from '@/views/ContainersView.vue';
+import { eventService } from '@/services/event';
 
 // Mock the container service
 jest.mock('@/services/container', () => ({
@@ -586,9 +587,115 @@ describe('ContainersView', () => {
       const { getAllContainers } = require('@/services/container');
       getAllContainers.mockClear();
 
-      await wrapper.vm.onSseContainerUpdated({ id: "container1", name: "test-container" });
+      await wrapper.vm.onContainerUpdated();
 
-      expect(wrapper.vm.containers).toContainEqual(expect.objectContaining({ id: "container1" }));
+      expect(getAllContainers).toHaveBeenCalled();
+    });
+  });
+
+  describe('SSE events', () => {
+    it('registers event listeners on mount and unregisters on unmount', () => {
+      const onSpy = jest.spyOn(eventService, 'on');
+      const offSpy = jest.spyOn(eventService, 'off');
+
+      const testWrapper = mount(ContainersView, {
+        global: {
+          stubs: {
+            'container-filter': true,
+            'container-item': true,
+          },
+        },
+      });
+
+      expect(onSpy).toHaveBeenCalledWith('wud:container-added', expect.any(Function));
+      expect(onSpy).toHaveBeenCalledWith('wud:container-updated', expect.any(Function));
+      expect(onSpy).toHaveBeenCalledWith('wud:container-removed', expect.any(Function));
+      expect(onSpy).toHaveBeenCalledWith('wud:container-report', expect.any(Function));
+      expect(onSpy).toHaveBeenCalledWith('wud:watch-stop', expect.any(Function));
+
+      testWrapper.unmount();
+
+      expect(offSpy).toHaveBeenCalledWith('wud:container-added', expect.any(Function));
+      expect(offSpy).toHaveBeenCalledWith('wud:container-updated', expect.any(Function));
+      expect(offSpy).toHaveBeenCalledWith('wud:container-removed', expect.any(Function));
+      expect(offSpy).toHaveBeenCalledWith('wud:container-report', expect.any(Function));
+      expect(offSpy).toHaveBeenCalledWith('wud:watch-stop', expect.any(Function));
+
+      onSpy.mockRestore();
+      offSpy.mockRestore();
+    });
+
+    it('adds container on onSseContainerAdded', () => {
+      const newContainer = { id: '3', displayName: 'Container 3', watcher: 'docker' };
+      wrapper.vm.onSseContainerAdded(newContainer);
+      expect(wrapper.vm.containers).toContainEqual(expect.objectContaining({ id: '3' }));
+    });
+
+    it('updates existing container on onSseContainerAdded if already present', () => {
+      const updatedContainer1 = { id: '1', displayName: 'Container 1 Updated', watcher: 'local' };
+      wrapper.vm.onSseContainerAdded(updatedContainer1);
+      const found = wrapper.vm.containers.find((c: any) => c.id === '1');
+      expect(found.displayName).toBe('Container 1 Updated');
+    });
+
+    it('updates container on onSseContainerUpdated', () => {
+      const updatedContainer = { id: '2', displayName: 'Container 2 Updated' };
+      wrapper.vm.onSseContainerUpdated(updatedContainer);
+      const found = wrapper.vm.containers.find((c: any) => c.id === '2');
+      expect(found.displayName).toBe('Container 2 Updated');
+    });
+
+    it('adds container on onSseContainerUpdated if not already present', () => {
+      const newContainer = { id: '4', displayName: 'Container 4' };
+      wrapper.vm.onSseContainerUpdated(newContainer);
+      expect(wrapper.vm.containers).toContainEqual(expect.objectContaining({ id: '4' }));
+    });
+
+    it('updates selectedContainer on onSseContainerUpdated if matching', () => {
+      const container = { id: '100', displayName: 'Container 100' };
+      wrapper.vm.containers = [container];
+      wrapper.vm.openContainerDrawer(container);
+      expect(wrapper.vm.selectedContainer.displayName).toBe('Container 100');
+
+      wrapper.vm.onSseContainerUpdated({ id: '100', displayName: 'Container 100 Renamed' });
+      expect(wrapper.vm.selectedContainer.displayName).toBe('Container 100 Renamed');
+    });
+
+    it('removes container and closes drawer if selected on onSseContainerRemoved', () => {
+      const container = { id: '200', displayName: 'Container 200' };
+      wrapper.vm.containers = [container];
+      wrapper.vm.openContainerDrawer(container);
+      expect(wrapper.vm.drawerOpen).toBe(true);
+
+      wrapper.vm.onSseContainerRemoved({ id: '200' });
+      expect(wrapper.vm.containers.some((c: any) => c.id === '200')).toBe(false);
+      expect(wrapper.vm.drawerOpen).toBe(false);
+      expect(wrapper.vm.selectedContainer).toBeNull();
+    });
+
+    it('removes container when id string passed to onSseContainerRemoved', () => {
+      wrapper.vm.onSseContainerRemoved('2');
+      expect(wrapper.vm.containers.some((c: any) => c.id === '2')).toBe(false);
+    });
+
+    it('updates container via onSseContainerReport', () => {
+      const report = {
+        container: { id: '1', displayName: 'Container 1 Reported' },
+        changed: true,
+      };
+      wrapper.vm.onSseContainerReport(report);
+      const found = wrapper.vm.containers.find((c: any) => c.id === '1');
+      expect(found.displayName).toBe('Container 1 Reported');
+    });
+
+    it('reconciles containers on onSseWatchStop', async () => {
+      const { getAllContainers } = require('@/services/container');
+      const refreshed = [{ id: '10', displayName: 'Container 10' }];
+      getAllContainers.mockResolvedValueOnce(refreshed);
+
+      await wrapper.vm.onSseWatchStop();
+      expect(getAllContainers).toHaveBeenCalled();
+      expect(wrapper.vm.containers).toEqual(refreshed);
     });
   });
 });
