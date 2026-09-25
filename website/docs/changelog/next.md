@@ -20,3 +20,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [REGISTRY] Fix HTTPS proxy support for outgoing requests (fixes #982)
 - 🐛 [TRIGGER] Gracefully handle missing watcher in Docker and Docker Compose triggers (fixes #1287)
 - 📚 [DOCS] Comprehensive guide for remote Docker hosts and multi-host monitoring (fixes #579)
+- 🚀 [WATCHER] Report the remote version label and build date of a digest update: `result.version` (from `org.opencontainers.image.version`) and `result.created` are now resolved from the remote image config, so the API, Prometheus and triggers can describe a digest update as `2.3.6 -> 2.3.7` instead of `sha256:8978d2f5 -> sha256:3eb277ac`. Each remote digest is resolved at most once and reused while the update stays pending, and the config digest already known from the manifest is reused where possible, so an up-to-date container costs no extra registry request and a pending one costs a single blob fetch
