@@ -137,6 +137,7 @@ const buildMocks = ({
             return error ? Promise.reject(error) : Promise.resolve();
         }),
         remove: jest.fn(() => Promise.resolve()),
+        stop: jest.fn(() => Promise.resolve()),
         start: jest.fn(() =>
             currentStartFails
                 ? Promise.reject(new Error('cannot start old'))
@@ -344,5 +345,75 @@ describe('replaceContainerWithHealthGate', () => {
         const outcome = await replaceContainerWithHealthGate(baseOpts(mocks));
         expect(outcome.status).toEqual('failed');
         expect(outcome.error.step).toEqual('S4');
+    });
+
+    // ---- archive-less replacements ----
+    test('should do a plain replacement when no archive is available', async () => {
+        const mocks = buildMocks();
+        const outcome = await replaceContainerWithHealthGate(
+            baseOpts(mocks, { archive: false }),
+        );
+        expect(outcome.rolledBack).toBe(false);
+        expect(outcome.status).toEqual('succeeded');
+        expect(mocks.currentContainer.rename).not.toHaveBeenCalled();
+        expect(mocks.currentContainer.stop).toHaveBeenCalled();
+        expect(mocks.currentContainer.remove).toHaveBeenCalledWith({
+            force: true,
+        });
+        expect(mocks.newContainer.start).toHaveBeenCalled();
+    });
+
+    test('should not start or stop a container that was not running without archive', async () => {
+        const mocks = buildMocks();
+        const outcome = await replaceContainerWithHealthGate(
+            baseOpts(mocks, { archive: false, wasRunning: false }),
+        );
+        expect(outcome.rolledBack).toBe(false);
+        expect(mocks.currentContainer.stop).not.toHaveBeenCalled();
+        expect(mocks.newContainer.start).not.toHaveBeenCalled();
+    });
+
+    test('should tolerate an already-stopped replacement during S1', async () => {
+        const mocks = buildMocks({
+            newInspect: () =>
+                Promise.resolve({
+                    State: { Running: true, Health: { Status: 'unhealthy' } },
+                }),
+        });
+        mocks.newContainer.stop = jest.fn(() =>
+            Promise.reject(new Error('Container is not running')),
+        );
+        const outcome = await replaceContainerWithHealthGate(baseOpts(mocks));
+        expect(outcome.rolledBack).toBe(true);
+        expect(outcome.status).toEqual('succeeded');
+        expect(mocks.currentContainer.rename).toHaveBeenLastCalledWith({
+            name: 'web',
+        });
+    });
+
+    test('should warn but still succeed when the archive cannot be removed', async () => {
+        const mocks = buildMocks({
+            newInspect: () =>
+                Promise.resolve({
+                    State: { Running: true, Health: { Status: 'healthy' } },
+                }),
+        });
+        mocks.currentContainer.remove = jest.fn(() =>
+            Promise.reject(new Error('cannot remove archive')),
+        );
+        const outcome = await replaceContainerWithHealthGate(baseOpts(mocks));
+        expect(outcome.rolledBack).toBe(false);
+        expect(outcome.status).toEqual('succeeded');
+    });
+
+    test('should report the archive as still archived when the name restore fails after a create failure', async () => {
+        const mocks = buildMocks({
+            createFails: true,
+            renameErrors: [undefined, new Error('rename failed')],
+        });
+        await expect(
+            replaceContainerWithHealthGate(baseOpts(mocks)),
+        ).rejects.toThrow(/cannot create/);
+        expect(mocks.currentContainer.rename).toHaveBeenCalledTimes(2);
     });
 });

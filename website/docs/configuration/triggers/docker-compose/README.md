@@ -168,6 +168,8 @@ services:
       - "wud.hook.2.phase=post"
       - "wud.hook.2.type=trigger"
       - "wud.hook.2.trigger=slack"
+```
+
 ## 🩺 Automatic rollback on healthcheck failure
 
 When at least one service of a compose project opts in (`ROLLBACK` env var or

@@ -34,6 +34,15 @@ const buildTrigger = ({
     services,
     backupFails = false,
     newRemoveFailsFor = null,
+    rewriteFails = false,
+    snapshotFailsFor = null,
+    restoreBackupFails = false,
+    gateThrowsFor = null,
+    stopNotRunningFor = null,
+    pruneDisabled = false,
+    archiveMissingFor = null,
+    archiveRemoveFailsFor = null,
+    pruneFails = false,
 } = {}) => {
     const archives = {};
     const newContainers = {};
@@ -56,7 +65,7 @@ const buildTrigger = ({
 
     const trigger = {
         log,
-        configuration: { prune: true },
+        configuration: { prune: !pruneDisabled },
         resolveRollback: jest.fn((container) => ({
             enabled: container.rollbackEnabled === true,
             window: 10,
@@ -64,7 +73,9 @@ const buildTrigger = ({
             grace: 5,
         })),
         getWatcher: jest.fn(() => ({ dockerApi })),
-        getCurrentContainer: jest.fn((api, container) => Promise.resolve({})),
+        getCurrentContainer: jest.fn((api, container) =>
+            Promise.resolve(container.name === snapshotFailsFor ? null : {}),
+        ),
         inspectContainer: jest.fn(() =>
             Promise.resolve({ State: { Running: true } }),
         ),
@@ -73,10 +84,17 @@ const buildTrigger = ({
                 rolledBack: false,
                 durationMs: 1,
                 status: 'succeeded',
-                archiveName: `${container.name}-archive-id`,
+                archiveName:
+                    container.name === archiveMissingFor
+                        ? undefined
+                        : `${container.name}-archive-id`,
             }),
         ),
-        pruneImages: jest.fn(() => Promise.resolve()),
+        pruneImages: jest.fn(() =>
+            pruneFails
+                ? Promise.reject(new Error('cannot prune'))
+                : Promise.resolve(),
+        ),
         removePreviousImage: jest.fn(() => Promise.resolve()),
         resolveRegistry: jest.fn(() => ({})),
         ensureComposeBackup: jest.fn(() =>
@@ -84,9 +102,19 @@ const buildTrigger = ({
                 ? Promise.reject(new Error('read-only mount'))
                 : Promise.resolve(),
         ),
-        rewriteComposeFile: jest.fn(() => Promise.resolve()),
-        restoreComposeFileFromBackup: jest.fn(() => Promise.resolve()),
+        rewriteComposeFile: jest.fn(() =>
+            rewriteFails
+                ? Promise.reject(new Error('read-only compose file'))
+                : Promise.resolve(),
+        ),
+        restoreComposeFileFromBackup: jest.fn(() =>
+            restoreBackupFails
+                ? Promise.reject(new Error('cannot restore backup'))
+                : Promise.resolve(),
+        ),
     };
+
+    let pendingGateThrow = gateThrowsFor;
 
     // The transaction resolves the new container by its original name, while
     // archives are addressed by their archive id/name. Route accordingly.
@@ -106,6 +134,10 @@ const buildTrigger = ({
 
     // Revert addresses the archive by its archive id.
     dockerApi.getContainer = jest.fn((name) => {
+        if (name === pendingGateThrow) {
+            pendingGateThrow = null;
+            return Promise.reject(new Error('gate inspection failed'));
+        }
         const service = services.find((s) => s.container.name === name);
         if (service) {
             return Promise.resolve(newContainers[name]);
@@ -124,6 +156,18 @@ const buildTrigger = ({
     if (newRemoveFailsFor) {
         newContainers[newRemoveFailsFor].remove = jest.fn(() =>
             Promise.reject(new Error('cannot remove new')),
+        );
+    }
+
+    if (stopNotRunningFor) {
+        newContainers[stopNotRunningFor].stop = jest.fn(() =>
+            Promise.reject(new Error('container is not running')),
+        );
+    }
+
+    if (archiveRemoveFailsFor) {
+        archives[archiveRemoveFailsFor].remove = jest.fn(() =>
+            Promise.reject(new Error('cannot remove archive')),
         );
     }
 
@@ -286,4 +330,260 @@ test('should report a failed status when a service cannot be restored', async ()
     expect(trigger.restoreComposeFileFromBackup).not.toHaveBeenCalled();
     expect(emitSpy).toHaveBeenCalledTimes(1);
     expect(emitSpy.mock.calls[0][0].status).toEqual('failed');
+});
+
+test('should abort before swapping when the compose rewrite fails', async () => {
+    const { trigger } = buildTrigger({
+        services: [
+            {
+                container: { name: 'web', rollbackEnabled: true },
+                health: 'healthy',
+            },
+        ],
+        rewriteFails: true,
+    });
+
+    const result = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [{ name: 'web', rollbackEnabled: true }],
+        [{ current: 'app:1', update: 'app:2' }],
+    );
+
+    expect(result).toBe(false);
+    expect(trigger.performUpdate).not.toHaveBeenCalled();
+});
+
+test('should revert the project when a service cannot be snapshotted', async () => {
+    const { trigger } = buildTrigger({
+        services: [
+            {
+                container: { name: 'web', rollbackEnabled: true },
+                health: 'healthy',
+            },
+        ],
+        snapshotFailsFor: 'web',
+    });
+    const emitSpy = jest.spyOn(event, 'emitContainerRollback');
+
+    const result = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [{ name: 'web', rollbackEnabled: true }],
+        [{ current: 'app:1', update: 'app:2' }],
+    );
+
+    expect(result).toBe(false);
+    expect(trigger.performUpdate).not.toHaveBeenCalled();
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+    expect(emitSpy.mock.calls[0][0].status).toEqual('failed');
+    expect(emitSpy.mock.calls[0][0].error.step).toEqual('swap-failed');
+});
+
+test('should treat a gate error as a crash and revert', async () => {
+    const { trigger, archives } = buildTrigger({
+        services: [
+            {
+                container: { name: 'web', rollbackEnabled: true },
+                health: 'healthy',
+            },
+        ],
+        gateThrowsFor: 'web',
+    });
+    const emitSpy = jest.spyOn(event, 'emitContainerRollback');
+
+    const result = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [{ name: 'web', rollbackEnabled: true }],
+        [{ current: 'app:1', update: 'app:2' }],
+    );
+
+    expect(result).toBe(false);
+    expect(emitSpy.mock.calls[0][0].status).toEqual('succeeded');
+    const web = emitSpy.mock.calls[0][0].services.find(
+        (s) => s.service === 'web',
+    );
+    expect(web.reason).toEqual('crashed');
+    expect(archives.web.rename).toHaveBeenCalled();
+});
+
+test('should fall back to the smoke test when the new image has no healthcheck', async () => {
+    const { trigger, newContainers } = buildTrigger({
+        services: [
+            {
+                container: { name: 'web', rollbackEnabled: true },
+                health: 'healthy',
+            },
+        ],
+    });
+    newContainers.web.inspect = jest.fn(() =>
+        Promise.resolve({ State: { Running: true } }),
+    );
+
+    const result = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [{ name: 'web', rollbackEnabled: true }],
+        [{ current: 'app:1', update: 'app:2' }],
+    );
+
+    expect(result).toBe(true);
+    expect(newContainers.web.inspect).toHaveBeenCalled();
+});
+
+test('should skip the prune when pruning is disabled', async () => {
+    const { trigger } = buildTrigger({
+        services: [
+            {
+                container: { name: 'web', rollbackEnabled: true },
+                health: 'healthy',
+            },
+        ],
+        pruneDisabled: true,
+    });
+
+    const result = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [{ name: 'web', rollbackEnabled: true }],
+        [{ current: 'app:1', update: 'app:2' }],
+    );
+
+    expect(result).toBe(true);
+    expect(trigger.pruneImages).not.toHaveBeenCalled();
+});
+
+test('should report a failure when the compose backup cannot be restored', async () => {
+    const { trigger } = buildTrigger({
+        services: [
+            {
+                container: { name: 'web', rollbackEnabled: true },
+                health: 'unhealthy',
+            },
+        ],
+        restoreBackupFails: true,
+    });
+    const emitSpy = jest.spyOn(event, 'emitContainerRollback');
+
+    const result = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [{ name: 'web', rollbackEnabled: true }],
+        [{ current: 'app:1', update: 'app:2' }],
+    );
+
+    expect(result).toBe(false);
+    expect(emitSpy.mock.calls[0][0].status).toEqual('failed');
+});
+
+test('should commit when a service has no archive to clean up', async () => {
+    const { trigger } = buildTrigger({
+        services: [
+            {
+                container: { name: 'web', rollbackEnabled: true },
+                health: 'healthy',
+            },
+        ],
+        archiveMissingFor: 'web',
+    });
+
+    const result = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [{ name: 'web', rollbackEnabled: true }],
+        [{ current: 'app:1', update: 'app:2' }],
+    );
+
+    expect(result).toBe(true);
+});
+
+test('should fail to revert a service that has no archive', async () => {
+    const { trigger } = buildTrigger({
+        services: [
+            {
+                container: { name: 'web', rollbackEnabled: true },
+                health: 'unhealthy',
+            },
+        ],
+        archiveMissingFor: 'web',
+    });
+    const emitSpy = jest.spyOn(event, 'emitContainerRollback');
+
+    const result = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [{ name: 'web', rollbackEnabled: true }],
+        [{ current: 'app:1', update: 'app:2' }],
+    );
+
+    expect(result).toBe(false);
+    expect(trigger.restoreComposeFileFromBackup).not.toHaveBeenCalled();
+    expect(emitSpy.mock.calls[0][0].status).toEqual('failed');
+});
+
+test('should tolerate an already-stopped new container during the revert', async () => {
+    const { trigger, archives } = buildTrigger({
+        services: [
+            {
+                container: { name: 'web', rollbackEnabled: true },
+                health: 'unhealthy',
+            },
+        ],
+        stopNotRunningFor: 'web',
+    });
+    const emitSpy = jest.spyOn(event, 'emitContainerRollback');
+
+    const result = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [{ name: 'web', rollbackEnabled: true }],
+        [{ current: 'app:1', update: 'app:2' }],
+    );
+
+    expect(result).toBe(false);
+    expect(archives.web.rename).toHaveBeenCalled();
+    expect(emitSpy.mock.calls[0][0].status).toEqual('succeeded');
+});
+
+test('should not fail the commit when an archive removal fails', async () => {
+    const { trigger } = buildTrigger({
+        services: [
+            {
+                container: { name: 'web', rollbackEnabled: true },
+                health: 'healthy',
+            },
+        ],
+        archiveRemoveFailsFor: 'web',
+    });
+
+    const result = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [{ name: 'web', rollbackEnabled: true }],
+        [{ current: 'app:1', update: 'app:2' }],
+    );
+
+    expect(result).toBe(true);
+});
+
+test('should not fail the commit when the prune fails', async () => {
+    const { trigger } = buildTrigger({
+        services: [
+            {
+                container: { name: 'web', rollbackEnabled: true },
+                health: 'healthy',
+            },
+        ],
+        pruneFails: true,
+    });
+
+    const result = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [{ name: 'web', rollbackEnabled: true }],
+        [{ current: 'app:1', update: 'app:2' }],
+    );
+
+    expect(result).toBe(true);
 });

@@ -236,6 +236,8 @@ labels:
   - "wud.hook.3.phase=post"
   - "wud.hook.3.type=trigger"
   - "wud.hook.3.trigger=slack"
+```
+
 ## 🩺 Automatic rollback on healthcheck failure
 
 When `ROLLBACK` is enabled (globally with the env var, or per container with the

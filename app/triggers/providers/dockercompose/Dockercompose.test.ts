@@ -383,6 +383,32 @@ describe('Dockercompose Trigger - file operations', () => {
         expect(fs.copyFile).toHaveBeenCalledWith('test.yml', 'test.yml.back');
     });
 
+    test('ensureComposeBackup should force a .back copy', async () => {
+        (fs.copyFile as jest.Mock).mockResolvedValue(undefined);
+        await dockercompose.ensureComposeBackup('test.yml');
+        expect(fs.copyFile).toHaveBeenCalledWith('test.yml', 'test.yml.back');
+    });
+
+    test('restoreComposeFileFromBackup should copy .back over the compose file', async () => {
+        (fs.copyFile as jest.Mock).mockResolvedValue(undefined);
+        await dockercompose.restoreComposeFileFromBackup('test.yml');
+        expect(fs.copyFile).toHaveBeenCalledWith('test.yml.back', 'test.yml');
+    });
+
+    test('rewriteComposeFile should replace the mapped versions', async () => {
+        (fs.readFile as jest.Mock).mockResolvedValue(
+            Buffer.from('services:\n  web:\n    image: app:1.0.0'),
+        );
+        (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
+        await dockercompose.rewriteComposeFile('test.yml', [
+            { current: 'app:1.0.0', update: 'app:2.0.0' },
+        ]);
+        expect(fs.writeFile).toHaveBeenCalledWith(
+            'test.yml',
+            expect.stringContaining('app:2.0.0'),
+        );
+    });
+
     test('writeComposeFile should write data', async () => {
         (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
         await dockercompose.writeComposeFile('test.yml', 'data');
