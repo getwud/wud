@@ -91,6 +91,38 @@ class Apprise extends Trigger {
         const response = await axios(options);
         return response.data;
     }
+
+    /**
+     * Send a rollback notification.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<*>}
+     */
+    async triggerRollback(rollbackReport) {
+        let uri = `${this.configuration.url}/notify`;
+        const body = {
+            title: this.renderRollbackTitle(rollbackReport),
+            body: this.renderRollbackBody(rollbackReport),
+            format: 'text',
+            type: 'warning',
+        };
+
+        if (this.configuration.config) {
+            uri += `/${this.configuration.config}`;
+            if (this.configuration.tag) {
+                body.tag = this.configuration.tag;
+            }
+        } else {
+            body.urls = this.configuration.urls;
+        }
+
+        const options = {
+            method: 'POST',
+            url: uri,
+            data: body,
+        };
+        const response = await axios(options);
+        return response.data;
+    }
 }
 
 export default Apprise;

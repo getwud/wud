@@ -1,5 +1,5 @@
 import axios, { AxiosRequestConfig } from 'axios';
-import Trigger from '../Trigger';
+import Trigger, { RollbackReport } from '../Trigger';
 import { ComponentConfiguration } from '../../../registry/Component';
 import { Container } from '../../../model/container';
 
@@ -62,7 +62,14 @@ class Http extends Trigger {
         return this.sendHttpRequest(containers);
     }
 
-    async sendHttpRequest(body: Container | Container[]) {
+    /**
+     * Send the rollback report as an HTTP request.
+     */
+    async triggerRollback(rollbackReport: RollbackReport) {
+        return this.sendHttpRequest(rollbackReport);
+    }
+
+    async sendHttpRequest(body: Container | Container[] | RollbackReport) {
         const options: AxiosRequestConfig = {
             method: this.configuration.method,
             url: this.configuration.url,

@@ -65,6 +65,21 @@ class Slack extends Trigger {
     }
 
     /**
+     * Post a rollback notification to the Slack channel.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<ChatPostMessageResponse>}
+     */
+    async triggerRollback(rollbackReport) {
+        const body = this.renderRollbackBody(rollbackReport);
+        if (this.configuration.disabletitle) {
+            return this.sendMessage(body);
+        }
+
+        const title = this.renderRollbackTitle(rollbackReport);
+        return this.sendMessage(`*${title}*\n\n${body}`);
+    }
+
+    /**
      * Post a message to a Slack channel.
      * @param text the text to post
      * @returns {Promise<ChatPostMessageResponse>}

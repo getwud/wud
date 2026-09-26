@@ -23,6 +23,10 @@ const eventTestCases = [
         register: event.registerContainerRemoved,
     },
     {
+        emitter: event.emitContainerRollback,
+        register: event.registerContainerRollback,
+    },
+    {
         emitter: event.emitWatcherStart,
         register: event.registerWatcherStart,
     },

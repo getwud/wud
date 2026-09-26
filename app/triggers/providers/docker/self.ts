@@ -1,6 +1,7 @@
 import fs from 'fs';
 import Dockerode from 'dockerode';
 import { Logger } from 'pino';
+import { smokeTest, waitForHealthy as waitForHealthyVerdict } from './health';
 
 /**
  * Environment variable carrying the self-update payload.
@@ -132,69 +133,41 @@ export function buildTemporaryName(containerName: string): string {
     return `${containerName}-wud-self-update-${Date.now()}`;
 }
 
-function sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => {
-        setTimeout(resolve, ms);
-    });
-}
-
 /**
  * Wait until the replacement looks good.
  *
  * With a healthcheck, wait for `healthy`. Without one, the best available
  * signal is that the container is still running after a short settle time.
+ *
+ * Delegates the health evaluation to `health.ts` and preserves the historical
+ * boolean contract of the self-update flow (`no-healthcheck` maps to a bounded
+ * settle instead of a full-window wait).
  */
 export async function waitForHealthy(
     container: Dockerode.Container,
     healthTimeoutMs: number,
     log: Logger,
 ): Promise<boolean> {
-    const deadline = Date.now() + healthTimeoutMs;
-    let hasHealthcheck: boolean | undefined;
+    const verdict = await waitForHealthyVerdict(
+        container,
+        { window: healthTimeoutMs, interval: 1000 },
+        log,
+    );
 
-    while (Date.now() < deadline) {
-        let inspect: Dockerode.ContainerInspectInfo;
-        try {
-            inspect = await container.inspect();
-        } catch (e) {
-            log.warn(`Unable to inspect the new container (${e})`);
-            return false;
-        }
-
-        if (!inspect.State.Running) {
-            log.warn('The new container is not running');
-            return false;
-        }
-
-        if (hasHealthcheck === undefined) {
-            hasHealthcheck = Boolean(inspect.State.Health);
-        }
-
-        if (!hasHealthcheck) {
-            // No healthcheck to rely on; give it a moment and confirm it stayed up.
-            await sleep(Math.min(5000, Math.max(0, deadline - Date.now())));
-            try {
-                const settled = await container.inspect();
-                return settled.State.Running;
-            } catch (e) {
-                log.warn(`Unable to inspect the new container (${e})`);
-                return false;
-            }
-        }
-
-        const status = inspect.State.Health?.Status;
-        if (status === 'healthy') {
-            return true;
-        }
-        if (status === 'unhealthy') {
-            log.warn('The new container reported itself unhealthy');
-            return false;
-        }
-
-        await sleep(1000);
+    if (verdict === 'healthy') {
+        return true;
     }
 
-    log.warn('Timed out waiting for the new container to become healthy');
+    if (verdict === 'no-healthcheck') {
+        // No healthcheck to rely on; give it a moment and confirm it stayed up.
+        const settled = await smokeTest(
+            container,
+            { grace: Math.min(5000, healthTimeoutMs), interval: 1000 },
+            log,
+        );
+        return settled === 'healthy';
+    }
+
     return false;
 }
 

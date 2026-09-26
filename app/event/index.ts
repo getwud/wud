@@ -10,6 +10,7 @@ const WUD_CONTAINER_UPDATED = 'wud:container-updated';
 const WUD_CONTAINER_REMOVED = 'wud:container-removed';
 const WUD_CONTAINER_REPORT = 'wud:container-report';
 const WUD_CONTAINER_REPORTS = 'wud:container-reports';
+const WUD_CONTAINER_ROLLBACK = 'wud:container-rollback';
 
 // Watcher events
 const WUD_WATCH_START = 'wud:watch-start';
@@ -57,6 +58,26 @@ export function registerContainerReports(handler) {
     };
     wrappedContainerReportsHandlers.set(handler, wrapped);
     eventEmitter.on(WUD_CONTAINER_REPORTS, wrapped);
+}
+
+/**
+ * Emit a container rollback event.
+ * @param rollbackReport
+ */
+export function emitContainerRollback(rollbackReport) {
+    eventEmitter.emit(WUD_CONTAINER_ROLLBACK, rollbackReport);
+}
+
+/**
+ * Register to container rollback event.
+ * @param handler
+ */
+export function registerContainerRollback(handler) {
+    eventEmitter.on(WUD_CONTAINER_ROLLBACK, handler);
+}
+
+export function unregisterContainerRollback(handler) {
+    eventEmitter.off(WUD_CONTAINER_ROLLBACK, handler);
 }
 
 /**

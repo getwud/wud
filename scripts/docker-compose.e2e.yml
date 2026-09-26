@@ -12,6 +12,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - WUD_TRIGGER_MOCK_EXAMPLE_MOCK=mock
+      - WUD_TRIGGER_DOCKER_E2E_ROLLBACK=true
+      - WUD_TRIGGER_DOCKER_E2E_ROLLBACKWINDOW=300000
+      - WUD_TRIGGER_DOCKER_E2E_ROLLBACKINTERVAL=10000
+      - WUD_TRIGGER_DOCKER_E2E_ROLLBACKGRACE=10000
       - WUD_TRIGGER_MQTT_E2E_URL=mqtt://mosquitto:1883
       - WUD_TRIGGER_MQTT_E2E_TOPIC=wud/container
       - WUD_TRIGGER_MQTT_E2E_HASS_ENABLED=true

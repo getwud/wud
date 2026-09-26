@@ -73,6 +73,38 @@ import TabItem from '@theme/TabItem';
     defaultValue="false">
     Prune obsolete image versions after a successful upgrade
   </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_ROLLBACK"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    Enable the automatic rollback on HEALTHCHECK failure for the opted-in services of a compose project (see [Automatic rollback on healthcheck failure](#-automatic-rollback-on-healthcheck-failure))
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_ROLLBACKWINDOW"
+    required={false}
+    type="integer"
+    defaultValue="300000">
+    How long (in milliseconds) to wait for a replacement service to report a terminal health status (`healthy`/`unhealthy`) when its image defines a `HEALTHCHECK`
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_ROLLBACKINTERVAL"
+    required={false}
+    type="integer"
+    defaultValue="10000">
+    Sampling interval (in milliseconds) between two health observations
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_ROLLBACKGRACE"
+    required={false}
+    type="integer"
+    defaultValue="10000">
+    Grace period (in milliseconds) a replacement service must stay up when its image defines **no** `HEALTHCHECK` before the update is accepted
+  </ConfigOption>
 </ConfigList>
 
 :::info
@@ -136,6 +168,55 @@ services:
       - "wud.hook.2.phase=post"
       - "wud.hook.2.type=trigger"
       - "wud.hook.2.trigger=slack"
+## 🩺 Automatic rollback on healthcheck failure
+
+When at least one service of a compose project opts in (`ROLLBACK` env var or
+`wud.rollback.enable` / `.window` / `.interval` / `.grace` labels, labels win),
+the update of the whole project becomes transactional:
+
+1. WUD writes an implicit `.back` copy of the compose file **before any
+   mutation** (regardless of the `BACKUP` setting). If that write fails, nothing
+   is changed.
+2. Every service is swapped using a rename-first archive, so the previous
+   container is never destroyed before the replacement is validated.
+3. Only the opted-in services are health-gated. WUD waits for a terminal
+   `HEALTHCHECK` status (up to `ROLLBACKWINDOW` ms), or — when the image defines
+   no `HEALTHCHECK` — requires the replacement to stay up for `ROLLBACKGRACE`
+   ms.
+4. **On success**, the archives are removed, the compose file keeps the new
+   versions, and obsolete images are pruned as usual.
+5. **On any failure**, the **whole project** is reverted: every recreated
+   service is stopped/removed, its archive is restored under the original name
+   and started again, and the `.back` file is copied back over the compose file
+   only once every service has been restored. The notification report marks the
+   failing service with its verdict and the healthy-but-reverted services with
+   `project-revert`.
+
+### Example
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/stacks/app/docker-compose.yml:/wud/docker-compose.yml
+    environment:
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_FILE=/wud/docker-compose.yml
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_ROLLBACK=true
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_ROLLBACKWINDOW=180000
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_ROLLBACKGRACE=15000
+
+  web:
+    image: my/web:2.0.0
+    labels:
+      - wud.rollback.enable=true
+      - wud.rollback.window=120000
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost/health']
+      interval: 5s
+      timeout: 3s
+      retries: 3
 ```
 
 ---

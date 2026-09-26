@@ -68,3 +68,24 @@ export const wudStack = 'wud.stack';
  */
 export const wudWatchDelay = 'wud.watch.delay';
 export const wudTagDelay = 'wud.tag.delay';
+
+/**
+ * Enable automatic rollback when the replacement container fails its health
+ * gate. (true | false).
+ */
+export const wudRollbackEnable = 'wud.rollback.enable';
+
+/**
+ * Health-check deadline (ms) for containers that declare a HEALTHCHECK.
+ */
+export const wudRollbackWindow = 'wud.rollback.window';
+
+/**
+ * Health-check poll interval (ms).
+ */
+export const wudRollbackInterval = 'wud.rollback.interval';
+
+/**
+ * Smoke-test duration (ms) for containers without a HEALTHCHECK.
+ */
+export const wudRollbackGrace = 'wud.rollback.grace';
