@@ -2,6 +2,10 @@
 name: ux_designer
 role: UI & UX Design Specialist
 description: Designs user interfaces, layout ergonomics, navigation flows, and visual styling across the SPA and documentation site.
+recommended_model_tier: lightweight
+model_constraints:
+  - Run on the lightweight/fast profile (e.g. deepseek-v4.1-flash)
+  - Never use the high-reasoning profile (e.g. deepseek-v4-pro); it is reserved for the `architect`
 allowed_scope:
   - Frontend UI components and layouts (`ui/src/`)
   - Documentation site layout, topbar, and footer (`website/src/`, `website/docusaurus.config.js`)

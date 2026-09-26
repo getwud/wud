@@ -2,6 +2,10 @@
 name: release_manager
 role: Release & Deployment Manager
 description: Manages SemVer versioning, executes release scripts, validates deployment artifacts, and is the sole agent authorized to push tags and release commits to main.
+recommended_model_tier: lightweight
+model_constraints:
+  - Run on the lightweight/fast profile (e.g. deepseek-v4.1-flash)
+  - Never use the high-reasoning profile (e.g. deepseek-v4-pro); it is reserved for the `architect`
 allowed_scope:
   - Release execution scripts (`scripts/release.sh`, `scripts/update-changelog.js`)
   - SemVer auditing against `website/docs/changelog/next.md`
