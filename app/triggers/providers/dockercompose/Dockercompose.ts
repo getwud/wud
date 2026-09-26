@@ -6,6 +6,7 @@ import Docker from '../docker/Docker';
 import { getState } from '../../../registry';
 import { fullName } from '../../../model/container';
 import { HookManager } from '../../hooks/HookManager';
+import { performProjectTransaction } from './rollback';
 
 /**
  * Return true if the container belongs to the compose file.
@@ -284,6 +285,49 @@ class Dockercompose extends Docker {
             this.log.info(
                 `Do not replace existing docker-compose file ${composeFile} (dry-run mode enabled)`,
             );
+        } else if (
+            containersFiltered.some(
+                (container) => this.resolveRollback(container).enabled,
+            )
+        ) {
+            // Quality Gate Pre-update hooks for all containers in this compose stack
+            for (const container of containersFiltered) {
+                const watcher = this.getWatcher(container);
+                await HookManager.runPreHooks(
+                    container,
+                    this.configuration.hooks,
+                    {
+                        triggerName: this.name,
+                        dockerApi: watcher?.dockerApi,
+                        log: this.log,
+                    },
+                );
+            }
+
+            // CLI-free project transaction with whole-project revert.
+            const committed = await performProjectTransaction(
+                this,
+                composeFile,
+                containersFiltered,
+                currentVersionToUpdateVersionArray,
+            );
+
+            // Post-update hooks for all containers in this compose stack
+            if (committed) {
+                for (const container of containersFiltered) {
+                    const watcher = this.getWatcher(container);
+                    await HookManager.runPostHooks(
+                        container,
+                        this.configuration.hooks,
+                        {
+                            triggerName: this.name,
+                            dockerApi: watcher?.dockerApi,
+                            log: this.log,
+                        },
+                    );
+                }
+            }
+            return;
         } else {
             // Quality Gate Pre-update hooks for all containers in this compose stack
             for (const container of containersFiltered) {
@@ -344,6 +388,50 @@ class Dockercompose extends Docker {
                 );
             }
         }
+    }
+
+    /**
+     * Resolve the registry manager of a container.
+     * @param container the container
+     * @returns {Registry}
+     */
+    resolveRegistry(container) {
+        return getState().registry[container.image.registry.name];
+    }
+
+    /**
+     * Force a backup of the compose file (implicit rollback requirement).
+     * Throws when the backup cannot be written so the transaction can abort
+     * before mutating anything.
+     * @param composeFile the compose file path
+     * @returns {Promise<void>}
+     */
+    async ensureComposeBackup(composeFile) {
+        await fs.copyFile(composeFile, `${composeFile}.back`);
+    }
+
+    /**
+     * Restore the compose file from its `.back` copy.
+     * @param composeFile the compose file path
+     * @returns {Promise<void>}
+     */
+    async restoreComposeFileFromBackup(composeFile) {
+        await fs.copyFile(`${composeFile}.back`, composeFile);
+    }
+
+    /**
+     * Rewrite the compose file replacing the current versions with the update
+     * versions. Throws on failure (unlike writeComposeFile).
+     * @param composeFile the compose file path
+     * @param mappings [{ current, update }]
+     * @returns {Promise<void>}
+     */
+    async rewriteComposeFile(composeFile, mappings) {
+        let composeFileStr = (await fs.readFile(composeFile)).toString();
+        mappings.forEach(({ current, update }) => {
+            composeFileStr = composeFileStr.replaceAll(current, update);
+        });
+        await fs.writeFile(composeFile, composeFileStr);
     }
 
     /**

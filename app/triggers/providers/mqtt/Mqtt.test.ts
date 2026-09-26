@@ -258,3 +258,21 @@ test('connect event and deregisterComponent in server mode should update connect
         }
     }
 });
+
+test('triggerRollback should publish the rollback report on the rollback topic', async () => {
+    mqtt.configuration = configurationValid;
+    mqtt.client = { publish: jest.fn() };
+
+    const report = {
+        scope: 'container',
+        container: { name: 'web' },
+        status: 'succeeded',
+    };
+
+    await mqtt.triggerRollback(report);
+
+    expect(mqtt.client.publish).toHaveBeenCalledWith(
+        'wud/container/rollback',
+        JSON.stringify(report),
+    );
+});

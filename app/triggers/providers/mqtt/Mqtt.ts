@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import mqtt, { IClientOptions, MqttClient } from 'mqtt';
-import Trigger, { TriggerConfiguration } from '../Trigger';
+import Trigger, { RollbackReport, TriggerConfiguration } from '../Trigger';
 import Hass from './Hass';
 import {
     registerContainerAdded,
@@ -224,6 +224,16 @@ class Mqtt extends Trigger {
 
     async triggerBatch() {
         throw new Error('This trigger does not support "batch" mode');
+    }
+
+    /**
+     * Publish a rollback report on the `<topic>/rollback` MQTT topic.
+     * @param rollbackReport the rollback report
+     */
+    async triggerRollback(rollbackReport: RollbackReport) {
+        const rollbackTopic = `${this.configuration.topic}/rollback`;
+        this.log.debug(`Publish rollback report to ${rollbackTopic}`);
+        this.client.publish(rollbackTopic, JSON.stringify(rollbackReport));
     }
 
     /**

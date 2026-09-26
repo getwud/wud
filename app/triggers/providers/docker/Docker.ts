@@ -1,6 +1,7 @@
 import parse from 'parse-docker-image-name';
 import Dockerode from 'dockerode';
-import Trigger, { TriggerConfiguration } from '../Trigger';
+import Trigger, { TriggerConfiguration, RollbackReport } from '../Trigger';
+import * as event from '../../../event';
 import { getState } from '../../../registry';
 import { Container, ContainerImage, fullName } from '../../../model/container';
 import { Docker as DockerWatcher } from '../../../watchers/providers/docker/Docker';
@@ -14,6 +15,12 @@ import {
     getSelfContainerId,
     isSelfContainer,
 } from './self';
+import {
+    RollbackConfig,
+    SwapOutcome,
+    replaceContainerWithHealthGate,
+    resolveRollbackConfig,
+} from './rollback';
 
 /**
  * Check if two command / entrypoint definitions are equivalent.
@@ -177,6 +184,28 @@ export interface DockerConfiguration extends TriggerConfiguration {
     selfupdate?: boolean;
     selfupdatetimeout?: number;
     hooks?: Hook[];
+    rollback?: boolean;
+    rollbackwindow?: number;
+    rollbackinterval?: number;
+    rollbackgrace?: number;
+}
+
+/**
+ * Options controlling a single container update.
+ */
+export interface PerformUpdateOptions {
+    /** Keep the old container as a rollback source (`<name>-wud-old-<ts>`). */
+    archive?: boolean;
+    /** Keep the archive after a healthy verdict (caller commits/reverts later). */
+    keepArchive?: boolean;
+    /** Gate the replacement health (defaults to true). */
+    gateHealth?: boolean;
+    /** Resolved rollback configuration enabling the gated path. */
+    gate?: RollbackConfig;
+    /** Defer the old-image prune until after the verdict. */
+    deferPrune?: boolean;
+    /** Run the pre/post update hooks (defaults to true). */
+    runHooks?: boolean;
 }
 
 /**
@@ -197,6 +226,26 @@ class Docker extends Trigger {
             selfupdate: this.joi.boolean().default(false),
             selfupdatetimeout: this.joi.number().default(120_000),
             hooks: this.joi.array().items(hookSchema).optional(),
+            rollback: this.joi.boolean().default(false),
+            rollbackwindow: this.joi.number().integer().min(1).default(300_000),
+            rollbackinterval: this.joi
+                .number()
+                .integer()
+                .min(1)
+                .default(10_000),
+            rollbackgrace: this.joi.number().integer().min(1).default(10_000),
+        });
+    }
+
+    /**
+     * Resolve the effective rollback configuration for a container.
+     */
+    resolveRollback(container: Container): RollbackConfig {
+        return resolveRollbackConfig(container, {
+            rollback: this.configuration.rollback === true,
+            rollbackwindow: this.configuration.rollbackwindow ?? 300_000,
+            rollbackinterval: this.configuration.rollbackinterval ?? 10_000,
+            rollbackgrace: this.configuration.rollbackgrace ?? 10_000,
         });
     }
 
@@ -880,9 +929,120 @@ class Docker extends Trigger {
     }
 
     /**
-     * Update the container.
+     * Remove the superseded image (only when updateKind is tag).
      */
-    async trigger(container: Container, options?: { runHooks?: boolean }) {
+    async removePreviousImage(
+        dockerApi: Dockerode,
+        registry: Registry,
+        container: Container,
+        logContainer: Logger,
+    ): Promise<void> {
+        const tagOrDigestToRemove =
+            container.updateKind.kind === 'tag'
+                ? container.image.tag.value
+                : container.image.digest.repo;
+
+        // Rebuild image definition string
+        const oldImage = registry.getImageFullName(
+            container.image,
+            tagOrDigestToRemove,
+        );
+        await this.removeImage(dockerApi, oldImage, logContainer);
+    }
+
+    /**
+     * Run the rename-first, health-gated replacement and emit the rollback
+     * event when the replacement is restored.
+     */
+    async replaceWithHealthGate(
+        dockerApi: Dockerode,
+        registry: Registry,
+        container: Container,
+        currentContainer: Dockerode.Container,
+        currentContainerSpec: Dockerode.ContainerInspectInfo,
+        containerToCreate: Dockerode.ContainerCreateOptions,
+        gate: RollbackConfig,
+        wasRunning: boolean,
+        opts: PerformUpdateOptions,
+        logContainer: Logger,
+    ): Promise<SwapOutcome> {
+        const containerName =
+            container.name || currentContainerSpec.Name.replace('/', '');
+
+        const outcome = await replaceContainerWithHealthGate({
+            currentContainer,
+            currentContainerSpec,
+            createOptions: containerToCreate,
+            containerName,
+            wasRunning,
+            gate,
+            archive: true,
+            keepArchive: opts.keepArchive,
+            gateHealth: opts.gateHealth,
+            createNewContainer: (options) =>
+                this.createContainerWithMultiNetworkFallback(
+                    dockerApi,
+                    options,
+                    currentContainerSpec,
+                    containerName,
+                    logContainer,
+                ),
+            log: logContainer,
+        });
+
+        if (outcome.rolledBack) {
+            logContainer.warn(
+                `Container ${containerName} rolled back to the previous image (reason: ${outcome.reason}, status: ${outcome.status})`,
+            );
+            const rollbackReport: RollbackReport = {
+                scope: 'container',
+                container,
+                oldImageRef: currentContainerSpec.Image,
+                newImageRef: containerToCreate.Image,
+                reason: outcome.reason,
+                durationMs: outcome.durationMs,
+                status: outcome.status,
+                error: outcome.error,
+                archiveName: outcome.archiveName,
+            };
+            event.emitContainerRollback(rollbackReport);
+            return outcome;
+        }
+
+        // Healthy verdict: deferred prune can now run.
+        if (
+            opts.deferPrune === true &&
+            opts.keepArchive !== true &&
+            this.configuration.prune
+        ) {
+            await this.pruneImages(
+                dockerApi,
+                registry,
+                container,
+                logContainer,
+            );
+            await this.removePreviousImage(
+                dockerApi,
+                registry,
+                container,
+                logContainer,
+            );
+        }
+        return outcome;
+    }
+
+    /**
+     * Replace the container according to the provided options.
+     *
+     * When a rollback gate is enabled (or `archive` is requested), the old
+     * container is kept as a rollback source and the replacement is health
+     * gated. Otherwise the historical stop -> remove -> create -> start flow is
+     * preserved byte-for-byte.
+     */
+    async performUpdate(
+        container: Container,
+        opts: PerformUpdateOptions = {},
+    ): Promise<SwapOutcome | undefined> {
         // Child logger for the container to process
         const logContainer = this.log.child({ container: fullName(container) });
 
@@ -890,7 +1050,7 @@ class Docker extends Trigger {
             logContainer.info(
                 `No update available for container ${fullName(container)} => skip trigger`,
             );
-            return;
+            return undefined;
         }
 
         // Get watcher
@@ -927,176 +1087,222 @@ class Docker extends Trigger {
             container,
         );
 
-        if (currentContainer) {
-            const currentContainerSpec = await this.inspectContainer(
-                currentContainer,
-                logContainer,
-            );
-            const currentContainerState = currentContainerSpec.State;
-
-            // Inspect the old image before it can be pruned
-            const oldImageSpec = await this.inspectImage(
-                dockerApi,
-                currentContainerSpec.Image,
-                logContainer,
-            );
-
-            // Try to remove previous pulled images
-            if (this.configuration.prune) {
-                await this.pruneImages(
-                    dockerApi,
-                    registry,
-                    container,
-                    logContainer,
-                );
-            }
-
-            // Pull new image ahead of time
-            await this.pullImage(dockerApi, auth, newImage, logContainer);
-
-            // Dry-run?
-            if (this.configuration.dryrun) {
-                logContainer.info(
-                    'Do not replace the existing container because dry-run mode is enabled',
-                );
-            } else {
-                // Inspect new image
-                const newImageSpec = await this.inspectImage(
-                    dockerApi,
-                    newImage,
-                    logContainer,
-                );
-
-                // Clone current container spec
-                const containerToCreateInspect = this.cloneContainer(
-                    currentContainerSpec,
-                    newImage,
-                    oldImageSpec,
-                    newImageSpec,
-                );
-
-                // Replacing the container WUD itself runs in cannot be done in
-                // this process: the stop below would kill the very code that
-                // still has to remove, recreate and start it. Hand it over to a
-                // helper container instead.
-                const selfContainerId =
-                    await this.resolveSelfContainerId(dockerApi);
-                if (isSelfContainer(currentContainerSpec.Id, selfContainerId)) {
-                    if (!this.configuration.selfupdate) {
-                        throw new Error(
-                            'Refusing to update the container WUD runs in: stopping it would abort the update ' +
-                                'and leave the container down. Enable it with ' +
-                                'WUD_TRIGGER_DOCKER_{trigger_name}_SELFUPDATE=true, or exclude WUD from this ' +
-                                'trigger with the wud.trigger.exclude label and update it externally.',
-                        );
-                    }
-                    // Let Docker assign the replacement a fresh hostname rather
-                    // than inheriting this container's id.
-                    delete containerToCreateInspect.Hostname;
-                    await this.spawnSelfUpdateHelper(
-                        dockerApi,
-                        watcher,
-                        currentContainerSpec,
-                        containerToCreateInspect,
-                        logContainer,
-                    );
-                    return;
-                }
-
-                // Quality Gate Pre-update hooks
-                if (options?.runHooks ?? true) {
-                    await HookManager.runPreHooks(
-                        container,
-                        this.configuration.hooks,
-                        {
-                            triggerName: this.name,
-                            dockerApi,
-                            log: logContainer,
-                        },
-                    );
-                }
-
-                // Stop current container
-                if (currentContainerState.Running) {
-                    await this.stopContainer(
-                        currentContainer,
-                        container.name,
-                        container.id,
-                        logContainer,
-                    );
-                }
-
-                if (currentContainerSpec.HostConfig?.AutoRemove !== true) {
-                    // Remove current container
-                    await this.removeContainer(
-                        currentContainer,
-                        container.name,
-                        container.id,
-                        logContainer,
-                    );
-                } else {
-                    // This is a special case when the container is set to be removed automatically when it stops.
-                    // In this case, we need to wait for the container to be removed before creating the new one.
-                    await this.waitContainerRemoved(
-                        currentContainer,
-                        container.name,
-                        container.id,
-                        logContainer,
-                    );
-                }
-
-                // Create new container
-                const newContainer =
-                    await this.createContainerWithMultiNetworkFallback(
-                        dockerApi,
-                        containerToCreateInspect,
-                        currentContainerSpec,
-                        container.name,
-                        logContainer,
-                    );
-
-                // Start container if it was running
-                if (currentContainerState.Running) {
-                    await this.startContainer(
-                        newContainer,
-                        container.name,
-                        logContainer,
-                    );
-                }
-
-                // Post-update hooks
-                if (options?.runHooks ?? true) {
-                    await HookManager.runPostHooks(
-                        container,
-                        this.configuration.hooks,
-                        {
-                            triggerName: this.name,
-                            dockerApi,
-                            log: logContainer,
-                        },
-                    );
-                }
-
-                // Remove previous image (only when updateKind is tag)
-                if (this.configuration.prune) {
-                    const tagOrDigestToRemove =
-                        container.updateKind.kind === 'tag'
-                            ? container.image.tag.value
-                            : container.image.digest.repo;
-
-                    // Rebuild image definition string
-                    const oldImage = registry.getImageFullName(
-                        container.image,
-                        tagOrDigestToRemove,
-                    );
-                    await this.removeImage(dockerApi, oldImage, logContainer);
-                }
-            }
-        } else {
+        if (!currentContainer) {
             logContainer.warn(
                 'Unable to update the container because it does not exist',
             );
+            return undefined;
         }
+
+        const currentContainerSpec = await this.inspectContainer(
+            currentContainer,
+            logContainer,
+        );
+        const currentContainerState = currentContainerSpec.State;
+
+        // Inspect the old image before it can be pruned
+        const oldImageSpec = await this.inspectImage(
+            dockerApi,
+            currentContainerSpec.Image,
+            logContainer,
+        );
+
+        const gated = opts.gate?.enabled === true;
+        const autoRemove = currentContainerSpec.HostConfig?.AutoRemove === true;
+        // AutoRemove containers cannot be kept as a rollback source.
+        const useArchive = (opts.archive === true || gated) && !autoRemove;
+
+        if ((opts.archive === true || gated) && autoRemove) {
+            logContainer.warn(
+                'Cannot keep the previous container as a rollback source because AutoRemove is enabled => plain update without rollback',
+            );
+        }
+
+        const deferPrune = opts.deferPrune === true || (gated && useArchive);
+
+        // Try to remove previous pulled images (deferred until the verdict when gating)
+        if (this.configuration.prune && !deferPrune) {
+            await this.pruneImages(
+                dockerApi,
+                registry,
+                container,
+                logContainer,
+            );
+        }
+
+        // Pull new image ahead of time
+        await this.pullImage(dockerApi, auth, newImage, logContainer);
+
+        // Dry-run?
+        if (this.configuration.dryrun) {
+            logContainer.info(
+                'Do not replace the existing container because dry-run mode is enabled',
+            );
+            return undefined;
+        }
+
+        // Inspect new image
+        const newImageSpec = await this.inspectImage(
+            dockerApi,
+            newImage,
+            logContainer,
+        );
+
+        // Clone current container spec
+        const containerToCreateInspect = this.cloneContainer(
+            currentContainerSpec,
+            newImage,
+            oldImageSpec,
+            newImageSpec,
+        );
+
+        // Replacing the container WUD itself runs in cannot be done in this
+        // process: stopping it kills the very code that still has to remove,
+        // recreate and start it. Hand it over to a helper container instead.
+        const selfContainerId = await this.resolveSelfContainerId(dockerApi);
+        if (isSelfContainer(currentContainerSpec.Id, selfContainerId)) {
+            if (!this.configuration.selfupdate) {
+                throw new Error(
+                    'Refusing to update the container WUD runs in: stopping it would abort the update ' +
+                        'and leave the container down. Enable it with ' +
+                        'WUD_TRIGGER_DOCKER_{trigger_name}_SELFUPDATE=true, or exclude WUD from this ' +
+                        'trigger with the wud.trigger.exclude label and update it externally.',
+                );
+            }
+            // Let Docker assign the replacement a fresh hostname rather than
+            // inheriting this container's id.
+            delete containerToCreateInspect.Hostname;
+            await this.spawnSelfUpdateHelper(
+                dockerApi,
+                watcher,
+                currentContainerSpec,
+                containerToCreateInspect,
+                logContainer,
+            );
+            return undefined;
+        }
+
+        // Quality Gate Pre-update hooks
+        const runHooks = opts.runHooks ?? true;
+        if (runHooks) {
+            await HookManager.runPreHooks(container, this.configuration.hooks, {
+                triggerName: this.name,
+                dockerApi,
+                log: logContainer,
+            });
+        }
+
+        // Gated / archived path.
+        if (useArchive) {
+            const outcome = await this.replaceWithHealthGate(
+                dockerApi,
+                registry,
+                container,
+                currentContainer,
+                currentContainerSpec,
+                containerToCreateInspect,
+                opts.gate ?? this.resolveRollback(container),
+                currentContainerState.Running,
+                { ...opts, deferPrune },
+                logContainer,
+            );
+            if (!outcome.rolledBack && runHooks) {
+                await HookManager.runPostHooks(
+                    container,
+                    this.configuration.hooks,
+                    {
+                        triggerName: this.name,
+                        dockerApi,
+                        log: logContainer,
+                    },
+                );
+            }
+            return outcome;
+        }
+
+        // Stop current container
+        if (currentContainerState.Running) {
+            await this.stopContainer(
+                currentContainer,
+                container.name,
+                container.id,
+                logContainer,
+            );
+        }
+
+        if (!autoRemove) {
+            // Remove current container
+            await this.removeContainer(
+                currentContainer,
+                container.name,
+                container.id,
+                logContainer,
+            );
+        } else {
+            // This is a special case when the container is set to be removed automatically when it stops.
+            // In this case, we need to wait for the container to be removed before creating the new one.
+            await this.waitContainerRemoved(
+                currentContainer,
+                container.name,
+                container.id,
+                logContainer,
+            );
+        }
+
+        // Create new container
+        const newContainer = await this.createContainerWithMultiNetworkFallback(
+            dockerApi,
+            containerToCreateInspect,
+            currentContainerSpec,
+            container.name,
+            logContainer,
+        );
+
+        // Start container if it was running
+        if (currentContainerState.Running) {
+            await this.startContainer(
+                newContainer,
+                container.name,
+                logContainer,
+            );
+        }
+
+        // Post-update hooks
+        if (runHooks) {
+            await HookManager.runPostHooks(
+                container,
+                this.configuration.hooks,
+                {
+                    triggerName: this.name,
+                    dockerApi,
+                    log: logContainer,
+                },
+            );
+        }
+
+        // Remove previous image (only when updateKind is tag)
+        if (this.configuration.prune) {
+            await this.removePreviousImage(
+                dockerApi,
+                registry,
+                container,
+                logContainer,
+            );
+        }
+        return undefined;
+    }
+
+    /**
+     * Update the container.
+     */
+    async trigger(
+        container: Container,
+        options?: { runHooks?: boolean },
+    ): Promise<void> {
+        await this.performUpdate(container, {
+            gate: this.resolveRollback(container),
+            runHooks: options?.runHooks,
+        });
     }
 
     /**

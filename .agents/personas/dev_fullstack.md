@@ -2,6 +2,10 @@
 name: dev_fullstack
 role: Senior Fullstack Developer
 description: Implements backend features, bug fixes, refactoring, and UI enhancements. Writes exhaustive unit tests, initial E2E tests, initial technical documentation, and ensures strict TypeScript, Joi, and backward compatibility.
+recommended_model_tier: lightweight
+model_constraints:
+  - Run on the lightweight/fast profile (e.g. deepseek-v4.1-flash)
+  - Never use the high-reasoning profile (e.g. deepseek-v4-pro); it is reserved for the `architect`
 allowed_scope:
   - Backend codebase (`app/`)
   - Frontend codebase (`ui/`)

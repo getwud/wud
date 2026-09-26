@@ -20,6 +20,10 @@ const configurationValid = {
     autoremovetimeout: 10000,
     selfupdate: false,
     selfupdatetimeout: 120000,
+    rollback: false,
+    rollbackwindow: 300000,
+    rollbackinterval: 10000,
+    rollbackgrace: 10000,
     simpletitle:
         'New ${container.updateKind.kind} found for container ${container.name}',
     simplebody:
@@ -1534,4 +1538,170 @@ test('trigger should abort and NOT stop container if pre-hook fails (Quality Gat
     expect(stopSpy).not.toHaveBeenCalled();
     preSpy.mockRestore();
     stopSpy.mockRestore();
+});
+
+describe('performUpdate rollback branch', () => {
+    const buildGatedMocks = ({
+        healthStatus = 'healthy',
+        hasHealth = true,
+        autoRemove = false,
+    } = {}) => {
+        const currentContainer = {
+            inspect: () =>
+                Promise.resolve({
+                    Id: 'aaaaaaaaaaaa',
+                    Name: '/container-name',
+                    State: { Running: true },
+                    HostConfig: { AutoRemove: autoRemove },
+                    Config: {},
+                    NetworkSettings: { Networks: {} },
+                }),
+            rename: jest.fn(() => Promise.resolve()),
+            remove: jest.fn(() => Promise.resolve()),
+            start: jest.fn(() => Promise.resolve()),
+            stop: jest.fn(() => Promise.resolve()),
+            wait: jest.fn(() => Promise.resolve()),
+        };
+        const newContainer = {
+            inspect: () =>
+                Promise.resolve({
+                    State: {
+                        Running: true,
+                        ...(hasHealth
+                            ? { Health: { Status: healthStatus } }
+                            : {}),
+                    },
+                }),
+            start: jest.fn(() => Promise.resolve()),
+            stop: jest.fn(() => Promise.resolve()),
+            remove: jest.fn(() => Promise.resolve()),
+        };
+        const dockerApi = {
+            getContainer: jest.fn(() => Promise.resolve(currentContainer)),
+            createContainer: jest.fn(() => Promise.resolve(newContainer)),
+            pull: () => Promise.resolve(),
+            listImages: jest.fn(() => Promise.resolve([])),
+            getImage: jest.fn(() => ({
+                remove: () => Promise.resolve(),
+                inspect: () =>
+                    Promise.resolve({
+                        Config: {
+                            Env: [],
+                            Labels: [],
+                            Cmd: [],
+                            Entrypoint: [],
+                        },
+                    }),
+            })),
+            modem: { followProgress: (pullStream, res) => res() },
+        };
+        return { dockerApi, currentContainer, newContainer };
+    };
+
+    const gatedContainer = (labels = {}) => ({
+        updateAvailable: true,
+        watcher: 'test',
+        id: '123456789',
+        name: 'container-name',
+        labels,
+        image: {
+            name: 'test/test',
+            tag: { value: '1.2.3' },
+            digest: { repo: 'test/test' },
+            registry: { name: 'hub', url: 'my-registry' },
+        },
+        updateKind: { kind: 'tag', localValue: '1.2.3', remoteValue: '4.5.6' },
+    });
+
+    test('should use the gated path when rollback is enabled by label', async () => {
+        const { dockerApi, currentContainer, newContainer } = buildGatedMocks();
+        const watcherSpy = jest
+            .spyOn(docker, 'getWatcher')
+            .mockReturnValue({ dockerApi });
+
+        await docker.trigger(gatedContainer({ 'wud.rollback.enable': 'true' }));
+
+        watcherSpy.mockRestore();
+
+        expect(currentContainer.rename).toHaveBeenCalledTimes(1);
+        expect(String(currentContainer.rename.mock.calls[0][0].name)).toMatch(
+            /-wud-old-\d+$/,
+        );
+        expect(newContainer.start).toHaveBeenCalled();
+        // Healthy verdict => archive removed.
+        expect(currentContainer.remove).toHaveBeenCalled();
+    });
+
+    test('should use the gated path when rollback is enabled at trigger level', async () => {
+        docker.configuration = { ...configurationValid, rollback: true };
+        const { dockerApi, currentContainer } = buildGatedMocks();
+        const watcherSpy = jest
+            .spyOn(docker, 'getWatcher')
+            .mockReturnValue({ dockerApi });
+
+        await docker.trigger(gatedContainer());
+
+        watcherSpy.mockRestore();
+        docker.configuration = configurationValid;
+
+        expect(currentContainer.rename).toHaveBeenCalledTimes(1);
+    });
+
+    test('should fall back to the plain path when AutoRemove is enabled', async () => {
+        const { dockerApi, currentContainer } = buildGatedMocks({
+            autoRemove: true,
+        });
+        const watcherSpy = jest
+            .spyOn(docker, 'getWatcher')
+            .mockReturnValue({ dockerApi });
+
+        await docker.trigger(gatedContainer({ 'wud.rollback.enable': 'true' }));
+
+        watcherSpy.mockRestore();
+
+        expect(currentContainer.rename).not.toHaveBeenCalled();
+        expect(currentContainer.wait).toHaveBeenCalled();
+    });
+
+    test('should not replace anything in dry-run mode', async () => {
+        docker.configuration = {
+            ...configurationValid,
+            rollback: true,
+            dryrun: true,
+        };
+        const { dockerApi, currentContainer } = buildGatedMocks();
+        const watcherSpy = jest
+            .spyOn(docker, 'getWatcher')
+            .mockReturnValue({ dockerApi });
+
+        await docker.trigger(gatedContainer());
+
+        watcherSpy.mockRestore();
+        docker.configuration = configurationValid;
+
+        expect(currentContainer.rename).not.toHaveBeenCalled();
+        expect(dockerApi.createContainer).not.toHaveBeenCalled();
+    });
+
+    test('should defer the old-image prune until after a healthy verdict', async () => {
+        docker.configuration = {
+            ...configurationValid,
+            rollback: true,
+            prune: true,
+        };
+        const { dockerApi, currentContainer } = buildGatedMocks();
+        const watcherSpy = jest
+            .spyOn(docker, 'getWatcher')
+            .mockReturnValue({ dockerApi });
+
+        await docker.trigger(gatedContainer());
+
+        watcherSpy.mockRestore();
+        docker.configuration = configurationValid;
+
+        expect(dockerApi.getImage).toHaveBeenCalledWith(
+            'my-registry/test/test:1.2.3',
+        );
+        expect(currentContainer.remove).toHaveBeenCalled();
+    });
 });

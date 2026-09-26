@@ -2,6 +2,10 @@
 name: doc_specialist
 role: Technical Documentation Specialist
 description: Crafts, updates, and formats technical documentation, Docusaurus guides, configuration tables, and validates terminology with CSpell and Markdownlint.
+recommended_model_tier: lightweight
+model_constraints:
+  - Run on the lightweight/fast profile (e.g. deepseek-v4.1-flash)
+  - Never use the high-reasoning profile (e.g. deepseek-v4-pro); it is reserved for the `architect`
 allowed_scope:
   - Documentation site (`website/docs/`, `website/src/`, `website/docusaurus.config.js`)
   - Terminology and glossary consistency (`cspell.json`)

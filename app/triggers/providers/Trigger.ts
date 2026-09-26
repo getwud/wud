@@ -14,11 +14,44 @@ export interface TriggerConfiguration extends ComponentConfiguration {
     batchtitle?: string;
     includebydefault?: boolean;
     ondigest?: boolean;
+    rollback?: boolean;
+    rollbackwindow?: number;
+    rollbackinterval?: number;
+    rollbackgrace?: number;
 }
 
 export interface ContainerReport {
     container: Container;
     changed: boolean;
+}
+
+/** Per-service outcome of a (project-scope) rollback. */
+export interface RollbackServiceOutcome {
+    service: string;
+    containerName: string;
+    verdict:
+        | 'healthy'
+        | 'unhealthy'
+        | 'timeout'
+        | 'crashed'
+        | 'no-healthcheck'
+        | 'project-revert';
+    reason: string;
+}
+
+/** Payload emitted on `wud:container-rollback`. */
+export interface RollbackReport {
+    scope: 'container' | 'project';
+    container?: Container;
+    composeFile?: string;
+    services?: RollbackServiceOutcome[];
+    oldImageRef?: string;
+    newImageRef?: string;
+    reason?: string;
+    durationMs?: number;
+    status: 'succeeded' | 'failed';
+    error?: { step?: string; message?: string; code?: string };
+    archiveName?: string;
 }
 
 function renderBatch(template: string, containers: Container[]) {
@@ -325,6 +358,52 @@ class Trigger extends Component {
         } else {
             this.log.info(`Registering for manual execution`);
         }
+
+        // Rollback notification plumbing: only notification triggers subscribe,
+        // so a rollback can never re-enter the update loop (PM §7).
+        if (this.notifiesContainerRollback()) {
+            event.registerContainerRollback(async (rollbackReport) =>
+                this.handleContainerRollback(rollbackReport),
+            );
+        }
+    }
+
+    /**
+     * Whether this trigger should receive rollback notifications.
+     * Mutating triggers (docker, dockercompose, nomad) must never subscribe.
+     */
+    notifiesContainerRollback(): boolean {
+        return !['docker', 'dockercompose', 'nomad'].includes(this.type);
+    }
+
+    /**
+     * Handle a rollback report (notification path, never mutates the update loop).
+     */
+    async handleContainerRollback(rollbackReport: RollbackReport) {
+        try {
+            if (this.shouldNotifyRollback(rollbackReport)) {
+                await this.triggerRollback(rollbackReport);
+            }
+        } catch (e: any) {
+            this.log.warn(`Error (${e.message})`);
+            this.log.debug(e);
+        }
+    }
+
+    /**
+     * Whether this trigger wants to be notified for the given rollback report.
+     * By default, successful and failed rollbacks are both notified.
+     */
+    shouldNotifyRollback(_rollbackReport: RollbackReport): boolean {
+        return true;
+    }
+
+    /**
+     * Send a rollback notification. No-op by default; overridden by
+     * notification triggers that support rollback alerts.
+     */
+    async triggerRollback(_rollbackReport: RollbackReport): Promise<void> {
+        // do nothing by default
     }
 
     /**
@@ -487,6 +566,60 @@ class Trigger extends Component {
         return containers
             .map((container) => `- ${this.renderSimpleBody(container)}\n`)
             .join('\n');
+    }
+
+    /**
+     * Human-readable subject for a rollback notification.
+     */
+    renderRollbackTitle(rollbackReport: RollbackReport): string {
+        const target =
+            rollbackReport.container?.name ||
+            rollbackReport.composeFile ||
+            'container';
+        if (rollbackReport.status === 'failed') {
+            return `Rollback FAILED for ${target}`;
+        }
+        const reason = rollbackReport.reason
+            ? ` (${rollbackReport.reason})`
+            : '';
+        return `Rollback of ${target}${reason}`;
+    }
+
+    /**
+     * Human-readable body for a rollback notification.
+     */
+    renderRollbackBody(rollbackReport: RollbackReport): string {
+        const target =
+            rollbackReport.container?.name ||
+            rollbackReport.composeFile ||
+            'container';
+
+        if (rollbackReport.status === 'failed') {
+            const step = rollbackReport.error?.step || 'unknown';
+            const message = rollbackReport.error?.message || '';
+            const lines = [
+                `Rollback of ${target} failed at step ${step}: ${message}`,
+            ];
+            if (rollbackReport.archiveName) {
+                lines.push(
+                    `The previous container is kept as ${rollbackReport.archiveName} for manual recovery.`,
+                );
+            }
+            return lines.join('\n');
+        }
+
+        const lines = [
+            `Container ${target} was rolled back from ${rollbackReport.newImageRef || 'the new image'} to ${rollbackReport.oldImageRef || 'the previous image'} (reason: ${rollbackReport.reason || 'unknown'}).`,
+        ];
+        if (rollbackReport.services && rollbackReport.services.length > 0) {
+            lines.push(
+                ...rollbackReport.services.map(
+                    (service) =>
+                        `- ${service.containerName}: ${service.verdict} (${service.reason})`,
+                ),
+            );
+        }
+        return lines.join('\n');
     }
 }
 

@@ -42,6 +42,20 @@ This architecture is designed to be **portable and future-proof**, operating sea
 | [**Product Manager**](personas/pm.md) | Product Roadmap & Scope | Triage feature requests, guard WUD core vision, scope control | Roadmap specs, triage matrix |
 | [**UX Designer**](personas/ux_designer.md) | Interface & Usability | Topbar/footer layout, responsive design, Vuetify components | UI styling, layouts, components |
 
+### 🧠 Model Tier Policy
+
+The **high-reasoning tier is reserved exclusively for the `architect`** persona (multi-layered design,
+concurrency, protocol edge cases, backward compatibility). **Every other persona runs on the
+lightweight/fast tier.**
+
+| Tier | Personas | Profile (this repo) |
+| :--- | :--- | :--- |
+| **High reasoning** | `architect` **only** | `deepseek-v4-pro` |
+| **Lightweight / fast** | all others — `pm`, `dev_fullstack`, `qa_tester`, `doc_specialist`, `release_manager`, `support_triage`, `ux_designer` | `deepseek-v4.1-flash` |
+
+- **NEVER** run a non-architect persona (notably `dev_fullstack`) on the high-reasoning profile.
+- **NEVER** run the `architect` on a lightweight/flash profile.
+
 ---
 
 ## 🔄 Orchestration Workflows

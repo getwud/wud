@@ -161,3 +161,29 @@ describe('HTTP Trigger', () => {
         });
     });
 });
+
+describe('triggerRollback', () => {
+    test('should send the rollback report as the request body', async () => {
+        const axios = require('axios');
+        const http = new Http();
+        http.configuration = {
+            url: 'https://example.com/webhook',
+            method: 'POST',
+        };
+        const report = {
+            scope: 'container',
+            container: { name: 'web' },
+            status: 'succeeded',
+        };
+
+        await http.triggerRollback(report);
+
+        expect(axios).toHaveBeenCalledWith(
+            expect.objectContaining({
+                method: 'POST',
+                url: 'https://example.com/webhook',
+                data: report,
+            }),
+        );
+    });
+});

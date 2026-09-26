@@ -51,6 +51,38 @@ import TabItem from '@theme/TabItem';
     defaultValue="120000">
     How long (in milliseconds) to wait for the replacement WUD container to become healthy before rolling back
   </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKER_{trigger_name}_ROLLBACK"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    Enable the automatic rollback on HEALTHCHECK failure for every container managed by this trigger (see [Automatic rollback on healthcheck failure](#-automatic-rollback-on-healthcheck-failure))
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKER_{trigger_name}_ROLLBACKWINDOW"
+    required={false}
+    type="integer"
+    defaultValue="300000">
+    How long (in milliseconds) to wait for the replacement container to report a terminal health status (`healthy`/`unhealthy`) when the image defines a `HEALTHCHECK`
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKER_{trigger_name}_ROLLBACKINTERVAL"
+    required={false}
+    type="integer"
+    defaultValue="10000">
+    Sampling interval (in milliseconds) between two health observations
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKER_{trigger_name}_ROLLBACKGRACE"
+    required={false}
+    type="integer"
+    defaultValue="10000">
+    Grace period (in milliseconds) the replacement container must stay up when the image defines **no** `HEALTHCHECK` before the update is accepted
+  </ConfigOption>
 </ConfigList>
 
 :::info
@@ -204,6 +236,102 @@ labels:
   - "wud.hook.3.phase=post"
   - "wud.hook.3.type=trigger"
   - "wud.hook.3.trigger=slack"
+```
+
+## 🩺 Automatic rollback on healthcheck failure
+
+When `ROLLBACK` is enabled (globally with the env var, or per container with the
+`wud.rollback.enable` label), WUD keeps the previous container **archived under a
+temporary name** while it validates the replacement. If the replacement does not
+become healthy, WUD restores the previous container and removes the broken one,
+so a bad release never leaves a service down.
+
+The same options can be set per container with labels (labels win over the
+trigger configuration):
+
+| Label | Equivalent env var | Default |
+| --- | --- | --- |
+| `wud.rollback.enable` | `WUD_TRIGGER_DOCKER_{trigger_name}_ROLLBACK` | `false` |
+| `wud.rollback.window` | `WUD_TRIGGER_DOCKER_{trigger_name}_ROLLBACKWINDOW` | `300000` |
+| `wud.rollback.interval` | `WUD_TRIGGER_DOCKER_{trigger_name}_ROLLBACKINTERVAL` | `10000` |
+| `wud.rollback.grace` | `WUD_TRIGGER_DOCKER_{trigger_name}_ROLLBACKGRACE` | `10000` |
+
+### HEALTHCHECK vs grace period
+
+WUD distinguishes two cases when validating the replacement:
+
+- **The image defines a `HEALTHCHECK`**: WUD waits up to `ROLLBACKWINDOW` ms for
+  the container to report `healthy` or `unhealthy` (sampling every
+  `ROLLBACKINTERVAL` ms). `unhealthy`, a crash, or a window exhaustion all
+  trigger the rollback.
+- **The image defines no `HEALTHCHECK`**: there is no health signal, so WUD falls
+  back to a **liveness smoke test**: the replacement must stay up for
+  `ROLLBACKGRACE` ms. It is accepted only if it is still running at the end of
+  the grace period; a crash during the grace period rolls back.
+
+Transient Docker Engine inspection errors are retried and never produce a verdict
+on their own; only an observed exit or a container that stays uninspectable for
+the whole window/grace is treated as a crash.
+
+:::warning
+A container started with `AutoRemove` cannot be archived, so the automatic
+rollback is skipped for it (WUD logs a warning and proceeds without a rollback
+safety net).
+:::
+
+:::info
+When at least one container is updated through a Docker Compose project, the
+rollback coordination is handled at the project level — see the
+[Docker Compose trigger](../docker-compose/README.md#-automatic-rollback-on-healthcheck-failure).
+:::
+
+### Example
+
+<Tabs>
+  <TabItem value="Compose" label="Docker Compose" default>
+
+```yaml
+services:
+  wud:
+    image: getwud/wud
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WUD_TRIGGER_DOCKER_LOCAL_ROLLBACK=true
+      - WUD_TRIGGER_DOCKER_LOCAL_ROLLBACKWINDOW=300000
+      - WUD_TRIGGER_DOCKER_LOCAL_ROLLBACKGRACE=15000
+```
+
+  </TabItem>
+  <TabItem value="Docker run" label="Docker run">
+
+```bash
+docker run -d \
+  --name wud \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -e WUD_TRIGGER_DOCKER_LOCAL_ROLLBACK=true \
+  -e WUD_TRIGGER_DOCKER_LOCAL_ROLLBACKWINDOW=300000 \
+  -e WUD_TRIGGER_DOCKER_LOCAL_ROLLBACKGRACE=15000 \
+  getwud/wud
+```
+
+  </TabItem>
+</Tabs>
+
+Label equivalent on a monitored container:
+
+```yaml
+services:
+  web:
+    image: my/web:2.0.0
+    labels:
+      - wud.rollback.enable=true
+      - wud.rollback.window=120000
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost/health']
+      interval: 5s
+      timeout: 3s
+      retries: 3
 ```
 
 ---

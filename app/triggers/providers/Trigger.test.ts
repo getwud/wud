@@ -718,3 +718,81 @@ test('handleContainerReports should filter out digest updates when ondigest is f
 
     expect(triggerBatchSpy).toHaveBeenCalledWith([tagContainer]);
 });
+
+describe('rollback notifications', () => {
+    test('triggerRollback should be a no-op by default', async () => {
+        const report = {
+            scope: 'container',
+            container: { name: 'test' },
+            status: 'succeeded',
+        };
+        await expect(trigger.triggerRollback(report)).resolves.toBeUndefined();
+    });
+
+    test('notifiesContainerRollback should be true for notification triggers', () => {
+        trigger.type = 'slack';
+        expect(trigger.notifiesContainerRollback()).toBe(true);
+    });
+
+    test.each(['docker', 'dockercompose', 'nomad'])(
+        'notifiesContainerRollback should be false for the %s trigger',
+        (type) => {
+            trigger.type = type;
+            expect(trigger.notifiesContainerRollback()).toBe(false);
+        },
+    );
+
+    test('handleContainerRollback should forward the report to triggerRollback', async () => {
+        trigger.type = 'slack';
+        const spy = jest
+            .spyOn(trigger, 'triggerRollback')
+            .mockResolvedValue(undefined);
+        const report = {
+            scope: 'container',
+            container: { name: 'test' },
+            status: 'succeeded',
+        };
+        await trigger.handleContainerRollback(report);
+        expect(spy).toHaveBeenCalledWith(report);
+    });
+
+    test('handleContainerRollback should swallow notification errors', async () => {
+        trigger.type = 'slack';
+        jest.spyOn(trigger, 'triggerRollback').mockRejectedValue(
+            new Error('boom'),
+        );
+        await expect(
+            trigger.handleContainerRollback({
+                scope: 'container',
+                status: 'succeeded',
+            }),
+        ).resolves.toBeUndefined();
+    });
+
+    test('renderRollbackTitle/Body should describe a successful rollback', () => {
+        const report = {
+            scope: 'container',
+            container: { name: 'web' },
+            oldImageRef: 'test/web:1.0.0',
+            newImageRef: 'test/web:2.0.0',
+            reason: 'unhealthy',
+            status: 'succeeded',
+        };
+        expect(trigger.renderRollbackTitle(report)).toContain('web');
+        expect(trigger.renderRollbackBody(report)).toContain('test/web:1.0.0');
+        expect(trigger.renderRollbackBody(report)).toContain('unhealthy');
+    });
+
+    test('renderRollbackTitle/Body should describe a failed rollback', () => {
+        const report = {
+            scope: 'container',
+            container: { name: 'web' },
+            status: 'failed',
+            error: { step: 'S3', message: 'rename failed' },
+            archiveName: 'web-wud-old-123',
+        };
+        expect(trigger.renderRollbackTitle(report)).toContain('FAILED');
+        expect(trigger.renderRollbackBody(report)).toContain('S3');
+        expect(trigger.renderRollbackBody(report)).toContain('web-wud-old-123');
+    });
+});

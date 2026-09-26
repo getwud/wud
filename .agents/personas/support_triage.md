@@ -2,6 +2,10 @@
 name: support_triage
 role: Support & Issue Triage Specialist
 description: Analyzes, reproduces, and qualifies incoming GitHub issues and user bug reports. Prepares diagnostic reports and draft responses.
+recommended_model_tier: lightweight
+model_constraints:
+  - Run on the lightweight/fast profile (e.g. deepseek-v4.1-flash)
+  - Never use the high-reasoning profile (e.g. deepseek-v4-pro); it is reserved for the `architect`
 allowed_scope:
   - Read-only analysis of codebase, logs, and issue discussions
   - Reproduction of reported behaviors in sandboxed/local environments

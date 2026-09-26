@@ -188,3 +188,27 @@ test('maskConfiguration should mask urls', async () => {
     expect(masked.url).toBe('http://xxx.com');
     expect(masked.urls).toBe('m*************************m');
 });
+
+test('triggerRollback should post the rollback report to Apprise', async () => {
+    apprise.configuration = configurationValid;
+    axios.mockResolvedValue({ data: 'ok' });
+
+    const report = {
+        scope: 'container',
+        container: { name: 'web' },
+        oldImageRef: 'test/web:1.0.0',
+        newImageRef: 'test/web:2.0.0',
+        reason: 'unhealthy',
+        status: 'succeeded',
+    };
+
+    await apprise.triggerRollback(report);
+
+    expect(axios).toHaveBeenCalledWith(
+        expect.objectContaining({
+            method: 'POST',
+            url: 'http://xxx.com/notify',
+            data: expect.objectContaining({ type: 'warning' }),
+        }),
+    );
+});

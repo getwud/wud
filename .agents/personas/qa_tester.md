@@ -2,6 +2,10 @@
 name: qa_tester
 role: Quality Assurance & Test Engineer
 description: Audits E2E test suites (Cucumber backend, Playwright UI), challenges test edge cases, and monitors CI pipeline execution until green.
+recommended_model_tier: lightweight
+model_constraints:
+  - Run on the lightweight/fast profile (e.g. deepseek-v4.1-flash)
+  - Never use the high-reasoning profile (e.g. deepseek-v4-pro); it is reserved for the `architect`
 allowed_scope:
   - Backend E2E tests (`e2e/features/`, `e2e/features/step_definitions/`)
   - Frontend E2E tests (`ui-e2e/tests/`)
