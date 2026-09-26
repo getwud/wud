@@ -66,6 +66,26 @@ class Gotify extends Trigger {
             priority: this.configuration.priority,
         });
     }
+
+    /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Send a rollback notification to Gotify.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<*>}
+     */
+    async triggerRollback(rollbackReport) {
+        return this.client.message.createMessage({
+            title: this.renderRollbackTitle(rollbackReport),
+            message: this.renderRollbackBody(rollbackReport),
+            priority: this.configuration.priority,
+        });
+    }
 }
 
 export default Gotify;

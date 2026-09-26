@@ -106,6 +106,34 @@ class Ntfy extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Send a rollback notification to Ntfy.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<*>}
+     */
+    async triggerRollback(rollbackReport) {
+        const body = {
+            topic: this.configuration.topic,
+            title: this.renderRollbackTitle(rollbackReport),
+            message: this.renderRollbackBody(rollbackReport),
+            priority: this.configuration.priority,
+        };
+        if (this.configuration.tags && this.configuration.tags.length > 0) {
+            body.tags = this.configuration.tags;
+        }
+        if (this.configuration.icon) {
+            body.icon = this.configuration.icon;
+        }
+        return this.sendHttpRequest(body);
+    }
+
+    /**
      * Send http request to Ntfy.
      * @param body
      * @returns {Promise<*>}

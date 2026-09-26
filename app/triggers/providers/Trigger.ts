@@ -12,6 +12,8 @@ export interface TriggerConfiguration extends ComponentConfiguration {
     simpletitle?: string;
     simplebody?: string;
     batchtitle?: string;
+    rollbacktitle?: string;
+    rollbackbody?: string;
     includebydefault?: boolean;
     ondigest?: boolean;
     rollback?: boolean;
@@ -67,6 +69,16 @@ function renderBatch(template: string, containers: Container[]) {
  */
 class Trigger extends Component {
     public configuration: TriggerConfiguration = {};
+
+    /**
+     * Default rollback notification templates. Kept as explicit constants so the
+     * rendered output stays byte-identical to the pre-template implementation.
+     */
+    static readonly DEFAULT_ROLLBACK_TITLE =
+        "Rollback${status === 'failed' ? ' FAILED for ' : ' of '}${name}${status !== 'failed' && reason ? ' (' + reason + ')' : ''}";
+
+    static readonly DEFAULT_ROLLBACK_BODY =
+        "${status === 'failed' ? 'Rollback of ' + name + ' failed at step ' + (error_step || 'unknown') + ': ' + (error_message || '') + (archiveName ? '\\nThe previous container is kept as ' + archiveName + ' for manual recovery.' : '') : 'Container ' + name + ' was rolled back from ' + (newImageRef || 'the new image') + ' to ' + (oldImageRef || 'the previous image') + ' (reason: ' + (reason || 'unknown') + ').' + (servicesText ? '\\n' + servicesText : '')}";
 
     /**
      * Return true if update reaches trigger threshold.
@@ -359,9 +371,11 @@ class Trigger extends Component {
             this.log.info(`Registering for manual execution`);
         }
 
-        // Rollback notification plumbing: only notification triggers subscribe,
-        // so a rollback can never re-enter the update loop (PM §7).
-        if (this.notifiesContainerRollback()) {
+        // Rollback notification plumbing: only triggers that explicitly declare
+        // rollback-notification support subscribe; the mutating triggers
+        // (docker, dockercompose, nomad) keep the base `false` so a rollback can
+        // never re-enter the update loop (PM §7, blueprint §9).
+        if (this.supportsRollbackNotifications()) {
             event.registerContainerRollback(async (rollbackReport) =>
                 this.handleContainerRollback(rollbackReport),
             );
@@ -369,11 +383,12 @@ class Trigger extends Component {
     }
 
     /**
-     * Whether this trigger should receive rollback notifications.
-     * Mutating triggers (docker, dockercompose, nomad) must never subscribe.
+     * Whether this trigger implements rollback notifications.
+     * Positive, overridable capability: the base default is `false`, so a
+     * notification trigger must opt in explicitly (blueprint §9).
      */
-    notifiesContainerRollback(): boolean {
-        return !['docker', 'dockercompose', 'nomad'].includes(this.type);
+    supportsRollbackNotifications(): boolean {
+        return false;
     }
 
     /**
@@ -446,6 +461,12 @@ class Trigger extends Component {
             batchtitle: this.joi
                 .string()
                 .default('${containers.length} updates available'),
+            rollbacktitle: this.joi
+                .string()
+                .default(Trigger.DEFAULT_ROLLBACK_TITLE),
+            rollbackbody: this.joi
+                .string()
+                .default(Trigger.DEFAULT_ROLLBACK_BODY),
             includebydefault: this.joi.boolean(),
             ondigest: this.joi.boolean(),
         });
@@ -569,9 +590,95 @@ class Trigger extends Component {
     }
 
     /**
+     * Build the strict-typed render context for rollback notification templates
+     * (blueprint §9.4).
+     */
+    private buildRollbackContext(rollbackReport: RollbackReport) {
+        const name =
+            rollbackReport.container?.name ||
+            rollbackReport.composeFile ||
+            'container';
+        const services = rollbackReport.services || [];
+        const servicesText = services
+            .map(
+                (service) =>
+                    `- ${service.containerName}: ${service.verdict} (${service.reason})`,
+            )
+            .join('\n');
+        return {
+            name,
+            scope: rollbackReport.scope,
+            status: rollbackReport.status,
+            reason: rollbackReport.reason,
+            oldImageRef: rollbackReport.oldImageRef,
+            newImageRef: rollbackReport.newImageRef,
+            archiveName: rollbackReport.archiveName,
+            error_step: rollbackReport.error?.step,
+            error_message: rollbackReport.error?.message,
+            services,
+            servicesText,
+            container: rollbackReport.container,
+        };
+    }
+
+    /**
+     * Evaluate a rollback notification template with the rollback context.
+     */
+    renderRollbackTemplate(
+        template: string,
+        rollbackReport: RollbackReport,
+    ): string {
+        const {
+            name,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            scope,
+            status,
+            reason,
+            oldImageRef,
+            newImageRef,
+            archiveName,
+            error_step,
+            error_message,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            services,
+            servicesText,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            container,
+        } = this.buildRollbackContext(rollbackReport);
+
+        return eval('`' + template + '`');
+    }
+
+    /**
      * Human-readable subject for a rollback notification.
+     * Uses the configurable `rollbacktitle` template, falling back to the
+     * original hardcoded string when no template is configured.
      */
     renderRollbackTitle(rollbackReport: RollbackReport): string {
+        const template = this.configuration.rollbacktitle;
+        if (!template) {
+            return this.defaultRollbackTitle(rollbackReport);
+        }
+        return this.renderRollbackTemplate(template, rollbackReport);
+    }
+
+    /**
+     * Human-readable body for a rollback notification.
+     * Uses the configurable `rollbackbody` template, falling back to the
+     * original hardcoded string when no template is configured.
+     */
+    renderRollbackBody(rollbackReport: RollbackReport): string {
+        const template = this.configuration.rollbackbody;
+        if (!template) {
+            return this.defaultRollbackBody(rollbackReport);
+        }
+        return this.renderRollbackTemplate(template, rollbackReport);
+    }
+
+    /**
+     * Historic hardcoded rollback title (kept as the byte-identical fallback).
+     */
+    private defaultRollbackTitle(rollbackReport: RollbackReport): string {
         const target =
             rollbackReport.container?.name ||
             rollbackReport.composeFile ||
@@ -586,9 +693,9 @@ class Trigger extends Component {
     }
 
     /**
-     * Human-readable body for a rollback notification.
+     * Historic hardcoded rollback body (kept as the byte-identical fallback).
      */
-    renderRollbackBody(rollbackReport: RollbackReport): string {
+    private defaultRollbackBody(rollbackReport: RollbackReport): string {
         const target =
             rollbackReport.container?.name ||
             rollbackReport.composeFile ||

@@ -40,7 +40,11 @@ beforeEach(async () => {
 test('validateConfiguration should return validated configuration when valid', async () => {
     const validatedConfiguration =
         trigger.validateConfiguration(configurationValid);
-    expect(validatedConfiguration).toStrictEqual(configurationValid);
+    expect(validatedConfiguration).toStrictEqual({
+        ...configurationValid,
+        rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+        rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
+    });
 });
 
 test('validateConfiguration should throw error when invalid', async () => {
@@ -729,18 +733,86 @@ describe('rollback notifications', () => {
         await expect(trigger.triggerRollback(report)).resolves.toBeUndefined();
     });
 
-    test('notifiesContainerRollback should be true for notification triggers', () => {
-        trigger.type = 'slack';
-        expect(trigger.notifiesContainerRollback()).toBe(true);
+    test('supportsRollbackNotifications should be false by default', () => {
+        expect(trigger.supportsRollbackNotifications()).toBe(false);
     });
 
-    test.each(['docker', 'dockercompose', 'nomad'])(
-        'notifiesContainerRollback should be false for the %s trigger',
-        (type) => {
-            trigger.type = type;
-            expect(trigger.notifiesContainerRollback()).toBe(false);
-        },
-    );
+    test('supportsRollbackNotifications should be false for mutating triggers', () => {
+        const mutating = new Trigger();
+        mutating.type = 'docker';
+        expect(mutating.supportsRollbackNotifications()).toBe(false);
+    });
+
+    test('renderRollbackTitle/Body should fall back to the historic strings', () => {
+        trigger.configuration = {};
+        const report = {
+            scope: 'container',
+            container: { name: 'web' },
+            oldImageRef: 'test/web:1.0.0',
+            newImageRef: 'test/web:2.0.0',
+            reason: 'unhealthy',
+            status: 'succeeded',
+        };
+        expect(trigger.renderRollbackTitle(report)).toBe(
+            'Rollback of web (unhealthy)',
+        );
+        expect(trigger.renderRollbackBody(report)).toBe(
+            'Container web was rolled back from test/web:2.0.0 to test/web:1.0.0 (reason: unhealthy).',
+        );
+    });
+
+    test('rollback templates should render byte-identical default output', () => {
+        const validated = trigger.validateConfiguration({});
+        trigger.configuration = validated;
+        const success = {
+            scope: 'container',
+            container: { name: 'web' },
+            oldImageRef: 'test/web:1.0.0',
+            newImageRef: 'test/web:2.0.0',
+            reason: 'unhealthy',
+            status: 'succeeded',
+        };
+        expect(trigger.renderRollbackTitle(success)).toBe(
+            'Rollback of web (unhealthy)',
+        );
+        expect(trigger.renderRollbackBody(success)).toBe(
+            'Container web was rolled back from test/web:2.0.0 to test/web:1.0.0 (reason: unhealthy).',
+        );
+
+        const failed = {
+            scope: 'container',
+            container: { name: 'web' },
+            status: 'failed',
+            error: { step: 'S3', message: 'rename failed' },
+            archiveName: 'web-wud-old-123',
+        };
+        expect(trigger.renderRollbackTitle(failed)).toBe(
+            'Rollback FAILED for web',
+        );
+        expect(trigger.renderRollbackBody(failed)).toBe(
+            'Rollback of web failed at step S3: rename failed\nThe previous container is kept as web-wud-old-123 for manual recovery.',
+        );
+    });
+
+    test('rollback templates should be overridable via configuration', () => {
+        trigger.configuration = {
+            rollbacktitle: 'RB ${status} ${name}',
+            rollbackbody:
+                'old=${oldImageRef} new=${newImageRef} reason=${reason}',
+        };
+        const report = {
+            scope: 'container',
+            container: { name: 'web' },
+            oldImageRef: 'test/web:1.0.0',
+            newImageRef: 'test/web:2.0.0',
+            reason: 'unhealthy',
+            status: 'succeeded',
+        };
+        expect(trigger.renderRollbackTitle(report)).toBe('RB succeeded web');
+        expect(trigger.renderRollbackBody(report)).toBe(
+            'old=test/web:1.0.0 new=test/web:2.0.0 reason=unhealthy',
+        );
+    });
 
     test('handleContainerRollback should forward the report to triggerRollback', async () => {
         trigger.type = 'slack';

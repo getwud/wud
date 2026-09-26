@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { ValidationError } from 'joi';
 import Smtp from './Smtp';
+import Trigger from '../Trigger';
 import pino from 'pino';
 
 const log = pino({ name: 'Smtp.Tests' });
@@ -30,8 +31,9 @@ const configurationValid = {
         'Container ${container.name} running with ${container.updateKind.kind} ${container.updateKind.localValue} can be updated to ${container.updateKind.kind} ${container.updateKind.remoteValue}${container.result && container.result.link ? "\\n" + container.result.link : ""}',
 
     batchtitle: '${containers.length} updates available',
+    rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+    rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
 };
-
 test('validateConfiguration should return validated configuration when valid', async () => {
     const validatedConfiguration =
         smtp.validateConfiguration(configurationValid);

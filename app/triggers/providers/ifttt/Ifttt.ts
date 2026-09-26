@@ -56,6 +56,26 @@ class Ifttt extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Send a rollback notification to the Ifttt Webhook.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<*>}
+     */
+    async triggerRollback(rollbackReport) {
+        return this.sendHttpRequest({
+            value1: this.renderRollbackTitle(rollbackReport),
+            value2: this.renderRollbackBody(rollbackReport),
+            value3: JSON.stringify(rollbackReport),
+        });
+    }
+
+    /**
      * Send http request to ifttt.
      * @param body
      * @returns {Promise<*>}

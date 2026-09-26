@@ -78,6 +78,33 @@ class Homeassistant extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Notify Home Assistant via webhook with rollback details.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<*>}
+     */
+    async triggerRollback(rollbackReport) {
+        const title = this.configuration.disabletitle
+            ? ''
+            : this.renderRollbackTitle(rollbackReport);
+        const message = this.renderRollbackBody(rollbackReport);
+
+        return this.sendWebhook({
+            event: this.configuration.event,
+            mode: 'rollback',
+            title,
+            message,
+            rollbackReport,
+        });
+    }
+
+    /**
      * Send HTTP POST to Home Assistant webhook.
      * @param {Object} payload
      * @returns {Promise<*>}

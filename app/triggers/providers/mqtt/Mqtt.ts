@@ -227,6 +227,13 @@ class Mqtt extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
      * Publish a rollback report on the `<topic>/rollback` MQTT topic.
      * @param rollbackReport the rollback report
      */

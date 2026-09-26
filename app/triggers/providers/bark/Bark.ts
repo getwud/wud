@@ -66,6 +66,26 @@ class Bark extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Notify Bark with rollback details.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<*>}
+     */
+    async triggerRollback(rollbackReport) {
+        const title = this.configuration.disabletitle
+            ? ''
+            : this.renderRollbackTitle(rollbackReport);
+        const body = this.renderRollbackBody(rollbackReport);
+        return this.sendMessage(title, body);
+    }
+
+    /**
      * Send push notification via Bark API.
      * @param {string} title
      * @param {string} bodyText

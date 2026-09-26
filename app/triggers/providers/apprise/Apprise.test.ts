@@ -4,6 +4,7 @@ import axios from 'axios';
 
 jest.mock('axios');
 import Apprise from './Apprise';
+import Trigger from '../Trigger';
 
 const apprise = new Apprise();
 
@@ -31,7 +32,11 @@ beforeEach(async () => {
 test('validateConfiguration should return validated configuration when valid', async () => {
     const validatedConfiguration =
         apprise.validateConfiguration(configurationValid);
-    expect(validatedConfiguration).toStrictEqual(configurationValid);
+    expect(validatedConfiguration).toStrictEqual({
+        ...configurationValid,
+        rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+        rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
+    });
 });
 
 test('validateConfiguration should throw error when invalid', async () => {

@@ -65,6 +65,13 @@ class Slack extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
      * Post a rollback notification to the Slack channel.
      * @param rollbackReport the rollback report
      * @returns {Promise<ChatPostMessageResponse>}

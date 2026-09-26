@@ -119,6 +119,29 @@ class Nats extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Publish a rollback report to the NATS subject.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<void>}
+     */
+    async triggerRollback(rollbackReport) {
+        return this.publishMessage({
+            title: this.configuration.disabletitle
+                ? ''
+                : this.renderRollbackTitle(rollbackReport),
+            message: this.renderRollbackBody(rollbackReport),
+            mode: 'rollback',
+            rollbackReport,
+        });
+    }
+
+    /**
      * Drain and close NATS connection on deregistration.
      */
     async deregisterComponent() {

@@ -63,6 +63,13 @@ class Http extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
      * Send the rollback report as an HTTP request.
      */
     async triggerRollback(rollbackReport: RollbackReport) {

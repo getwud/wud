@@ -93,6 +93,13 @@ class Apprise extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
      * Send a rollback notification.
      * @param rollbackReport the rollback report
      * @returns {Promise<*>}

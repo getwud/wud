@@ -8,6 +8,7 @@ import Docker, {
 } from './Docker';
 import { HookManager } from '../../hooks/HookManager';
 import log from '../../../log';
+import Trigger from '../Trigger';
 
 const configurationValid = {
     prune: false,
@@ -133,7 +134,11 @@ beforeEach(async () => {
 test('validateConfiguration should return validated configuration when valid', async () => {
     const validatedConfiguration =
         docker.validateConfiguration(configurationValid);
-    expect(validatedConfiguration).toStrictEqual(configurationValid);
+    expect(validatedConfiguration).toStrictEqual({
+        ...configurationValid,
+        rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+        rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
+    });
 });
 
 test('validateConfiguration should throw error when invalid', async () => {

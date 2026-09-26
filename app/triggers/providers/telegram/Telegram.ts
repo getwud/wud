@@ -3,7 +3,7 @@ import { HttpsProxyAgent } from 'https-proxy-agent';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { Container } from '../../../model/container';
 import { ComponentConfiguration } from '../../../registry/Component';
-import Trigger from '../Trigger';
+import Trigger, { RollbackReport } from '../Trigger';
 
 function createProxyAgent(proxyUrl: string) {
     const { protocol } = new URL(proxyUrl);
@@ -150,6 +150,30 @@ class Telegram extends Trigger {
 
         const title = this.renderBatchTitle(containers);
         const message = `${this.bold(title)}\n\n${body}`;
+        return threadId !== undefined
+            ? this.sendMessage(message, threadId)
+            : this.sendMessage(message);
+    }
+
+    /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    triggerRollback(rollbackReport: RollbackReport) {
+        const threadId = this.getMessageThreadId(rollbackReport.container);
+        const body = this.renderRollbackBody(rollbackReport);
+
+        if (this.configuration.disabletitle) {
+            return threadId !== undefined
+                ? this.sendMessage(body, threadId)
+                : this.sendMessage(body);
+        }
+
+        const title = this.renderRollbackTitle(rollbackReport);
+        const message = `${this.bold(title)}\n\n${this.escapeMarkdown(body)}`;
         return threadId !== undefined
             ? this.sendMessage(message, threadId)
             : this.sendMessage(message);

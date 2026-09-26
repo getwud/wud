@@ -78,6 +78,27 @@ class Signal extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Notify Signal with rollback details.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<*>}
+     */
+    async triggerRollback(rollbackReport) {
+        const body = this.renderRollbackBody(rollbackReport);
+        if (this.configuration.disabletitle) {
+            return this.sendMessage(body);
+        }
+        const title = this.renderRollbackTitle(rollbackReport);
+        return this.sendMessage(`${title}\n\n${body}`);
+    }
+
+    /**
      * Send message via signal-cli REST API /v2/send endpoint.
      * @param {string} text
      * @returns {Promise<*>}

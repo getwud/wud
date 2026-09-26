@@ -121,6 +121,30 @@ class Amqp extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Publish a rollback report to the AMQP broker.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<*>}
+     */
+    async triggerRollback(rollbackReport) {
+        const payload = {
+            title: this.configuration.disabletitle
+                ? ''
+                : this.renderRollbackTitle(rollbackReport),
+            message: this.renderRollbackBody(rollbackReport),
+            mode: 'rollback',
+            rollbackReport,
+        };
+        return this.publishMessage(payload);
+    }
+
+    /**
      * Cleanup AMQP connection on deregistration.
      */
     async deregisterComponent() {

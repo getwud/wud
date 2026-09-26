@@ -69,6 +69,26 @@ class Prowl extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Notify Prowl with rollback details.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<*>}
+     */
+    async triggerRollback(rollbackReport) {
+        const title = this.configuration.disabletitle
+            ? 'Rollback'
+            : this.renderRollbackTitle(rollbackReport);
+        const body = this.renderRollbackBody(rollbackReport);
+        return this.sendMessage(title, body);
+    }
+
+    /**
      * Send push notification via Prowl Public API.
      * @param {string} title - event name
      * @param {string} bodyText - description
