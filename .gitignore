@@ -105,3 +105,7 @@ app/dist/
 dist/
 website/docs/api/reference/
 website/static/openapi.yaml
+
+# Generated OpenHands sub-agents (single source of truth: .agents/personas/)
+# Regenerate with scripts/generate-openhands-agents.sh
+.openhands/agents/
