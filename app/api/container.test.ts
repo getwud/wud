@@ -28,6 +28,7 @@ function createTrigger(type, name, configuration) {
     return {
         type,
         name,
+        configuration,
         maskConfiguration: () => configuration,
     };
 }

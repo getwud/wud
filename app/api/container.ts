@@ -5,7 +5,7 @@ import * as storeContainer from '../store/container';
 import * as registry from '../registry';
 import { getServerConfiguration } from '../configuration';
 import { mapComponentsToList } from './component';
-import Trigger from '../triggers/providers/Trigger';
+import { getAssociatedTriggerIds } from '../triggers/associatedTriggers';
 import { requireRole } from './rbac';
 import logger from '../log';
 const log = logger.child({ component: 'container' });
@@ -143,53 +143,19 @@ export async function getContainerTriggers(req, res) {
 
     const container = storeContainer.getContainer(id);
     if (container) {
-        const allTriggers = mapComponentsToList(getTriggers());
-        const includedTriggers = container.triggerInclude
-            ? container.triggerInclude
-                  .split(/\s*,\s*/)
-                  .map((includedTrigger) =>
-                      Trigger.parseIncludeOrIncludeTriggerString(
-                          includedTrigger,
-                      ),
-                  )
-            : undefined;
-        const excludedTriggers = container.triggerExclude
-            ? container.triggerExclude
-                  .split(/\s*,\s*/)
-                  .map((excludedTrigger) =>
-                      Trigger.parseIncludeOrIncludeTriggerString(
-                          excludedTrigger,
-                      ),
-                  )
-            : undefined;
-        const associatedTriggers = [];
-        allTriggers.forEach((trigger) => {
-            const triggerToAssociate = { ...trigger };
-            let associated = trigger.configuration?.includebydefault !== false;
-            if (includedTriggers) {
-                const includedTrigger = includedTriggers.find(
-                    (tr) => tr.id === trigger.id,
-                );
-                if (includedTrigger) {
-                    associated = true;
-                    triggerToAssociate.configuration.threshold =
-                        includedTrigger.threshold;
-                } else {
-                    associated = false;
+        const associatedTriggerIds = getAssociatedTriggerIds(container);
+        const associatedTriggers = mapComponentsToList(getTriggers())
+            .filter((trigger) => associatedTriggerIds.has(trigger.id))
+            .map((trigger) => {
+                const threshold = associatedTriggerIds.get(trigger.id);
+                if (threshold === undefined) {
+                    return trigger;
                 }
-            }
-            if (
-                excludedTriggers &&
-                excludedTriggers
-                    .map((excludedTrigger) => excludedTrigger.id)
-                    .includes(trigger.id)
-            ) {
-                associated = false;
-            }
-            if (associated) {
-                associatedTriggers.push(triggerToAssociate);
-            }
-        });
+                return {
+                    ...trigger,
+                    configuration: { ...trigger.configuration, threshold },
+                };
+            });
         res.status(200).json(associatedTriggers);
     } else {
         res.sendStatus(404);

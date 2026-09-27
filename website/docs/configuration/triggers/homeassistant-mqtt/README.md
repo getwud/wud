@@ -55,14 +55,36 @@ Containers are exposed in Home Assistant as native **`update` entities** (e.g. `
 - **Installed Version**: Displays the current image tag (or digest).
 - **Latest Version**: Displays the available update tag (or truncated digest for digest-based updates).
 - **Update Action ("Install" button)**: When clicking **Install** on an update entity in Home Assistant, an MQTT command is sent to WUD via `command_topic` (`{topic}/{watcher}/{container}/install` with payload `INSTALL`).
-- **In-Progress State**: WUD sets `in_progress: true` while the update runs, triggers your configured update triggers (such as `docker` or `docker-compose`), and resets `in_progress: false` once completed.
+- **In-Progress State**: WUD sets `in_progress: true` while the update runs, triggers the update trigger associated with the container (see below), and resets `in_progress: false` once completed.
 
 :::tip[Requirements for One-Click Install]
-To enable the **Install** button to perform container updates, make sure you have configured an update trigger such as:
+To enable the **Install** button to perform container updates, make sure you have configured an update-capable trigger such as:
 
 - [Docker Trigger](../docker/README.md) for standalone containers.
 - [Docker Compose Trigger](../docker-compose/README.md) for compose stacks.
+- [Command Trigger](../command/README.md) to run a custom update script (e.g. a wrapper that decrypts secrets before recreating the container).
+- [Nomad Trigger](../nomad/README.md) for Nomad-orchestrated containers.
 
+:::
+
+#### Choosing which trigger the Install button runs
+
+The Install button fires exactly one associated trigger per container, the same one the web UI's own **Update** dialog would default to: it prefers a `docker`/`docker-compose` trigger when one is associated with the container, otherwise it falls back to whichever other update-capable trigger (`command`, `nomad`) is associated.
+
+"Associated" honors the same [`wud.trigger.include` / `wud.trigger.exclude` container labels](../../watchers/labels.md) used everywhere else in WUD. This matters if the built-in `docker`/`docker-compose` update logic isn't correct for a given container — for example, a compose stack that needs a custom script to decrypt secrets before running `docker compose up -d`. In that case, associate a [Command Trigger](../command/README.md) with the container and exclude the default `docker`/`docker-compose` trigger so the Install button runs your script instead:
+
+```yaml
+services:
+  my-app:
+    image: my-app
+    labels:
+      - wud.trigger.exclude=dockercompose.default
+```
+
+With that label, the Install button (and the web UI's Update dialog) will resolve to the container's `command` trigger instead of the excluded `dockercompose.default` trigger.
+
+:::note[Multiple associated triggers of the same priority]
+If a container ends up with more than one non-`docker`/`docker-compose` trigger associated at once (e.g. two `command` triggers, neither excluded), the Install button picks whichever one sorts first alphabetically by `{type}.{name}` — the same tie-break the web UI's Update dialog uses. This is a deterministic rule, but not necessarily an obvious one, so if you have more than one candidate trigger for a container, use `wud.trigger.include`/`wud.trigger.exclude` to name the one you want explicitly rather than relying on alphabetical ordering.
 :::
 
 ### 📦 Device Topology (Per-Watcher Devices)
