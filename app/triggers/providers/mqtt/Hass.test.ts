@@ -761,4 +761,46 @@ describe('handleInstallCommand', () => {
         expect(commandTriggerMock.trigger).not.toHaveBeenCalled();
         expect(smtpTriggerMock.trigger).not.toHaveBeenCalled();
     });
+
+    test('must break a tie between two equally-associated command triggers by (type, name), not registration order', async () => {
+        const mockContainer = {
+            id: '1234567890ab',
+            name: 'my-app',
+            displayName: 'my-app',
+            watcher: 'watcher-name',
+        };
+        jest.spyOn(containerStore, 'getContainers').mockReturnValue([
+            mockContainer,
+        ]);
+        jest.spyOn(containerStore, 'getContainer').mockReturnValue(
+            mockContainer,
+        );
+
+        const testfix2Mock = {
+            type: 'command',
+            name: 'testfix2',
+            trigger: jest.fn().mockResolvedValue(undefined),
+        };
+        const testfixMock = {
+            type: 'command',
+            name: 'testfix',
+            trigger: jest.fn().mockResolvedValue(undefined),
+        };
+        // Registered out of alphabetical order on purpose, mirroring the
+        // registry's actual (registration-order) iteration order rather
+        // than declaration order, to prove the tie-break sorts rather than
+        // just taking whichever key comes first in the object literal.
+        registry.getState().trigger = {
+            'command.testfix2': testfix2Mock,
+            'command.testfix': testfixMock,
+        };
+
+        await messageHandler(
+            'topic/watcher-name/my-app/install',
+            Buffer.from('INSTALL'),
+        );
+
+        expect(testfixMock.trigger).toHaveBeenCalledWith(mockContainer);
+        expect(testfix2Mock.trigger).not.toHaveBeenCalled();
+    });
 });

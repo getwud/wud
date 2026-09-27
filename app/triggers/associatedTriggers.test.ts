@@ -1,5 +1,6 @@
 import {
     getAssociatedTriggerIds,
+    sortTriggersByTypeAndName,
     UPDATE_TRIGGER_TYPES,
 } from './associatedTriggers';
 import * as registry from '../registry';
@@ -81,5 +82,33 @@ describe('getAssociatedTriggerIds', () => {
         });
 
         expect(associated.get('command.deploy')).toBe('minor');
+    });
+});
+
+describe('sortTriggersByTypeAndName', () => {
+    test('sorts by type, then by name within a type, regardless of input order', () => {
+        const sorted = sortTriggersByTypeAndName([
+            { type: 'command', name: 'testfix2' },
+            { type: 'docker', name: 'default' },
+            { type: 'command', name: 'testfix' },
+        ]);
+
+        expect(sorted).toEqual([
+            { type: 'command', name: 'testfix' },
+            { type: 'command', name: 'testfix2' },
+            { type: 'docker', name: 'default' },
+        ]);
+    });
+
+    test('does not mutate the input array', () => {
+        const input = [
+            { type: 'command', name: 'b' },
+            { type: 'command', name: 'a' },
+        ];
+        const inputCopy = [...input];
+
+        sortTriggersByTypeAndName(input);
+
+        expect(input).toEqual(inputCopy);
     });
 });

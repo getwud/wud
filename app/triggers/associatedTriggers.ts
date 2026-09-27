@@ -1,3 +1,4 @@
+import { byValues, byString } from 'sort-es';
 import * as registry from '../registry';
 import { Container } from '../model/container';
 import Trigger from './providers/Trigger';
@@ -70,4 +71,29 @@ export function getAssociatedTriggerIds(
         }
     });
     return associated;
+}
+
+/**
+ * Sort triggers by (type, name), matching `mapComponentsToList` in
+ * `app/api/component.ts` (the ordering `GET /:id/triggers` returns, and
+ * therefore the order the web UI's Update dialog dropdown lists them and
+ * defaults its selection from).
+ *
+ * Anything that needs to break a tie between several equally-associated
+ * update-capable triggers (e.g. the Home Assistant install handler falling
+ * back when no docker/dockercompose trigger is associated) must sort with
+ * this first - the trigger registry itself has no guaranteed order (it
+ * reflects component registration order, not configuration order), so
+ * picking an unsorted "first" trigger is non-deterministic and can disagree
+ * with what the web UI would have defaulted to for the same container.
+ */
+export function sortTriggersByTypeAndName<
+    T extends { type: string; name: string },
+>(triggers: T[]): T[] {
+    return [...triggers].sort(
+        byValues([
+            [(trigger: T) => trigger.type, byString()],
+            [(trigger: T) => trigger.name, byString()],
+        ]),
+    );
 }

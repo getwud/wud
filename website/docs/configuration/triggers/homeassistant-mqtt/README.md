@@ -83,6 +83,10 @@ services:
 
 With that label, the Install button (and the web UI's Update dialog) will resolve to the container's `command` trigger instead of the excluded `dockercompose.default` trigger.
 
+:::note[Multiple associated triggers of the same priority]
+If a container ends up with more than one non-`docker`/`docker-compose` trigger associated at once (e.g. two `command` triggers, neither excluded), the Install button picks whichever one sorts first alphabetically by `{type}.{name}` — the same tie-break the web UI's Update dialog uses. This is a deterministic rule, but not necessarily an obvious one, so if you have more than one candidate trigger for a container, use `wud.trigger.include`/`wud.trigger.exclude` to name the one you want explicitly rather than relying on alphabetical ordering.
+:::
+
 ### 📦 Device Topology (Per-Watcher Devices)
 
 To keep Home Assistant devices organized and clean:
