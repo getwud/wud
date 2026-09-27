@@ -1,7 +1,17 @@
-import { AxiosRequestConfig } from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import { ContainerImage } from '../model/container';
-import Registry from './Registry';
-import { maskProxy } from '../http/proxy';
+import Registry, { getUserAgent } from './Registry';
+import { applyProxyConfig, maskProxy } from '../http/proxy';
+
+/**
+ * A parsed `WWW-Authenticate: Bearer ...` challenge, per the OCI
+ * Distribution Spec / Docker Registry HTTP API V2 auth flow.
+ */
+export interface BearerChallenge {
+    realm?: string;
+    service?: string;
+    scope?: string;
+}
 
 /**
  * Docker Registry V2 Base class.
@@ -316,6 +326,104 @@ export class DockerRegistryV2 extends Registry {
      */
     matchUrlPattern(imageUrl: string, pattern: RegExp): boolean {
         return pattern.test(imageUrl);
+    }
+
+    /**
+     * Parse a `WWW-Authenticate: Bearer realm="...",service="...",scope="..."`
+     * challenge header, as returned by any OCI Distribution Spec-compliant
+     * registry on a 401 response.
+     */
+    static parseBearerChallenge(header?: string): BearerChallenge | undefined {
+        if (!header) {
+            return undefined;
+        }
+        const match = /^\s*Bearer\s+(.*)$/i.exec(header);
+        if (!match) {
+            return undefined;
+        }
+        const challenge: BearerChallenge = {};
+        const paramPattern = /([a-zA-Z0-9_]+)="([^"]*)"/g;
+        let paramMatch = paramPattern.exec(match[1]);
+        while (paramMatch !== null) {
+            const [, key, value] = paramMatch;
+            if (key === 'realm' || key === 'service' || key === 'scope') {
+                challenge[key] = value;
+            }
+            paramMatch = paramPattern.exec(match[1]);
+        }
+        return challenge.realm ? challenge : undefined;
+    }
+
+    /**
+     * Perform the anonymous Bearer token exchange described by the OCI
+     * Distribution Spec / Docker Registry HTTP API V2: probe the registry
+     * for its `WWW-Authenticate` challenge, then fetch a token from the
+     * realm it declares. Used for registries (e.g. docker.elastic.co) that
+     * require a dynamic token even for public, unauthenticated pulls.
+     *
+     * Returns undefined if the registry requires no auth, or if the
+     * exchange fails for any reason.
+     */
+    async getAnonymousBearerToken(
+        image: ContainerImage,
+        registryUrl: string,
+    ): Promise<string | undefined> {
+        const pingConfig: AxiosRequestConfig = applyProxyConfig(
+            {
+                method: 'GET',
+                url: `${registryUrl}/v2/`,
+                headers: { 'User-Agent': getUserAgent() },
+            },
+            this.configuration?.proxy,
+        );
+
+        let challengeHeader: string | undefined;
+        try {
+            await axios(pingConfig);
+            // No 401 raised means no auth is required.
+            return undefined;
+        } catch (error: any) {
+            if (error?.response?.status !== 401) {
+                return undefined;
+            }
+            challengeHeader = error.response.headers?.['www-authenticate'];
+        }
+
+        const challenge =
+            DockerRegistryV2.parseBearerChallenge(challengeHeader);
+        if (!challenge?.realm) {
+            return undefined;
+        }
+
+        const query = new URLSearchParams();
+        if (challenge.service) {
+            query.set('service', challenge.service);
+        }
+        query.set('scope', challenge.scope || `repository:${image.name}:pull`);
+
+        const tokenConfig: AxiosRequestConfig = applyProxyConfig(
+            {
+                method: 'GET',
+                url: `${challenge.realm}?${query.toString()}`,
+                headers: {
+                    Accept: 'application/json',
+                    'User-Agent': getUserAgent(),
+                },
+            },
+            this.configuration?.proxy,
+        );
+
+        try {
+            const response = await axios(tokenConfig);
+            // Most registries return `token`; some (e.g. docker.elastic.co)
+            // non-conformantly return `access_token` instead.
+            return response.data?.token || response.data?.access_token;
+        } catch (error: any) {
+            this.log.warn(
+                `Error when trying to get an anonymous access token (${error.message})`,
+            );
+            return undefined;
+        }
     }
 }
 

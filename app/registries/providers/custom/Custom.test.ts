@@ -1,5 +1,11 @@
+import axiosImport from 'axios';
 import { ContainerImage } from '../../../model/container';
 import Custom from './Custom';
+
+// Mock axios
+jest.mock('axios', () => jest.fn());
+
+const axios = axiosImport as unknown as jest.MockedFunction<typeof axiosImport>;
 
 const custom = new Custom();
 custom.configuration = {
@@ -157,4 +163,65 @@ test('getAuthCredentials should return base64 creds when login/password set in c
 test('getAuthCredentials should return undefined when no login/token/auth set in configuration', async () => {
     custom.configuration = {};
     expect(custom.getAuthCredentials()).toBe(undefined);
+});
+
+describe('anonymous bearer token exchange', () => {
+    beforeEach(() => {
+        custom.configuration = { url: 'https://docker.elastic.co' };
+        jest.clearAllMocks();
+    });
+
+    test('authenticate should exchange the registry challenge for a bearer token when no static credentials are configured', async () => {
+        axios.mockRejectedValueOnce({
+            response: {
+                status: 401,
+                headers: {
+                    'www-authenticate':
+                        'Bearer realm="https://docker-auth.elastic.co/token",service="token-service"',
+                },
+            },
+        });
+        axios.mockResolvedValueOnce({
+            data: { access_token: 'elastic-token' },
+        });
+
+        const image = { name: 'elasticsearch/elasticsearch' } as ContainerImage;
+        const result = await custom.authenticate(image, { headers: {} });
+
+        expect(result.headers.Authorization).toBe('Bearer elastic-token');
+    });
+
+    test('authenticate should not attempt a token exchange when a static token is configured', async () => {
+        custom.configuration = {
+            url: 'https://docker.elastic.co',
+            token: 'static-token',
+        };
+
+        const result = await custom.authenticate(undefined, { headers: {} });
+
+        expect(axios).not.toHaveBeenCalled();
+        expect(result.headers.Authorization).toBe('Bearer static-token');
+    });
+
+    test('authenticate should not attempt a token exchange when static login/password are configured', async () => {
+        custom.configuration = {
+            url: 'https://docker.elastic.co',
+            login: 'login',
+            password: 'password',
+        };
+
+        const result = await custom.authenticate(undefined, { headers: {} });
+
+        expect(axios).not.toHaveBeenCalled();
+        expect(result.headers.Authorization).toBe('Basic bG9naW46cGFzc3dvcmQ=');
+    });
+
+    test('authenticate should leave requestOptions unmodified when the registry requires no auth', async () => {
+        axios.mockResolvedValueOnce({ status: 200 });
+
+        const image = { name: 'foo/bar' } as ContainerImage;
+        const result = await custom.authenticate(image, { headers: {} });
+
+        expect(result.headers.Authorization).toBe(undefined);
+    });
 });
