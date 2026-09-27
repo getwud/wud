@@ -10,6 +10,10 @@ import {
 import { Container, flatten } from '../../../model/container';
 import * as containerStore from '../../../store/container';
 import * as registry from '../../../registry';
+import {
+    getAssociatedTriggerIds,
+    UPDATE_TRIGGER_TYPES,
+} from '../../associatedTriggers';
 import Watcher from '../../../watchers/Watcher';
 import { MqqtConfiguration as MqttConfiguration } from './Mqtt';
 import { Logger } from 'pino';
@@ -543,13 +547,36 @@ class Hass {
                 JSON.stringify({ ...flatten(container), in_progress: true }),
                 { retain: true },
             );
-            const triggers = Object.values(registry.getState().trigger).filter(
-                (trigger) =>
-                    trigger.type === 'docker' ||
-                    trigger.type === 'dockercompose',
-            );
-            for (const trigger of triggers) {
-                await trigger.trigger(container);
+            // Only fire triggers actually associated with this container
+            // (honoring wud.trigger.include/exclude label scoping, same as
+            // the web UI's own Update dialog), and only among trigger types
+            // capable of performing an update. Firing more than one at once
+            // could double-update the container, so pick a single trigger
+            // the same way the UI defaults its dropdown: prefer docker /
+            // dockercompose, otherwise fall back to whichever is associated
+            // (e.g. a command trigger set up as the container's designated
+            // updater).
+            const associatedTriggerIds = getAssociatedTriggerIds(container);
+            const updateTriggers = Object.entries(registry.getState().trigger)
+                .filter(
+                    ([id, trigger]) =>
+                        associatedTriggerIds.has(id) &&
+                        UPDATE_TRIGGER_TYPES.includes(trigger.type),
+                )
+                .map(([, trigger]) => trigger);
+            const updateTrigger =
+                updateTriggers.find(
+                    (trigger) =>
+                        trigger.type === 'docker' ||
+                        trigger.type === 'dockercompose',
+                ) || updateTriggers[0];
+
+            if (updateTrigger) {
+                await updateTrigger.trigger(container);
+            } else {
+                this.log.warn(
+                    `No update trigger (${UPDATE_TRIGGER_TYPES.join('/')}) associated with container ${container.name}; ignoring install command`,
+                );
             }
         } catch (error) {
             this.log.error(
