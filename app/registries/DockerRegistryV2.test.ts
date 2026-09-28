@@ -1,5 +1,11 @@
+import axiosImport from 'axios';
 import { ContainerImage } from '../model/container';
 import DockerRegistryV2 from './DockerRegistryV2';
+
+// Mock axios
+jest.mock('axios', () => jest.fn());
+
+const axios = axiosImport as unknown as jest.MockedFunction<typeof axiosImport>;
 
 class TestRegistry extends DockerRegistryV2 {
     public registryPattern = /^.*\.?testreg\.io$/;
@@ -262,6 +268,173 @@ describe('DockerRegistryV2 base class tests', () => {
         test('should return undefined when no matching credential fields', () => {
             registry.configuration = { url: 'https://testreg.io' };
             expect(registry.getAuthCredentials()).toBeUndefined();
+        });
+    });
+
+    describe('parseBearerChallenge', () => {
+        test('should return undefined when header is missing', () => {
+            expect(DockerRegistryV2.parseBearerChallenge(undefined)).toBe(
+                undefined,
+            );
+        });
+
+        test('should return undefined when header is not a Bearer challenge', () => {
+            expect(
+                DockerRegistryV2.parseBearerChallenge('Basic realm="test"'),
+            ).toBe(undefined);
+        });
+
+        test('should parse realm, service and scope', () => {
+            expect(
+                DockerRegistryV2.parseBearerChallenge(
+                    'Bearer realm="https://auth.example.com/token",service="registry.example.com",scope="repository:foo/bar:pull"',
+                ),
+            ).toEqual({
+                realm: 'https://auth.example.com/token',
+                service: 'registry.example.com',
+                scope: 'repository:foo/bar:pull',
+            });
+        });
+
+        test('should parse realm without scope', () => {
+            expect(
+                DockerRegistryV2.parseBearerChallenge(
+                    'Bearer realm="https://auth.example.com/token",service="registry.example.com"',
+                ),
+            ).toEqual({
+                realm: 'https://auth.example.com/token',
+                service: 'registry.example.com',
+            });
+        });
+
+        test('should return undefined when realm is missing', () => {
+            expect(
+                DockerRegistryV2.parseBearerChallenge(
+                    'Bearer service="registry.example.com"',
+                ),
+            ).toBe(undefined);
+        });
+    });
+
+    describe('getAnonymousBearerToken', () => {
+        const image = { name: 'foo/bar' } as ContainerImage;
+
+        beforeEach(() => {
+            jest.clearAllMocks();
+        });
+
+        test('should return undefined when the registry requires no auth', async () => {
+            axios.mockResolvedValueOnce({ status: 200 });
+
+            const token = await registry.getAnonymousBearerToken(
+                image,
+                'https://registry.example.com',
+            );
+            expect(token).toBe(undefined);
+        });
+
+        test('should return undefined when the ping fails with a non-401 error', async () => {
+            axios.mockRejectedValueOnce({ response: { status: 500 } });
+
+            const token = await registry.getAnonymousBearerToken(
+                image,
+                'https://registry.example.com',
+            );
+            expect(token).toBe(undefined);
+        });
+
+        test('should return undefined when the 401 has no usable challenge', async () => {
+            axios.mockRejectedValueOnce({
+                response: { status: 401, headers: {} },
+            });
+
+            const token = await registry.getAnonymousBearerToken(
+                image,
+                'https://registry.example.com',
+            );
+            expect(token).toBe(undefined);
+        });
+
+        test('should exchange the challenge for a token (token field)', async () => {
+            axios.mockRejectedValueOnce({
+                response: {
+                    status: 401,
+                    headers: {
+                        'www-authenticate':
+                            'Bearer realm="https://auth.example.com/token",service="registry.example.com"',
+                    },
+                },
+            });
+            axios.mockResolvedValueOnce({ data: { token: 'my-token' } });
+
+            const token = await registry.getAnonymousBearerToken(
+                image,
+                'https://registry.example.com',
+            );
+
+            expect(token).toBe('my-token');
+            expect(axios).toHaveBeenNthCalledWith(
+                1,
+                expect.objectContaining({
+                    method: 'GET',
+                    url: 'https://registry.example.com/v2/',
+                    headers: {
+                        'User-Agent': expect.stringMatching(/^wud\/.+/),
+                    },
+                }),
+            );
+            expect(axios).toHaveBeenNthCalledWith(
+                2,
+                expect.objectContaining({
+                    method: 'GET',
+                    url: 'https://auth.example.com/token?service=registry.example.com&scope=repository%3Afoo%2Fbar%3Apull',
+                    headers: {
+                        Accept: 'application/json',
+                        'User-Agent': expect.stringMatching(/^wud\/.+/),
+                    },
+                }),
+            );
+        });
+
+        test('should accept the non-conformant access_token field', async () => {
+            axios.mockRejectedValueOnce({
+                response: {
+                    status: 401,
+                    headers: {
+                        'www-authenticate':
+                            'Bearer realm="https://docker-auth.elastic.co/token",service="token-service"',
+                    },
+                },
+            });
+            axios.mockResolvedValueOnce({
+                data: { access_token: 'elastic-token' },
+            });
+
+            const token = await registry.getAnonymousBearerToken(
+                image,
+                'https://docker.elastic.co',
+            );
+
+            expect(token).toBe('elastic-token');
+        });
+
+        test('should return undefined when the token exchange fails', async () => {
+            axios.mockRejectedValueOnce({
+                response: {
+                    status: 401,
+                    headers: {
+                        'www-authenticate':
+                            'Bearer realm="https://auth.example.com/token",service="registry.example.com"',
+                    },
+                },
+            });
+            axios.mockRejectedValueOnce(new Error('network error'));
+
+            const token = await registry.getAnonymousBearerToken(
+                image,
+                'https://registry.example.com',
+            );
+            expect(token).toBe(undefined);
         });
     });
 
