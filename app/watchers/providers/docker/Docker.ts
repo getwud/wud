@@ -538,6 +538,7 @@ export class Docker extends Watcher {
                     });
                     const oldStatus = containerFound.status;
                     const oldName = containerFound.name;
+                    const oldDisplayName = containerFound.displayName;
                     let isUpdated = false;
 
                     if (newStatus && oldStatus !== newStatus) {
@@ -547,6 +548,16 @@ export class Docker extends Watcher {
                         );
                         isUpdated = true;
                     }
+
+                    const inspectLabels =
+                        containerInspect.Config?.Labels ||
+                        (containerInspect as any).Labels;
+                    const explicitDisplayName =
+                        inspectLabels?.[wudDisplayName] ||
+                        (inspectLabels === undefined
+                            ? containerFound.labels?.[wudDisplayName]
+                            : undefined);
+
                     if (newName && oldName !== newName) {
                         containerFound.name = newName;
                         logContainer.info(
@@ -554,6 +565,32 @@ export class Docker extends Watcher {
                         );
                         isUpdated = true;
                     }
+
+                    if (explicitDisplayName) {
+                        if (
+                            containerFound.displayName !== explicitDisplayName
+                        ) {
+                            containerFound.displayName = explicitDisplayName;
+                            isUpdated = true;
+                        }
+                    } else if (newName) {
+                        if (
+                            oldName !== newName ||
+                            oldDisplayName === oldName ||
+                            (oldDisplayName !== undefined &&
+                                oldDisplayName !== newName)
+                        ) {
+                            if (containerFound.displayName !== newName) {
+                                containerFound.displayName = newName;
+                                isUpdated = true;
+                            }
+                        }
+                    }
+
+                    if (inspectLabels) {
+                        containerFound.labels = inspectLabels;
+                    }
+
                     if (isUpdated) {
                         storeContainer.updateContainer(containerFound);
                     }
@@ -939,18 +976,49 @@ export class Docker extends Watcher {
                 isUpdated = true;
             }
             const currentContainerName = this.getContainerName(container);
-            if (
-                currentContainerName &&
-                containerInStore.name !== currentContainerName
-            ) {
+            const oldName = containerInStore.name;
+            const oldDisplayName = containerInStore.displayName;
+            if (currentContainerName && oldName !== currentContainerName) {
                 if (this.log && typeof this.log.info === 'function') {
                     this.log.info(
-                        `Container ${containerInStore.id} renamed from ${containerInStore.name} to ${currentContainerName}`,
+                        `Container ${containerInStore.id} renamed from ${oldName} to ${currentContainerName}`,
                     );
                 }
                 containerInStore.name = currentContainerName;
                 isUpdated = true;
             }
+
+            const explicitDisplayName =
+                displayName ||
+                containerLabels[wudDisplayName] ||
+                (container.Labels === undefined &&
+                container.labels === undefined
+                    ? containerInStore.labels?.[wudDisplayName]
+                    : undefined);
+
+            if (explicitDisplayName) {
+                if (containerInStore.displayName !== explicitDisplayName) {
+                    containerInStore.displayName = explicitDisplayName;
+                    isUpdated = true;
+                }
+            } else if (currentContainerName) {
+                if (
+                    oldName !== currentContainerName ||
+                    oldDisplayName === oldName ||
+                    (oldDisplayName !== undefined &&
+                        oldDisplayName !== currentContainerName)
+                ) {
+                    if (containerInStore.displayName !== currentContainerName) {
+                        containerInStore.displayName = currentContainerName;
+                        isUpdated = true;
+                    }
+                }
+            }
+
+            if (container.Labels || container.labels) {
+                containerInStore.labels = containerLabels;
+            }
+
             if (isUpdated) {
                 storeContainer.updateContainer(containerInStore);
             }

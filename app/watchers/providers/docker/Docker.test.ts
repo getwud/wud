@@ -528,6 +528,179 @@ describe('Docker Watcher', () => {
             );
         });
 
+        test('should update container displayName on rename event when displayName was defaulted to old name', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockChildLog = { info: jest.fn() };
+            const mockLog = {
+                child: jest.fn().mockReturnValue(mockChildLog),
+                debug: jest.fn(),
+            };
+            docker.log = mockLog;
+            mockContainer.inspect.mockResolvedValue({
+                Name: '/new-container-name',
+                State: { Status: 'running' },
+            });
+            const existingContainer = {
+                id: 'container123',
+                name: 'old-container-name',
+                displayName: 'old-container-name',
+                status: 'running',
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const event = JSON.stringify({
+                Action: 'rename',
+                Actor: {
+                    ID: 'container123',
+                    Attributes: {
+                        name: 'new-container-name',
+                        oldName: 'old-container-name',
+                    },
+                },
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+
+            expect(existingContainer.name).toBe('new-container-name');
+            expect(existingContainer.displayName).toBe('new-container-name');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: 'container123',
+                    name: 'new-container-name',
+                    displayName: 'new-container-name',
+                }),
+            );
+        });
+
+        test('should not overwrite container displayName on rename event when explicit wud.display.name label exists', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockChildLog = { info: jest.fn() };
+            const mockLog = {
+                child: jest.fn().mockReturnValue(mockChildLog),
+                debug: jest.fn(),
+            };
+            docker.log = mockLog;
+            mockContainer.inspect.mockResolvedValue({
+                Name: '/new-container-name',
+                Config: {
+                    Labels: {
+                        'wud.display.name': 'Custom App',
+                    },
+                },
+                State: { Status: 'running' },
+            });
+            const existingContainer = {
+                id: 'container123',
+                name: 'old-container-name',
+                displayName: 'Custom App',
+                status: 'running',
+                labels: {
+                    'wud.display.name': 'Custom App',
+                },
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const event = JSON.stringify({
+                Action: 'rename',
+                Actor: {
+                    ID: 'container123',
+                    Attributes: {
+                        name: 'new-container-name',
+                        oldName: 'old-container-name',
+                    },
+                },
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+
+            expect(existingContainer.name).toBe('new-container-name');
+            expect(existingContainer.displayName).toBe('Custom App');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: 'container123',
+                    name: 'new-container-name',
+                    displayName: 'Custom App',
+                }),
+            );
+        });
+
+        test('should update container displayName on event when explicit wud.display.name label is updated', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockChildLog = { info: jest.fn() };
+            const mockLog = {
+                child: jest.fn().mockReturnValue(mockChildLog),
+                debug: jest.fn(),
+            };
+            docker.log = mockLog;
+            mockContainer.inspect.mockResolvedValue({
+                Name: '/my-container',
+                Config: {
+                    Labels: {
+                        'wud.display.name': 'Renamed Display',
+                    },
+                },
+                State: { Status: 'running' },
+            });
+            const existingContainer = {
+                id: 'container123',
+                name: 'my-container',
+                displayName: 'my-container',
+                status: 'running',
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const event = JSON.stringify({
+                Action: 'update',
+                Actor: {
+                    ID: 'container123',
+                },
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+
+            expect(existingContainer.displayName).toBe('Renamed Display');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: 'container123',
+                    displayName: 'Renamed Display',
+                }),
+            );
+        });
+
+        test('should heal stale container displayName on event even if name was already updated', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockChildLog = { info: jest.fn() };
+            const mockLog = {
+                child: jest.fn().mockReturnValue(mockChildLog),
+                debug: jest.fn(),
+            };
+            docker.log = mockLog;
+            mockContainer.inspect.mockResolvedValue({
+                Name: '/shlink',
+                State: { Status: 'running' },
+            });
+            const existingContainer = {
+                id: 'container123',
+                name: 'shlink',
+                displayName: '691ce9b22a18_shlink',
+                status: 'running',
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const event = JSON.stringify({
+                Action: 'start',
+                Actor: {
+                    ID: 'container123',
+                },
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+
+            expect(existingContainer.displayName).toBe('shlink');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: 'container123',
+                    displayName: 'shlink',
+                }),
+            );
+        });
+
         test('should update both status and name when both change on event', async () => {
             await docker.register('watcher', 'docker', 'test', {});
             const mockChildLog = { info: jest.fn() };
@@ -1843,6 +2016,183 @@ describe('Docker Watcher', () => {
             );
             expect(mockLog.info).toHaveBeenCalledWith(
                 'Container 123 renamed from temp-name to final-name',
+            );
+            expect(mockDockerApi.getImage).not.toHaveBeenCalled();
+        });
+
+        test('should update container displayName in store when container is renamed during polling', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = { debug: jest.fn(), info: jest.fn() };
+            docker.log = mockLog;
+            const existingContainer = {
+                id: '123',
+                name: 'temp-name',
+                displayName: 'temp-name',
+                result: { tag: '2.0.0' },
+                error: undefined,
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const result = await docker.addImageDetailsToContainer({
+                Id: '123',
+                Names: ['/final-name'],
+            });
+
+            expect(result.name).toBe('final-name');
+            expect(result.displayName).toBe('final-name');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: '123',
+                    name: 'final-name',
+                    displayName: 'final-name',
+                }),
+            );
+            expect(mockDockerApi.getImage).not.toHaveBeenCalled();
+        });
+
+        test('should heal stale displayName with currentContainerName during polling when row has temporary name (issue #1298)', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = { debug: jest.fn(), info: jest.fn() };
+            docker.log = mockLog;
+            const existingContainer = {
+                id: '81df6428fb79',
+                name: 'shlink',
+                displayName: '691ce9b22a18_shlink',
+                watcher: 'test',
+                result: { tag: '2.0.0' },
+                error: undefined,
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const result = await docker.addImageDetailsToContainer({
+                Id: '81df6428fb79',
+                Names: ['/shlink'],
+                Labels: {},
+            });
+
+            expect(result.name).toBe('shlink');
+            expect(result.displayName).toBe('shlink');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: '81df6428fb79',
+                    displayName: 'shlink',
+                }),
+            );
+            expect(mockDockerApi.getImage).not.toHaveBeenCalled();
+        });
+
+        test('should preserve custom displayName during polling when container has explicit wud.display.name label', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = { debug: jest.fn(), info: jest.fn() };
+            docker.log = mockLog;
+            const existingContainer = {
+                id: '123',
+                name: 'temp-name',
+                displayName: 'Custom Display',
+                labels: {
+                    'wud.display.name': 'Custom Display',
+                },
+                result: { tag: '2.0.0' },
+                error: undefined,
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const result = await docker.addImageDetailsToContainer(
+                {
+                    Id: '123',
+                    Names: ['/final-name'],
+                    Labels: {
+                        'wud.display.name': 'Custom Display',
+                    },
+                },
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                'Custom Display',
+            );
+
+            expect(result.name).toBe('final-name');
+            expect(result.displayName).toBe('Custom Display');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: '123',
+                    name: 'final-name',
+                    displayName: 'Custom Display',
+                }),
+            );
+            expect(mockDockerApi.getImage).not.toHaveBeenCalled();
+        });
+
+        test('should update displayName during polling when explicit wud.display.name label changes', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = { debug: jest.fn(), info: jest.fn() };
+            docker.log = mockLog;
+            const existingContainer = {
+                id: '123',
+                name: 'my-app',
+                displayName: 'Old Display',
+                labels: {
+                    'wud.display.name': 'Old Display',
+                },
+                result: { tag: '2.0.0' },
+                error: undefined,
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const result = await docker.addImageDetailsToContainer(
+                {
+                    Id: '123',
+                    Names: ['/my-app'],
+                    Labels: {
+                        'wud.display.name': 'New Display',
+                    },
+                },
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                'New Display',
+            );
+
+            expect(result.displayName).toBe('New Display');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: '123',
+                    displayName: 'New Display',
+                }),
+            );
+            expect(mockDockerApi.getImage).not.toHaveBeenCalled();
+        });
+
+        test('should revert displayName to container name during polling when wud.display.name label is removed', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = { debug: jest.fn(), info: jest.fn() };
+            docker.log = mockLog;
+            const existingContainer = {
+                id: '123',
+                name: 'my-app',
+                displayName: 'Custom Display',
+                labels: {
+                    'wud.display.name': 'Custom Display',
+                },
+                result: { tag: '2.0.0' },
+                error: undefined,
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const result = await docker.addImageDetailsToContainer({
+                Id: '123',
+                Names: ['/my-app'],
+                Labels: {},
+            });
+
+            expect(result.displayName).toBe('my-app');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: '123',
+                    displayName: 'my-app',
+                }),
             );
             expect(mockDockerApi.getImage).not.toHaveBeenCalled();
         });
