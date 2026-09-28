@@ -7,6 +7,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 > Changes below are merged on `main` and will be included in the upcoming release.
 
+- 🐛 [UI] Fix drawer triggers refresh on container change and SSE base path (fixes #1305)
 - 🐛 [UI] Fix container list not updating correctly via SSE events
 - 🐛 [TRIGGER] Home Assistant Install button can now run `command`/`nomad` triggers, not just `docker`/`dockercompose`, and honors each container's `wud.trigger.include`/`wud.trigger.exclude` scoping (see getwud/wud#649)
 - 🐛 [TRIGGER] Fix MQTT connection error logging and trigger status (fixes #1292)
