@@ -48,6 +48,9 @@ function getRegistryProviderIcon(provider: string, registryItem?: any): string {
     case "ecr":
       icon = "si-amazonaws";
       break;
+    case "elastic":
+      icon = "si-elastic";
+      break;
     case "forgejo":
       icon = "si-forgejo";
       break;

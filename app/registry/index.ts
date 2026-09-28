@@ -299,6 +299,7 @@ async function registerRegistries() {
         codeberg: { public: '' },
         docr: { public: '' },
         ecr: { public: '' },
+        elastic: { public: '' },
         forgejo: { public: '' },
         gcr: { public: '' },
         ghcr: { public: '' },
