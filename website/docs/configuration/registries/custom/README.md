@@ -96,6 +96,22 @@ docker run \
 </TabItem>
 </Tabs>
 
+### Anonymous OCI Registry Requiring a Dynamic Token
+
+Some OCI-compliant registries (e.g. `docker.elastic.co`) require an anonymous
+Bearer token even for fully public images. When no `LOGIN`/`PASSWORD`,
+`AUTH`, or `TOKEN` is configured, WUD automatically follows the registry's
+own `WWW-Authenticate` challenge to fetch a short-lived token before pulling
+— no extra configuration is needed.
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    environment:
+      - WUD_REGISTRY_CUSTOM_ELASTIC_URL=https://docker.elastic.co
+```
+
 ### Bearer Token Authentication
 
 Use `TOKEN` when the registry accepts a bearer token directly. Do not combine it

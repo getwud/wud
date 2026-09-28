@@ -73,10 +73,24 @@ class Custom extends DockerRegistryV2 {
                 this.configuration.token,
             );
         }
-        return this.authenticateBasic(
-            requestOptions,
-            this.getAuthCredentials(),
+        const credentials = this.getAuthCredentials();
+        if (credentials) {
+            return this.authenticateBasic(requestOptions, credentials);
+        }
+
+        // No static credentials configured; some OCI-compliant registries
+        // (e.g. docker.elastic.co) still require an anonymous Bearer token
+        // exchange even for public pulls, derived from their own
+        // WWW-Authenticate challenge rather than a hardcoded endpoint.
+        const token = await this.getAnonymousBearerToken(
+            image,
+            this.configuration.url,
         );
+        if (token) {
+            return this.authenticateBearer(requestOptions, token);
+        }
+
+        return requestOptions;
     }
 }
 
