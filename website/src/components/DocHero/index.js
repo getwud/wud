@@ -39,6 +39,7 @@ const BRAND_CONFIG = {
   codeberg: { icon: 'selfhst:codeberg' },
   custom: { icon: 'logos:docker-icon' },
   ecr: { icon: 'logos:aws' },
+  elastic: { icon: 'simple-icons:elastic', color: '#005571' },
   aws: { icon: 'logos:aws' },
   forgejo: { icon: 'selfhst:forgejo' },
   gcr: { icon: 'logos:google-cloud' },

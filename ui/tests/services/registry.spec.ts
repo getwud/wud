@@ -14,6 +14,7 @@ describe('Registry Service', () => {
       expect(getRegistryProviderIcon('custom.registry.com')).toBe('si-opencontainersinitiative');
       expect(getRegistryProviderIcon('dhi.io')).toBe('si-docker');
       expect(getRegistryProviderIcon('ecr.amazonaws.com')).toBe('si-amazonaws');
+      expect(getRegistryProviderIcon('elastic')).toBe('si-elastic');
       expect(getRegistryProviderIcon('gcr.io')).toBe('si-googlecloud');
       expect(getRegistryProviderIcon('ghcr.io')).toBe('si-github');
       expect(getRegistryProviderIcon('gitlab.com')).toBe('si-gitlab');

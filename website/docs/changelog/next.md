@@ -12,5 +12,6 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [TRIGGER] Fix MQTT connection error logging and trigger status (fixes #1292)
 - 🐛 [UI] Fix double vertical scrollbar on containers page (#1299)
 - 🐛 [REGISTRY] Custom registries now perform the OCI anonymous Bearer token exchange (following the registry's `WWW-Authenticate` challenge) when no static credentials are configured, fixing pulls from registries like `docker.elastic.co` that require it even for public images (fixes #1303)
+- 🚀 [REGISTRY] Add typed support for Elastic Container Registry (docker.elastic.co)
 
 ---
