@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import { url } from './base';
 
 type ConnectionState = 'connected' | 'reconnecting' | 'offline';
 
@@ -18,7 +19,7 @@ class EventService {
         }
 
         this.connectionState.value = 'reconnecting';
-        this.eventSource = new EventSource('/api/events');
+        this.eventSource = new EventSource(url('api/events'), { withCredentials: true });
 
         this.eventSource.onopen = () => {
             this.connectionState.value = 'connected';
