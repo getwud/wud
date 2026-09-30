@@ -43,11 +43,11 @@ export function init() {
     // Mount app router
     router.use('/app', appRouter.init());
 
-    // Mount events router
-    router.use('/events', eventRouter.init());
-
     // Routes to protect after this line
     router.use(requireAuthentication);
+
+    // Mount events router
+    router.use('/events', eventRouter.init());
 
     // Mount user router (Admin only)
     router.use('/users', userRouter.init());

@@ -52,6 +52,9 @@ jest.mock('./user', () => ({
 jest.mock('./profile', () => ({
     init: jest.fn(() => ({ use: jest.fn(), get: jest.fn() })),
 }));
+jest.mock('./event', () => ({
+    init: jest.fn(() => ({ use: jest.fn(), get: jest.fn() })),
+}));
 
 import * as api from './api';
 import swaggerUi from 'swagger-ui-express';
@@ -84,6 +87,7 @@ describe('API Router', () => {
         const serverRouter = await import('./server');
         const userRouter = await import('./user');
         const profileRouter = await import('./profile');
+        const eventRouter = await import('./event');
 
         expect(appRouter.init).toHaveBeenCalled();
         expect(containerRouter.init).toHaveBeenCalled();
@@ -96,11 +100,24 @@ describe('API Router', () => {
         expect(serverRouter.init).toHaveBeenCalled();
         expect(userRouter.init).toHaveBeenCalled();
         expect(profileRouter.init).toHaveBeenCalled();
+        expect(eventRouter.init).toHaveBeenCalled();
     });
 
     test('should use requireAuthentication middleware', async () => {
         router = api.init();
         expect(router.use).toHaveBeenCalledWith(auth.requireAuthentication);
+    });
+
+    test('should mount /events router after requireAuthentication', async () => {
+        router = api.init();
+        const calls = router.use.mock.calls;
+        const authIndex = calls.findIndex(
+            (call) => call[0] === auth.requireAuthentication,
+        );
+        const eventIndex = calls.findIndex((call) => call[0] === '/events');
+
+        expect(authIndex).toBeGreaterThanOrEqual(0);
+        expect(eventIndex).toBeGreaterThan(authIndex);
     });
 
     test('should serve OpenAPI spec and Swagger UI', async () => {

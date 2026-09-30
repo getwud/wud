@@ -10,12 +10,12 @@ class EventService {
     private handlers: Record<string, Array<(data: any) => void>> = {};
 
     constructor() {
-        this.connect();
+        // Service starts offline; connect() must be called explicitly when authenticated
     }
 
-    private connect() {
+    public connect() {
         if (this.eventSource) {
-            this.eventSource.close();
+            return;
         }
 
         this.connectionState.value = 'reconnecting';
@@ -44,6 +44,14 @@ class EventService {
         };
     }
 
+    public disconnect() {
+        if (this.eventSource) {
+            this.eventSource.close();
+            this.eventSource = null;
+        }
+        this.connectionState.value = 'offline';
+    }
+
     public on(event: string, callback: (data: any) => void) {
         if (!this.handlers[event]) {
             this.handlers[event] = [];
@@ -58,6 +66,7 @@ class EventService {
     }
 
     public reconnect() {
+        this.disconnect();
         this.connect();
     }
 }

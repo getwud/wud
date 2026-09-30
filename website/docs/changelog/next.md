@@ -7,6 +7,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 > Changes below are merged on `main` and will be included in the upcoming release.
 
+- 🐛 [API] Require authentication on /api/events SSE endpoint (GHSA-hgmw-ffwv-wvm2)
 - 🐛 [UI] Fix drawer triggers refresh on container change and SSE base path (fixes #1305)
 - 🐛 [UI] Fix container list not updating correctly via SSE events
 - 🐛 [TRIGGER] Home Assistant Install button can now run `command`/`nomad` triggers, not just `docker`/`dockercompose`, and honors each container's `wud.trigger.include`/`wud.trigger.exclude` scoping (see getwud/wud#649)

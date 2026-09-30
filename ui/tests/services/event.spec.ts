@@ -22,18 +22,40 @@ describe('Event Service', () => {
     delete (window as any).__WUD_BASE_PATH__;
   });
 
-  it('initializes EventSource with url("api/events") and credentials', () => {
+  it('starts offline and does not connect automatically in constructor', () => {
     const { eventService } = require('@/services/event');
 
+    expect(MockEventSourceClass).not.toHaveBeenCalled();
+    expect(eventService.connectionState.value).toBe('offline');
+  });
+
+  it('connects to url("api/events") with credentials when connect() is called', () => {
+    const { eventService } = require('@/services/event');
+
+    eventService.connect();
+
+    expect(MockEventSourceClass).toHaveBeenCalledTimes(1);
     expect(MockEventSourceClass).toHaveBeenCalledWith('/api/events', {
       withCredentials: true,
     });
     expect(eventService.connectionState.value).toBe('reconnecting');
   });
 
+  it('does not create duplicate connection if connect() is called when already connected', () => {
+    const { eventService } = require('@/services/event');
+
+    eventService.connect();
+    expect(MockEventSourceClass).toHaveBeenCalledTimes(1);
+
+    eventService.connect();
+    expect(MockEventSourceClass).toHaveBeenCalledTimes(1);
+  });
+
   it('respects __WUD_BASE_PATH__ when constructing url', () => {
     (window as any).__WUD_BASE_PATH__ = '/custom-path';
-    require('@/services/event');
+    const { eventService } = require('@/services/event');
+
+    eventService.connect();
 
     expect(MockEventSourceClass).toHaveBeenCalledWith('/custom-path/api/events', {
       withCredentials: true,
@@ -42,6 +64,7 @@ describe('Event Service', () => {
 
   it('handles connection lifecycle events', () => {
     const { eventService } = require('@/services/event');
+    eventService.connect();
 
     // Simulate onopen
     mockEventSourceInstance.onopen();
@@ -52,8 +75,26 @@ describe('Event Service', () => {
     expect(eventService.connectionState.value).toBe('offline');
   });
 
+  it('disconnect closes the EventSource and sets state to offline', () => {
+    const { eventService } = require('@/services/event');
+    eventService.connect();
+
+    mockEventSourceInstance.onopen();
+    expect(eventService.connectionState.value).toBe('connected');
+
+    eventService.disconnect();
+    expect(mockEventSourceInstance.close).toHaveBeenCalledTimes(1);
+    expect(eventService.connectionState.value).toBe('offline');
+
+    // Calling disconnect again when already disconnected is safe
+    eventService.disconnect();
+    expect(mockEventSourceInstance.close).toHaveBeenCalledTimes(1);
+    expect(eventService.connectionState.value).toBe('offline');
+  });
+
   it('dispatches messages to handlers and updates lastEvent', () => {
     const { eventService } = require('@/services/event');
+    eventService.connect();
     const handler = jest.fn();
 
     eventService.on('container.update', handler);
@@ -77,6 +118,7 @@ describe('Event Service', () => {
 
   it('supports reconnecting', () => {
     const { eventService } = require('@/services/event');
+    eventService.connect();
     expect(MockEventSourceClass).toHaveBeenCalledTimes(1);
 
     eventService.reconnect();
