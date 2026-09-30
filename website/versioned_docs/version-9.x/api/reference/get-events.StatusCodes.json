@@ -1,0 +1,1 @@
+{"responses":{"200":{"description":"SSE stream of real-time events","content":{"text/event-stream":{"schema":{"type":"string"}}}},"401":{"description":"Unauthorized"}}}

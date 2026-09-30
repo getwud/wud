@@ -252,6 +252,22 @@ const sidebar: SidebarsConfig = {
         },
       ],
     },
+    {
+      type: "category",
+      label: "Events",
+      link: {
+        type: "doc",
+        id: "api/reference/events",
+      },
+      items: [
+        {
+          type: "doc",
+          id: "api/reference/get-events",
+          label: "Subscribe to Server-Sent Events (SSE)",
+          className: "api-method get",
+        },
+      ],
+    },
   ],
 };
 
