@@ -115,6 +115,7 @@ test('registerRegistries should register all registries', async () => {
         'codeberg.public',
         'docr.public',
         'ecr.private',
+        'ecr.public',
         'elastic.public',
         'forgejo.public',
         'gcr.public',
@@ -122,6 +123,7 @@ test('registerRegistries should register all registries', async () => {
         'gitlab.public',
         'harbor.public',
         'hub.private',
+        'hub.public',
         'icr.public',
         'jfrog.public',
         'linode.public',
@@ -133,6 +135,56 @@ test('registerRegistries should register all registries', async () => {
         'scaleway.public',
         'trueforge.public',
     ]);
+});
+
+test('registerRegistries with custom forgejo instance should keep forgejo.public intact (fixes #1316)', async () => {
+    registries = {
+        forgejo: {
+            private: {
+                url: 'http://registry.example.com',
+                login: 'myuser',
+                password: 'mypassword',
+            },
+        },
+    };
+    await registry.testable_registerRegistries();
+    const registered = registry.getState().registry;
+    expect(registered['forgejo.public']).toBeDefined();
+    expect(registered['forgejo.private']).toBeDefined();
+    expect(registered['forgejo.public'].configuration.url).toBe(
+        'https://code.forgejo.org',
+    );
+    expect(registered['forgejo.private'].configuration.url).toBe(
+        'http://registry.example.com',
+    );
+});
+
+test('registerRegistries should allow explicitly configuring public instance', async () => {
+    registries = {
+        forgejo: {
+            public: {
+                login: 'custom-public-user',
+                password: 'custom-public-password',
+            },
+        },
+    };
+    await registry.testable_registerRegistries();
+    const registered = registry.getState().registry;
+    expect(registered['forgejo.public']).toBeDefined();
+    expect(registered['forgejo.public'].configuration.login).toBe(
+        'custom-public-user',
+    );
+});
+
+test('getRegistry should resolve legacy registry names like hub or ghcr to .public (fixes #1321)', async () => {
+    await registry.testable_registerRegistries();
+    const hubRegistry = registry.getRegistry('hub');
+    expect(hubRegistry).toBeDefined();
+    expect(hubRegistry.getId()).toBe('hub.public');
+
+    const ghcrRegistry = registry.getRegistry('ghcr');
+    expect(ghcrRegistry).toBeDefined();
+    expect(ghcrRegistry.getId()).toBe('ghcr.public');
 });
 
 test('registerRegistries should register all anonymous registries by default', async () => {
@@ -412,6 +464,7 @@ test('init should register all components', async () => {
         'codeberg.public',
         'docr.public',
         'ecr.private',
+        'ecr.public',
         'elastic.public',
         'forgejo.public',
         'gcr.public',
@@ -419,6 +472,7 @@ test('init should register all components', async () => {
         'gitlab.public',
         'harbor.public',
         'hub.private',
+        'hub.public',
         'icr.public',
         'jfrog.public',
         'linode.public',

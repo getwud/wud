@@ -38,6 +38,11 @@ import {
     Container,
 } from '../../../model/container';
 import * as registry from '../../../registry';
+import {
+    findRegistryProvider,
+    resolveRegistry,
+    isRegistryRegistered,
+} from '../../../registries/registryProvider';
 import { getWatchContainerGauge } from '../../../prometheus/watcher';
 import Watcher from '../../Watcher';
 import { ComponentConfiguration } from '../../../registry/Component';
@@ -215,12 +220,15 @@ export function getTagCandidates(
 /**
  * Get the Docker Registry by name.
  */
-function getRegistry(registryName: string) {
-    const registryToReturn = getRegistries()[registryName];
-    if (!registryToReturn) {
-        throw new Error(`Unsupported Registry ${registryName}`);
-    }
-    return registryToReturn;
+export function getRegistry(registryName: string) {
+    return resolveRegistry(registryName, getRegistries());
+}
+
+/**
+ * Check if a registry is supported / registered.
+ */
+export function hasRegistry(registryName?: string) {
+    return isRegistryRegistered(registryName, getRegistries());
 }
 
 /**
@@ -961,68 +969,95 @@ export class Docker extends Watcher {
             containerInStore !== undefined &&
             containerInStore.error === undefined
         ) {
-            this.log.debug(`Container ${containerInStore.id} already in store`);
-            let isUpdated = false;
-            if (containerInStore.watcher !== this.name) {
-                containerInStore.watcher = this.name;
-                isUpdated = true;
-            }
-            if (stack && !containerInStore.stack) {
-                containerInStore.stack = stack;
-                isUpdated = true;
-            }
-            if (delay && containerInStore.delay !== delay) {
-                containerInStore.delay = delay;
-                isUpdated = true;
-            }
-            const currentContainerName = this.getContainerName(container);
-            const oldName = containerInStore.name;
-            const oldDisplayName = containerInStore.displayName;
-            if (currentContainerName && oldName !== currentContainerName) {
+            const storeRegistryName = containerInStore.image?.registry?.name;
+            if (storeRegistryName && !hasRegistry(storeRegistryName)) {
                 if (this.log && typeof this.log.info === 'function') {
                     this.log.info(
-                        `Container ${containerInStore.id} renamed from ${oldName} to ${currentContainerName}`,
+                        `Container ${containerInStore.id} registry (${storeRegistryName}) is no longer registered, re-evaluating container`,
                     );
                 }
-                containerInStore.name = currentContainerName;
-                isUpdated = true;
-            }
-
-            const explicitDisplayName =
-                displayName ||
-                containerLabels[wudDisplayName] ||
-                (container.Labels === undefined &&
-                container.labels === undefined
-                    ? containerInStore.labels?.[wudDisplayName]
-                    : undefined);
-
-            if (explicitDisplayName) {
-                if (containerInStore.displayName !== explicitDisplayName) {
-                    containerInStore.displayName = explicitDisplayName;
+            } else {
+                this.log.debug(
+                    `Container ${containerInStore.id} already in store`,
+                );
+                let isUpdated = false;
+                if (containerInStore.watcher !== this.name) {
+                    containerInStore.watcher = this.name;
                     isUpdated = true;
                 }
-            } else if (currentContainerName) {
-                if (
-                    oldName !== currentContainerName ||
-                    oldDisplayName === oldName ||
-                    (oldDisplayName !== undefined &&
-                        oldDisplayName !== currentContainerName)
-                ) {
-                    if (containerInStore.displayName !== currentContainerName) {
-                        containerInStore.displayName = currentContainerName;
+                if (storeRegistryName) {
+                    const resolvedRegistry = getRegistry(storeRegistryName);
+                    if (
+                        resolvedRegistry?.getId &&
+                        typeof resolvedRegistry.getId === 'function' &&
+                        containerInStore.image.registry.name !==
+                            resolvedRegistry.getId()
+                    ) {
+                        containerInStore.image.registry.name =
+                            resolvedRegistry.getId();
                         isUpdated = true;
                     }
                 }
-            }
+                if (stack && !containerInStore.stack) {
+                    containerInStore.stack = stack;
+                    isUpdated = true;
+                }
+                if (delay && containerInStore.delay !== delay) {
+                    containerInStore.delay = delay;
+                    isUpdated = true;
+                }
+                const currentContainerName = this.getContainerName(container);
+                const oldName = containerInStore.name;
+                const oldDisplayName = containerInStore.displayName;
+                if (currentContainerName && oldName !== currentContainerName) {
+                    if (this.log && typeof this.log.info === 'function') {
+                        this.log.info(
+                            `Container ${containerInStore.id} renamed from ${oldName} to ${currentContainerName}`,
+                        );
+                    }
+                    containerInStore.name = currentContainerName;
+                    isUpdated = true;
+                }
 
-            if (container.Labels || container.labels) {
-                containerInStore.labels = containerLabels;
-            }
+                const explicitDisplayName =
+                    displayName ||
+                    containerLabels[wudDisplayName] ||
+                    (container.Labels === undefined &&
+                    container.labels === undefined
+                        ? containerInStore.labels?.[wudDisplayName]
+                        : undefined);
 
-            if (isUpdated) {
-                storeContainer.updateContainer(containerInStore);
+                if (explicitDisplayName) {
+                    if (containerInStore.displayName !== explicitDisplayName) {
+                        containerInStore.displayName = explicitDisplayName;
+                        isUpdated = true;
+                    }
+                } else if (currentContainerName) {
+                    if (
+                        oldName !== currentContainerName ||
+                        oldDisplayName === oldName ||
+                        (oldDisplayName !== undefined &&
+                            oldDisplayName !== currentContainerName)
+                    ) {
+                        if (
+                            containerInStore.displayName !==
+                            currentContainerName
+                        ) {
+                            containerInStore.displayName = currentContainerName;
+                            isUpdated = true;
+                        }
+                    }
+                }
+
+                if (container.Labels || container.labels) {
+                    containerInStore.labels = containerLabels;
+                }
+
+                if (isUpdated) {
+                    storeContainer.updateContainer(containerInStore);
+                }
+                return containerInStore;
             }
-            return containerInStore;
         }
 
         // Get container image details
@@ -1070,8 +1105,9 @@ export class Docker extends Watcher {
             };
         }
 
-        const registryProvider = Object.values(getRegistries()).find(
-            (registry) => registry.match(parsedImage.domain),
+        const registryProvider = findRegistryProvider(
+            parsedImage.domain,
+            getRegistries(),
         );
 
         if (!registryProvider) {
@@ -1190,8 +1226,9 @@ export class Docker extends Watcher {
 
     private normalizeContainer(container: Container) {
         const containerWithNormalizedImage = container;
-        const registryProvider = Object.values(getRegistries()).find(
-            (provider) => provider.match(container.image.registry.url),
+        const registryProvider = findRegistryProvider(
+            container.image.registry.url,
+            getRegistries(),
         );
         if (!registryProvider) {
             this.log.warn(
