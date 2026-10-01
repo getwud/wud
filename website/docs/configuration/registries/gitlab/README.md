@@ -10,6 +10,8 @@ import TabItem from '@theme/TabItem';
 
 # GitLab Container Registry
 
+For immediate checks after pushes on GitLab Self-Managed, configure [Registry Events](../../events/README.md) alongside these registry credentials.
+
 <DocHero
   icon="gitlab"
   badge="⚡ Active by Default"

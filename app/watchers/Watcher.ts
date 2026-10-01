@@ -12,6 +12,8 @@ abstract class Watcher extends Component {
      */
     abstract watch(): Promise<any[]>;
 
+    abstract getContainers(): Promise<Container[]>;
+
     /**
      * Process a list of containers and emit progress.
      * @param containers
