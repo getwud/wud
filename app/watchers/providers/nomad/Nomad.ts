@@ -47,6 +47,11 @@ import {
     Container,
 } from '../../../model/container';
 import * as registry from '../../../registry';
+import {
+    findRegistryProvider,
+    resolveRegistry,
+    isRegistryRegistered,
+} from '../../../registries/registryProvider';
 import { getWatchContainerGauge } from '../../../prometheus/watcher';
 import Watcher from '../../Watcher';
 import Component, { ComponentConfiguration } from '../../../registry/Component';
@@ -114,6 +119,14 @@ const START_WATCHER_DELAY_MS = 1000;
  */
 function getRegistries() {
     return registry.getState().registry;
+}
+
+function getRegistry(registryName: string) {
+    return resolveRegistry(registryName, getRegistries());
+}
+
+function hasRegistry(registryName?: string) {
+    return isRegistryRegistered(registryName, getRegistries());
 }
 
 /**
@@ -597,12 +610,38 @@ export class Nomad extends Watcher {
             containerInStore !== undefined &&
             containerInStore.error === undefined
         ) {
-            this.log.debug(`Container ${containerId} already in store`);
-            if (containerInStore.watcher !== this.name) {
-                containerInStore.watcher = this.name;
-                storeContainer.updateContainer(containerInStore);
+            const storeRegistryName = containerInStore.image?.registry?.name;
+            if (storeRegistryName && !hasRegistry(storeRegistryName)) {
+                if (this.log && typeof this.log.info === 'function') {
+                    this.log.info(
+                        `Container ${containerId} registry (${storeRegistryName}) is no longer registered, re-evaluating container`,
+                    );
+                }
+            } else {
+                this.log.debug(`Container ${containerId} already in store`);
+                let isUpdated = false;
+                if (containerInStore.watcher !== this.name) {
+                    containerInStore.watcher = this.name;
+                    isUpdated = true;
+                }
+                if (storeRegistryName) {
+                    const resolvedRegistry = getRegistry(storeRegistryName);
+                    if (
+                        resolvedRegistry?.getId &&
+                        typeof resolvedRegistry.getId === 'function' &&
+                        containerInStore.image.registry.name !==
+                            resolvedRegistry.getId()
+                    ) {
+                        containerInStore.image.registry.name =
+                            resolvedRegistry.getId();
+                        isUpdated = true;
+                    }
+                }
+                if (isUpdated) {
+                    storeContainer.updateContainer(containerInStore);
+                }
+                return containerInStore;
             }
-            return containerInStore;
         }
 
         let parsedImage = parse(imageName);
@@ -675,15 +714,15 @@ export class Nomad extends Watcher {
     // ─── Version lookup & Tag filtering ───────────────────────────────────────
 
     async findNewVersion(container: Container, logContainer: any) {
-        const registries = getRegistries();
-        const registryProvider = registries[container.image.registry.name];
-        const result: any = { tag: container.image.tag.value };
-
-        if (!registryProvider) {
+        let registryProvider;
+        try {
+            registryProvider = getRegistry(container.image.registry.name);
+        } catch {
             throw new Error(
                 `Unsupported registry (${container.image.registry.name})`,
             );
         }
+        const result: any = { tag: container.image.tag.value };
 
         const watchDigestMeta =
             container.labels?.[wudWatchDigest] ??
@@ -882,8 +921,9 @@ export class Nomad extends Watcher {
 
     private normalizeContainer(container: Container): Container {
         const containerWithNormalizedImage = container;
-        const registryProvider = Object.values(getRegistries()).find(
-            (provider) => provider.match(container.image.registry.url),
+        const registryProvider = findRegistryProvider(
+            container.image.registry.url,
+            getRegistries(),
         );
         if (!registryProvider) {
             this.log.warn(

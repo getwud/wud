@@ -1267,6 +1267,30 @@ describe('Docker Watcher', () => {
             expect(result).toEqual({ tag: '1.0.0' });
         });
 
+        test('should resolve legacy registry alias to public registry (e.g. hub to hub.public)', async () => {
+            const container = {
+                image: {
+                    registry: { name: 'hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                },
+            };
+            const mockRegistry = {
+                getId: () => 'hub.public',
+                getTags: jest.fn().mockResolvedValue(['1.0.0', '1.1.0']),
+                shouldWatchDigest: jest.fn(() => false),
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'hub.public': mockRegistry },
+            });
+            const mockLogChild = { error: jest.fn(), warn: jest.fn() };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(mockRegistry.getTags).toHaveBeenCalledWith(container.image);
+            expect(result).toEqual({ tag: '1.0.0' });
+        });
+
         test('should handle unsupported registry', async () => {
             const container = {
                 image: {
@@ -2787,6 +2811,123 @@ describe('Docker Watcher', () => {
             const result = await docker.addImageDetailsToContainer(container);
             expect(result).toBeDefined();
             expect(result.delay).toBe('1w');
+        });
+
+        test('should invalidate cache and re-inspect image when stored registry is no longer registered', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = { debug: jest.fn(), info: jest.fn() };
+            docker.log = mockLog;
+
+            const existingContainer = {
+                id: '123',
+                name: 'test-container',
+                image: { registry: { name: 'deleted_custom_registry' } },
+                result: { tag: '2.0.0' },
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const container = {
+                Id: '123',
+                Image: 'nginx:1.0.0',
+                Names: ['/test-container'],
+                State: 'running',
+                Labels: {},
+            };
+            const imageDetails = {
+                Id: 'image123',
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+                RepoDigests: ['nginx@sha256:abc123'],
+            };
+            mockImage.inspect.mockResolvedValue(imageDetails);
+            mockTag.parse.mockReturnValue({ major: 1, minor: 0, patch: 0 });
+
+            const mockPublicHub = {
+                normalizeImage: jest.fn((img) => img),
+                getId: () => 'hub.public',
+                match: () => true,
+                shouldWatchDigest: jest.fn(() => false),
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'hub.public': mockPublicHub },
+            });
+
+            const containerModule = await import('../../../model/container');
+            const validateContainer = containerModule.validate;
+            // @ts-ignore
+            validateContainer.mockImplementation((c) => c);
+
+            const result = await docker.addImageDetailsToContainer(container);
+
+            expect(mockDockerApi.getImage).toHaveBeenCalledWith('nginx:1.0.0');
+            expect(mockImage.inspect).toHaveBeenCalled();
+            expect(mockLog.info).toHaveBeenCalledWith(
+                expect.stringContaining('deleted_custom_registry'),
+            );
+            expect(result).toBeDefined();
+            expect(result.image.registry.name).toBe('hub.public');
+        });
+
+        test('should prioritize custom/authenticated registry over default public registry when normalizing container', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const container = {
+                Id: '456',
+                Image: 'my-custom-image:1.0.0',
+                Names: ['/custom-app'],
+                State: 'running',
+                Labels: {},
+            };
+            mockImage.inspect.mockResolvedValue({
+                Id: 'image456',
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+                RepoDigests: [],
+            });
+            mockTag.parse.mockReturnValue({ major: 1, minor: 0, patch: 0 });
+
+            const mockPublicHub = {
+                name: 'public',
+                type: 'hub',
+                configuration: {},
+                normalizeImage: jest.fn((img) => ({
+                    ...img,
+                    registry: { name: 'hub.public', url: 'hub.docker.com' },
+                })),
+                getId: () => 'hub.public',
+                match: () => true,
+                shouldWatchDigest: jest.fn(() => false),
+            };
+            const mockPrivateHub = {
+                name: 'private',
+                type: 'hub',
+                configuration: { login: 'user', token: 'secret' },
+                normalizeImage: jest.fn((img) => ({
+                    ...img,
+                    registry: { name: 'hub.private', url: 'hub.docker.com' },
+                })),
+                getId: () => 'hub.private',
+                match: () => true,
+                shouldWatchDigest: jest.fn(() => false),
+            };
+
+            registry.getState.mockReturnValue({
+                registry: {
+                    'hub.public': mockPublicHub,
+                    'hub.private': mockPrivateHub,
+                },
+            });
+
+            const containerModule = await import('../../../model/container');
+            const validateContainer = containerModule.validate;
+            // @ts-ignore
+            validateContainer.mockImplementation((c) => c);
+
+            const result = await docker.addImageDetailsToContainer(container);
+
+            expect(mockPrivateHub.normalizeImage).toHaveBeenCalled();
+            expect(result.image.registry.name).toBe('hub.private');
         });
     });
 
