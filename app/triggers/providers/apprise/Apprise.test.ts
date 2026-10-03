@@ -4,6 +4,7 @@ import axios from 'axios';
 
 jest.mock('axios');
 import Apprise from './Apprise';
+import Trigger from '../Trigger';
 
 const apprise = new Apprise();
 
@@ -31,7 +32,11 @@ beforeEach(async () => {
 test('validateConfiguration should return validated configuration when valid', async () => {
     const validatedConfiguration =
         apprise.validateConfiguration(configurationValid);
-    expect(validatedConfiguration).toStrictEqual(configurationValid);
+    expect(validatedConfiguration).toStrictEqual({
+        ...configurationValid,
+        rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+        rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
+    });
 });
 
 test('validateConfiguration should throw error when invalid', async () => {
@@ -187,4 +192,28 @@ test('maskConfiguration should mask urls', async () => {
 
     expect(masked.url).toBe('http://xxx.com');
     expect(masked.urls).toBe('m*************************m');
+});
+
+test('triggerRollback should post the rollback report to Apprise', async () => {
+    apprise.configuration = configurationValid;
+    axios.mockResolvedValue({ data: 'ok' });
+
+    const report = {
+        scope: 'container',
+        container: { name: 'web' },
+        oldImageRef: 'test/web:1.0.0',
+        newImageRef: 'test/web:2.0.0',
+        reason: 'unhealthy',
+        status: 'succeeded',
+    };
+
+    await apprise.triggerRollback(report);
+
+    expect(axios).toHaveBeenCalledWith(
+        expect.objectContaining({
+            method: 'POST',
+            url: 'http://xxx.com/notify',
+            data: expect.objectContaining({ type: 'warning' }),
+        }),
+    );
 });

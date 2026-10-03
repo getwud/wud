@@ -66,6 +66,26 @@ class Opsgenie extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Notify Opsgenie with rollback details.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<*>}
+     */
+    async triggerRollback(rollbackReport) {
+        const title = this.configuration.disabletitle
+            ? 'Container rollback'
+            : this.renderRollbackTitle(rollbackReport);
+        const description = this.renderRollbackBody(rollbackReport);
+        return this.sendAlert(title, description, rollbackReport.container);
+    }
+
+    /**
      * Send alert to Opsgenie Alerts API.
      * @param {string} message
      * @param {string} description

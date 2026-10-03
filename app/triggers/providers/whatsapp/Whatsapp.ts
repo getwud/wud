@@ -78,6 +78,27 @@ class Whatsapp extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Notify WhatsApp with rollback details.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<*>}
+     */
+    async triggerRollback(rollbackReport) {
+        const body = this.renderRollbackBody(rollbackReport);
+        if (this.configuration.disabletitle) {
+            return this.sendMessage(body);
+        }
+        const title = this.renderRollbackTitle(rollbackReport);
+        return this.sendMessage(`*${title}*\n\n${body}`);
+    }
+
+    /**
      * Send message via WhatsApp Cloud API.
      * @param {string} text
      * @returns {Promise<*>}

@@ -5,6 +5,7 @@ const { Kafka: KafkaClient } = require('kafkajs');
 jest.mock('kafkajs');
 
 import Kafka from './Kafka';
+import Trigger from '../Trigger';
 
 const kafka = new Kafka();
 
@@ -24,6 +25,8 @@ const configurationValid = {
         'Container ${container.name} running with ${container.updateKind.kind} ${container.updateKind.localValue} can be updated to ${container.updateKind.kind} ${container.updateKind.remoteValue}${container.result && container.result.link ? "\\n" + container.result.link : ""}',
 
     batchtitle: '${containers.length} updates available',
+    rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+    rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
 };
 
 beforeEach(async () => {
@@ -33,14 +36,22 @@ beforeEach(async () => {
 test('validateConfiguration should return validated configuration when valid', async () => {
     const validatedConfiguration =
         kafka.validateConfiguration(configurationValid);
-    expect(validatedConfiguration).toStrictEqual(configurationValid);
+    expect(validatedConfiguration).toStrictEqual({
+        ...configurationValid,
+        rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+        rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
+    });
 });
 
 test('validateConfiguration should apply_default_configuration', async () => {
     const validatedConfiguration = kafka.validateConfiguration({
         brokers: 'broker1:9000, broker2:9000',
     });
-    expect(validatedConfiguration).toStrictEqual(configurationValid);
+    expect(validatedConfiguration).toStrictEqual({
+        ...configurationValid,
+        rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+        rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
+    });
 });
 
 test('validateConfiguration should validate_optional_authentication', async () => {

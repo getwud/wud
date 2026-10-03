@@ -62,20 +62,41 @@ class Pagerduty extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Notify PagerDuty with rollback details.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<*>}
+     */
+    async triggerRollback(rollbackReport) {
+        const title = this.configuration.disabletitle
+            ? `Rollback for ${rollbackReport.container?.name || 'container'}`
+            : this.renderRollbackTitle(rollbackReport);
+        const body = this.renderRollbackBody(rollbackReport);
+        return this.sendEvent(title, body, rollbackReport.container, 'warning');
+    }
+
+    /**
      * Send event to PagerDuty Events API v2.
      * @param {string} summary
      * @param {string} details
      * @param {Object} [container]
+     * @param {string} [severity]
      * @returns {Promise<*>}
      */
-    async sendEvent(summary, details, container) {
+    async sendEvent(summary, details, container, severity) {
         const payload = {
             routing_key: this.configuration.routingkey,
             event_action: 'trigger',
             payload: {
                 summary,
                 source: this.configuration.source,
-                severity: this.configuration.severity,
+                severity: severity || this.configuration.severity,
                 custom_details: {
                     message: details,
                 },

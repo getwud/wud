@@ -13,6 +13,7 @@ jest.mock(
 
 import Pushover from './Pushover';
 import { testTriggerProvider } from '../TriggerTestHelper';
+import Trigger from '../Trigger';
 
 const pushover = new Pushover();
 
@@ -85,7 +86,11 @@ test('validateConfiguration should apply_default_configuration', async () => {
         user: configurationValid.user,
         token: configurationValid.token,
     });
-    expect(validatedConfiguration).toStrictEqual(configurationValid);
+    expect(validatedConfiguration).toStrictEqual({
+        ...configurationValid,
+        rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+        rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
+    });
 });
 
 test('maskConfiguration should mask sensitive data', async () => {

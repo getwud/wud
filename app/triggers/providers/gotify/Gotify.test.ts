@@ -3,6 +3,7 @@ import { ValidationError } from 'joi';
 
 jest.mock('axios');
 import Gotify from './Gotify';
+import Trigger from '../Trigger';
 
 const gotify = new Gotify();
 
@@ -29,7 +30,11 @@ beforeEach(async () => {
 test('validateConfiguration should return validated configuration when valid', async () => {
     const validatedConfiguration =
         gotify.validateConfiguration(configurationValid);
-    expect(validatedConfiguration).toStrictEqual(configurationValid);
+    expect(validatedConfiguration).toStrictEqual({
+        ...configurationValid,
+        rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+        rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
+    });
 });
 
 test('validateConfiguration should apply default configuration', async () => {
@@ -37,7 +42,11 @@ test('validateConfiguration should apply default configuration', async () => {
         url: configurationValid.url,
         token: configurationValid.token,
     });
-    const expectedWithoutPriority = { ...configurationValid };
+    const expectedWithoutPriority = {
+        ...configurationValid,
+        rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+        rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
+    };
     delete expectedWithoutPriority.priority;
     expect(validatedConfiguration).toStrictEqual(expectedWithoutPriority);
 });

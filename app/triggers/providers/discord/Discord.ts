@@ -66,6 +66,25 @@ class Discord extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Send a rollback notification to Discord.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<void>}
+     */
+    async triggerRollback(rollbackReport) {
+        return this.sendMessage(
+            this.renderRollbackTitle(rollbackReport),
+            this.renderRollbackBody(rollbackReport),
+        );
+    }
+
+    /**
      * Post a message to discord webhook.
      * @param title the message title
      * @param bodyText the text to post

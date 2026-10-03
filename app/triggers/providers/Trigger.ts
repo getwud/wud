@@ -12,13 +12,48 @@ export interface TriggerConfiguration extends ComponentConfiguration {
     simpletitle?: string;
     simplebody?: string;
     batchtitle?: string;
+    rollbacktitle?: string;
+    rollbackbody?: string;
     includebydefault?: boolean;
     ondigest?: boolean;
+    rollback?: boolean;
+    rollbackwindow?: number;
+    rollbackinterval?: number;
+    rollbackgrace?: number;
 }
 
 export interface ContainerReport {
     container: Container;
     changed: boolean;
+}
+
+/** Per-service outcome of a (project-scope) rollback. */
+export interface RollbackServiceOutcome {
+    service: string;
+    containerName: string;
+    verdict:
+        | 'healthy'
+        | 'unhealthy'
+        | 'timeout'
+        | 'crashed'
+        | 'no-healthcheck'
+        | 'project-revert';
+    reason: string;
+}
+
+/** Payload emitted on `wud:container-rollback`. */
+export interface RollbackReport {
+    scope: 'container' | 'project';
+    container?: Container;
+    composeFile?: string;
+    services?: RollbackServiceOutcome[];
+    oldImageRef?: string;
+    newImageRef?: string;
+    reason?: string;
+    durationMs?: number;
+    status: 'succeeded' | 'failed';
+    error?: { step?: string; message?: string; code?: string };
+    archiveName?: string;
 }
 
 function renderBatch(template: string, containers: Container[]) {
@@ -34,6 +69,16 @@ function renderBatch(template: string, containers: Container[]) {
  */
 class Trigger extends Component {
     public configuration: TriggerConfiguration = {};
+
+    /**
+     * Default rollback notification templates. Kept as explicit constants so the
+     * rendered output stays byte-identical to the pre-template implementation.
+     */
+    static readonly DEFAULT_ROLLBACK_TITLE =
+        "Rollback${status === 'failed' ? ' FAILED for ' : ' of '}${name}${status !== 'failed' && reason ? ' (' + reason + ')' : ''}";
+
+    static readonly DEFAULT_ROLLBACK_BODY =
+        "${status === 'failed' ? 'Rollback of ' + name + ' failed at step ' + (error_step || 'unknown') + ': ' + (error_message || '') + (archiveName ? '\\nThe previous container is kept as ' + archiveName + ' for manual recovery.' : '') : 'Container ' + name + ' was rolled back from ' + (newImageRef || 'the new image') + ' to ' + (oldImageRef || 'the previous image') + ' (reason: ' + (reason || 'unknown') + ').' + (servicesText ? '\\n' + servicesText : '')}";
 
     /**
      * Return true if update reaches trigger threshold.
@@ -325,6 +370,55 @@ class Trigger extends Component {
         } else {
             this.log.info(`Registering for manual execution`);
         }
+
+        // Rollback notification plumbing: only triggers that explicitly declare
+        // rollback-notification support subscribe; the mutating triggers
+        // (docker, dockercompose, nomad) keep the base `false` so a rollback can
+        // never re-enter the update loop (PM §7, blueprint §9).
+        if (this.supportsRollbackNotifications()) {
+            event.registerContainerRollback(async (rollbackReport) =>
+                this.handleContainerRollback(rollbackReport),
+            );
+        }
+    }
+
+    /**
+     * Whether this trigger implements rollback notifications.
+     * Positive, overridable capability: the base default is `false`, so a
+     * notification trigger must opt in explicitly (blueprint §9).
+     */
+    supportsRollbackNotifications(): boolean {
+        return false;
+    }
+
+    /**
+     * Handle a rollback report (notification path, never mutates the update loop).
+     */
+    async handleContainerRollback(rollbackReport: RollbackReport) {
+        try {
+            if (this.shouldNotifyRollback(rollbackReport)) {
+                await this.triggerRollback(rollbackReport);
+            }
+        } catch (e: any) {
+            this.log.warn(`Error (${e.message})`);
+            this.log.debug(e);
+        }
+    }
+
+    /**
+     * Whether this trigger wants to be notified for the given rollback report.
+     * By default, successful and failed rollbacks are both notified.
+     */
+    shouldNotifyRollback(_rollbackReport: RollbackReport): boolean {
+        return true;
+    }
+
+    /**
+     * Send a rollback notification. No-op by default; overridden by
+     * notification triggers that support rollback alerts.
+     */
+    async triggerRollback(_rollbackReport: RollbackReport): Promise<void> {
+        // do nothing by default
     }
 
     /**
@@ -367,6 +461,12 @@ class Trigger extends Component {
             batchtitle: this.joi
                 .string()
                 .default('${containers.length} updates available'),
+            rollbacktitle: this.joi
+                .string()
+                .default(Trigger.DEFAULT_ROLLBACK_TITLE),
+            rollbackbody: this.joi
+                .string()
+                .default(Trigger.DEFAULT_ROLLBACK_BODY),
             includebydefault: this.joi.boolean(),
             ondigest: this.joi.boolean(),
         });
@@ -487,6 +587,146 @@ class Trigger extends Component {
         return containers
             .map((container) => `- ${this.renderSimpleBody(container)}\n`)
             .join('\n');
+    }
+
+    /**
+     * Build the strict-typed render context for rollback notification templates
+     * (blueprint §9.4).
+     */
+    private buildRollbackContext(rollbackReport: RollbackReport) {
+        const name =
+            rollbackReport.container?.name ||
+            rollbackReport.composeFile ||
+            'container';
+        const services = rollbackReport.services || [];
+        const servicesText = services
+            .map(
+                (service) =>
+                    `- ${service.containerName}: ${service.verdict} (${service.reason})`,
+            )
+            .join('\n');
+        return {
+            name,
+            scope: rollbackReport.scope,
+            status: rollbackReport.status,
+            reason: rollbackReport.reason,
+            oldImageRef: rollbackReport.oldImageRef,
+            newImageRef: rollbackReport.newImageRef,
+            archiveName: rollbackReport.archiveName,
+            error_step: rollbackReport.error?.step,
+            error_message: rollbackReport.error?.message,
+            services,
+            servicesText,
+            container: rollbackReport.container,
+        };
+    }
+
+    /**
+     * Evaluate a rollback notification template with the rollback context.
+     */
+    renderRollbackTemplate(
+        template: string,
+        rollbackReport: RollbackReport,
+    ): string {
+        const {
+            name,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            scope,
+            status,
+            reason,
+            oldImageRef,
+            newImageRef,
+            archiveName,
+            error_step,
+            error_message,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            services,
+            servicesText,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            container,
+        } = this.buildRollbackContext(rollbackReport);
+
+        return eval('`' + template + '`');
+    }
+
+    /**
+     * Human-readable subject for a rollback notification.
+     * Uses the configurable `rollbacktitle` template, falling back to the
+     * original hardcoded string when no template is configured.
+     */
+    renderRollbackTitle(rollbackReport: RollbackReport): string {
+        const template = this.configuration.rollbacktitle;
+        if (!template) {
+            return this.defaultRollbackTitle(rollbackReport);
+        }
+        return this.renderRollbackTemplate(template, rollbackReport);
+    }
+
+    /**
+     * Human-readable body for a rollback notification.
+     * Uses the configurable `rollbackbody` template, falling back to the
+     * original hardcoded string when no template is configured.
+     */
+    renderRollbackBody(rollbackReport: RollbackReport): string {
+        const template = this.configuration.rollbackbody;
+        if (!template) {
+            return this.defaultRollbackBody(rollbackReport);
+        }
+        return this.renderRollbackTemplate(template, rollbackReport);
+    }
+
+    /**
+     * Historic hardcoded rollback title (kept as the byte-identical fallback).
+     */
+    private defaultRollbackTitle(rollbackReport: RollbackReport): string {
+        const target =
+            rollbackReport.container?.name ||
+            rollbackReport.composeFile ||
+            'container';
+        if (rollbackReport.status === 'failed') {
+            return `Rollback FAILED for ${target}`;
+        }
+        const reason = rollbackReport.reason
+            ? ` (${rollbackReport.reason})`
+            : '';
+        return `Rollback of ${target}${reason}`;
+    }
+
+    /**
+     * Historic hardcoded rollback body (kept as the byte-identical fallback).
+     */
+    private defaultRollbackBody(rollbackReport: RollbackReport): string {
+        const target =
+            rollbackReport.container?.name ||
+            rollbackReport.composeFile ||
+            'container';
+
+        if (rollbackReport.status === 'failed') {
+            const step = rollbackReport.error?.step || 'unknown';
+            const message = rollbackReport.error?.message || '';
+            const lines = [
+                `Rollback of ${target} failed at step ${step}: ${message}`,
+            ];
+            if (rollbackReport.archiveName) {
+                lines.push(
+                    `The previous container is kept as ${rollbackReport.archiveName} for manual recovery.`,
+                );
+            }
+            return lines.join('\n');
+        }
+
+        const lines = [
+            `Container ${target} was rolled back from ${rollbackReport.newImageRef || 'the new image'} to ${rollbackReport.oldImageRef || 'the previous image'} (reason: ${rollbackReport.reason || 'unknown'}).`,
+        ];
+        if (rollbackReport.services && rollbackReport.services.length > 0) {
+            lines.push(
+                ...rollbackReport.services.map(
+                    (service) =>
+                        `- ${service.containerName}: ${service.verdict} (${service.reason})`,
+                ),
+            );
+        }
+        return lines.join('\n');
     }
 }
 

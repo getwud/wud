@@ -73,6 +73,27 @@ class Mattermost extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Notify Mattermost with rollback details.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<*>}
+     */
+    async triggerRollback(rollbackReport) {
+        const body = this.renderRollbackBody(rollbackReport);
+        if (this.configuration.disabletitle) {
+            return this.sendMessage(body);
+        }
+        const title = this.renderRollbackTitle(rollbackReport);
+        return this.sendMessage(`### ${title}\n${body}`);
+    }
+
+    /**
      * Send message to Mattermost incoming webhook.
      * @param {string} text
      * @returns {Promise<*>}

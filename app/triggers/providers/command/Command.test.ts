@@ -2,6 +2,7 @@
 import { ValidationError } from 'joi';
 
 import Command from './Command';
+import Trigger from '../Trigger';
 
 const command = new Command();
 
@@ -27,14 +28,22 @@ beforeEach(async () => {
 test('validateConfiguration should return validated configuration when valid', async () => {
     const validatedConfiguration =
         command.validateConfiguration(configurationValid);
-    expect(validatedConfiguration).toStrictEqual(configurationValid);
+    expect(validatedConfiguration).toStrictEqual({
+        ...configurationValid,
+        rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+        rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
+    });
 });
 
 test('validateConfiguration should apply_default_configuration', async () => {
     const validatedConfiguration = command.validateConfiguration({
         cmd: configurationValid.cmd,
     });
-    expect(validatedConfiguration).toStrictEqual(configurationValid);
+    expect(validatedConfiguration).toStrictEqual({
+        ...configurationValid,
+        rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+        rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
+    });
 });
 
 test('validateConfiguration should throw error when invalid', async () => {

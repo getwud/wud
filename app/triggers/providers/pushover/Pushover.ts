@@ -101,6 +101,25 @@ class Pushover extends Trigger {
         });
     }
 
+    /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Send a Pushover rollback notification.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<unknown>}
+     */
+    async triggerRollback(rollbackReport) {
+        return this.sendMessage({
+            title: this.renderRollbackTitle(rollbackReport),
+            message: this.renderRollbackBody(rollbackReport),
+        });
+    }
+
     async sendMessage(message) {
         const messageToSend = {
             ...message,

@@ -96,6 +96,27 @@ class Rocketchat extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Notify Rocket Chat with rollback details.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<*>}
+     */
+    async triggerRollback(rollbackReport) {
+        const body = this.renderRollbackBody(rollbackReport);
+        if (this.configuration.disabletitle) {
+            return this.postMessage(body);
+        }
+        const title = this.renderRollbackTitle(rollbackReport);
+        return this.postMessage(`${title}\n\n${body}`);
+    }
+
+    /**
      * Send message through the Rocket Chat API.
      *
      * @param text

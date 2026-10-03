@@ -2,6 +2,7 @@
 import { ValidationError } from 'joi';
 import axios from 'axios';
 import Ntfy from './Ntfy';
+import Trigger from '../Trigger';
 
 jest.mock('axios');
 
@@ -33,7 +34,11 @@ beforeEach(async () => {
 test('validateConfiguration should return validated configuration when valid', async () => {
     const validatedConfiguration =
         ntfy.validateConfiguration(configurationValid);
-    expect(validatedConfiguration).toStrictEqual(configurationValid);
+    expect(validatedConfiguration).toStrictEqual({
+        ...configurationValid,
+        rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+        rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
+    });
 });
 
 test('validateConfiguration should accept tags as array', async () => {

@@ -40,7 +40,11 @@ beforeEach(async () => {
 test('validateConfiguration should return validated configuration when valid', async () => {
     const validatedConfiguration =
         trigger.validateConfiguration(configurationValid);
-    expect(validatedConfiguration).toStrictEqual(configurationValid);
+    expect(validatedConfiguration).toStrictEqual({
+        ...configurationValid,
+        rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+        rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
+    });
 });
 
 test('validateConfiguration should throw error when invalid', async () => {
@@ -717,4 +721,150 @@ test('handleContainerReports should filter out digest updates when ondigest is f
     ]);
 
     expect(triggerBatchSpy).toHaveBeenCalledWith([tagContainer]);
+});
+
+describe('rollback notifications', () => {
+    test('triggerRollback should be a no-op by default', async () => {
+        const report = {
+            scope: 'container',
+            container: { name: 'test' },
+            status: 'succeeded',
+        };
+        await expect(trigger.triggerRollback(report)).resolves.toBeUndefined();
+    });
+
+    test('supportsRollbackNotifications should be false by default', () => {
+        expect(trigger.supportsRollbackNotifications()).toBe(false);
+    });
+
+    test('supportsRollbackNotifications should be false for mutating triggers', () => {
+        const mutating = new Trigger();
+        mutating.type = 'docker';
+        expect(mutating.supportsRollbackNotifications()).toBe(false);
+    });
+
+    test('renderRollbackTitle/Body should fall back to the historic strings', () => {
+        trigger.configuration = {};
+        const report = {
+            scope: 'container',
+            container: { name: 'web' },
+            oldImageRef: 'test/web:1.0.0',
+            newImageRef: 'test/web:2.0.0',
+            reason: 'unhealthy',
+            status: 'succeeded',
+        };
+        expect(trigger.renderRollbackTitle(report)).toBe(
+            'Rollback of web (unhealthy)',
+        );
+        expect(trigger.renderRollbackBody(report)).toBe(
+            'Container web was rolled back from test/web:2.0.0 to test/web:1.0.0 (reason: unhealthy).',
+        );
+    });
+
+    test('rollback templates should render byte-identical default output', () => {
+        const validated = trigger.validateConfiguration({});
+        trigger.configuration = validated;
+        const success = {
+            scope: 'container',
+            container: { name: 'web' },
+            oldImageRef: 'test/web:1.0.0',
+            newImageRef: 'test/web:2.0.0',
+            reason: 'unhealthy',
+            status: 'succeeded',
+        };
+        expect(trigger.renderRollbackTitle(success)).toBe(
+            'Rollback of web (unhealthy)',
+        );
+        expect(trigger.renderRollbackBody(success)).toBe(
+            'Container web was rolled back from test/web:2.0.0 to test/web:1.0.0 (reason: unhealthy).',
+        );
+
+        const failed = {
+            scope: 'container',
+            container: { name: 'web' },
+            status: 'failed',
+            error: { step: 'S3', message: 'rename failed' },
+            archiveName: 'web-wud-old-123',
+        };
+        expect(trigger.renderRollbackTitle(failed)).toBe(
+            'Rollback FAILED for web',
+        );
+        expect(trigger.renderRollbackBody(failed)).toBe(
+            'Rollback of web failed at step S3: rename failed\nThe previous container is kept as web-wud-old-123 for manual recovery.',
+        );
+    });
+
+    test('rollback templates should be overridable via configuration', () => {
+        trigger.configuration = {
+            rollbacktitle: 'RB ${status} ${name}',
+            rollbackbody:
+                'old=${oldImageRef} new=${newImageRef} reason=${reason}',
+        };
+        const report = {
+            scope: 'container',
+            container: { name: 'web' },
+            oldImageRef: 'test/web:1.0.0',
+            newImageRef: 'test/web:2.0.0',
+            reason: 'unhealthy',
+            status: 'succeeded',
+        };
+        expect(trigger.renderRollbackTitle(report)).toBe('RB succeeded web');
+        expect(trigger.renderRollbackBody(report)).toBe(
+            'old=test/web:1.0.0 new=test/web:2.0.0 reason=unhealthy',
+        );
+    });
+
+    test('handleContainerRollback should forward the report to triggerRollback', async () => {
+        trigger.type = 'slack';
+        const spy = jest
+            .spyOn(trigger, 'triggerRollback')
+            .mockResolvedValue(undefined);
+        const report = {
+            scope: 'container',
+            container: { name: 'test' },
+            status: 'succeeded',
+        };
+        await trigger.handleContainerRollback(report);
+        expect(spy).toHaveBeenCalledWith(report);
+    });
+
+    test('handleContainerRollback should swallow notification errors', async () => {
+        trigger.type = 'slack';
+        jest.spyOn(trigger, 'triggerRollback').mockRejectedValue(
+            new Error('boom'),
+        );
+        await expect(
+            trigger.handleContainerRollback({
+                scope: 'container',
+                status: 'succeeded',
+            }),
+        ).resolves.toBeUndefined();
+    });
+
+    test('renderRollbackTitle/Body should describe a successful rollback', () => {
+        const report = {
+            scope: 'container',
+            container: { name: 'web' },
+            oldImageRef: 'test/web:1.0.0',
+            newImageRef: 'test/web:2.0.0',
+            reason: 'unhealthy',
+            status: 'succeeded',
+        };
+        expect(trigger.renderRollbackTitle(report)).toContain('web');
+        expect(trigger.renderRollbackBody(report)).toContain('test/web:1.0.0');
+        expect(trigger.renderRollbackBody(report)).toContain('unhealthy');
+    });
+
+    test('renderRollbackTitle/Body should describe a failed rollback', () => {
+        const report = {
+            scope: 'container',
+            container: { name: 'web' },
+            status: 'failed',
+            error: { step: 'S3', message: 'rename failed' },
+            archiveName: 'web-wud-old-123',
+        };
+        expect(trigger.renderRollbackTitle(report)).toContain('FAILED');
+        expect(trigger.renderRollbackBody(report)).toContain('S3');
+        expect(trigger.renderRollbackBody(report)).toContain('web-wud-old-123');
+    });
 });

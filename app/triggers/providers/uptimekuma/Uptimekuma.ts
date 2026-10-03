@@ -64,6 +64,28 @@ class Uptimekuma extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Notify Uptime Kuma with rollback details.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<*>}
+     */
+    async triggerRollback(rollbackReport) {
+        const title = this.configuration.disabletitle
+            ? ''
+            : this.renderRollbackTitle(rollbackReport);
+        const body = this.renderRollbackBody(rollbackReport);
+        const defaultMsg = title ? `${title}: ${body}` : body;
+        const msg = this.configuration.msg || defaultMsg;
+        return this.sendPush(msg);
+    }
+
+    /**
      * Send HTTP GET request to Uptime Kuma Push Monitor.
      * @param {string} msg
      * @returns {Promise<*>}

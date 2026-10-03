@@ -145,3 +145,18 @@ test('triggerBatch should send batch notification', async () => {
         '*2 updates available*\n\n- Container container1 running with tag 1.0.0 can be updated to tag 2.0.0\n\n- Container container2 running with tag 1.1.0 can be updated to tag 2.1.0\n',
     );
 });
+
+test('triggerRollback should post the rollback report to the channel', async () => {
+    slack.configuration = configurationValid;
+    slack.sendMessage = jest.fn().mockResolvedValue({});
+
+    await slack.triggerRollback({
+        scope: 'container',
+        container: { name: 'web' },
+        reason: 'unhealthy',
+        status: 'succeeded',
+    });
+
+    expect(slack.sendMessage).toHaveBeenCalled();
+    expect(slack.sendMessage.mock.calls[0][0]).toContain('web');
+});

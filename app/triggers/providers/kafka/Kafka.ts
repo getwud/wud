@@ -104,6 +104,35 @@ class Kafka extends Trigger {
             })),
         });
     }
+
+    /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Send a rollback report to the Kafka topic.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<RecordMetadata[]>}
+     */
+    async triggerRollback(rollbackReport) {
+        const producer = this.kafka.producer();
+        await producer.connect();
+        return producer.send({
+            topic: this.configuration.topic,
+            messages: [
+                {
+                    value: JSON.stringify({
+                        title: this.renderRollbackTitle(rollbackReport),
+                        message: this.renderRollbackBody(rollbackReport),
+                        rollbackReport,
+                    }),
+                },
+            ],
+        });
+    }
 }
 
 export default Kafka;

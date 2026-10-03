@@ -137,6 +137,27 @@ class Smtp extends Trigger {
             text: this.renderBatchBody(containers),
         });
     }
+
+    /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Send a mail with rollback details.
+     * @param rollbackReport the rollback report
+     * @returns {Promise<void>}
+     */
+    async triggerRollback(rollbackReport) {
+        return this.transporter.sendMail({
+            from: this.configuration.from,
+            to: this.configuration.to,
+            subject: this.renderRollbackTitle(rollbackReport),
+            text: this.renderRollbackBody(rollbackReport),
+        });
+    }
 }
 
 export default Smtp;
