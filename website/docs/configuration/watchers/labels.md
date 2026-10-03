@@ -140,6 +140,10 @@ In orchestrators that support multi-container workloads (such as Kubernetes Pods
 
 When `WATCHBYDEFAULT=false` is configured on the watcher, workloads are ignored unless explicitly marked with `watch=true`:
 
+:::tip[Precedence Rules]
+For a detailed guide on how `wud.watch` takes precedence over watcher-level `INCLUDE` and `EXCLUDE` filters, see [Container Filtering & Precedence Rules](README.md#container-filtering--precedence-rules).
+:::
+
 <Tabs groupId="orchestrator">
 <TabItem value="docker" label="🐳 Docker">
 

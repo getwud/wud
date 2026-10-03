@@ -160,6 +160,14 @@ describe('Docker Watcher', () => {
             };
             expect(() => docker.validateConfiguration(config)).not.toThrow();
         });
+
+        test('should validate configuration with include option', async () => {
+            const config = {
+                socket: '/var/run/docker.sock',
+                include: '^prod-.*',
+            };
+            expect(() => docker.validateConfiguration(config)).not.toThrow();
+        });
     });
 
     describe('Initialization', () => {
@@ -1186,6 +1194,70 @@ describe('Docker Watcher', () => {
             });
             const resultNotWatched = await docker.getContainers();
             expect(resultNotWatched).toHaveLength(0);
+        });
+
+        test('should watch container matching include regex as an allowlist', async () => {
+            const containers = [
+                { Id: '1', Labels: {}, Names: ['/prod-web'] },
+                { Id: '2', Labels: {}, Names: ['/dev-web'] },
+            ];
+            mockDockerApi.listContainers.mockResolvedValue(containers);
+            docker.addImageDetailsToContainer = jest
+                .fn()
+                .mockImplementation((c) => Promise.resolve({ id: c.Id }));
+
+            await docker.register('watcher', 'docker', 'test', {
+                watchbydefault: true,
+                include: '^prod-.*',
+            });
+            const result = await docker.getContainers();
+            expect(result).toHaveLength(1);
+            expect(result[0].id).toBe('1');
+        });
+
+        test('should watch container matching include label filter', async () => {
+            const containers = [
+                {
+                    Id: '1',
+                    Labels: { env: 'production' },
+                    Names: ['/app-1'],
+                },
+                { Id: '2', Labels: { env: 'test' }, Names: ['/app-2'] },
+            ];
+            mockDockerApi.listContainers.mockResolvedValue(containers);
+            docker.addImageDetailsToContainer = jest
+                .fn()
+                .mockImplementation((c) => Promise.resolve({ id: c.Id }));
+
+            await docker.register('watcher', 'docker', 'test', {
+                include: 'label:env=production',
+            });
+            const result = await docker.getContainers();
+            expect(result).toHaveLength(1);
+            expect(result[0].id).toBe('1');
+        });
+
+        test('should exclude container matching exclude label even if include matches', async () => {
+            const containers = [
+                {
+                    Id: '1',
+                    Labels: { 'wud.ignore': 'true' },
+                    Names: ['/prod-db'],
+                },
+                { Id: '2', Labels: {}, Names: ['/prod-api'] },
+            ];
+            mockDockerApi.listContainers.mockResolvedValue(containers);
+            docker.addImageDetailsToContainer = jest
+                .fn()
+                .mockImplementation((c) => Promise.resolve({ id: c.Id }));
+
+            await docker.register('watcher', 'docker', 'test', {
+                include: '^prod-.*',
+                exclude: 'label:wud.ignore=true',
+            });
+            const result = await docker.getContainers();
+            expect(result).toHaveLength(1);
+            expect(result[0].id).toBe('2');
         });
 
         test('should prune old containers', async () => {
@@ -3157,61 +3229,433 @@ describe('Docker Watcher', () => {
             expect([].filter(() => false)).toEqual([]);
         });
 
-        describe('isContainerToWatch', () => {
-            test('should return true when wud.watch is true even if regex matches', () => {
-                expect(
-                    isContainerToWatch('true', true, 'ix-app-1', '^ix-.*'),
-                ).toBe(true);
-                expect(
-                    isContainerToWatch('TRUE', false, 'ix-app-1', '^ix-.*'),
-                ).toBe(true);
+        describe('Filtering Precedence (isContainerToWatch)', () => {
+            describe('Rule 1: Label wud.watch Override (Top Priority)', () => {
+                test('should return true when wud.watch is true even if exclude matches and watchByDefault is false', () => {
+                    expect(
+                        isContainerToWatch(
+                            'true',
+                            false,
+                            'ix-app-1',
+                            {},
+                            '^ix-.*',
+                        ),
+                    ).toBe(true);
+                    expect(
+                        isContainerToWatch(
+                            'TRUE',
+                            false,
+                            'ix-app-1',
+                            { env: 'dev' },
+                            'label:env=dev',
+                        ),
+                    ).toBe(true);
+                });
+
+                test('should return false when wud.watch is false even if include matches and watchByDefault is true', () => {
+                    expect(
+                        isContainerToWatch(
+                            'false',
+                            true,
+                            'prod-app',
+                            {},
+                            undefined,
+                            '^prod-.*',
+                        ),
+                    ).toBe(false);
+                    expect(
+                        isContainerToWatch(
+                            'FALSE',
+                            true,
+                            'my-app',
+                            { env: 'prod' },
+                            undefined,
+                            'label:env=prod',
+                        ),
+                    ).toBe(false);
+                });
+
+                test('should fall through to subsequent rules when wud.watch is empty string', () => {
+                    expect(
+                        isContainerToWatch('', true, 'ix-app-1', {}, '^ix-.*'),
+                    ).toBe(false);
+                    expect(
+                        isContainerToWatch(
+                            '',
+                            false,
+                            'prod-app',
+                            {},
+                            undefined,
+                            '^prod-.*',
+                        ),
+                    ).toBe(true);
+                });
             });
 
-            test('should return false when wud.watch is false even if regex does not match', () => {
-                expect(
-                    isContainerToWatch('false', true, 'my-app', '^ix-.*'),
-                ).toBe(false);
+            describe('Rule 2: Exclude Filter (2nd Priority)', () => {
+                test('should return false when container name matches exclude filter', () => {
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            true,
+                            'ix-app-1',
+                            {},
+                            '^ix-.*',
+                        ),
+                    ).toBe(false);
+                });
+
+                test('should return false when container label matches exclude filter (key=value)', () => {
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            true,
+                            'app-1',
+                            { env: 'dev' },
+                            'label:env=dev',
+                        ),
+                    ).toBe(false);
+                });
+
+                test('should return false when container label matches exclude filter (key:value)', () => {
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            true,
+                            'app-1',
+                            { env: 'dev' },
+                            'label:env:dev',
+                        ),
+                    ).toBe(false);
+                });
+
+                test('should return false when container label matches exclude filter (key only)', () => {
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            true,
+                            'app-1',
+                            { 'wud.ignore': '' },
+                            'label:^wud\\.ignore$',
+                        ),
+                    ).toBe(false);
+                });
+
+                test('should fall through when container does not match exclude filter', () => {
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            true,
+                            'app-1',
+                            { env: 'prod' },
+                            'label:env=dev',
+                        ),
+                    ).toBe(true);
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            false,
+                            'app-1',
+                            { env: 'prod' },
+                            'label:env=dev',
+                        ),
+                    ).toBe(false);
+                });
+
+                test('exclude filter should take precedence over include filter when both match', () => {
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            true,
+                            'prod-app',
+                            { 'wud.ignore': 'true' },
+                            'label:wud.ignore=true',
+                            '^prod-.*',
+                        ),
+                    ).toBe(false);
+                });
             });
 
-            test('should return false when container name matches exclude regex and no label', () => {
-                expect(
-                    isContainerToWatch(undefined, true, 'ix-app-1', '^ix-.*'),
-                ).toBe(false);
+            describe('Rule 3: Include Filter (3rd Priority - Allowlist)', () => {
+                test('should return true when container name matches include filter', () => {
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            false,
+                            'prod-app',
+                            {},
+                            undefined,
+                            '^prod-.*',
+                        ),
+                    ).toBe(true);
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            true,
+                            'prod-app',
+                            {},
+                            undefined,
+                            '^prod-.*',
+                        ),
+                    ).toBe(true);
+                });
+
+                test('should return true when container label matches include filter', () => {
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            false,
+                            'my-app',
+                            { tier: 'backend' },
+                            undefined,
+                            'label:^tier=.*',
+                        ),
+                    ).toBe(true);
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            false,
+                            'my-app',
+                            { tier: 'backend' },
+                            undefined,
+                            'label:tier:backend',
+                        ),
+                    ).toBe(true);
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            false,
+                            'my-app',
+                            { 'watch-me': '1' },
+                            undefined,
+                            'label:^watch-me$',
+                        ),
+                    ).toBe(true);
+                });
+
+                test('should return false when include filter is defined but does not match, even if watchByDefault is true', () => {
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            true,
+                            'dev-app',
+                            {},
+                            undefined,
+                            '^prod-.*',
+                        ),
+                    ).toBe(false);
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            true,
+                            'my-app',
+                            { tier: 'frontend' },
+                            undefined,
+                            'label:tier=backend',
+                        ),
+                    ).toBe(false);
+                });
+
+                test('should return false when include filter is defined but does not match and watchByDefault is false', () => {
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            false,
+                            'dev-app',
+                            {},
+                            undefined,
+                            '^prod-.*',
+                        ),
+                    ).toBe(false);
+                });
             });
 
-            test('should return watchByDefault when container name does not match exclude regex and no label', () => {
-                expect(
-                    isContainerToWatch(undefined, true, 'my-app', '^ix-.*'),
-                ).toBe(true);
-                expect(
-                    isContainerToWatch(undefined, false, 'my-app', '^ix-.*'),
-                ).toBe(false);
+            describe('Rule 4: Default Fallback (4th Priority)', () => {
+                test('should return watchByDefault when no filters are set', () => {
+                    expect(
+                        isContainerToWatch(undefined, true, 'my-app', {}),
+                    ).toBe(true);
+                    expect(
+                        isContainerToWatch(undefined, false, 'my-app', {}),
+                    ).toBe(false);
+                });
+
+                test('should return watchByDefault when exclude filter does not match and include filter is undefined', () => {
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            true,
+                            'my-app',
+                            {},
+                            '^ix-.*',
+                        ),
+                    ).toBe(true);
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            false,
+                            'my-app',
+                            {},
+                            '^ix-.*',
+                        ),
+                    ).toBe(false);
+                });
+
+                test('should return watchByDefault when filters are empty strings', () => {
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            true,
+                            'my-app',
+                            {},
+                            '',
+                            '',
+                        ),
+                    ).toBe(true);
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            false,
+                            'my-app',
+                            {},
+                            '',
+                            '',
+                        ),
+                    ).toBe(false);
+                });
             });
 
-            test('should return watchByDefault when no exclude regex is set', () => {
-                expect(
-                    isContainerToWatch(undefined, true, 'my-app', undefined),
-                ).toBe(true);
-                expect(
-                    isContainerToWatch(undefined, false, 'my-app', undefined),
-                ).toBe(false);
-            });
+            describe('Edge Cases & Error Handling', () => {
+                test('should handle invalid regex in exclude gracefully, log warning, and fall through', () => {
+                    const mockLog = { warn: jest.fn() };
+                    const result = isContainerToWatch(
+                        undefined,
+                        true,
+                        'my-app',
+                        {},
+                        '[invalid(regex',
+                        undefined,
+                        mockLog,
+                    );
+                    expect(result).toBe(true);
+                    expect(mockLog.warn).toHaveBeenCalledWith(
+                        expect.stringContaining(
+                            "Invalid regex pattern '[invalid(regex':",
+                        ),
+                    );
+                });
 
-            test('should handle invalid exclude regex gracefully and log warning', () => {
-                const mockLog = { warn: jest.fn() };
-                const result = isContainerToWatch(
-                    undefined,
-                    true,
-                    'my-app',
-                    '[invalid(regex',
-                    mockLog,
-                );
-                expect(result).toBe(true);
-                expect(mockLog.warn).toHaveBeenCalledWith(
-                    expect.stringContaining(
-                        "Invalid exclude regex '[invalid(regex'",
-                    ),
-                );
+                test('should handle invalid label regex in exclude gracefully and log warning', () => {
+                    const mockLog = { warn: jest.fn() };
+                    const result = isContainerToWatch(
+                        undefined,
+                        true,
+                        'my-app',
+                        { env: 'dev' },
+                        'label:[invalid(',
+                        undefined,
+                        mockLog,
+                    );
+                    expect(result).toBe(true);
+                    expect(mockLog.warn).toHaveBeenCalledWith(
+                        expect.stringContaining(
+                            "Invalid regex pattern '[invalid(': ",
+                        ),
+                    );
+                });
+
+                test('should handle invalid regex in include gracefully, log warning, and return false', () => {
+                    const mockLog = { warn: jest.fn() };
+                    const result = isContainerToWatch(
+                        undefined,
+                        true,
+                        'my-app',
+                        {},
+                        undefined,
+                        '[invalid(regex',
+                        mockLog,
+                    );
+                    expect(result).toBe(false);
+                    expect(mockLog.warn).toHaveBeenCalledWith(
+                        expect.stringContaining(
+                            "Invalid regex pattern '[invalid(regex':",
+                        ),
+                    );
+                });
+
+                test('should handle invalid label regex in include gracefully and log warning', () => {
+                    const mockLog = { warn: jest.fn() };
+                    const result = isContainerToWatch(
+                        undefined,
+                        true,
+                        'my-app',
+                        { env: 'dev' },
+                        undefined,
+                        'label:[invalid(',
+                        mockLog,
+                    );
+                    expect(result).toBe(false);
+                    expect(mockLog.warn).toHaveBeenCalledWith(
+                        expect.stringContaining(
+                            "Invalid regex pattern '[invalid(': ",
+                        ),
+                    );
+                });
+
+                test('should not throw if log is undefined when regex is invalid', () => {
+                    expect(() =>
+                        isContainerToWatch(
+                            undefined,
+                            true,
+                            'my-app',
+                            {},
+                            '[invalid(regex',
+                        ),
+                    ).not.toThrow();
+                });
+
+                test('should gracefully handle null or undefined containerLabels', () => {
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            true,
+                            'my-app',
+                            null,
+                            'label:env=dev',
+                        ),
+                    ).toBe(true);
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            true,
+                            'my-app',
+                            undefined,
+                            'label:env=dev',
+                        ),
+                    ).toBe(true);
+                });
+
+                test('should gracefully handle undefined containerName for name filters', () => {
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            true,
+                            undefined,
+                            {},
+                            '^ix-.*',
+                        ),
+                    ).toBe(true);
+                    expect(
+                        isContainerToWatch(
+                            undefined,
+                            true,
+                            undefined,
+                            {},
+                            undefined,
+                            '^prod-.*',
+                        ),
+                    ).toBe(false);
+                });
             });
         });
     });
