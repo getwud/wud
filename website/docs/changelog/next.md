@@ -7,6 +7,8 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 > Changes below are merged on `main` and will be included in the upcoming release.
 
+- 🚀 [EVENT] Add authenticated GitLab registry notifications to immediately check matching watched images through existing update and trigger policies.
+
 ---
 
 - 🐛 [REGISTRY] Fix cohabitation of default anonymous registries and custom instances (fixes #1316, #1321, closes #673)

@@ -77,6 +77,44 @@ tags:
     - name: Events
       description: Real-time Server-Sent Events (SSE) stream.
 paths:
+    /api/events/registry/gitlab/{name}:
+        post:
+            summary: Receive GitLab registry push notifications
+            description: Authenticated hints queue checks for matching watched repositories and current tags through normal watcher and trigger policies. The receiver token is independent of API login.
+            security:
+                - RegistryEventToken: []
+            parameters:
+                - in: path
+                  name: name
+                  required: true
+                  schema:
+                      type: string
+            requestBody:
+                required: true
+                content:
+                    application/vnd.docker.distribution.events.v2+json:
+                        schema:
+                            type: object
+                            required: [events]
+                            properties:
+                                events:
+                                    type: array
+                                    maxItems: 100
+                                    items:
+                                        type: object
+            responses:
+                '202':
+                    description: Hints accepted for asynchronous checking
+                '400':
+                    description: Malformed notification
+                '401':
+                    description: Invalid receiver bearer token
+                '404':
+                    description: Receiver disabled or unknown
+                '413':
+                    description: Payload exceeds 256 KiB
+                '429':
+                    description: Receiver queue is full
     /auth/strategies:
         get:
             tags:
@@ -803,6 +841,10 @@ components:
             required:
                 - error
     securitySchemes:
+        RegistryEventToken:
+            type: http
+            scheme: bearer
+            description: Token configured by WUD_EVENT_GITLAB_<NAME>_TOKEN
         basicAuth:
             type: http
             scheme: basic

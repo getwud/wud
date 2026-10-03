@@ -185,6 +185,11 @@ const sidebars = {
   registriesSidebar: [
     {
       type: 'doc',
+      id: 'configuration/events/README',
+      label: 'Registry Push Events',
+    },
+    {
+      type: 'doc',
       id: 'configuration/registries/README',
       label: 'Overview & Zero-Config',
     },

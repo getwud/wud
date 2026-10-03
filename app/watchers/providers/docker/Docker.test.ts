@@ -39,6 +39,36 @@ describe('Docker Watcher', () => {
     let mockContainer;
     let mockImage;
 
+    test('serializes checks for one container and releases the lock after failure', async () => {
+        const watcher = new Docker();
+        let release;
+        const first = new Promise((resolve) => {
+            release = resolve;
+        });
+        const check = jest
+            .spyOn(watcher, 'checkContainer')
+            .mockImplementationOnce(() => first)
+            .mockResolvedValueOnce({ container: { id: 'same' } });
+        const container = { id: 'same' };
+        const firstCheck = watcher.watchContainer(container);
+        const secondCheck = watcher.watchContainer(container);
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(check).toHaveBeenCalledTimes(1);
+        release({ container });
+        await Promise.all([firstCheck, secondCheck]);
+        expect(check).toHaveBeenCalledTimes(2);
+        check
+            .mockRejectedValueOnce(new Error('failed'))
+            .mockResolvedValueOnce({ container });
+        await expect(watcher.watchContainer(container)).rejects.toThrow(
+            'failed',
+        );
+        await expect(watcher.watchContainer(container)).resolves.toEqual({
+            container,
+        });
+    });
+
     beforeEach(async () => {
         jest.clearAllMocks();
 

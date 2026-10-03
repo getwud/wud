@@ -11,6 +11,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
+      - WUD_EVENT_GITLAB_E2E_ENABLED=true
+      - WUD_EVENT_GITLAB_E2E_TOKEN=registry-e2e-secret
+      - WUD_EVENT_GITLAB_E2E_REGISTRY=registry.example.com
       - WUD_TRIGGER_MOCK_EXAMPLE_MOCK=mock
       - WUD_TRIGGER_MQTT_E2E_URL=mqtt://mosquitto:1883
       - WUD_TRIGGER_MQTT_E2E_TOPIC=wud/container
