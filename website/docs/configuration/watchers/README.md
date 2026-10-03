@@ -75,8 +75,8 @@ To customize how WUD monitors specific containers or workloads (opt-in/opt-out, 
     name="WUD_WATCHER_{watcher_name}_EXCLUDE"
     type="string"
     required={false}
-    supported="Regular expression pattern (e.g. `^ix-.*`, `.*-dev$`)">
-    Regex pattern to exclude containers by name from being watched. Can be overridden per container with `wud.watch=true` label
+    supported="Regular expression pattern (e.g. `^ix-.*`, `.*-dev$`, `label:env=dev`)">
+    Regex pattern to exclude containers by name or labels (using `label:` prefix) from being watched. Can be overridden per container with `wud.watch=true` label
   </ConfigOption>
 
   <ConfigOption
@@ -85,6 +85,14 @@ To customize how WUD monitors specific containers or workloads (opt-in/opt-out, 
     required={false}
     supported="Hostname or IP">
     Docker daemon hostname or IP address to monitor
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_WATCHER_{watcher_name}_INCLUDE"
+    type="string"
+    required={false}
+    supported="Regular expression pattern (e.g. `^prod-.*`, `label:tier=frontend`)">
+    Regex pattern to include containers by name or labels (using `label:` prefix) to be watched. Can be overridden per container with `wud.watch` label
   </ConfigOption>
 
   <ConfigOption
@@ -357,6 +365,38 @@ docker run -d \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   -e WUD_WATCHER_LOCAL_SOCKET="/var/run/docker.sock" \
   -e WUD_WATCHER_LOCAL_EXCLUDE="^ix-.*" \
+  getwud/wud
+```
+
+</TabItem>
+</Tabs>
+
+### 7. Include specific containers by name or label with a regex pattern
+
+Include only containers matching a regex pattern on their name or labels (using the `label:` prefix):
+
+<Tabs>
+<TabItem value="docker-compose" label="Docker Compose">
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - WUD_WATCHER_LOCAL_SOCKET=/var/run/docker.sock
+      - WUD_WATCHER_LOCAL_INCLUDE=label:wud=watch
+```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+```bash
+docker run -d \
+  -v /var/run/docker.sock:/var/run/docker.sock:ro \
+  -e WUD_WATCHER_LOCAL_SOCKET="/var/run/docker.sock" \
+  -e WUD_WATCHER_LOCAL_INCLUDE="label:wud=watch" \
   getwud/wud
 ```
 
