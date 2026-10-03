@@ -774,6 +774,43 @@ export class Kubernetes extends Watcher {
                         isUpdated = true;
                     }
                 }
+                const watchDigestAnnotation = getAnnotationValue(
+                    annotations,
+                    KEY_WATCH_DIGEST,
+                    containerInStore.name,
+                );
+                let watchDigest = false;
+                if (
+                    watchDigestAnnotation !== undefined &&
+                    watchDigestAnnotation !== ''
+                ) {
+                    watchDigest =
+                        watchDigestAnnotation.toLowerCase() === 'true';
+                } else if (!containerInStore.image?.tag?.semver) {
+                    const registryProvider = findRegistryProvider(
+                        containerInStore.image?.registry?.url,
+                        getRegistries(),
+                    );
+                    if (registryProvider) {
+                        watchDigest = registryProvider.shouldWatchDigest(
+                            undefined,
+                            containerInStore.image?.name,
+                            this.configuration.watchdigestdefault,
+                        );
+                    } else if (
+                        this.configuration.watchdigestdefault !== undefined
+                    ) {
+                        watchDigest = this.configuration.watchdigestdefault;
+                    }
+                }
+                if (
+                    containerInStore.image?.digest &&
+                    containerInStore.image.digest.watch !== watchDigest
+                ) {
+                    containerInStore.image.digest.watch = watchDigest;
+                    isUpdated = true;
+                }
+
                 if (isUpdated) {
                     storeContainer.updateContainer(containerInStore);
                 }
@@ -807,11 +844,21 @@ export class Kubernetes extends Watcher {
             watchDigestAnnotation !== ''
         ) {
             watchDigest = watchDigestAnnotation.toLowerCase() === 'true';
-        } else if (
-            !isSemver &&
-            this.configuration.watchdigestdefault !== undefined
-        ) {
-            watchDigest = this.configuration.watchdigestdefault;
+        } else if (!isSemver) {
+            const domain = parsedImage.domain || 'registry-1.docker.io';
+            const registryProvider = findRegistryProvider(
+                domain,
+                getRegistries(),
+            );
+            if (registryProvider) {
+                watchDigest = registryProvider.shouldWatchDigest(
+                    undefined,
+                    parsedImage.path,
+                    this.configuration.watchdigestdefault,
+                );
+            } else if (this.configuration.watchdigestdefault !== undefined) {
+                watchDigest = this.configuration.watchdigestdefault;
+            }
         }
 
         // Extract current digest from K8s imageID (from Pod status)
@@ -888,14 +935,17 @@ export class Kubernetes extends Watcher {
             watchDigestAnnotation !== ''
         ) {
             watchDigest = watchDigestAnnotation.toLowerCase() === 'true';
-        } else if (container.image.digest?.watch !== undefined) {
-            watchDigest = container.image.digest.watch;
         } else if (!container.image.tag.semver) {
             watchDigest = registryProvider.shouldWatchDigest(
                 undefined,
                 container.image.name,
                 this.configuration.watchdigestdefault,
             );
+        }
+        if (container.image.digest) {
+            container.image.digest.watch = watchDigest;
+        } else {
+            container.image.digest = { watch: watchDigest };
         }
 
         if (!container.image.tag.semver && !watchDigest) {

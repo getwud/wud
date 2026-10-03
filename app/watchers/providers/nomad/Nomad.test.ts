@@ -550,6 +550,69 @@ describe('Nomad Watcher - Version Lookup & Watch Cycle', () => {
         expect(result.digest).toBe('sha256:remote-digest-123');
     });
 
+    test('findNewVersion should watch digest for stored non-semver container with digest.watch=false when registry shouldWatchDigest is true (fixes #1337)', async () => {
+        const mockRegistry = {
+            getId: () => 'hub',
+            getTags: jest.fn().mockResolvedValue(['latest']),
+            getImageManifestDigest: jest.fn().mockResolvedValue({
+                digest: 'sha256:remote-digest-456',
+                created: '2023-01-01',
+                version: 2,
+            }),
+            shouldWatchDigest: jest.fn().mockReturnValue(true),
+        };
+
+        (registry.getState as jest.Mock).mockReturnValue({
+            registry: { hub: mockRegistry },
+        });
+
+        const container: any = {
+            id: 'nomad_default_job1_group1_firefly',
+            labels: {},
+            image: {
+                registry: { name: 'hub', url: 'registry-1.docker.io' },
+                name: 'fireflyiii/core',
+                tag: { value: 'latest', semver: false },
+                digest: { watch: false, repo: 'sha256:local-digest-123' },
+            },
+        };
+
+        const result = await watcher.findNewVersion(container, watcher.log);
+        expect(mockRegistry.shouldWatchDigest).toHaveBeenCalled();
+        expect(mockRegistry.getImageManifestDigest).toHaveBeenCalled();
+        expect(result.digest).toBe('sha256:remote-digest-456');
+        expect(container.image.digest.watch).toBe(true);
+    });
+
+    test('findNewVersion should respect meta watch.digest=false over registry shouldWatchDigest=true (fixes #1337)', async () => {
+        const mockRegistry = {
+            getId: () => 'hub',
+            getTags: jest.fn().mockResolvedValue(['latest']),
+            getImageManifestDigest: jest.fn(),
+            shouldWatchDigest: jest.fn().mockReturnValue(true),
+        };
+
+        (registry.getState as jest.Mock).mockReturnValue({
+            registry: { hub: mockRegistry },
+        });
+
+        const container: any = {
+            id: 'nomad_default_job1_group1_firefly',
+            labels: { 'wud.watch.digest': 'false' },
+            image: {
+                registry: { name: 'hub', url: 'registry-1.docker.io' },
+                name: 'fireflyiii/core',
+                tag: { value: 'latest', semver: false },
+                digest: { watch: true, repo: 'sha256:local-digest-123' },
+            },
+        };
+
+        const result = await watcher.findNewVersion(container, watcher.log);
+        expect(mockRegistry.getImageManifestDigest).not.toHaveBeenCalled();
+        expect(result.digest).toBeUndefined();
+        expect(container.image.digest.watch).toBe(false);
+    });
+
     test('mapTaskToWudContainer should update container watcher in store when watcher name changed', async () => {
         const existing = {
             id: 'nomad_default_job1_group1_task1',
