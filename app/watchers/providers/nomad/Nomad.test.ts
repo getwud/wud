@@ -6,6 +6,7 @@ import {
     isTaskToWatch,
     buildContainerId,
     extractDigestFromImage,
+    isTaskImageChanged,
 } from './Nomad';
 import { getMetaValue } from './annotation';
 import * as event from '../../../event';
@@ -60,6 +61,83 @@ describe('Nomad Watcher - Pure Helpers', () => {
         );
         expect(extractDigestFromImage('nginx:1.27')).toBeUndefined();
         expect(extractDigestFromImage('')).toBeUndefined();
+    });
+
+    describe('isTaskImageChanged', () => {
+        test('should return true when image id differs', () => {
+            const container = {
+                image: {
+                    id: 'nginx:1.20',
+                    tag: { value: '1.20', semver: true },
+                },
+            };
+            expect(isTaskImageChanged(container as any, 'nginx:1.21')).toBe(
+                true,
+            );
+        });
+
+        test('should return true when tag differs', () => {
+            const container = {
+                image: {
+                    id: 'nginx:latest',
+                    tag: { value: 'latest', semver: false },
+                },
+            };
+            expect(
+                isTaskImageChanged(container as any, 'nginx:1.20', '1.20'),
+            ).toBe(true);
+        });
+
+        test('should return true when pinned digest differs', () => {
+            const container = {
+                image: {
+                    id: 'nginx:latest@sha256:old',
+                    tag: { value: 'latest', semver: false },
+                    digest: { repo: 'sha256:old', value: 'sha256:old' },
+                },
+            };
+            expect(
+                isTaskImageChanged(container as any, 'nginx:latest@sha256:new'),
+            ).toBe(true);
+        });
+
+        test('should return false when image spec is identical', () => {
+            const container = {
+                image: {
+                    id: 'nginx:1.20',
+                    tag: { value: '1.20', semver: true },
+                },
+            };
+            expect(isTaskImageChanged(container as any, 'nginx:1.20')).toBe(
+                false,
+            );
+        });
+
+        test('should return false when pinned digest is identical', () => {
+            const container = {
+                image: {
+                    id: 'nginx:latest@sha256:abc',
+                    tag: { value: 'latest', semver: false },
+                    digest: { repo: 'sha256:abc', value: 'sha256:abc' },
+                },
+            };
+            expect(
+                isTaskImageChanged(container as any, 'nginx:latest@sha256:abc'),
+            ).toBe(false);
+        });
+
+        test('should handle image without explicit tag (defaults to latest)', () => {
+            const container = {
+                image: {
+                    id: 'nginx',
+                    tag: { value: 'latest', semver: false },
+                },
+            };
+            expect(isTaskImageChanged(container as any, 'nginx')).toBe(false);
+            expect(isTaskImageChanged(container as any, 'nginx:1.20')).toBe(
+                true,
+            );
+        });
     });
 });
 
@@ -618,6 +696,11 @@ describe('Nomad Watcher - Version Lookup & Watch Cycle', () => {
             id: 'nomad_default_job1_group1_task1',
             name: 'task1',
             watcher: 'old-nomad',
+            image: {
+                id: 'nginx:1.0.0',
+                tag: { value: '1.0.0', semver: true },
+                registry: { name: 'hub' },
+            },
             result: { tag: '2.0.0' },
             error: undefined,
         } as any;
@@ -752,5 +835,444 @@ describe('Nomad getMetaValue helper', () => {
     test('returns undefined when meta is undefined or key not present', () => {
         expect(getMetaValue(undefined, 'watch')).toBeUndefined();
         expect(getMetaValue({}, 'watch')).toBeUndefined();
+    });
+});
+
+describe('Nomad Watcher - Task Image Change Detection (fixes #1341)', () => {
+    let watcher: Nomad;
+    let mockClient: any;
+
+    beforeEach(() => {
+        watcher = new Nomad();
+        watcher.log = {
+            info: jest.fn(),
+            warn: jest.fn(),
+            debug: jest.fn(),
+            error: jest.fn(),
+            child: jest.fn().mockReturnThis(),
+        } as any;
+        watcher.name = 'nomad_test';
+        watcher.configuration = watcher.validateConfiguration({}) as any;
+
+        mockClient = {
+            get: jest.fn(),
+        };
+        watcher.apiClient = mockClient;
+
+        (registry.getState as jest.Mock).mockReturnValue({
+            registry: {
+                hub: {
+                    getId: () => 'hub',
+                    match: () => true,
+                    normalizeImage: (img: any) => img,
+                    shouldWatchDigest: () => false,
+                },
+            },
+        });
+        (storeContainer.getContainers as jest.Mock).mockReturnValue([]);
+    });
+
+    test('should re-evaluate container when task image changes to a new tag', async () => {
+        mockClient.get.mockImplementation((url: string) => {
+            if (url === '/v1/nodes') return Promise.resolve({ data: [] });
+            if (url.startsWith('/v1/jobs')) {
+                return Promise.resolve({
+                    data: [
+                        {
+                            ID: 'web',
+                            Name: 'web',
+                            Namespace: 'default',
+                            Status: 'running',
+                            Stop: false,
+                        },
+                    ],
+                });
+            }
+            if (url.startsWith('/v1/job/web')) {
+                return Promise.resolve({
+                    data: {
+                        ID: 'web',
+                        Name: 'web',
+                        Namespace: 'default',
+                        TaskGroups: [
+                            {
+                                Name: 'group1',
+                                Tasks: [
+                                    {
+                                        Name: 'app',
+                                        Driver: 'docker',
+                                        Config: { image: 'nginx:1.27.1' },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                });
+            }
+            return Promise.reject(new Error('Unknown URL'));
+        });
+
+        const existing = {
+            id: 'default_web_group1_app',
+            name: 'default_web_group1_app',
+            watcher: 'nomad_test',
+            image: {
+                id: 'nginx:1.27.0',
+                name: 'nginx',
+                tag: { value: '1.27.0', semver: true },
+                registry: { name: 'hub', url: 'registry-1.docker.io' },
+            },
+            result: { tag: '1.27.0' },
+            error: undefined,
+        };
+        (storeContainer.getContainer as jest.Mock).mockReturnValue(existing);
+
+        const containers = await watcher.getContainers();
+        expect(containers).toHaveLength(1);
+        expect(containers[0].image.tag.value).toBe('1.27.1');
+        expect(containers[0].image.id).toBe('nginx:1.27.1');
+        expect(watcher.log.info).toHaveBeenCalledWith(
+            'Container default_web_group1_app image changed, re-evaluating container',
+        );
+    });
+
+    test('should re-evaluate container when task image digest changes', async () => {
+        mockClient.get.mockImplementation((url: string) => {
+            if (url === '/v1/nodes') return Promise.resolve({ data: [] });
+            if (url.startsWith('/v1/jobs')) {
+                return Promise.resolve({
+                    data: [
+                        {
+                            ID: 'web',
+                            Name: 'web',
+                            Namespace: 'default',
+                            Status: 'running',
+                            Stop: false,
+                        },
+                    ],
+                });
+            }
+            if (url.startsWith('/v1/job/web')) {
+                return Promise.resolve({
+                    data: {
+                        ID: 'web',
+                        Name: 'web',
+                        Namespace: 'default',
+                        TaskGroups: [
+                            {
+                                Name: 'group1',
+                                Tasks: [
+                                    {
+                                        Name: 'app',
+                                        Driver: 'docker',
+                                        Config: {
+                                            image: 'nginx:latest@sha256:repulled',
+                                        },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                });
+            }
+            return Promise.reject(new Error('Unknown URL'));
+        });
+
+        const existing = {
+            id: 'default_web_group1_app',
+            name: 'default_web_group1_app',
+            watcher: 'nomad_test',
+            image: {
+                id: 'nginx:latest@sha256:old',
+                name: 'nginx',
+                tag: { value: 'latest', semver: false },
+                registry: { name: 'hub', url: 'registry-1.docker.io' },
+                digest: { repo: 'sha256:old', value: 'sha256:old' },
+            },
+            result: { tag: 'latest' },
+            error: undefined,
+        };
+        (storeContainer.getContainer as jest.Mock).mockReturnValue(existing);
+
+        const containers = await watcher.getContainers();
+        expect(containers).toHaveLength(1);
+        expect(containers[0].image.id).toBe('nginx:latest@sha256:repulled');
+        expect(containers[0].image.digest.repo).toBe('sha256:repulled');
+    });
+
+    test('should re-evaluate container when tag changes but digest is unchanged', async () => {
+        mockClient.get.mockImplementation((url: string) => {
+            if (url === '/v1/nodes') return Promise.resolve({ data: [] });
+            if (url.startsWith('/v1/jobs')) {
+                return Promise.resolve({
+                    data: [
+                        {
+                            ID: 'db',
+                            Name: 'db',
+                            Namespace: 'default',
+                            Status: 'running',
+                            Stop: false,
+                        },
+                    ],
+                });
+            }
+            if (url.startsWith('/v1/job/db')) {
+                return Promise.resolve({
+                    data: {
+                        ID: 'db',
+                        Name: 'db',
+                        Namespace: 'default',
+                        TaskGroups: [
+                            {
+                                Name: 'group1',
+                                Tasks: [
+                                    {
+                                        Name: 'db',
+                                        Driver: 'docker',
+                                        Config: {
+                                            image: 'postgres:16.4@sha256:same',
+                                        },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                });
+            }
+            return Promise.reject(new Error('Unknown URL'));
+        });
+
+        const existing = {
+            id: 'default_db_group1_db',
+            name: 'default_db_group1_db',
+            watcher: 'nomad_test',
+            image: {
+                id: 'postgres:16@sha256:same',
+                name: 'postgres',
+                tag: { value: '16', semver: false },
+                registry: { name: 'hub', url: 'registry-1.docker.io' },
+                digest: { repo: 'sha256:same', value: 'sha256:same' },
+            },
+            result: { tag: '16' },
+            error: undefined,
+        };
+        (storeContainer.getContainer as jest.Mock).mockReturnValue(existing);
+
+        const containers = await watcher.getContainers();
+        expect(containers).toHaveLength(1);
+        expect(containers[0].image.tag.value).toBe('16.4');
+        expect(containers[0].image.id).toBe('postgres:16.4@sha256:same');
+    });
+
+    test('should preserve snooze state and result when task image changes', async () => {
+        mockClient.get.mockImplementation((url: string) => {
+            if (url === '/v1/nodes') return Promise.resolve({ data: [] });
+            if (url.startsWith('/v1/jobs')) {
+                return Promise.resolve({
+                    data: [
+                        {
+                            ID: 'web',
+                            Name: 'web',
+                            Namespace: 'default',
+                            Status: 'running',
+                            Stop: false,
+                        },
+                    ],
+                });
+            }
+            if (url.startsWith('/v1/job/web')) {
+                return Promise.resolve({
+                    data: {
+                        ID: 'web',
+                        Name: 'web',
+                        Namespace: 'default',
+                        TaskGroups: [
+                            {
+                                Name: 'group1',
+                                Tasks: [
+                                    {
+                                        Name: 'app',
+                                        Driver: 'docker',
+                                        Config: { image: 'nginx:1.27.1' },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                });
+            }
+            return Promise.reject(new Error('Unknown URL'));
+        });
+
+        const snoozedUntil = Date.UTC(2099, 0, 1);
+        const existing = {
+            id: 'default_web_group1_app',
+            name: 'default_web_group1_app',
+            watcher: 'nomad_test',
+            image: {
+                id: 'nginx:1.27.0',
+                name: 'nginx',
+                tag: { value: '1.27.0', semver: true },
+                registry: { name: 'hub', url: 'registry-1.docker.io' },
+            },
+            snoozedVersion: '1.28.0',
+            snoozedUntil,
+            result: { tag: '1.28.0' },
+            error: undefined,
+        };
+        (storeContainer.getContainer as jest.Mock).mockReturnValue(existing);
+
+        const containers = await watcher.getContainers();
+        expect(containers).toHaveLength(1);
+        expect(containers[0].image.tag.value).toBe('1.27.1');
+        expect(containers[0].snoozedVersion).toBe('1.28.0');
+        expect(containers[0].snoozedUntil).toBe(snoozedUntil);
+        expect(containers[0].result).toEqual({ tag: '1.28.0' });
+    });
+
+    test('should reuse store entry when task image is unchanged', async () => {
+        mockClient.get.mockImplementation((url: string) => {
+            if (url === '/v1/nodes') return Promise.resolve({ data: [] });
+            if (url.startsWith('/v1/jobs')) {
+                return Promise.resolve({
+                    data: [
+                        {
+                            ID: 'web',
+                            Name: 'web',
+                            Namespace: 'default',
+                            Status: 'running',
+                            Stop: false,
+                        },
+                    ],
+                });
+            }
+            if (url.startsWith('/v1/job/web')) {
+                return Promise.resolve({
+                    data: {
+                        ID: 'web',
+                        Name: 'web',
+                        Namespace: 'default',
+                        TaskGroups: [
+                            {
+                                Name: 'group1',
+                                Tasks: [
+                                    {
+                                        Name: 'app',
+                                        Driver: 'docker',
+                                        Config: { image: 'nginx:1.27.0' },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                });
+            }
+            return Promise.reject(new Error('Unknown URL'));
+        });
+
+        const existing = {
+            id: 'default_web_group1_app',
+            name: 'default_web_group1_app',
+            watcher: 'nomad_test',
+            image: {
+                id: 'nginx:1.27.0',
+                name: 'nginx',
+                tag: { value: '1.27.0', semver: true },
+                registry: { name: 'hub', url: 'registry-1.docker.io' },
+            },
+            result: { tag: '1.27.0' },
+            error: undefined,
+        };
+        (storeContainer.getContainer as jest.Mock).mockReturnValue(existing);
+
+        const containers = await watcher.getContainers();
+        expect(containers).toHaveLength(1);
+        expect(containers[0]).toBe(existing);
+    });
+
+    test('watch cycle updates container and store when task image changes', async () => {
+        let currentImage = 'nginx:1.27.0@sha256:old';
+        mockClient.get.mockImplementation((url: string) => {
+            if (url === '/v1/nodes') return Promise.resolve({ data: [] });
+            if (url.startsWith('/v1/jobs')) {
+                return Promise.resolve({
+                    data: [
+                        {
+                            ID: 'web',
+                            Name: 'web',
+                            Namespace: 'default',
+                            Status: 'running',
+                            Stop: false,
+                        },
+                    ],
+                });
+            }
+            if (url.startsWith('/v1/job/web')) {
+                return Promise.resolve({
+                    data: {
+                        ID: 'web',
+                        Name: 'web',
+                        Namespace: 'default',
+                        TaskGroups: [
+                            {
+                                Name: 'group1',
+                                Tasks: [
+                                    {
+                                        Name: 'app',
+                                        Driver: 'docker',
+                                        Config: { image: currentImage },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                });
+            }
+            return Promise.reject(new Error('Unknown URL'));
+        });
+
+        const mockStore = new Map<string, any>();
+        (storeContainer.getContainer as jest.Mock).mockImplementation(
+            (id: string) => {
+                const c = mockStore.get(id);
+                return c ? { ...c, resultChanged: () => false } : undefined;
+            },
+        );
+        (storeContainer.insertContainer as jest.Mock).mockImplementation(
+            (c: any) => {
+                mockStore.set(c.id, JSON.parse(JSON.stringify(c)));
+                return c;
+            },
+        );
+        (storeContainer.updateContainer as jest.Mock).mockImplementation(
+            (c: any) => {
+                mockStore.set(c.id, JSON.parse(JSON.stringify(c)));
+                return c;
+            },
+        );
+
+        (registry.getState as jest.Mock).mockReturnValue({
+            registry: {
+                hub: {
+                    getId: () => 'hub',
+                    match: () => true,
+                    normalizeImage: (img: any) => img,
+                    shouldWatchDigest: () => false,
+                    getTags: jest.fn().mockResolvedValue(['1.27.0', '1.27.1']),
+                },
+            },
+        });
+
+        // First watch cycle: discovers 1.27.0
+        let reports = await watcher.watch();
+        expect(reports).toHaveLength(1);
+        expect(reports[0].container.image.tag.value).toBe('1.27.0');
+
+        // Task updated to 1.27.1
+        currentImage = 'nginx:1.27.1@sha256:new';
+        reports = await watcher.watch();
+        expect(reports).toHaveLength(1);
+        expect(reports[0].container.image.tag.value).toBe('1.27.1');
+        expect(reports[0].container.image.id).toBe('nginx:1.27.1@sha256:new');
     });
 });
