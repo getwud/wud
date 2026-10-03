@@ -185,4 +185,50 @@ describe('Event API', () => {
         expect(unregisterContainerRemovedSpy).toHaveBeenCalled();
         expect(unregisterContainerReportSpy).toHaveBeenCalled();
     });
+
+    describe('Authentication protection on /api/events', () => {
+        it('should reject unauthenticated requests with HTTP 401 Unauthorized', async () => {
+            const authApp = express();
+            // Authentication middleware that rejects unauthenticated clients
+            authApp.use((req: any, res: any, next: any) => {
+                if (!req.isAuthenticated || !req.isAuthenticated()) {
+                    return res.status(401).json({ error: 'Unauthorized' });
+                }
+                next();
+            });
+            authApp.use('/api/events', eventApi.init());
+
+            const res = await request(authApp).get('/api/events');
+            expect(res.status).toBe(401);
+            expect(res.body).toEqual({ error: 'Unauthorized' });
+        });
+
+        it('should accept authenticated requests with HTTP 200 and SSE stream', (done) => {
+            const authApp = express();
+            authApp.use((req: any, _res: any, next: any) => {
+                req.isAuthenticated = () => true;
+                req.user = { username: 'testuser' };
+                next();
+            });
+            authApp.use('/api/events', eventApi.init());
+
+            const req = request(authApp)
+                .get('/api/events')
+                .expect('Content-Type', 'text/event-stream')
+                .expect(200);
+
+            req.buffer(false).end((err) => {
+                if (err) return done(err);
+            });
+
+            req.on('response', (res) => {
+                res.on('data', (chunk) => {
+                    const str = chunk.toString();
+                    if (str.includes(': keepalive')) {
+                        done();
+                    }
+                });
+            });
+        });
+    });
 });

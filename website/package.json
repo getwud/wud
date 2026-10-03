@@ -1,6 +1,6 @@
 {
   "name": "website",
-  "version": "9.2.0",
+  "version": "9.2.1",
   "private": true,
   "scripts": {
     "docusaurus": "docusaurus",
@@ -46,7 +46,7 @@
     "@docusaurus/module-type-aliases": "3.10.2",
     "@docusaurus/types": "3.10.2",
     "cspell": "^10.3.0",
-    "markdownlint-cli2": "^0.23.2",
+    "markdownlint-cli2": "^0.23.3",
     "simple-icons": "^16.28.0"
   },
   "browserslist": {

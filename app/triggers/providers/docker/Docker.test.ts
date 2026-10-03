@@ -354,6 +354,85 @@ test('pull should throw error when error occurs', async () => {
     ).rejects.toThrowError('Error when pulling image');
 });
 
+test('pullImage should throw error when followProgress encounters a stream error', async () => {
+    const streamError = new Error('Stream connection lost');
+    const mockDockerApi = {
+        pull: jest.fn().mockResolvedValue({}),
+        modem: {
+            followProgress: jest.fn((_stream, onFinished) => {
+                onFinished(streamError);
+            }),
+        },
+    };
+
+    await expect(
+        docker.pullImage(mockDockerApi, undefined, 'test/test:1.2.3', log),
+    ).rejects.toThrowError('Stream connection lost');
+});
+
+test('pullImage should throw error when followProgress output contains error', async () => {
+    const mockDockerApi = {
+        pull: jest.fn().mockResolvedValue({}),
+        modem: {
+            followProgress: jest.fn((_stream, onFinished) => {
+                onFinished(null, [
+                    { status: 'Pulling fs layer' },
+                    {
+                        error: 'toomanyrequests: You have reached your pull rate limit.',
+                    },
+                ]);
+            }),
+        },
+    };
+
+    await expect(
+        docker.pullImage(mockDockerApi, undefined, 'test/test:1.2.3', log),
+    ).rejects.toThrowError(
+        'toomanyrequests: You have reached your pull rate limit.',
+    );
+});
+
+test('pullImage should throw error when followProgress output contains errorDetail', async () => {
+    const mockDockerApi = {
+        pull: jest.fn().mockResolvedValue({}),
+        modem: {
+            followProgress: jest.fn((_stream, onFinished) => {
+                onFinished(null, [
+                    { status: 'Pulling fs layer' },
+                    {
+                        errorDetail: {
+                            message: 'failed to register layer: untar error',
+                        },
+                    },
+                ]);
+            }),
+        },
+    };
+
+    await expect(
+        docker.pullImage(mockDockerApi, undefined, 'test/test:1.2.3', log),
+    ).rejects.toThrowError('failed to register layer: untar error');
+});
+
+test('pullImage should resolve when pull stream completes successfully without errors', async () => {
+    const mockDockerApi = {
+        pull: jest.fn().mockResolvedValue({}),
+        modem: {
+            followProgress: jest.fn((_stream, onFinished) => {
+                onFinished(null, [
+                    { status: 'Pulling fs layer' },
+                    { status: 'Downloading' },
+                    { status: 'Download complete' },
+                ]);
+            }),
+        },
+    };
+
+    await expect(
+        docker.pullImage(mockDockerApi, undefined, 'test/test:1.2.3', log),
+    ).resolves.toBeUndefined();
+});
+
 test('removeImage should pull image from dockerApi', async () => {
     await expect(
         docker.removeImage(

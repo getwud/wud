@@ -109,6 +109,13 @@ You only need to configure environment variables if you want to:
   />
 
   <RegistryCard
+    title="Elastic Container Registry"
+    href="/docs/configuration/registries/elastic"
+    defaultSupport={true}
+    description="Monitors public images on Elastic Container Registry (docker.elastic.co) anonymously out of the box."
+  />
+
+  <RegistryCard
     title="Forgejo"
     href="/docs/configuration/registries/forgejo"
     defaultSupport={true}

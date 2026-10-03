@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
     title: WUD REST API
-    version: 9.2.0
+    version: 9.2.1
     description: |
         Welcome to the *WUD* REST API documentation.
 
@@ -74,6 +74,8 @@ tags:
       description: Persistent storage management and inspection.
     - name: Logs
       description: Application logs and diagnostics.
+    - name: Events
+      description: Real-time Server-Sent Events (SSE) stream.
 paths:
     /auth/strategies:
         get:
@@ -635,6 +637,25 @@ paths:
                                 additionalProperties: true
                 '404':
                     description: Not Found
+    /api/events:
+        get:
+            tags:
+                - Events
+            summary: Subscribe to Server-Sent Events (SSE)
+            operationId: getEvents
+            security:
+                - cookieAuth: []
+                - bearerAuth: []
+                - basicAuth: []
+            responses:
+                '200':
+                    description: SSE stream of real-time events
+                    content:
+                        text/event-stream:
+                            schema:
+                                type: string
+                '401':
+                    description: Unauthorized
 components:
     schemas:
         User:
@@ -786,3 +807,12 @@ components:
             type: http
             scheme: basic
             description: HTTP Basic Authentication (when WUD_AUTH_BASIC is enabled)
+        bearerAuth:
+            type: http
+            scheme: bearer
+            description: Bearer API token
+        cookieAuth:
+            type: apiKey
+            in: cookie
+            name: connect.sid
+            description: Session cookie

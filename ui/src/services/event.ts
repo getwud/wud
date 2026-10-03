@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import { url } from './base';
 
 type ConnectionState = 'connected' | 'reconnecting' | 'offline';
 
@@ -9,16 +10,16 @@ class EventService {
     private handlers: Record<string, Array<(data: any) => void>> = {};
 
     constructor() {
-        this.connect();
+        // Service starts offline; connect() must be called explicitly when authenticated
     }
 
-    private connect() {
+    public connect() {
         if (this.eventSource) {
-            this.eventSource.close();
+            return;
         }
 
         this.connectionState.value = 'reconnecting';
-        this.eventSource = new EventSource('/api/events');
+        this.eventSource = new EventSource(url('api/events'), { withCredentials: true });
 
         this.eventSource.onopen = () => {
             this.connectionState.value = 'connected';
@@ -43,6 +44,14 @@ class EventService {
         };
     }
 
+    public disconnect() {
+        if (this.eventSource) {
+            this.eventSource.close();
+            this.eventSource = null;
+        }
+        this.connectionState.value = 'offline';
+    }
+
     public on(event: string, callback: (data: any) => void) {
         if (!this.handlers[event]) {
             this.handlers[event] = [];
@@ -57,6 +66,7 @@ class EventService {
     }
 
     public reconnect() {
+        this.disconnect();
         this.connect();
     }
 }

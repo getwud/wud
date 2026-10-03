@@ -528,6 +528,179 @@ describe('Docker Watcher', () => {
             );
         });
 
+        test('should update container displayName on rename event when displayName was defaulted to old name', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockChildLog = { info: jest.fn() };
+            const mockLog = {
+                child: jest.fn().mockReturnValue(mockChildLog),
+                debug: jest.fn(),
+            };
+            docker.log = mockLog;
+            mockContainer.inspect.mockResolvedValue({
+                Name: '/new-container-name',
+                State: { Status: 'running' },
+            });
+            const existingContainer = {
+                id: 'container123',
+                name: 'old-container-name',
+                displayName: 'old-container-name',
+                status: 'running',
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const event = JSON.stringify({
+                Action: 'rename',
+                Actor: {
+                    ID: 'container123',
+                    Attributes: {
+                        name: 'new-container-name',
+                        oldName: 'old-container-name',
+                    },
+                },
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+
+            expect(existingContainer.name).toBe('new-container-name');
+            expect(existingContainer.displayName).toBe('new-container-name');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: 'container123',
+                    name: 'new-container-name',
+                    displayName: 'new-container-name',
+                }),
+            );
+        });
+
+        test('should not overwrite container displayName on rename event when explicit wud.display.name label exists', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockChildLog = { info: jest.fn() };
+            const mockLog = {
+                child: jest.fn().mockReturnValue(mockChildLog),
+                debug: jest.fn(),
+            };
+            docker.log = mockLog;
+            mockContainer.inspect.mockResolvedValue({
+                Name: '/new-container-name',
+                Config: {
+                    Labels: {
+                        'wud.display.name': 'Custom App',
+                    },
+                },
+                State: { Status: 'running' },
+            });
+            const existingContainer = {
+                id: 'container123',
+                name: 'old-container-name',
+                displayName: 'Custom App',
+                status: 'running',
+                labels: {
+                    'wud.display.name': 'Custom App',
+                },
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const event = JSON.stringify({
+                Action: 'rename',
+                Actor: {
+                    ID: 'container123',
+                    Attributes: {
+                        name: 'new-container-name',
+                        oldName: 'old-container-name',
+                    },
+                },
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+
+            expect(existingContainer.name).toBe('new-container-name');
+            expect(existingContainer.displayName).toBe('Custom App');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: 'container123',
+                    name: 'new-container-name',
+                    displayName: 'Custom App',
+                }),
+            );
+        });
+
+        test('should update container displayName on event when explicit wud.display.name label is updated', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockChildLog = { info: jest.fn() };
+            const mockLog = {
+                child: jest.fn().mockReturnValue(mockChildLog),
+                debug: jest.fn(),
+            };
+            docker.log = mockLog;
+            mockContainer.inspect.mockResolvedValue({
+                Name: '/my-container',
+                Config: {
+                    Labels: {
+                        'wud.display.name': 'Renamed Display',
+                    },
+                },
+                State: { Status: 'running' },
+            });
+            const existingContainer = {
+                id: 'container123',
+                name: 'my-container',
+                displayName: 'my-container',
+                status: 'running',
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const event = JSON.stringify({
+                Action: 'update',
+                Actor: {
+                    ID: 'container123',
+                },
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+
+            expect(existingContainer.displayName).toBe('Renamed Display');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: 'container123',
+                    displayName: 'Renamed Display',
+                }),
+            );
+        });
+
+        test('should heal stale container displayName on event even if name was already updated', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockChildLog = { info: jest.fn() };
+            const mockLog = {
+                child: jest.fn().mockReturnValue(mockChildLog),
+                debug: jest.fn(),
+            };
+            docker.log = mockLog;
+            mockContainer.inspect.mockResolvedValue({
+                Name: '/shlink',
+                State: { Status: 'running' },
+            });
+            const existingContainer = {
+                id: 'container123',
+                name: 'shlink',
+                displayName: '691ce9b22a18_shlink',
+                status: 'running',
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const event = JSON.stringify({
+                Action: 'start',
+                Actor: {
+                    ID: 'container123',
+                },
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+
+            expect(existingContainer.displayName).toBe('shlink');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: 'container123',
+                    displayName: 'shlink',
+                }),
+            );
+        });
+
         test('should update both status and name when both change on event', async () => {
             await docker.register('watcher', 'docker', 'test', {});
             const mockChildLog = { info: jest.fn() };
@@ -1094,6 +1267,30 @@ describe('Docker Watcher', () => {
             expect(result).toEqual({ tag: '1.0.0' });
         });
 
+        test('should resolve legacy registry alias to public registry (e.g. hub to hub.public)', async () => {
+            const container = {
+                image: {
+                    registry: { name: 'hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                },
+            };
+            const mockRegistry = {
+                getId: () => 'hub.public',
+                getTags: jest.fn().mockResolvedValue(['1.0.0', '1.1.0']),
+                shouldWatchDigest: jest.fn(() => false),
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'hub.public': mockRegistry },
+            });
+            const mockLogChild = { error: jest.fn(), warn: jest.fn() };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(mockRegistry.getTags).toHaveBeenCalledWith(container.image);
+            expect(result).toEqual({ tag: '1.0.0' });
+        });
+
         test('should handle unsupported registry', async () => {
             const container = {
                 image: {
@@ -1152,6 +1349,108 @@ describe('Docker Watcher', () => {
             // A config blob carrying no created date must not erase the value
             // already resolved from the manifest.
             expect(result.created).toBe('2023-01-01');
+        });
+
+        test('should watch digest for stored non-semver container with digest.watch=false when registry shouldWatchDigest is true (fixes #1337)', async () => {
+            const container: any = {
+                image: {
+                    id: 'image123',
+                    name: 'fireflyiii/core',
+                    registry: { name: 'hub' },
+                    tag: { value: 'latest', semver: false },
+                    digest: { watch: false, repo: 'sha256:abc123' },
+                },
+                labels: {},
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['latest']),
+                getImageManifestDigest: jest.fn().mockResolvedValue({
+                    digest: 'sha256:remote-digest-456',
+                    created: '2023-01-01',
+                    version: 2,
+                }),
+                shouldWatchDigest: jest.fn(() => true),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const mockLogChild = {
+                error: jest.fn(),
+                debug: jest.fn(),
+                warn: jest.fn(),
+            };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(mockRegistry.shouldWatchDigest).toHaveBeenCalled();
+            expect(mockRegistry.getImageManifestDigest).toHaveBeenCalled();
+            expect(result.digest).toBe('sha256:remote-digest-456');
+            expect(container.image.digest.watch).toBe(true);
+            expect(mockLogChild.warn).not.toHaveBeenCalled();
+        });
+
+        test('should respect container label wud.watch.digest=false over registry shouldWatchDigest=true (fixes #1337)', async () => {
+            const container: any = {
+                image: {
+                    id: 'image123',
+                    name: 'fireflyiii/core',
+                    registry: { name: 'hub' },
+                    tag: { value: 'latest', semver: false },
+                    digest: { watch: true, repo: 'sha256:abc123' },
+                },
+                labels: { 'wud.watch.digest': 'false' },
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['latest']),
+                getImageManifestDigest: jest.fn(),
+                shouldWatchDigest: jest.fn(() => true),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const mockLogChild = {
+                error: jest.fn(),
+                debug: jest.fn(),
+                warn: jest.fn(),
+            };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(mockRegistry.getImageManifestDigest).not.toHaveBeenCalled();
+            expect(result.digest).toBeUndefined();
+            expect(container.image.digest.watch).toBe(false);
+        });
+
+        test('should default to no digest watching for semver tag without label even when registry shouldWatchDigest is true', async () => {
+            const container: any = {
+                image: {
+                    id: 'image123',
+                    name: 'library/nginx',
+                    registry: { name: 'hub' },
+                    tag: { value: '1.25.0', semver: true },
+                    digest: { watch: false, repo: 'sha256:abc123' },
+                },
+                labels: {},
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['1.25.0']),
+                getImageManifestDigest: jest.fn(),
+                shouldWatchDigest: jest.fn(() => true),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const mockLogChild = {
+                error: jest.fn(),
+                debug: jest.fn(),
+                warn: jest.fn(),
+            };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(mockRegistry.getImageManifestDigest).not.toHaveBeenCalled();
+            expect(result.digest).toBeUndefined();
+            expect(container.image.digest.watch).toBe(false);
         });
 
         test('should resolve the remote version and build date when the digest moved', async () => {
@@ -1847,6 +2146,183 @@ describe('Docker Watcher', () => {
             expect(mockDockerApi.getImage).not.toHaveBeenCalled();
         });
 
+        test('should update container displayName in store when container is renamed during polling', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = { debug: jest.fn(), info: jest.fn() };
+            docker.log = mockLog;
+            const existingContainer = {
+                id: '123',
+                name: 'temp-name',
+                displayName: 'temp-name',
+                result: { tag: '2.0.0' },
+                error: undefined,
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const result = await docker.addImageDetailsToContainer({
+                Id: '123',
+                Names: ['/final-name'],
+            });
+
+            expect(result.name).toBe('final-name');
+            expect(result.displayName).toBe('final-name');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: '123',
+                    name: 'final-name',
+                    displayName: 'final-name',
+                }),
+            );
+            expect(mockDockerApi.getImage).not.toHaveBeenCalled();
+        });
+
+        test('should heal stale displayName with currentContainerName during polling when row has temporary name (issue #1298)', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = { debug: jest.fn(), info: jest.fn() };
+            docker.log = mockLog;
+            const existingContainer = {
+                id: '81df6428fb79',
+                name: 'shlink',
+                displayName: '691ce9b22a18_shlink',
+                watcher: 'test',
+                result: { tag: '2.0.0' },
+                error: undefined,
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const result = await docker.addImageDetailsToContainer({
+                Id: '81df6428fb79',
+                Names: ['/shlink'],
+                Labels: {},
+            });
+
+            expect(result.name).toBe('shlink');
+            expect(result.displayName).toBe('shlink');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: '81df6428fb79',
+                    displayName: 'shlink',
+                }),
+            );
+            expect(mockDockerApi.getImage).not.toHaveBeenCalled();
+        });
+
+        test('should preserve custom displayName during polling when container has explicit wud.display.name label', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = { debug: jest.fn(), info: jest.fn() };
+            docker.log = mockLog;
+            const existingContainer = {
+                id: '123',
+                name: 'temp-name',
+                displayName: 'Custom Display',
+                labels: {
+                    'wud.display.name': 'Custom Display',
+                },
+                result: { tag: '2.0.0' },
+                error: undefined,
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const result = await docker.addImageDetailsToContainer(
+                {
+                    Id: '123',
+                    Names: ['/final-name'],
+                    Labels: {
+                        'wud.display.name': 'Custom Display',
+                    },
+                },
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                'Custom Display',
+            );
+
+            expect(result.name).toBe('final-name');
+            expect(result.displayName).toBe('Custom Display');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: '123',
+                    name: 'final-name',
+                    displayName: 'Custom Display',
+                }),
+            );
+            expect(mockDockerApi.getImage).not.toHaveBeenCalled();
+        });
+
+        test('should update displayName during polling when explicit wud.display.name label changes', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = { debug: jest.fn(), info: jest.fn() };
+            docker.log = mockLog;
+            const existingContainer = {
+                id: '123',
+                name: 'my-app',
+                displayName: 'Old Display',
+                labels: {
+                    'wud.display.name': 'Old Display',
+                },
+                result: { tag: '2.0.0' },
+                error: undefined,
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const result = await docker.addImageDetailsToContainer(
+                {
+                    Id: '123',
+                    Names: ['/my-app'],
+                    Labels: {
+                        'wud.display.name': 'New Display',
+                    },
+                },
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                'New Display',
+            );
+
+            expect(result.displayName).toBe('New Display');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: '123',
+                    displayName: 'New Display',
+                }),
+            );
+            expect(mockDockerApi.getImage).not.toHaveBeenCalled();
+        });
+
+        test('should revert displayName to container name during polling when wud.display.name label is removed', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = { debug: jest.fn(), info: jest.fn() };
+            docker.log = mockLog;
+            const existingContainer = {
+                id: '123',
+                name: 'my-app',
+                displayName: 'Custom Display',
+                labels: {
+                    'wud.display.name': 'Custom Display',
+                },
+                result: { tag: '2.0.0' },
+                error: undefined,
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const result = await docker.addImageDetailsToContainer({
+                Id: '123',
+                Names: ['/my-app'],
+                Labels: {},
+            });
+
+            expect(result.displayName).toBe('my-app');
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: '123',
+                    displayName: 'my-app',
+                }),
+            );
+            expect(mockDockerApi.getImage).not.toHaveBeenCalled();
+        });
+
         test('should update container watcher in store when watcher name changed', async () => {
             await docker.register('watcher', 'docker', 'local', {});
             const mockLog = { debug: jest.fn(), info: jest.fn() };
@@ -2437,6 +2913,123 @@ describe('Docker Watcher', () => {
             const result = await docker.addImageDetailsToContainer(container);
             expect(result).toBeDefined();
             expect(result.delay).toBe('1w');
+        });
+
+        test('should invalidate cache and re-inspect image when stored registry is no longer registered', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = { debug: jest.fn(), info: jest.fn() };
+            docker.log = mockLog;
+
+            const existingContainer = {
+                id: '123',
+                name: 'test-container',
+                image: { registry: { name: 'deleted_custom_registry' } },
+                result: { tag: '2.0.0' },
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            const container = {
+                Id: '123',
+                Image: 'nginx:1.0.0',
+                Names: ['/test-container'],
+                State: 'running',
+                Labels: {},
+            };
+            const imageDetails = {
+                Id: 'image123',
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+                RepoDigests: ['nginx@sha256:abc123'],
+            };
+            mockImage.inspect.mockResolvedValue(imageDetails);
+            mockTag.parse.mockReturnValue({ major: 1, minor: 0, patch: 0 });
+
+            const mockPublicHub = {
+                normalizeImage: jest.fn((img) => img),
+                getId: () => 'hub.public',
+                match: () => true,
+                shouldWatchDigest: jest.fn(() => false),
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'hub.public': mockPublicHub },
+            });
+
+            const containerModule = await import('../../../model/container');
+            const validateContainer = containerModule.validate;
+            // @ts-ignore
+            validateContainer.mockImplementation((c) => c);
+
+            const result = await docker.addImageDetailsToContainer(container);
+
+            expect(mockDockerApi.getImage).toHaveBeenCalledWith('nginx:1.0.0');
+            expect(mockImage.inspect).toHaveBeenCalled();
+            expect(mockLog.info).toHaveBeenCalledWith(
+                expect.stringContaining('deleted_custom_registry'),
+            );
+            expect(result).toBeDefined();
+            expect(result.image.registry.name).toBe('hub.public');
+        });
+
+        test('should prioritize custom/authenticated registry over default public registry when normalizing container', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const container = {
+                Id: '456',
+                Image: 'my-custom-image:1.0.0',
+                Names: ['/custom-app'],
+                State: 'running',
+                Labels: {},
+            };
+            mockImage.inspect.mockResolvedValue({
+                Id: 'image456',
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+                RepoDigests: [],
+            });
+            mockTag.parse.mockReturnValue({ major: 1, minor: 0, patch: 0 });
+
+            const mockPublicHub = {
+                name: 'public',
+                type: 'hub',
+                configuration: {},
+                normalizeImage: jest.fn((img) => ({
+                    ...img,
+                    registry: { name: 'hub.public', url: 'hub.docker.com' },
+                })),
+                getId: () => 'hub.public',
+                match: () => true,
+                shouldWatchDigest: jest.fn(() => false),
+            };
+            const mockPrivateHub = {
+                name: 'private',
+                type: 'hub',
+                configuration: { login: 'user', token: 'secret' },
+                normalizeImage: jest.fn((img) => ({
+                    ...img,
+                    registry: { name: 'hub.private', url: 'hub.docker.com' },
+                })),
+                getId: () => 'hub.private',
+                match: () => true,
+                shouldWatchDigest: jest.fn(() => false),
+            };
+
+            registry.getState.mockReturnValue({
+                registry: {
+                    'hub.public': mockPublicHub,
+                    'hub.private': mockPrivateHub,
+                },
+            });
+
+            const containerModule = await import('../../../model/container');
+            const validateContainer = containerModule.validate;
+            // @ts-ignore
+            validateContainer.mockImplementation((c) => c);
+
+            const result = await docker.addImageDetailsToContainer(container);
+
+            expect(mockPrivateHub.normalizeImage).toHaveBeenCalled();
+            expect(result.image.registry.name).toBe('hub.private');
         });
     });
 

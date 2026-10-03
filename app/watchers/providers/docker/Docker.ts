@@ -38,6 +38,11 @@ import {
     Container,
 } from '../../../model/container';
 import * as registry from '../../../registry';
+import {
+    findRegistryProvider,
+    resolveRegistry,
+    isRegistryRegistered,
+} from '../../../registries/registryProvider';
 import { getWatchContainerGauge } from '../../../prometheus/watcher';
 import Watcher from '../../Watcher';
 import { ComponentConfiguration } from '../../../registry/Component';
@@ -215,12 +220,15 @@ export function getTagCandidates(
 /**
  * Get the Docker Registry by name.
  */
-function getRegistry(registryName: string) {
-    const registryToReturn = getRegistries()[registryName];
-    if (!registryToReturn) {
-        throw new Error(`Unsupported Registry ${registryName}`);
-    }
-    return registryToReturn;
+export function getRegistry(registryName: string) {
+    return resolveRegistry(registryName, getRegistries());
+}
+
+/**
+ * Check if a registry is supported / registered.
+ */
+export function hasRegistry(registryName?: string) {
+    return isRegistryRegistered(registryName, getRegistries());
 }
 
 /**
@@ -538,6 +546,7 @@ export class Docker extends Watcher {
                     });
                     const oldStatus = containerFound.status;
                     const oldName = containerFound.name;
+                    const oldDisplayName = containerFound.displayName;
                     let isUpdated = false;
 
                     if (newStatus && oldStatus !== newStatus) {
@@ -547,6 +556,16 @@ export class Docker extends Watcher {
                         );
                         isUpdated = true;
                     }
+
+                    const inspectLabels =
+                        containerInspect.Config?.Labels ||
+                        (containerInspect as any).Labels;
+                    const explicitDisplayName =
+                        inspectLabels?.[wudDisplayName] ||
+                        (inspectLabels === undefined
+                            ? containerFound.labels?.[wudDisplayName]
+                            : undefined);
+
                     if (newName && oldName !== newName) {
                         containerFound.name = newName;
                         logContainer.info(
@@ -554,6 +573,32 @@ export class Docker extends Watcher {
                         );
                         isUpdated = true;
                     }
+
+                    if (explicitDisplayName) {
+                        if (
+                            containerFound.displayName !== explicitDisplayName
+                        ) {
+                            containerFound.displayName = explicitDisplayName;
+                            isUpdated = true;
+                        }
+                    } else if (newName) {
+                        if (
+                            oldName !== newName ||
+                            oldDisplayName === oldName ||
+                            (oldDisplayName !== undefined &&
+                                oldDisplayName !== newName)
+                        ) {
+                            if (containerFound.displayName !== newName) {
+                                containerFound.displayName = newName;
+                                isUpdated = true;
+                            }
+                        }
+                    }
+
+                    if (inspectLabels) {
+                        containerFound.labels = inspectLabels;
+                    }
+
                     if (isUpdated) {
                         storeContainer.updateContainer(containerFound);
                     }
@@ -760,14 +805,17 @@ export class Docker extends Watcher {
             let watchDigest = false;
             if (watchDigestLabel !== undefined && watchDigestLabel !== '') {
                 watchDigest = watchDigestLabel.toLowerCase() === 'true';
-            } else if (container.image.digest?.watch !== undefined) {
-                watchDigest = container.image.digest.watch;
             } else if (!container.image.tag.semver) {
                 watchDigest = registryProvider.shouldWatchDigest(
                     undefined,
                     container.image.name,
                     this.configuration.watchdigestdefault,
                 );
+            }
+            if (container.image.digest) {
+                container.image.digest.watch = watchDigest;
+            } else {
+                container.image.digest = { watch: watchDigest };
             }
 
             if (!container.image.tag.semver && !watchDigest) {
@@ -924,37 +972,124 @@ export class Docker extends Watcher {
             containerInStore !== undefined &&
             containerInStore.error === undefined
         ) {
-            this.log.debug(`Container ${containerInStore.id} already in store`);
-            let isUpdated = false;
-            if (containerInStore.watcher !== this.name) {
-                containerInStore.watcher = this.name;
-                isUpdated = true;
-            }
-            if (stack && !containerInStore.stack) {
-                containerInStore.stack = stack;
-                isUpdated = true;
-            }
-            if (delay && containerInStore.delay !== delay) {
-                containerInStore.delay = delay;
-                isUpdated = true;
-            }
-            const currentContainerName = this.getContainerName(container);
-            if (
-                currentContainerName &&
-                containerInStore.name !== currentContainerName
-            ) {
+            const storeRegistryName = containerInStore.image?.registry?.name;
+            if (storeRegistryName && !hasRegistry(storeRegistryName)) {
                 if (this.log && typeof this.log.info === 'function') {
                     this.log.info(
-                        `Container ${containerInStore.id} renamed from ${containerInStore.name} to ${currentContainerName}`,
+                        `Container ${containerInStore.id} registry (${storeRegistryName}) is no longer registered, re-evaluating container`,
                     );
                 }
-                containerInStore.name = currentContainerName;
-                isUpdated = true;
+            } else {
+                this.log.debug(
+                    `Container ${containerInStore.id} already in store`,
+                );
+                let isUpdated = false;
+                if (containerInStore.watcher !== this.name) {
+                    containerInStore.watcher = this.name;
+                    isUpdated = true;
+                }
+                if (storeRegistryName) {
+                    const resolvedRegistry = getRegistry(storeRegistryName);
+                    if (
+                        resolvedRegistry?.getId &&
+                        typeof resolvedRegistry.getId === 'function' &&
+                        containerInStore.image.registry.name !==
+                            resolvedRegistry.getId()
+                    ) {
+                        containerInStore.image.registry.name =
+                            resolvedRegistry.getId();
+                        isUpdated = true;
+                    }
+                }
+                if (stack && !containerInStore.stack) {
+                    containerInStore.stack = stack;
+                    isUpdated = true;
+                }
+                if (delay && containerInStore.delay !== delay) {
+                    containerInStore.delay = delay;
+                    isUpdated = true;
+                }
+                const currentContainerName = this.getContainerName(container);
+                const oldName = containerInStore.name;
+                const oldDisplayName = containerInStore.displayName;
+                if (currentContainerName && oldName !== currentContainerName) {
+                    if (this.log && typeof this.log.info === 'function') {
+                        this.log.info(
+                            `Container ${containerInStore.id} renamed from ${oldName} to ${currentContainerName}`,
+                        );
+                    }
+                    containerInStore.name = currentContainerName;
+                    isUpdated = true;
+                }
+
+                const explicitDisplayName =
+                    displayName ||
+                    containerLabels[wudDisplayName] ||
+                    (container.Labels === undefined &&
+                    container.labels === undefined
+                        ? containerInStore.labels?.[wudDisplayName]
+                        : undefined);
+
+                if (explicitDisplayName) {
+                    if (containerInStore.displayName !== explicitDisplayName) {
+                        containerInStore.displayName = explicitDisplayName;
+                        isUpdated = true;
+                    }
+                } else if (currentContainerName) {
+                    if (
+                        oldName !== currentContainerName ||
+                        oldDisplayName === oldName ||
+                        (oldDisplayName !== undefined &&
+                            oldDisplayName !== currentContainerName)
+                    ) {
+                        if (
+                            containerInStore.displayName !==
+                            currentContainerName
+                        ) {
+                            containerInStore.displayName = currentContainerName;
+                            isUpdated = true;
+                        }
+                    }
+                }
+
+                if (container.Labels || container.labels) {
+                    containerInStore.labels = containerLabels;
+                }
+
+                const watchDigestLabel = containerLabels[wudWatchDigest];
+                let watchDigest = false;
+                if (watchDigestLabel !== undefined && watchDigestLabel !== '') {
+                    watchDigest = watchDigestLabel.toLowerCase() === 'true';
+                } else if (!containerInStore.image?.tag?.semver) {
+                    const registryProvider = findRegistryProvider(
+                        containerInStore.image?.registry?.url,
+                        getRegistries(),
+                    );
+                    if (registryProvider) {
+                        watchDigest = registryProvider.shouldWatchDigest(
+                            undefined,
+                            containerInStore.image?.name,
+                            this.configuration.watchdigestdefault,
+                        );
+                    } else if (
+                        this.configuration.watchdigestdefault !== undefined
+                    ) {
+                        watchDigest = this.configuration.watchdigestdefault;
+                    }
+                }
+                if (
+                    containerInStore.image?.digest &&
+                    containerInStore.image.digest.watch !== watchDigest
+                ) {
+                    containerInStore.image.digest.watch = watchDigest;
+                    isUpdated = true;
+                }
+
+                if (isUpdated) {
+                    storeContainer.updateContainer(containerInStore);
+                }
+                return containerInStore;
             }
-            if (isUpdated) {
-                storeContainer.updateContainer(containerInStore);
-            }
-            return containerInStore;
         }
 
         // Get container image details
@@ -1002,8 +1137,9 @@ export class Docker extends Watcher {
             };
         }
 
-        const registryProvider = Object.values(getRegistries()).find(
-            (registry) => registry.match(parsedImage.domain),
+        const registryProvider = findRegistryProvider(
+            parsedImage.domain,
+            getRegistries(),
         );
 
         if (!registryProvider) {
@@ -1122,8 +1258,9 @@ export class Docker extends Watcher {
 
     private normalizeContainer(container: Container) {
         const containerWithNormalizedImage = container;
-        const registryProvider = Object.values(getRegistries()).find(
-            (provider) => provider.match(container.image.registry.url),
+        const registryProvider = findRegistryProvider(
+            container.image.registry.url,
+            getRegistries(),
         );
         if (!registryProvider) {
             this.log.warn(

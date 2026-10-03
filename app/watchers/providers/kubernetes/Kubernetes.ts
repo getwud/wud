@@ -39,6 +39,11 @@ import {
     Container,
 } from '../../../model/container';
 import * as registry from '../../../registry';
+import {
+    findRegistryProvider,
+    resolveRegistry,
+    isRegistryRegistered,
+} from '../../../registries/registryProvider';
 import { isOneshot } from '../../../runtime/mode';
 import { getWatchContainerGauge } from '../../../prometheus/watcher';
 import Watcher from '../../Watcher';
@@ -88,6 +93,14 @@ const START_WATCHER_DELAY_MS = 1000;
  */
 function getRegistries() {
     return registry.getState().registry;
+}
+
+function getRegistry(registryName: string) {
+    return resolveRegistry(registryName, getRegistries());
+}
+
+function hasRegistry(registryName?: string) {
+    return isRegistryRegistered(registryName, getRegistries());
 }
 
 /**
@@ -140,6 +153,26 @@ export function buildContainerId(
     containerName: string,
 ): string {
     return `${namespace}_${kind.toLowerCase()}_${workloadName}_${containerName}`;
+}
+
+/**
+ * Determine if the image of a workload container differs from the image of
+ * its store entry (e.g. after the workload has been updated).
+ * The container id is stable across image updates, so a stale store entry
+ * must be detected by comparing:
+ *   - the image id (Pod imageID, or image name when no Pod status is available)
+ *   - the tag (a new tag can share the digest of the old one, e.g. 16 -> 16.4)
+ */
+export function isWorkloadImageChanged(
+    containerInStore: Container,
+    containerSpec: K8sContainerSpec,
+): boolean {
+    const currentImageId = containerSpec.imageID ?? containerSpec.image;
+    const currentTag = parse(containerSpec.image)?.tag || 'latest';
+    return (
+        containerInStore.image?.id !== currentImageId ||
+        containerInStore.image?.tag?.value !== currentTag
+    );
 }
 
 /**
@@ -701,16 +734,88 @@ export class Kubernetes extends Watcher {
         const containerInStore = isOneshot()
             ? undefined
             : storeContainer.getContainer(containerId);
+        const imageChanged =
+            containerInStore !== undefined &&
+            isWorkloadImageChanged(containerInStore, containerSpec);
+        if (imageChanged && this.log && typeof this.log.info === 'function') {
+            this.log.info(
+                `Container ${containerId} image changed, re-evaluating container`,
+            );
+        }
         if (
             containerInStore !== undefined &&
-            containerInStore.error === undefined
+            containerInStore.error === undefined &&
+            !imageChanged
         ) {
-            this.log.debug(`Container ${containerId} already in store`);
-            if (containerInStore.watcher !== this.name) {
-                containerInStore.watcher = this.name;
-                storeContainer.updateContainer(containerInStore);
+            const storeRegistryName = containerInStore.image?.registry?.name;
+            if (storeRegistryName && !hasRegistry(storeRegistryName)) {
+                if (this.log && typeof this.log.info === 'function') {
+                    this.log.info(
+                        `Container ${containerId} registry (${storeRegistryName}) is no longer registered, re-evaluating container`,
+                    );
+                }
+            } else {
+                this.log.debug(`Container ${containerId} already in store`);
+                let isUpdated = false;
+                if (containerInStore.watcher !== this.name) {
+                    containerInStore.watcher = this.name;
+                    isUpdated = true;
+                }
+                if (storeRegistryName) {
+                    const resolvedRegistry = getRegistry(storeRegistryName);
+                    if (
+                        resolvedRegistry?.getId &&
+                        typeof resolvedRegistry.getId === 'function' &&
+                        containerInStore.image.registry.name !==
+                            resolvedRegistry.getId()
+                    ) {
+                        containerInStore.image.registry.name =
+                            resolvedRegistry.getId();
+                        isUpdated = true;
+                    }
+                }
+                const watchDigestAnnotation = getAnnotationValue(
+                    annotations,
+                    KEY_WATCH_DIGEST,
+                    containerInStore.name,
+                );
+                let watchDigest = false;
+                if (
+                    watchDigestAnnotation !== undefined &&
+                    watchDigestAnnotation !== ''
+                ) {
+                    watchDigest =
+                        watchDigestAnnotation.toLowerCase() === 'true';
+                } else if (!containerInStore.image?.tag?.semver) {
+                    const registryProvider = findRegistryProvider(
+                        containerInStore.image?.registry?.url,
+                        getRegistries(),
+                    );
+                    if (registryProvider) {
+                        watchDigest = registryProvider.shouldWatchDigest(
+                            undefined,
+                            containerInStore.image?.name,
+                            this.configuration.watchdigestdefault,
+                        );
+                    } else if (
+                        this.configuration.watchdigestdefault !== undefined
+                    ) {
+                        watchDigest = this.configuration.watchdigestdefault;
+                    }
+                }
+                if (
+                    containerInStore.image?.digest &&
+                    containerInStore.image.digest.watch !== watchDigest
+                ) {
+                    containerInStore.image.digest.watch = watchDigest;
+                    isUpdated = true;
+                }
+
+                if (isUpdated) {
+                    storeContainer.updateContainer(containerInStore);
+                }
+                return containerInStore;
             }
-            return containerInStore;
         }
 
         // Parse image name
@@ -739,11 +844,21 @@ export class Kubernetes extends Watcher {
             watchDigestAnnotation !== ''
         ) {
             watchDigest = watchDigestAnnotation.toLowerCase() === 'true';
-        } else if (
-            !isSemver &&
-            this.configuration.watchdigestdefault !== undefined
-        ) {
-            watchDigest = this.configuration.watchdigestdefault;
+        } else if (!isSemver) {
+            const domain = parsedImage.domain || 'registry-1.docker.io';
+            const registryProvider = findRegistryProvider(
+                domain,
+                getRegistries(),
+            );
+            if (registryProvider) {
+                watchDigest = registryProvider.shouldWatchDigest(
+                    undefined,
+                    parsedImage.path,
+                    this.configuration.watchdigestdefault,
+                );
+            } else if (this.configuration.watchdigestdefault !== undefined) {
+                watchDigest = this.configuration.watchdigestdefault;
+            }
         }
 
         // Extract current digest from K8s imageID (from Pod status)
@@ -799,15 +914,15 @@ export class Kubernetes extends Watcher {
      * Mirrors Docker.findNewVersion().
      */
     async findNewVersion(container: Container, logContainer: any) {
-        const registries = getRegistries();
-        const registryProvider = registries[container.image.registry.name];
-        const result: any = { tag: container.image.tag.value };
-
-        if (!registryProvider) {
+        let registryProvider;
+        try {
+            registryProvider = getRegistry(container.image.registry.name);
+        } catch {
             throw new Error(
                 `Unsupported registry (${container.image.registry.name})`,
             );
         }
+        const result: any = { tag: container.image.tag.value };
 
         const watchDigestAnnotation = getAnnotationValue(
             container.labels,
@@ -820,14 +935,17 @@ export class Kubernetes extends Watcher {
             watchDigestAnnotation !== ''
         ) {
             watchDigest = watchDigestAnnotation.toLowerCase() === 'true';
-        } else if (container.image.digest?.watch !== undefined) {
-            watchDigest = container.image.digest.watch;
         } else if (!container.image.tag.semver) {
             watchDigest = registryProvider.shouldWatchDigest(
                 undefined,
                 container.image.name,
                 this.configuration.watchdigestdefault,
             );
+        }
+        if (container.image.digest) {
+            container.image.digest.watch = watchDigest;
+        } else {
+            container.image.digest = { watch: watchDigest };
         }
 
         if (!container.image.tag.semver && !watchDigest) {
@@ -1026,8 +1144,9 @@ export class Kubernetes extends Watcher {
      */
     private normalizeContainer(container: Container): Container {
         const containerWithNormalizedImage = container;
-        const registryProvider = Object.values(getRegistries()).find(
-            (provider) => provider.match(container.image.registry.url),
+        const registryProvider = findRegistryProvider(
+            container.image.registry.url,
+            getRegistries(),
         );
         if (!registryProvider) {
             this.log.warn(

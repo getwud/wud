@@ -621,4 +621,186 @@ describe('handleInstallCommand', () => {
         );
         expect(dockerTriggerMock.trigger).not.toHaveBeenCalled();
     });
+
+    test('must fire the associated command trigger when docker is excluded via wud.trigger.exclude', async () => {
+        const mockContainer = {
+            id: '1234567890ab',
+            name: 'my-app',
+            displayName: 'my-app',
+            watcher: 'watcher-name',
+            triggerExclude: 'docker.default',
+        };
+        jest.spyOn(containerStore, 'getContainers').mockReturnValue([
+            mockContainer,
+        ]);
+        jest.spyOn(containerStore, 'getContainer').mockReturnValue(
+            mockContainer,
+        );
+
+        const dockerTriggerMock = {
+            type: 'docker',
+            trigger: jest.fn().mockResolvedValue(undefined),
+        };
+        const commandTriggerMock = {
+            type: 'command',
+            trigger: jest.fn().mockResolvedValue(undefined),
+        };
+        registry.getState().trigger = {
+            'docker.default': dockerTriggerMock,
+            'command.deploy': commandTriggerMock,
+        };
+
+        await messageHandler(
+            'topic/watcher-name/my-app/install',
+            Buffer.from('INSTALL'),
+        );
+
+        expect(commandTriggerMock.trigger).toHaveBeenCalledWith(mockContainer);
+        expect(dockerTriggerMock.trigger).not.toHaveBeenCalled();
+    });
+
+    test('must fire a nomad trigger when it is the only associated update trigger', async () => {
+        const mockContainer = {
+            id: '1234567890ab',
+            name: 'my-app',
+            displayName: 'my-app',
+            watcher: 'watcher-name',
+        };
+        jest.spyOn(containerStore, 'getContainers').mockReturnValue([
+            mockContainer,
+        ]);
+        jest.spyOn(containerStore, 'getContainer').mockReturnValue(
+            mockContainer,
+        );
+
+        const nomadTriggerMock = {
+            type: 'nomad',
+            trigger: jest.fn().mockResolvedValue(undefined),
+        };
+        registry.getState().trigger = {
+            'nomad.default': nomadTriggerMock,
+        };
+
+        await messageHandler(
+            'topic/watcher-name/my-app/install',
+            Buffer.from('INSTALL'),
+        );
+
+        expect(nomadTriggerMock.trigger).toHaveBeenCalledWith(mockContainer);
+    });
+
+    test('must still prefer a docker trigger over an associated command trigger by default', async () => {
+        const mockContainer = {
+            id: '1234567890ab',
+            name: 'my-app',
+            displayName: 'my-app',
+            watcher: 'watcher-name',
+        };
+        jest.spyOn(containerStore, 'getContainers').mockReturnValue([
+            mockContainer,
+        ]);
+        jest.spyOn(containerStore, 'getContainer').mockReturnValue(
+            mockContainer,
+        );
+
+        const dockerTriggerMock = {
+            type: 'docker',
+            trigger: jest.fn().mockResolvedValue(undefined),
+        };
+        const commandTriggerMock = {
+            type: 'command',
+            trigger: jest.fn().mockResolvedValue(undefined),
+        };
+        registry.getState().trigger = {
+            'docker.default': dockerTriggerMock,
+            'command.deploy': commandTriggerMock,
+        };
+
+        await messageHandler(
+            'topic/watcher-name/my-app/install',
+            Buffer.from('INSTALL'),
+        );
+
+        expect(dockerTriggerMock.trigger).toHaveBeenCalledWith(mockContainer);
+        expect(commandTriggerMock.trigger).not.toHaveBeenCalled();
+    });
+
+    test('must not fire an opt-in trigger nor any other trigger when no update trigger is associated', async () => {
+        const mockContainer = {
+            id: '1234567890ab',
+            name: 'my-app',
+            displayName: 'my-app',
+            watcher: 'watcher-name',
+        };
+        jest.spyOn(containerStore, 'getContainers').mockReturnValue([
+            mockContainer,
+        ]);
+        jest.spyOn(containerStore, 'getContainer').mockReturnValue(
+            mockContainer,
+        );
+
+        const commandTriggerMock = {
+            type: 'command',
+            configuration: { includebydefault: false },
+            trigger: jest.fn().mockResolvedValue(undefined),
+        };
+        const smtpTriggerMock = {
+            type: 'smtp',
+            trigger: jest.fn().mockResolvedValue(undefined),
+        };
+        registry.getState().trigger = {
+            'command.deploy': commandTriggerMock,
+            'smtp.gmail': smtpTriggerMock,
+        };
+
+        await messageHandler(
+            'topic/watcher-name/my-app/install',
+            Buffer.from('INSTALL'),
+        );
+
+        expect(commandTriggerMock.trigger).not.toHaveBeenCalled();
+        expect(smtpTriggerMock.trigger).not.toHaveBeenCalled();
+    });
+
+    test('must break a tie between two equally-associated command triggers by (type, name), not registration order', async () => {
+        const mockContainer = {
+            id: '1234567890ab',
+            name: 'my-app',
+            displayName: 'my-app',
+            watcher: 'watcher-name',
+        };
+        jest.spyOn(containerStore, 'getContainers').mockReturnValue([
+            mockContainer,
+        ]);
+        jest.spyOn(containerStore, 'getContainer').mockReturnValue(
+            mockContainer,
+        );
+
+        const testfix2Mock = {
+            type: 'command',
+            name: 'testfix2',
+            trigger: jest.fn().mockResolvedValue(undefined),
+        };
+        const testfixMock = {
+            type: 'command',
+            name: 'testfix',
+            trigger: jest.fn().mockResolvedValue(undefined),
+        };
+        // Registered out of alphabetical order on purpose, mirroring the
+        // registry's actual (registration-order) iteration order rather
+        // than declaration order, to prove the tie-break sorts rather than
+        // just taking whichever key comes first in the object literal.
+        registry.getState().trigger = {
+            'command.testfix2': testfix2Mock,
+            'command.testfix': testfixMock,
+        };
+
+        await messageHandler(
+            'topic/watcher-name/my-app/install',
+            Buffer.from('INSTALL'),
+        );
+
+        expect(testfixMock.trigger).toHaveBeenCalledWith(mockContainer);
+        expect(testfix2Mock.trigger).not.toHaveBeenCalled();
+    });
 });

@@ -20,32 +20,18 @@ if (!fs.existsSync(nextFile)) {
 
 const nextContent = fs.readFileSync(nextFile, 'utf8');
 
-// Extract the release notes after the separator '---' following frontmatter and header
-// Structure in next.md is:
-// ---
-// frontmatter
-// ---
-//
-// # Next (Unreleased)
-//
-// > Description
-//
-// ---
-//
-// <notes>
-
-const parts = nextContent.split(/^---$/m);
-let notes = '';
-if (parts.length >= 4) {
-  notes = parts.slice(3).join('---').trim();
-} else if (parts.length >= 3) {
-  notes = parts.slice(2).join('---').trim();
-} else {
-  notes = nextContent.trim();
-}
+// Extract the release notes after frontmatter and header
+// Removes frontmatter, # Next header, blockquote, and any horizontal separator lines
+const contentWithoutFrontmatter = nextContent.replace(/^---[\s\S]*?---\s*/, '');
+const notes = contentWithoutFrontmatter
+  .replace(/^#\s+Next[^\n]*\n*/m, '')
+  .replace(/^>\s+Changes below[^\n]*\n*/m, '')
+  .replace(/^---\s*$/gm, '')
+  .trim();
 
 if (!notes) {
-  console.warn('⚠️ Warning: No unreleased notes found in next.md.');
+  console.error('❌ Error: No unreleased notes found in next.md.');
+  process.exit(1);
 }
 
 const major = version.split('.')[0];

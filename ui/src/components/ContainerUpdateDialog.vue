@@ -135,6 +135,9 @@
 import { defineComponent, inject, PropType } from "vue";
 import { getContainerTriggers, runTrigger } from "@/services/container";
 
+// Kept in sync with UPDATE_TRIGGER_TYPES in app/triggers/associatedTriggers.ts,
+// which the Home Assistant MQTT install handler also uses so both surfaces
+// agree on what counts as an "update trigger" for a container.
 export const UPDATER_TRIGGER_TYPES = ["docker", "dockercompose", "command", "nomad"];
 
 interface TriggerConfig {

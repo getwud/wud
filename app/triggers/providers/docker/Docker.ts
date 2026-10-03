@@ -415,9 +415,40 @@ class Docker extends Trigger {
                 authconfig: auth,
             });
 
-            await new Promise((res) =>
-                dockerApi.modem.followProgress(pullStream, res),
-            );
+            await new Promise<void>((resolve, reject) => {
+                dockerApi.modem.followProgress(
+                    pullStream,
+                    (
+                        err: Error | null,
+                        output?: Array<{
+                            error?: string;
+                            errorDetail?: { message?: string };
+                        }>,
+                    ) => {
+                        if (err) {
+                            return reject(
+                                err instanceof Error
+                                    ? err
+                                    : new Error(String(err)),
+                            );
+                        }
+                        if (output && Array.isArray(output)) {
+                            const errorItem = output.find(
+                                (item) =>
+                                    item && (item.error || item.errorDetail),
+                            );
+                            if (errorItem) {
+                                const errorMessage =
+                                    errorItem.error ||
+                                    errorItem.errorDetail?.message ||
+                                    'Error pulling image';
+                                return reject(new Error(errorMessage));
+                            }
+                        }
+                        return resolve();
+                    },
+                );
+            });
             logContainer.info(`Image ${newImage} pulled with success`);
         } catch (e: any) {
             logContainer.warn(

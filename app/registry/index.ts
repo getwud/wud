@@ -17,6 +17,11 @@ import Trigger from '../triggers/providers/Trigger';
 import Watcher from '../watchers/Watcher';
 import Registry from '../registries/Registry';
 import Authentication from '../authentications/providers/Authentication';
+import {
+    resolveRegistry,
+    isRegistryRegistered,
+    findRegistryProvider,
+} from '../registries/registryProvider';
 
 export interface RegistryState {
     trigger: Record<string, Trigger>;
@@ -39,6 +44,34 @@ const state: RegistryState = {
 
 export function getState() {
     return state;
+}
+
+/**
+ * Return all registered registries.
+ */
+export function getRegistries(): Record<string, Registry> {
+    return state.registry;
+}
+
+/**
+ * Get Registry by name with alias fallback.
+ */
+export function getRegistry(registryName: string): Registry {
+    return resolveRegistry(registryName, state.registry);
+}
+
+/**
+ * Check if a registry is supported / registered.
+ */
+export function hasRegistry(registryName?: string): boolean {
+    return isRegistryRegistered(registryName, state.registry);
+}
+
+/**
+ * Find matching registry provider for an image URL.
+ */
+export function findRegistry(imageUrl: string): Registry | undefined {
+    return findRegistryProvider(imageUrl, state.registry);
 }
 
 /**
@@ -294,11 +327,12 @@ async function registerTriggers() {
  * @returns {Promise}
  */
 async function registerRegistries() {
-    const defaultRegistries = {
+    const defaultRegistries: Record<string, Record<string, unknown>> = {
         alibaba: { public: '' },
         codeberg: { public: '' },
         docr: { public: '' },
         ecr: { public: '' },
+        elastic: { public: '' },
         forgejo: { public: '' },
         gcr: { public: '' },
         ghcr: { public: '' },
@@ -316,10 +350,24 @@ async function registerRegistries() {
         scaleway: { public: '' },
         trueforge: { public: '' },
     };
-    const registriesToRegister = {
+
+    const userRegistries = (getRegistryConfigurations() || {}) as Record<
+        string,
+        Record<string, unknown>
+    >;
+    const registriesToRegister: Record<string, Record<string, unknown>> = {
         ...defaultRegistries,
-        ...getRegistryConfigurations(),
     };
+    for (const [provider, instances] of Object.entries(userRegistries)) {
+        if (instances && typeof instances === 'object') {
+            registriesToRegister[provider] = {
+                ...(registriesToRegister[provider] || {}),
+                ...instances,
+            };
+        } else {
+            registriesToRegister[provider] = instances;
+        }
+    }
 
     try {
         await registerComponentsOfKind(

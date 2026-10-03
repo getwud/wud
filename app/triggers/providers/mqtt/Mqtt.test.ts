@@ -62,8 +62,14 @@ const containerData = [
 beforeEach(async () => {
     jest.resetAllMocks();
     const mockClient = {
+        connected: true,
         on: jest.fn(),
-        publish: jest.fn(),
+        publish: jest.fn((topic, message, options, callback) => {
+            const cb = typeof options === 'function' ? options : callback;
+            if (cb) {
+                cb();
+            }
+        }),
         subscribe: jest.fn(),
         unsubscribe: jest.fn(),
         end: jest.fn(),
@@ -165,9 +171,91 @@ test.each(containerData)(
             data.topic,
             JSON.stringify(flatten(container)),
             { retain: true },
+            expect.any(Function),
         );
     },
 );
+
+test('trigger should throw error when client is not connected', async () => {
+    mqtt.client.connected = false;
+    const container = {
+        name: 'test',
+        watcher: 'local',
+    };
+    await expect(mqtt.trigger(container)).rejects.toThrow(
+        'MQTT client is not connected',
+    );
+});
+
+test('trigger should throw error when client is undefined', async () => {
+    mqtt.client = undefined;
+    const container = {
+        name: 'test',
+        watcher: 'local',
+    };
+    await expect(mqtt.trigger(container)).rejects.toThrow(
+        'MQTT client is not connected',
+    );
+});
+
+test('trigger should reject when publish yields an error', async () => {
+    mqtt.configuration = {
+        topic: 'wud/container',
+    };
+    mqtt.client = {
+        connected: true,
+        publish: jest.fn((topic, message, options, callback) => {
+            const cb = typeof options === 'function' ? options : callback;
+            if (cb) {
+                cb(new Error('Publish failed'));
+            }
+        }),
+    };
+    const container = {
+        name: 'test',
+        watcher: 'local',
+    };
+    await expect(mqtt.trigger(container)).rejects.toThrow('Publish failed');
+});
+
+test('error event should log error message and code', async () => {
+    mqtt.configuration = {
+        ...configurationValid,
+    };
+    const errorSpy = jest.spyOn(mqtt.log, 'error').mockImplementation(() => {});
+    await mqtt.initTrigger();
+    const errorHandler = mqtt.client.on.mock.calls.find(
+        ([event]) => event === 'error',
+    )[1];
+
+    errorHandler({
+        name: 'Error',
+        message: 'getaddrinfo ENOTFOUND mosquitto',
+        code: 'ENOTFOUND',
+    });
+    expect(errorSpy).toHaveBeenCalledWith(
+        'MQTT client error (getaddrinfo ENOTFOUND mosquitto)',
+    );
+
+    errorHandler({
+        name: 'Error',
+        message: 'certificate verify failed',
+        code: 'SELF_SIGNED_CERT_IN_CHAIN',
+    });
+    expect(errorSpy).toHaveBeenCalledWith(
+        'MQTT client error (certificate verify failed (SELF_SIGNED_CERT_IN_CHAIN))',
+    );
+
+    errorHandler({
+        code: 'ECONNREFUSED',
+    });
+    expect(errorSpy).toHaveBeenCalledWith('MQTT client error (ECONNREFUSED)');
+
+    errorHandler(new Error('Generic failure'));
+    expect(errorSpy).toHaveBeenCalledWith(
+        'MQTT client error (Generic failure)',
+    );
+});
 
 test('initTrigger in oneshot mode should not configure will or update connection sensor', async () => {
     const originalEnv = process.env.WUD_RUN_MODE;
