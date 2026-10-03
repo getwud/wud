@@ -95,6 +95,32 @@ export function extractDigestFromImage(imageSpec?: string): string | undefined {
     return undefined;
 }
 
+/**
+ * Determine if the image of a Swarm service differs from the image of
+ * its store entry (e.g. after the service has been updated).
+ * The container id is stable across service updates, so a stale store entry
+ * must be detected by comparing:
+ *   - the image id (fullImageSpec, which includes pinned digest if present)
+ *   - the tag (a new tag can share the digest of the old one, e.g. 16 -> 16.4)
+ *   - the pinned digest (if present in the image spec)
+ */
+export function isServiceImageChanged(
+    containerInStore: Container,
+    fullImageSpec: string,
+    tagName?: string,
+): boolean {
+    const currentTag =
+        tagName ?? (parse(fullImageSpec.split('@')[0])?.tag || 'latest');
+    const pinnedDigest = extractDigestFromImage(fullImageSpec);
+    return (
+        containerInStore.image?.id !== fullImageSpec ||
+        containerInStore.image?.tag?.value !== currentTag ||
+        (pinnedDigest !== undefined &&
+            containerInStore.image?.digest?.repo !== pinnedDigest &&
+            containerInStore.image?.digest?.value !== pinnedDigest)
+    );
+}
+
 function getRegistries() {
     return registry.getState().registry;
 }
@@ -332,9 +358,22 @@ export class Swarm extends Watcher {
             const containerInStore = isOneshot()
                 ? undefined
                 : storeContainer.getContainer(containerId);
+            const imageChanged =
+                containerInStore !== undefined &&
+                isServiceImageChanged(containerInStore, fullImageSpec, tagName);
+            if (
+                imageChanged &&
+                this.log &&
+                typeof this.log.info === 'function'
+            ) {
+                this.log.info(
+                    `Container ${containerId} image changed, re-evaluating container`,
+                );
+            }
             if (
                 containerInStore !== undefined &&
-                containerInStore.error === undefined
+                containerInStore.error === undefined &&
+                !imageChanged
             ) {
                 const storeRegistryName =
                     containerInStore.image?.registry?.name;

@@ -5,6 +5,7 @@ import {
     isServiceToWatch,
     buildContainerId,
     extractDigestFromImage,
+    isServiceImageChanged,
 } from './Swarm';
 import { getLabelValue } from './label';
 import * as event from '../../../event';
@@ -48,6 +49,101 @@ describe('Swarm Watcher - Pure Helpers', () => {
         );
         expect(extractDigestFromImage('nginx:1.27.0')).toBeUndefined();
         expect(extractDigestFromImage(undefined)).toBeUndefined();
+    });
+
+    describe('isServiceImageChanged()', () => {
+        const stored = (id: string, tag: string, digestRepo?: string) =>
+            ({
+                image: {
+                    id,
+                    tag: { value: tag },
+                    digest: { repo: digestRepo, value: digestRepo },
+                },
+            }) as any;
+
+        test('returns false when image spec and tag are unchanged', () => {
+            expect(
+                isServiceImageChanged(
+                    stored('nginx:1.27.0@sha256:aaa', '1.27.0', 'sha256:aaa'),
+                    'nginx:1.27.0@sha256:aaa',
+                    '1.27.0',
+                ),
+            ).toBe(false);
+        });
+
+        test('returns true when image spec / image id changed', () => {
+            expect(
+                isServiceImageChanged(
+                    stored('nginx:1.27.0@sha256:aaa', '1.27.0', 'sha256:aaa'),
+                    'nginx:1.27.1@sha256:bbb',
+                    '1.27.1',
+                ),
+            ).toBe(true);
+        });
+
+        test('returns true when tag changed but image spec / digest is the same', () => {
+            expect(
+                isServiceImageChanged(
+                    stored('postgres@sha256:aaa', '16', 'sha256:aaa'),
+                    'postgres@sha256:aaa',
+                    '16.4',
+                ),
+            ).toBe(true);
+        });
+
+        test('returns true when digest in pinned image spec changed with same tag', () => {
+            expect(
+                isServiceImageChanged(
+                    stored('nginx:latest@sha256:old', 'latest', 'sha256:old'),
+                    'nginx:latest@sha256:new',
+                    'latest',
+                ),
+            ).toBe(true);
+        });
+
+        test('compares against image spec without pinned digest', () => {
+            expect(
+                isServiceImageChanged(
+                    stored('nginx:1.27.0', '1.27.0'),
+                    'nginx:1.27.0',
+                    '1.27.0',
+                ),
+            ).toBe(false);
+            expect(
+                isServiceImageChanged(
+                    stored('nginx:1.27.0', '1.27.0'),
+                    'nginx:1.27.1',
+                    '1.27.1',
+                ),
+            ).toBe(true);
+        });
+
+        test('defaults tag to latest when tagName is omitted and image spec has no tag', () => {
+            expect(
+                isServiceImageChanged(stored('nginx', 'latest'), 'nginx'),
+            ).toBe(false);
+        });
+
+        test('parses tag from image spec when tagName is omitted', () => {
+            expect(
+                isServiceImageChanged(
+                    stored('nginx:1.27.0', '1.27.0'),
+                    'nginx:1.27.0',
+                ),
+            ).toBe(false);
+            expect(
+                isServiceImageChanged(
+                    stored('nginx:1.27.0', '1.27.0'),
+                    'nginx:1.28.0',
+                ),
+            ).toBe(true);
+        });
+
+        test('returns true when container in store has no image', () => {
+            expect(
+                isServiceImageChanged({} as any, 'nginx:1.27.0', '1.27.0'),
+            ).toBe(true);
+        });
     });
 
     test('getLabelValue should resolve canonical getwud.app/ and wud.* prefixes', () => {
@@ -323,6 +419,10 @@ describe('Swarm Watcher - Service Discovery & Mapping', () => {
             id: 'test_web',
             name: 'web',
             watcher: 'old-swarm',
+            image: {
+                id: 'nginx:1.0.0',
+                tag: { value: '1.0.0' },
+            },
             result: { tag: '1.0.0' },
             error: undefined,
         };
@@ -335,6 +435,189 @@ describe('Swarm Watcher - Service Discovery & Mapping', () => {
                 watcher: 'test',
             }),
         );
+    });
+
+    test('should re-evaluate container when service image tag changes and bypass stale store entry', async () => {
+        mockDocker.listServices.mockResolvedValue([
+            {
+                Spec: {
+                    Name: 'web',
+                    Labels: {},
+                    TaskTemplate: {
+                        ContainerSpec: {
+                            Image: 'nginx:1.27.1@sha256:new',
+                            Labels: {},
+                        },
+                    },
+                },
+            },
+        ]);
+        const existing = {
+            id: 'test_web',
+            name: 'web',
+            watcher: 'test',
+            image: {
+                id: 'nginx:1.27.0@sha256:old',
+                tag: { value: '1.27.0', semver: true },
+                registry: { name: 'hub' },
+                digest: { repo: 'sha256:old', value: 'sha256:old' },
+            },
+            result: { tag: '1.27.1' },
+            error: undefined,
+        };
+        (storeContainer.getContainer as jest.Mock).mockReturnValue(existing);
+
+        const containers = await watcher.getContainers();
+        expect(containers).toHaveLength(1);
+        expect(containers[0].image.tag.value).toBe('1.27.1');
+        expect(containers[0].image.id).toBe('nginx:1.27.1@sha256:new');
+        expect(containers[0].image.digest.repo).toBe('sha256:new');
+    });
+
+    test('should re-evaluate container when service image digest changes with same tag', async () => {
+        mockDocker.listServices.mockResolvedValue([
+            {
+                Spec: {
+                    Name: 'web',
+                    Labels: {},
+                    TaskTemplate: {
+                        ContainerSpec: {
+                            Image: 'nginx:latest@sha256:repulled',
+                            Labels: {},
+                        },
+                    },
+                },
+            },
+        ]);
+        const existing = {
+            id: 'test_web',
+            name: 'web',
+            watcher: 'test',
+            image: {
+                id: 'nginx:latest@sha256:old',
+                tag: { value: 'latest', semver: false },
+                registry: { name: 'hub' },
+                digest: { repo: 'sha256:old', value: 'sha256:old' },
+            },
+            result: { tag: 'latest' },
+            error: undefined,
+        };
+        (storeContainer.getContainer as jest.Mock).mockReturnValue(existing);
+
+        const containers = await watcher.getContainers();
+        expect(containers).toHaveLength(1);
+        expect(containers[0].image.id).toBe('nginx:latest@sha256:repulled');
+        expect(containers[0].image.digest.repo).toBe('sha256:repulled');
+    });
+
+    test('should re-evaluate container when tag changes but digest is unchanged', async () => {
+        mockDocker.listServices.mockResolvedValue([
+            {
+                Spec: {
+                    Name: 'db',
+                    Labels: {},
+                    TaskTemplate: {
+                        ContainerSpec: {
+                            Image: 'postgres:16.4@sha256:same',
+                            Labels: {},
+                        },
+                    },
+                },
+            },
+        ]);
+        const existing = {
+            id: 'test_db',
+            name: 'db',
+            watcher: 'test',
+            image: {
+                id: 'postgres:16@sha256:same',
+                tag: { value: '16', semver: false },
+                registry: { name: 'hub' },
+                digest: { repo: 'sha256:same', value: 'sha256:same' },
+            },
+            result: { tag: '16' },
+            error: undefined,
+        };
+        (storeContainer.getContainer as jest.Mock).mockReturnValue(existing);
+
+        const containers = await watcher.getContainers();
+        expect(containers).toHaveLength(1);
+        expect(containers[0].image.tag.value).toBe('16.4');
+        expect(containers[0].image.id).toBe('postgres:16.4@sha256:same');
+    });
+
+    test('should preserve snooze state and result when service image changes', async () => {
+        mockDocker.listServices.mockResolvedValue([
+            {
+                Spec: {
+                    Name: 'web',
+                    Labels: {},
+                    TaskTemplate: {
+                        ContainerSpec: {
+                            Image: 'nginx:1.27.1',
+                            Labels: {},
+                        },
+                    },
+                },
+            },
+        ]);
+        const snoozedUntil = Date.UTC(2099, 0, 1);
+        const existing = {
+            id: 'test_web',
+            name: 'web',
+            watcher: 'test',
+            image: {
+                id: 'nginx:1.27.0',
+                tag: { value: '1.27.0', semver: true },
+                registry: { name: 'hub' },
+            },
+            snoozedVersion: '1.28.0',
+            snoozedUntil,
+            result: { tag: '1.28.0' },
+            error: undefined,
+        };
+        (storeContainer.getContainer as jest.Mock).mockReturnValue(existing);
+
+        const containers = await watcher.getContainers();
+        expect(containers).toHaveLength(1);
+        expect(containers[0].image.tag.value).toBe('1.27.1');
+        expect(containers[0].snoozedVersion).toBe('1.28.0');
+        expect(containers[0].snoozedUntil).toBe(snoozedUntil);
+        expect(containers[0].result).toEqual({ tag: '1.28.0' });
+    });
+
+    test('should reuse store entry when service image is unchanged', async () => {
+        mockDocker.listServices.mockResolvedValue([
+            {
+                Spec: {
+                    Name: 'web',
+                    Labels: {},
+                    TaskTemplate: {
+                        ContainerSpec: {
+                            Image: 'nginx:1.27.0',
+                            Labels: {},
+                        },
+                    },
+                },
+            },
+        ]);
+        const existing = {
+            id: 'test_web',
+            name: 'web',
+            watcher: 'test',
+            image: {
+                id: 'nginx:1.27.0',
+                tag: { value: '1.27.0', semver: true },
+                registry: { name: 'hub' },
+            },
+            result: { tag: '1.27.0' },
+            error: undefined,
+        };
+        (storeContainer.getContainer as jest.Mock).mockReturnValue(existing);
+
+        const containers = await watcher.getContainers();
+        expect(containers).toHaveLength(1);
+        expect(containers[0]).toBe(existing);
     });
 });
 
@@ -468,6 +751,80 @@ describe('Swarm Watcher - Version Lookup & Watch Cycle', () => {
         expect(mockRegistry.getImageManifestDigest).not.toHaveBeenCalled();
         expect(result.digest).toBeUndefined();
         expect(container.image.digest.watch).toBe(false);
+    });
+
+    test('watch cycle updates container and store when service image changes', async () => {
+        let currentImage = 'nginx:1.27.0@sha256:old';
+        watcher.docker = {
+            listServices: jest.fn().mockImplementation(async () => [
+                {
+                    ID: 'svc_web',
+                    Spec: {
+                        Name: 'web',
+                        Labels: {},
+                        TaskTemplate: {
+                            ContainerSpec: {
+                                Image: currentImage,
+                            },
+                        },
+                    },
+                },
+            ]),
+            listNodes: jest.fn().mockResolvedValue([
+                {
+                    Description: {
+                        Platform: {
+                            Architecture: 'x86_64',
+                            OS: 'linux',
+                        },
+                    },
+                },
+            ]),
+        } as any;
+
+        const mockStore = new Map<string, any>();
+        (storeContainer.getContainer as jest.Mock).mockImplementation(
+            (id: string) => {
+                const c = mockStore.get(id);
+                return c ? { ...c, resultChanged: () => false } : undefined;
+            },
+        );
+        (storeContainer.insertContainer as jest.Mock).mockImplementation(
+            (c: any) => {
+                mockStore.set(c.id, JSON.parse(JSON.stringify(c)));
+                return c;
+            },
+        );
+        (storeContainer.updateContainer as jest.Mock).mockImplementation(
+            (c: any) => {
+                mockStore.set(c.id, JSON.parse(JSON.stringify(c)));
+                return c;
+            },
+        );
+
+        (registry.getState as jest.Mock).mockReturnValue({
+            registry: {
+                hub: {
+                    getId: () => 'hub',
+                    match: () => true,
+                    normalizeImage: (img: any) => img,
+                    shouldWatchDigest: () => false,
+                    getTags: jest.fn().mockResolvedValue(['1.27.0', '1.27.1']),
+                },
+            },
+        });
+
+        // First watch cycle: discovers 1.27.0
+        let reports = await watcher.watch();
+        expect(reports).toHaveLength(1);
+        expect(reports[0].container.image.tag.value).toBe('1.27.0');
+
+        // Service updated to 1.27.1
+        currentImage = 'nginx:1.27.1@sha256:new';
+        reports = await watcher.watch();
+        expect(reports).toHaveLength(1);
+        expect(reports[0].container.image.tag.value).toBe('1.27.1');
+        expect(reports[0].container.image.id).toBe('nginx:1.27.1@sha256:new');
     });
 
     describe('one-shot mode', () => {
