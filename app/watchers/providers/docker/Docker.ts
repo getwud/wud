@@ -805,14 +805,17 @@ export class Docker extends Watcher {
             let watchDigest = false;
             if (watchDigestLabel !== undefined && watchDigestLabel !== '') {
                 watchDigest = watchDigestLabel.toLowerCase() === 'true';
-            } else if (container.image.digest?.watch !== undefined) {
-                watchDigest = container.image.digest.watch;
             } else if (!container.image.tag.semver) {
                 watchDigest = registryProvider.shouldWatchDigest(
                     undefined,
                     container.image.name,
                     this.configuration.watchdigestdefault,
                 );
+            }
+            if (container.image.digest) {
+                container.image.digest.watch = watchDigest;
+            } else {
+                container.image.digest = { watch: watchDigest };
             }
 
             if (!container.image.tag.semver && !watchDigest) {
@@ -1051,6 +1054,35 @@ export class Docker extends Watcher {
 
                 if (container.Labels || container.labels) {
                     containerInStore.labels = containerLabels;
+                }
+
+                const watchDigestLabel = containerLabels[wudWatchDigest];
+                let watchDigest = false;
+                if (watchDigestLabel !== undefined && watchDigestLabel !== '') {
+                    watchDigest = watchDigestLabel.toLowerCase() === 'true';
+                } else if (!containerInStore.image?.tag?.semver) {
+                    const registryProvider = findRegistryProvider(
+                        containerInStore.image?.registry?.url,
+                        getRegistries(),
+                    );
+                    if (registryProvider) {
+                        watchDigest = registryProvider.shouldWatchDigest(
+                            undefined,
+                            containerInStore.image?.name,
+                            this.configuration.watchdigestdefault,
+                        );
+                    } else if (
+                        this.configuration.watchdigestdefault !== undefined
+                    ) {
+                        watchDigest = this.configuration.watchdigestdefault;
+                    }
+                }
+                if (
+                    containerInStore.image?.digest &&
+                    containerInStore.image.digest.watch !== watchDigest
+                ) {
+                    containerInStore.image.digest.watch = watchDigest;
+                    isUpdated = true;
                 }
 
                 if (isUpdated) {

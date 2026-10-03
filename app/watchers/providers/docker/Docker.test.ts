@@ -1351,6 +1351,108 @@ describe('Docker Watcher', () => {
             expect(result.created).toBe('2023-01-01');
         });
 
+        test('should watch digest for stored non-semver container with digest.watch=false when registry shouldWatchDigest is true (fixes #1337)', async () => {
+            const container: any = {
+                image: {
+                    id: 'image123',
+                    name: 'fireflyiii/core',
+                    registry: { name: 'hub' },
+                    tag: { value: 'latest', semver: false },
+                    digest: { watch: false, repo: 'sha256:abc123' },
+                },
+                labels: {},
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['latest']),
+                getImageManifestDigest: jest.fn().mockResolvedValue({
+                    digest: 'sha256:remote-digest-456',
+                    created: '2023-01-01',
+                    version: 2,
+                }),
+                shouldWatchDigest: jest.fn(() => true),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const mockLogChild = {
+                error: jest.fn(),
+                debug: jest.fn(),
+                warn: jest.fn(),
+            };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(mockRegistry.shouldWatchDigest).toHaveBeenCalled();
+            expect(mockRegistry.getImageManifestDigest).toHaveBeenCalled();
+            expect(result.digest).toBe('sha256:remote-digest-456');
+            expect(container.image.digest.watch).toBe(true);
+            expect(mockLogChild.warn).not.toHaveBeenCalled();
+        });
+
+        test('should respect container label wud.watch.digest=false over registry shouldWatchDigest=true (fixes #1337)', async () => {
+            const container: any = {
+                image: {
+                    id: 'image123',
+                    name: 'fireflyiii/core',
+                    registry: { name: 'hub' },
+                    tag: { value: 'latest', semver: false },
+                    digest: { watch: true, repo: 'sha256:abc123' },
+                },
+                labels: { 'wud.watch.digest': 'false' },
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['latest']),
+                getImageManifestDigest: jest.fn(),
+                shouldWatchDigest: jest.fn(() => true),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const mockLogChild = {
+                error: jest.fn(),
+                debug: jest.fn(),
+                warn: jest.fn(),
+            };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(mockRegistry.getImageManifestDigest).not.toHaveBeenCalled();
+            expect(result.digest).toBeUndefined();
+            expect(container.image.digest.watch).toBe(false);
+        });
+
+        test('should default to no digest watching for semver tag without label even when registry shouldWatchDigest is true', async () => {
+            const container: any = {
+                image: {
+                    id: 'image123',
+                    name: 'library/nginx',
+                    registry: { name: 'hub' },
+                    tag: { value: '1.25.0', semver: true },
+                    digest: { watch: false, repo: 'sha256:abc123' },
+                },
+                labels: {},
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['1.25.0']),
+                getImageManifestDigest: jest.fn(),
+                shouldWatchDigest: jest.fn(() => true),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const mockLogChild = {
+                error: jest.fn(),
+                debug: jest.fn(),
+                warn: jest.fn(),
+            };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(mockRegistry.getImageManifestDigest).not.toHaveBeenCalled();
+            expect(result.digest).toBeUndefined();
+            expect(container.image.digest.watch).toBe(false);
+        });
+
         test('should resolve the remote version and build date when the digest moved', async () => {
             const container = {
                 image: {
