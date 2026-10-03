@@ -197,9 +197,15 @@ describe('replaceContainerWithHealthGate', () => {
         const outcome = await replaceContainerWithHealthGate(baseOpts(mocks));
         expect(outcome.rolledBack).toBe(false);
         expect(outcome.status).toEqual('succeeded');
+        expect(mocks.currentContainer.stop).toHaveBeenCalled();
         expect(mocks.currentContainer.rename).toHaveBeenCalledWith({
             name: 'web-wud-old-123',
         });
+        const stopOrder =
+            mocks.currentContainer.stop.mock.invocationCallOrder[0];
+        const renameOrder =
+            mocks.currentContainer.rename.mock.invocationCallOrder[0];
+        expect(stopOrder).toBeLessThan(renameOrder);
         expect(mocks.currentContainer.remove).toHaveBeenCalled();
     });
 
@@ -265,6 +271,7 @@ describe('replaceContainerWithHealthGate', () => {
         // A stopped container has no health signal to gate on: the swap
         // succeeds and the archive is removed without starting anything.
         expect(outcome.rolledBack).toBe(false);
+        expect(mocks.currentContainer.stop).not.toHaveBeenCalled();
         expect(mocks.currentContainer.start).not.toHaveBeenCalled();
         expect(mocks.newContainer.start).not.toHaveBeenCalled();
     });
@@ -284,9 +291,25 @@ describe('replaceContainerWithHealthGate', () => {
         await expect(
             replaceContainerWithHealthGate(baseOpts(mocks)),
         ).rejects.toThrow(/cannot create/);
+        expect(mocks.currentContainer.stop).toHaveBeenCalled();
         expect(mocks.currentContainer.rename).toHaveBeenLastCalledWith({
             name: 'web',
         });
+        expect(mocks.currentContainer.start).toHaveBeenCalled();
+    });
+
+    test('should restore the previous name without restarting when creation fails and container was not running', async () => {
+        const mocks = buildMocks({ createFails: true });
+        await expect(
+            replaceContainerWithHealthGate(
+                baseOpts(mocks, { wasRunning: false }),
+            ),
+        ).rejects.toThrow(/cannot create/);
+        expect(mocks.currentContainer.stop).not.toHaveBeenCalled();
+        expect(mocks.currentContainer.rename).toHaveBeenLastCalledWith({
+            name: 'web',
+        });
+        expect(mocks.currentContainer.start).not.toHaveBeenCalled();
     });
 
     // ---- rev. 3 no-half-revert ----

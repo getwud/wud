@@ -298,9 +298,19 @@ function getRepoDigest(containerImage: any) {
     return digestSplit[1];
 }
 
+export const ROLLBACK_ARCHIVE_REGEX = /-wud-old-\d+$/;
+
+/**
+ * Return true if container is a rollback archive container.
+ */
+export function isRollbackArchive(name?: string): boolean {
+    return Boolean(name && ROLLBACK_ARCHIVE_REGEX.test(name));
+}
+
 /**
  * Return true if container must be watched.
  * Priority order:
+ * 0. If container name matches rollback archive pattern (/-wud-old-\d+$/), container is NEVER watched (return false).
  * 1. If container label wud.watch is defined and not empty, its value takes precedence (wud.watch.toLowerCase() === 'true').
  * 2. Else, if an exclude regex is configured on the watcher and the container name matches it, container is NOT watched (return false).
  * 3. Else, watchByDefault applies.
@@ -317,6 +327,9 @@ export function isContainerToWatch(
     excludeRegex?: string,
     log?: Pick<Logger, 'warn'>,
 ) {
+    if (containerName && ROLLBACK_ARCHIVE_REGEX.test(containerName)) {
+        return false;
+    }
     if (wudWatchLabelValue !== undefined && wudWatchLabelValue !== '') {
         return wudWatchLabelValue.toLowerCase() === 'true';
     }
@@ -336,6 +349,8 @@ export function isContainerToWatch(
     }
     return watchByDefault;
 }
+
+export const isContainerIncluded = isContainerToWatch;
 
 /**
  * Docker Watcher Component.
@@ -522,6 +537,14 @@ export class Docker extends Watcher {
         }
         const action = dockerEvent.Action;
         const containerId = dockerEvent.Actor?.ID || dockerEvent.id;
+        const eventName = dockerEvent.Actor?.Attributes?.name
+            ? dockerEvent.Actor.Attributes.name.replace(/\//, '')
+            : undefined;
+
+        // Rollback archive containers should never be processed or indexed
+        if (eventName && ROLLBACK_ARCHIVE_REGEX.test(eventName)) {
+            return;
+        }
 
         // If the container was created or destroyed => perform a watch
         if (action === 'destroy' || action === 'create') {
@@ -538,6 +561,10 @@ export class Docker extends Watcher {
                     (dockerEvent.Actor?.Attributes?.name
                         ? dockerEvent.Actor.Attributes.name.replace(/\//, '')
                         : undefined);
+
+                if (newName && ROLLBACK_ARCHIVE_REGEX.test(newName)) {
+                    return;
+                }
                 const containerFound = storeContainer.getContainer(containerId);
                 if (containerFound) {
                     // Child logger for the container to process

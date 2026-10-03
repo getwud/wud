@@ -1,9 +1,18 @@
-// @ts-nocheck
-import Dockerode from 'dockerode';
 import { Container } from '../../../model/container';
 import * as event from '../../../event';
-import { smokeTest, waitForHealthy } from '../docker/health';
+import { HealthVerdict, smokeTest, waitForHealthy } from '../docker/health';
+import { RollbackConfig } from '../docker/rollback';
+import { RollbackReport, RollbackServiceOutcome } from '../Trigger';
 import type Dockercompose from './Dockercompose';
+
+export type RollbackServiceVerdict = RollbackServiceOutcome['verdict'];
+
+/**
+ * Extract error message safely from an unknown error.
+ */
+function getErrorMessage(err: unknown): string {
+    return err instanceof Error ? err.message : String(err);
+}
 
 /**
  * Per-service state kept for the duration of a project transaction.
@@ -11,17 +20,11 @@ import type Dockercompose from './Dockercompose';
 interface TransactionService {
     serviceKey: string;
     container: Container;
-    config: {
-        enabled: boolean;
-        window: number;
-        interval: number;
-        grace: number;
-    };
+    config: RollbackConfig;
     wasRunning: boolean;
     oldImageRef?: string;
-    newImageRef?: string;
     archiveName?: string;
-    verdict?: string;
+    verdict?: RollbackServiceVerdict;
     reason?: string;
     reverted?: boolean;
 }
@@ -60,11 +63,11 @@ async function snapshotService(
 async function gateService(
     trigger: Dockercompose,
     service: TransactionService,
-): Promise<string> {
+): Promise<HealthVerdict> {
     const watcher = trigger.getWatcher(service.container);
     const { dockerApi } = watcher;
     const newContainer = await dockerApi.getContainer(service.container.name);
-    let verdict = await waitForHealthy(
+    let verdict: HealthVerdict = await waitForHealthy(
         newContainer,
         { window: service.config.window, interval: service.config.interval },
         trigger.log,
@@ -101,8 +104,8 @@ async function revertService(
         const newContainer = await dockerApi.getContainer(name);
         try {
             await newContainer.stop();
-        } catch (e) {
-            const message = String(e?.message || e).toLowerCase();
+        } catch (e: unknown) {
+            const message = getErrorMessage(e).toLowerCase();
             if (!message.includes('not running')) {
                 throw e;
             }
@@ -115,9 +118,10 @@ async function revertService(
         }
         service.reverted = true;
         return true;
-    } catch (e) {
+    } catch (e: unknown) {
+        const message = getErrorMessage(e);
         log.error(
-            `Failed to revert service ${name} (${e?.message || e}); remaining archives left unchanged`,
+            `Failed to revert service ${name} (${message}); remaining archives left unchanged`,
         );
         return false;
     }
@@ -139,9 +143,9 @@ async function removeArchive(
             service.archiveName,
         );
         await archive.remove({ force: true });
-    } catch (e) {
+    } catch (e: unknown) {
         trigger.log.warn(
-            `Unable to remove archive ${service.archiveName} (${e?.message || e})`,
+            `Unable to remove archive ${service.archiveName} (${getErrorMessage(e)})`,
         );
     }
 }
@@ -170,9 +174,9 @@ async function pruneService(
             service.container,
             trigger.log,
         );
-    } catch (e) {
+    } catch (e: unknown) {
         trigger.log.warn(
-            `Unable to prune the previous image of ${serviceName(service.container)} (${e?.message || e})`,
+            `Unable to prune the previous image of ${serviceName(service.container)} (${getErrorMessage(e)})`,
         );
     }
 }
@@ -191,7 +195,7 @@ export async function performProjectTransaction(
     trigger: Dockercompose,
     composeFile: string,
     containersFiltered: Container[],
-    mappings: { current: string; update: string }[],
+    mappings: { current: string; update: string; service?: string }[],
 ): Promise<boolean> {
     const log = trigger.log;
 
@@ -210,9 +214,9 @@ export async function performProjectTransaction(
         log.info(
             `Rollback enabled: forced backup of ${composeFile} as ${composeFile}.back`,
         );
-    } catch (e) {
+    } catch (e: unknown) {
         log.error(
-            `Unable to backup ${composeFile} before the rollback transaction (${e?.message || e}); aborting without mutating anything`,
+            `Unable to backup ${composeFile} before the rollback transaction (${getErrorMessage(e)}); aborting without mutating anything`,
         );
         return false;
     }
@@ -220,9 +224,9 @@ export async function performProjectTransaction(
     // PHASE 0 - rewrite the compose file with the new versions.
     try {
         await trigger.rewriteComposeFile(composeFile, mappings);
-    } catch (e) {
+    } catch (e: unknown) {
         log.error(
-            `Unable to rewrite ${composeFile} (${e?.message || e}); aborting before any container mutation`,
+            `Unable to rewrite ${composeFile} (${getErrorMessage(e)}); aborting before any container mutation`,
         );
         return false;
     }
@@ -239,11 +243,10 @@ export async function performProjectTransaction(
                 runHooks: false,
             });
             service.archiveName = outcome?.archiveName;
-            service.newImageRef = outcome?.newImageRef;
         }
-    } catch (e) {
+    } catch (e: unknown) {
         log.error(
-            `Project transaction failed while swapping services (${e?.message || e}); reverting`,
+            `Project transaction failed while swapping services (${getErrorMessage(e)}); reverting`,
         );
         await finalizeRevert(trigger, composeFile, services, 'swap-failed');
         return false;
@@ -252,13 +255,13 @@ export async function performProjectTransaction(
     // PHASE 2 - gate opted-in services only, short-circuit on first failure.
     const failures: TransactionService[] = [];
     for (const service of services.filter((s) => s.config.enabled)) {
-        let verdict: string;
+        let verdict: HealthVerdict;
         try {
             verdict = await gateService(trigger, service);
-        } catch (e) {
+        } catch (e: unknown) {
             verdict = 'crashed';
             log.warn(
-                `Gate of ${service.serviceKey} errored (${e?.message || e}); treating as failed`,
+                `Gate of ${service.serviceKey} errored (${getErrorMessage(e)}); treating as failed`,
             );
         }
         service.verdict = verdict;
@@ -316,40 +319,42 @@ async function finalizeRevert(
             log.info(
                 `Project ${composeFile} restored from ${composeFile}.back`,
             );
-        } catch (e) {
+        } catch (e: unknown) {
             allReverted = false;
             log.error(
-                `Unable to restore ${composeFile} from its backup (${e?.message || e})`,
+                `Unable to restore ${composeFile} from its backup (${getErrorMessage(e)})`,
             );
         }
     }
 
-    const outcomeServices = services.map((service) => {
-        if (failures && failures.includes(service)) {
+    const outcomeServices: RollbackServiceOutcome[] = services.map(
+        (service) => {
+            if (failures && failures.includes(service)) {
+                return {
+                    service: service.serviceKey,
+                    containerName: serviceName(service.container),
+                    verdict: service.verdict || 'crashed',
+                    reason: service.reason || 'unknown',
+                };
+            }
+            if (service.reverted) {
+                return {
+                    service: service.serviceKey,
+                    containerName: serviceName(service.container),
+                    verdict: 'project-revert',
+                    reason: 'project-revert',
+                };
+            }
             return {
                 service: service.serviceKey,
                 containerName: serviceName(service.container),
-                verdict: service.verdict || 'crashed',
-                reason: service.reason || 'unknown',
+                verdict: service.verdict || 'project-revert',
+                reason: forcedError || 'restore-failed',
             };
-        }
-        if (service.reverted) {
-            return {
-                service: service.serviceKey,
-                containerName: serviceName(service.container),
-                verdict: 'project-revert',
-                reason: 'project-revert',
-            };
-        }
-        return {
-            service: service.serviceKey,
-            containerName: serviceName(service.container),
-            verdict: service.verdict || 'project-revert',
-            reason: forcedError || 'restore-failed',
-        };
-    });
+        },
+    );
 
-    const report = {
+    const report: RollbackReport = {
         scope: 'project',
         composeFile,
         services: outcomeServices,

@@ -792,6 +792,39 @@ describe('Docker Watcher', () => {
                 expect.stringContaining('Unable to get container'),
             );
         });
+
+        test('should ignore event when container name matches rollback archive pattern', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const event = JSON.stringify({
+                Action: 'create',
+                Actor: {
+                    ID: 'archive123',
+                    Attributes: {
+                        name: 'my-app-wud-old-1700000000',
+                    },
+                },
+            });
+            docker.watchCronDebounced = jest.fn();
+            await docker.onDockerEvent(Buffer.from(event));
+            expect(docker.watchCronDebounced).not.toHaveBeenCalled();
+            expect(mockDockerApi.getContainer).not.toHaveBeenCalled();
+        });
+
+        test('should ignore rename event when renamed container is a rollback archive', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const event = JSON.stringify({
+                Action: 'rename',
+                Actor: {
+                    ID: 'container123',
+                    Attributes: {
+                        name: 'my-app-wud-old-1700000000',
+                        oldName: 'my-app',
+                    },
+                },
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+            expect(storeContainer.updateContainer).not.toHaveBeenCalled();
+        });
     });
 
     describe('Container Watching', () => {
@@ -3194,6 +3227,18 @@ describe('Docker Watcher', () => {
                 ).toBe(true);
                 expect(
                     isContainerToWatch(undefined, false, 'my-app', undefined),
+                ).toBe(false);
+            });
+
+            test('should return false when container name matches rollback archive pattern regardless of wud.watch label', () => {
+                expect(
+                    isContainerToWatch('true', true, 'web-wud-old-1700000000'),
+                ).toBe(false);
+                expect(
+                    isContainerToWatch('TRUE', false, 'web-wud-old-1700000000'),
+                ).toBe(false);
+                expect(
+                    isContainerToWatch(undefined, true, 'api-wud-old-12345'),
                 ).toBe(false);
             });
 

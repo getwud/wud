@@ -74,7 +74,13 @@ describe('Dockercompose rollback branch', () => {
             dockercompose,
             '/tmp/docker-compose.yml',
             [container],
-            [{ current: 'test/test:1.2.3', update: 'test/test:4.5.6' }],
+            [
+                {
+                    current: 'test/test:1.2.3',
+                    update: 'test/test:4.5.6',
+                    service: 'test',
+                },
+            ],
         );
     });
 

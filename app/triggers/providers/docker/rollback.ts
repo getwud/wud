@@ -286,7 +286,12 @@ export async function replaceContainerWithHealthGate(
         containerName,
     );
 
-    // Rename the old container out of the way first; the archive is the
+    // Stop the old container before renaming if it was running, avoiding port collisions.
+    if (opts.wasRunning) {
+        await opts.currentContainer.stop();
+    }
+
+    // Rename the old container out of the way; the archive is the
     // rollback source for the whole gate.
     await opts.currentContainer.rename({ name: archiveName });
 
@@ -300,9 +305,12 @@ export async function replaceContainerWithHealthGate(
         );
         try {
             await opts.currentContainer.rename({ name: containerName });
-        } catch (renameError) {
+            if (opts.wasRunning) {
+                await opts.currentContainer.start();
+            }
+        } catch (restoreError) {
             log.error(
-                { err: renameError },
+                { err: restoreError },
                 `Unable to restore the original name ${containerName} (still archived as ${archiveName})`,
             );
         }
