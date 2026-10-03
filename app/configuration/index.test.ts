@@ -8,7 +8,7 @@ test('getVersion should return wud version', async () => {
 
 test('getVersion should fallback to package.json version when WUD_VERSION is not defined', async () => {
     delete configuration.wudEnvVars.WUD_VERSION;
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+
     const pkg = require('../package.json');
     expect(configuration.getVersion()).toStrictEqual(pkg.version);
 });
@@ -144,6 +144,16 @@ test('getPublicUrl should append basepath to WUD_PUBLIC_URL when both are config
 test('replaceSecrets must read secret in file', async () => {
     const vars = {
         WUD_SERVER_X__FILE: `${__dirname}/secret.txt`,
+    };
+    configuration.replaceSecrets(vars);
+    expect(vars).toStrictEqual({
+        WUD_SERVER_X: 'super_secret',
+    });
+});
+
+test('replaceSecrets must strip trailing newline from secret file', async () => {
+    const vars = {
+        WUD_SERVER_X__FILE: `${__dirname}/secret_with_newline.txt`,
     };
     configuration.replaceSecrets(vars);
     expect(vars).toStrictEqual({

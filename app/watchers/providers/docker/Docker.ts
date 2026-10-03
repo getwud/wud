@@ -65,6 +65,7 @@ export interface DockerWatcherConfiguration extends ComponentConfiguration {
     watchatstart: boolean;
     delay?: string;
     exclude?: string;
+    include?: string;
 }
 
 // The delay before starting the watcher when the app is started
@@ -308,23 +309,67 @@ export function isRollbackArchive(name?: string): boolean {
 }
 
 /**
+ * Helper to match a filter pattern against container name or container labels.
+ * If filter starts with 'label:', pattern is tested against label key, key=value, and key:value.
+ * Otherwise, pattern is tested against container name.
+ */
+function matchFilter(
+    filter?: string,
+    containerName?: string,
+    containerLabels: Record<string, string> = {},
+    log?: Pick<Logger, 'warn'>,
+): boolean {
+    if (!filter) {
+        return false;
+    }
+    const isLabelFilter = filter.startsWith('label:');
+    const pattern = isLabelFilter ? filter.slice(6) : filter;
+    try {
+        const regex = new RegExp(pattern);
+        if (isLabelFilter) {
+            if (!containerLabels || typeof containerLabels !== 'object') {
+                return false;
+            }
+            return Object.entries(containerLabels).some(([key, value]) => {
+                return (
+                    regex.test(key) ||
+                    regex.test(`${key}=${value}`) ||
+                    regex.test(`${key}:${value}`)
+                );
+            });
+        }
+        return containerName ? regex.test(containerName) : false;
+    } catch (e: any) {
+        if (log && typeof log.warn === 'function') {
+            log.warn(`Invalid regex pattern '${pattern}': ${e.message}`);
+        }
+        return false;
+    }
+}
+
+/**
  * Return true if container must be watched.
  * Priority order:
  * 0. If container name matches rollback archive pattern (/-wud-old-\d+$/), container is NEVER watched (return false).
  * 1. If container label wud.watch is defined and not empty, its value takes precedence (wud.watch.toLowerCase() === 'true').
- * 2. Else, if an exclude regex is configured on the watcher and the container name matches it, container is NOT watched (return false).
- * 3. Else, watchByDefault applies.
+ * 2. Else, if an exclude filter is configured on the watcher and the container matches it, container is NOT watched (return false).
+ * 3. Else, if an include filter is configured on the watcher, container is watched if it matches (return true), otherwise NOT watched (return false).
+ * 4. Else, watchByDefault applies.
  * @param wudWatchLabelValue the value of the wud.watch label
  * @param watchByDefault true if containers must be watched by default
  * @param containerName the name of the container
- * @param excludeRegex optional regex pattern to exclude containers by name
+ * @param containerLabels the container labels
+ * @param excludeFilter optional pattern to exclude containers by name or label (prefixed with label:)
+ * @param includeFilter optional pattern to include containers by name or label (prefixed with label:)
  * @param log optional logger to log invalid regex warnings
  */
 export function isContainerToWatch(
     wudWatchLabelValue?: string,
     watchByDefault = true,
     containerName?: string,
-    excludeRegex?: string,
+    containerLabels: Record<string, string> = {},
+    excludeFilter?: string,
+    includeFilter?: string,
     log?: Pick<Logger, 'warn'>,
 ) {
     if (containerName && ROLLBACK_ARCHIVE_REGEX.test(containerName)) {
@@ -333,19 +378,14 @@ export function isContainerToWatch(
     if (wudWatchLabelValue !== undefined && wudWatchLabelValue !== '') {
         return wudWatchLabelValue.toLowerCase() === 'true';
     }
-    if (excludeRegex && containerName) {
-        try {
-            const regex = new RegExp(excludeRegex);
-            if (regex.test(containerName)) {
-                return false;
-            }
-        } catch (e: any) {
-            if (log) {
-                log.warn(
-                    `Invalid exclude regex '${excludeRegex}': ${e.message}`,
-                );
-            }
-        }
+    if (
+        excludeFilter &&
+        matchFilter(excludeFilter, containerName, containerLabels, log)
+    ) {
+        return false;
+    }
+    if (includeFilter !== undefined && includeFilter !== '') {
+        return matchFilter(includeFilter, containerName, containerLabels, log);
     }
     return watchByDefault;
 }
@@ -383,6 +423,7 @@ export class Docker extends Watcher {
             watchatstart: this.joi.boolean().default(true),
             delay: this.joi.string().optional(),
             exclude: this.joi.string().optional(),
+            include: this.joi.string().optional(),
         });
     }
 
@@ -752,7 +793,9 @@ export class Docker extends Watcher {
                 container.Labels ? container.Labels[wudWatch] : undefined,
                 this.configuration.watchbydefault,
                 this.getContainerName(container),
+                container.Labels || {},
                 this.configuration.exclude,
+                this.configuration.include,
                 this.log,
             ),
         );

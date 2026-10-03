@@ -42,7 +42,7 @@ export function replaceSecrets(wudEnvVars) {
     secretFileEnvVars.forEach((secretFileEnvVar) => {
         const secretKey = secretFileEnvVar.replace(VAR_FILE_SUFFIX, '');
         const secretFilePath = wudEnvVars[secretFileEnvVar];
-        const secretFileValue = fs.readFileSync(secretFilePath, 'utf-8');
+        const secretFileValue = fs.readFileSync(secretFilePath, 'utf-8').trim();
         delete wudEnvVars[secretFileEnvVar];
         wudEnvVars[secretKey] = secretFileValue;
     });
@@ -64,12 +64,10 @@ export function getVersion() {
         return wudEnvVars.WUD_VERSION;
     }
     try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const pkg = require('../package.json');
         return pkg.version || 'unknown';
     } catch {
         try {
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
             const pkg = require('../../package.json');
             return pkg.version || 'unknown';
         } catch {

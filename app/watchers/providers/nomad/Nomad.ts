@@ -170,6 +170,32 @@ export function extractDigestFromImage(image: string): string | undefined {
 }
 
 /**
+ * Determine if the image of a Nomad task differs from the image of
+ * its store entry (e.g. after the task image has been updated).
+ * The container id is stable across task updates, so a stale store entry
+ * must be detected by comparing:
+ *   - the image id (imageName, which includes pinned digest if present)
+ *   - the tag (a new tag can share the digest of the old one, e.g. 16 -> 16.4)
+ *   - the pinned digest (if present in the image spec)
+ */
+export function isTaskImageChanged(
+    containerInStore: Container,
+    imageName: string,
+    tagName?: string,
+): boolean {
+    const currentTag =
+        tagName ?? (parse(imageName.split('@')[0])?.tag || 'latest');
+    const pinnedDigest = extractDigestFromImage(imageName);
+    return (
+        containerInStore.image?.id !== imageName ||
+        containerInStore.image?.tag?.value !== currentTag ||
+        (pinnedDigest !== undefined &&
+            containerInStore.image?.digest?.repo !== pinnedDigest &&
+            containerInStore.image?.digest?.value !== pinnedDigest)
+    );
+}
+
+/**
  * Get old containers (present in store but no longer discovered) to prune.
  */
 function getOldContainers(
@@ -606,9 +632,18 @@ export class Nomad extends Watcher {
         );
 
         const containerInStore = storeContainer.getContainer(containerId);
+        const imageChanged =
+            containerInStore !== undefined &&
+            isTaskImageChanged(containerInStore, imageName);
+        if (imageChanged && this.log && typeof this.log.info === 'function') {
+            this.log.info(
+                `Container ${containerId} image changed, re-evaluating container`,
+            );
+        }
         if (
             containerInStore !== undefined &&
-            containerInStore.error === undefined
+            containerInStore.error === undefined &&
+            !imageChanged
         ) {
             const storeRegistryName = containerInStore.image?.registry?.name;
             if (storeRegistryName && !hasRegistry(storeRegistryName)) {
@@ -676,12 +711,17 @@ export class Nomad extends Watcher {
             }
         }
 
-        let parsedImage = parse(imageName);
+        const imageWithoutDigest = imageName.split('@')[0];
+        let parsedImage = parse(imageWithoutDigest);
         const tagName =
             parsedImage && parsedImage.tag ? parsedImage.tag : 'latest';
 
-        if (!parsedImage) {
-            parsedImage = { domain: '', path: imageName, tag: tagName };
+        if (!parsedImage || !parsedImage.path) {
+            parsedImage = {
+                domain: '',
+                path: imageWithoutDigest,
+                tag: tagName,
+            };
         }
 
         const parsedTag = parseSemver(transformTag(transformTags, tagName));
