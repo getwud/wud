@@ -156,6 +156,26 @@ export function buildContainerId(
 }
 
 /**
+ * Determine if the image of a workload container differs from the image of
+ * its store entry (e.g. after the workload has been updated).
+ * The container id is stable across image updates, so a stale store entry
+ * must be detected by comparing:
+ *   - the image id (Pod imageID, or image name when no Pod status is available)
+ *   - the tag (a new tag can share the digest of the old one, e.g. 16 -> 16.4)
+ */
+export function isWorkloadImageChanged(
+    containerInStore: Container,
+    containerSpec: K8sContainerSpec,
+): boolean {
+    const currentImageId = containerSpec.imageID ?? containerSpec.image;
+    const currentTag = parse(containerSpec.image)?.tag || 'latest';
+    return (
+        containerInStore.image?.id !== currentImageId ||
+        containerInStore.image?.tag?.value !== currentTag
+    );
+}
+
+/**
  * Get old containers (present in store but no longer discovered) to prune.
  */
 function getOldContainers(
@@ -714,9 +734,18 @@ export class Kubernetes extends Watcher {
         const containerInStore = isOneshot()
             ? undefined
             : storeContainer.getContainer(containerId);
+        const imageChanged =
+            containerInStore !== undefined &&
+            isWorkloadImageChanged(containerInStore, containerSpec);
+        if (imageChanged && this.log && typeof this.log.info === 'function') {
+            this.log.info(
+                `Container ${containerId} image changed, re-evaluating container`,
+            );
+        }
         if (
             containerInStore !== undefined &&
-            containerInStore.error === undefined
+            containerInStore.error === undefined &&
+            !imageChanged
         ) {
             const storeRegistryName = containerInStore.image?.registry?.name;
             if (storeRegistryName && !hasRegistry(storeRegistryName)) {

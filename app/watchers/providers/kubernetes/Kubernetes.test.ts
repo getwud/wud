@@ -26,6 +26,7 @@ import {
     isWorkloadToWatch,
     extractDigestFromImageID,
     buildContainerId,
+    isWorkloadImageChanged,
 } from './Kubernetes';
 import { getAnnotationValue } from './annotation';
 import * as event from '../../../event';
@@ -267,6 +268,71 @@ describe('Kubernetes Watcher', () => {
             expect(
                 buildContainerId('prod', 'StatefulSet', 'db', 'postgres'),
             ).toBe('prod_statefulset_db_postgres');
+        });
+    });
+
+    describe('isWorkloadImageChanged()', () => {
+        const stored = (id: string, tag: string) =>
+            ({ image: { id, tag: { value: tag } } }) as any;
+
+        test('returns false when imageID and tag are unchanged', () => {
+            mockParse.mockReturnValue({ path: 'nginx', tag: '1.27' });
+            expect(
+                isWorkloadImageChanged(stored('nginx@sha256:aaa', '1.27'), {
+                    name: 'nginx',
+                    image: 'nginx:1.27',
+                    imageID: 'nginx@sha256:aaa',
+                }),
+            ).toBe(false);
+        });
+
+        test('returns true when imageID changed', () => {
+            mockParse.mockReturnValue({ path: 'nginx', tag: '1.27' });
+            expect(
+                isWorkloadImageChanged(stored('nginx@sha256:aaa', '1.27'), {
+                    name: 'nginx',
+                    image: 'nginx:1.27',
+                    imageID: 'nginx@sha256:bbb',
+                }),
+            ).toBe(true);
+        });
+
+        test('returns true when tag changed but imageID is the same', () => {
+            mockParse.mockReturnValue({ path: 'postgres', tag: '16.4' });
+            expect(
+                isWorkloadImageChanged(stored('postgres@sha256:aaa', '16'), {
+                    name: 'postgres',
+                    image: 'postgres:16.4',
+                    imageID: 'postgres@sha256:aaa',
+                }),
+            ).toBe(true);
+        });
+
+        test('compares against image name when imageID is not available', () => {
+            mockParse.mockReturnValue({ path: 'nginx', tag: '1.27' });
+            expect(
+                isWorkloadImageChanged(stored('nginx:1.27', '1.27'), {
+                    name: 'nginx',
+                    image: 'nginx:1.27',
+                }),
+            ).toBe(false);
+            mockParse.mockReturnValue({ path: 'nginx', tag: '1.28' });
+            expect(
+                isWorkloadImageChanged(stored('nginx:1.27', '1.27'), {
+                    name: 'nginx',
+                    image: 'nginx:1.28',
+                }),
+            ).toBe(true);
+        });
+
+        test('defaults tag to latest when image has no tag', () => {
+            mockParse.mockReturnValue({ path: 'nginx' });
+            expect(
+                isWorkloadImageChanged(stored('nginx', 'latest'), {
+                    name: 'nginx',
+                    image: 'nginx',
+                }),
+            ).toBe(false);
         });
     });
 
@@ -928,6 +994,7 @@ describe('Kubernetes Watcher', () => {
                 id: 'k8s_default_Deployment_web_nginx',
                 name: 'nginx',
                 watcher: 'old-k8s',
+                image: { id: 'nginx:1.27', tag: { value: '1.27' } },
                 result: { tag: '2.0.0' },
                 error: undefined,
             } as any;
@@ -938,7 +1005,7 @@ describe('Kubernetes Watcher', () => {
                 name: 'web',
                 annotations: {},
             };
-            const containerSpec = { name: 'nginx', image: 'nginx:1.0.0' };
+            const containerSpec = { name: 'nginx', image: 'nginx:1.27' };
 
             const result = await kubernetes.mapWorkloadContainerToWudContainer(
                 workload as any,
