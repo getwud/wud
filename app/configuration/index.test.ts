@@ -151,6 +151,16 @@ test('replaceSecrets must read secret in file', async () => {
     });
 });
 
+test('replaceSecrets must strip trailing newline from secret file', async () => {
+    const vars = {
+        WUD_SERVER_X__FILE: `${__dirname}/secret_with_newline.txt`,
+    };
+    configuration.replaceSecrets(vars);
+    expect(vars).toStrictEqual({
+        WUD_SERVER_X: 'super_secret',
+    });
+});
+
 test('getPrometheusConfiguration should result in enabled by default', () => {
     delete configuration.wudEnvVars.WUD_PROMETHEUS_ENABLED;
     delete configuration.wudEnvVars.WUD_PROMETHEUS_AUTH;
