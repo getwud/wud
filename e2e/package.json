@@ -20,15 +20,15 @@
   "repository": "getwud/wud",
   "license": "MIT",
   "dependencies": {
-    "@cucumber/cucumber": "11.1.1",
+    "@cucumber/cucumber": "^13.2.1",
     "apickli": "3.0.3",
-    "mqtt": "5.14.1"
+    "mqtt": "^5.16.0"
   },
   "devDependencies": {
-    "@dotenvx/dotenvx": "^1.51.4",
-    "eslint": "8.57.0",
+    "@dotenvx/dotenvx": "^2.32.4",
+    "eslint": "^8.57.1",
     "eslint-config-airbnb-base": "15.0.0",
     "eslint-plugin-cucumber": "2.0.0",
-    "eslint-plugin-import": "2.30.0"
+    "eslint-plugin-import": "^2.32.0"
   }
 }

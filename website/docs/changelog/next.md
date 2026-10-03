@@ -20,3 +20,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [CONFIGURATION] Fix `__FILE` secrets stripping trailing newline characters (fixes #1347)
 - 🐛 [WATCHER] Swarm watcher refreshes container when service image changes (fixes #1340)
 - 🐛 [WATCHER] Nomad watcher refreshes container when task image changes (fixes #1341)
+- 🚀 [DEPS] Upgrade project dependencies

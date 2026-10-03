@@ -14,13 +14,13 @@
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
     "@fortawesome/fontawesome-free": "^6.7.2",
-    "@iconify/vue": "^5.0.1",
+    "@iconify/vue": "^5.0.3",
     "core-js": "^3.41.0",
     "register-service-worker": "^1.7.2",
-    "vue": "^3.5.13",
+    "vue": "^3.5.43",
     "vue-inline-svg": "^2.1.4",
-    "vue-router": "^4.5.0",
-    "vuetify": "^3.7.15"
+    "vue-router": "^4.6.4",
+    "vuetify": "^3.13.5"
   },
   "devDependencies": {
     "@babel/core": "^7.26.9",
@@ -29,7 +29,7 @@
     "@fontsource/roboto": "^5.1.1",
     "@mdi/font": "^7.4.47",
     "@types/jest": "^29.5.14",
-    "@types/node": "^22.13.5",
+    "@types/node": "^22.20.5",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "@vue/cli-plugin-babel": "~5.0.9",
@@ -40,19 +40,19 @@
     "@vue/cli-service": "~5.0.9",
     "@vue/eslint-config-prettier": "^9.0.0",
     "@vue/eslint-config-typescript": "^13.0.0",
-    "@vue/test-utils": "^2.4.6",
+    "@vue/test-utils": "^2.5.1",
     "@vue/vue3-jest": "^29.2.6",
     "babel-jest": "^29.7.0",
     "eslint": "^8.57.1",
     "eslint-plugin-prettier": "^5.2.3",
-    "eslint-plugin-vue": "^9.32.0",
+    "eslint-plugin-vue": "^9.33.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
-    "prettier": "^3.5.2",
-    "sass": "^1.85.0",
-    "sass-loader": "^16.0.4",
-    "ts-jest": "^29.2.5",
-    "ts-loader": "^9.5.2",
+    "prettier": "^3.9.9",
+    "sass": "^1.105.1",
+    "sass-loader": "^16.0.8",
+    "ts-jest": "^29.4.14",
+    "ts-loader": "^9.6.2",
     "typescript": "~5.7.3"
   }
 }
