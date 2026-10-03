@@ -35,5 +35,6 @@ module.exports = {
   //   }
   // },
   clearMocks: true,
+  setupFiles: ['<rootDir>/tests/setup-globals.js'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts']
 };

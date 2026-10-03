@@ -26,28 +26,28 @@
     "@docusaurus/preset-classic": "3.10.2",
     "@docusaurus/theme-mermaid": "^3.10.2",
     "@easyops-cn/docusaurus-search-local": "^0.55.3",
-    "@iconify-json/logos": "^1.2.13",
+    "@iconify-json/logos": "^1.2.15",
     "@iconify-json/mdi": "^1.2.3",
-    "@iconify-json/selfhst": "^1.2.16",
-    "@iconify-json/simple-icons": "^1.2.93",
+    "@iconify-json/selfhst": "^1.2.22",
+    "@iconify-json/simple-icons": "^1.2.98",
     "@iconify/react": "^6.0.2",
     "@mdi/font": "^7.4.47",
     "@mdx-js/react": "^3.0.0",
-    "@reduxjs/toolkit": "^2.12.0",
+    "@reduxjs/toolkit": "^2.13.0",
     "clsx": "^2.0.0",
     "docusaurus-plugin-openapi-docs": "^5.2.0",
     "docusaurus-theme-openapi-docs": "^5.2.0",
     "prism-react-renderer": "^2.3.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "react-redux": "^9.3.0"
   },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "3.10.2",
     "@docusaurus/types": "3.10.2",
-    "cspell": "^10.3.0",
+    "cspell": "^10.3.6",
     "markdownlint-cli2": "^0.23.3",
-    "simple-icons": "^16.28.0"
+    "simple-icons": "^16.33.0"
   },
   "browserslist": {
     "production": [
