@@ -42,7 +42,7 @@ export function replaceSecrets(wudEnvVars) {
     secretFileEnvVars.forEach((secretFileEnvVar) => {
         const secretKey = secretFileEnvVar.replace(VAR_FILE_SUFFIX, '');
         const secretFilePath = wudEnvVars[secretFileEnvVar];
-        const secretFileValue = fs.readFileSync(secretFilePath, 'utf-8');
+        const secretFileValue = fs.readFileSync(secretFilePath, 'utf-8').trim();
         delete wudEnvVars[secretFileEnvVar];
         wudEnvVars[secretKey] = secretFileValue;
     });
