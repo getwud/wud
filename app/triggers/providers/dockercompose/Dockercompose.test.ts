@@ -1,5 +1,9 @@
+import yaml from 'yaml';
 import log from '../../../log';
-import Dockercompose, { doesContainerBelongToCompose } from './Dockercompose';
+import Dockercompose, {
+    doesContainerBelongToCompose,
+    findServiceKeyForContainer,
+} from './Dockercompose';
 import { testTriggerProvider } from '../TriggerTestHelper';
 import { HookManager } from '../../hooks/HookManager';
 
@@ -113,6 +117,7 @@ test('mapCurrentVersionToUpdateVersion should map the matching service to its up
         new Set(),
     );
     expect(mapping).toEqual({
+        service: 'test',
         current: 'test/test:1.2.3',
         update: 'test/test:4.5.6',
     });
@@ -625,5 +630,260 @@ describe('Dockercompose Trigger - file operations', () => {
         preSpy.mockRestore();
         postSpy.mockRestore();
         superTriggerSpy.mockRestore();
+    });
+
+    describe('Services sharing identical images (#1323)', () => {
+        const sharedCompose = {
+            services: {
+                mariadb_nc: {
+                    image: 'mariadb:10.5.8',
+                    container_name: 'mariadbnc',
+                },
+                mariadb_ha: {
+                    image: 'mariadb:10.5.8',
+                    container_name: 'mariadbha',
+                },
+            },
+        };
+
+        const container1 = {
+            name: 'mariadbnc',
+            updateAvailable: true,
+            labels: {
+                'com.docker.compose.service': 'mariadb_nc',
+            },
+            image: {
+                registry: { name: 'hub' },
+                name: 'mariadb',
+                tag: { value: '10.5.8', semver: true },
+            },
+            updateKind: { kind: 'tag', remoteValue: '10.5.9' },
+            watcher: 'local',
+        };
+
+        const container2 = {
+            name: 'mariadbha',
+            updateAvailable: true,
+            labels: {
+                'com.docker.compose.service': 'mariadb_ha',
+            },
+            image: {
+                registry: { name: 'hub' },
+                name: 'mariadb',
+                tag: { value: '10.5.8', semver: true },
+            },
+            updateKind: { kind: 'tag', remoteValue: '10.5.9' },
+            watcher: 'local',
+        };
+
+        test('findServiceKeyForContainer should match service by com.docker.compose.service label', () => {
+            expect(findServiceKeyForContainer(sharedCompose, container1)).toBe(
+                'mariadb_nc',
+            );
+            expect(findServiceKeyForContainer(sharedCompose, container2)).toBe(
+                'mariadb_ha',
+            );
+        });
+
+        test('findServiceKeyForContainer should match service by container_name when label is missing', () => {
+            const containerNoLabel = {
+                ...container1,
+                labels: {},
+            };
+            expect(
+                findServiceKeyForContainer(sharedCompose, containerNoLabel),
+            ).toBe('mariadb_nc');
+        });
+
+        test('findServiceKeyForContainer should match service by key when container name matches service key', () => {
+            const composeWithoutContainerName = {
+                services: {
+                    mariadb_nc: {
+                        image: 'mariadb:10.5.8',
+                    },
+                },
+            };
+            const containerWithServiceKeyAsName = {
+                name: 'mariadb_nc',
+                image: container1.image,
+            };
+            expect(
+                findServiceKeyForContainer(
+                    composeWithoutContainerName,
+                    containerWithServiceKeyAsName,
+                ),
+            ).toBe('mariadb_nc');
+        });
+
+        test('findServiceKeyForContainer should return undefined when compose service label does not exist in compose file', () => {
+            const containerWrongStack = {
+                ...container1,
+                labels: {
+                    'com.docker.compose.service': 'nonexistent_service',
+                },
+            };
+            expect(
+                findServiceKeyForContainer(sharedCompose, containerWrongStack),
+            ).toBeUndefined();
+        });
+
+        test('findServiceKeyForContainer should return undefined for invalid compose object or missing registry', () => {
+            expect(
+                findServiceKeyForContainer(null, container1),
+            ).toBeUndefined();
+            expect(findServiceKeyForContainer({}, container1)).toBeUndefined();
+            expect(
+                findServiceKeyForContainer(sharedCompose, {
+                    ...container1,
+                    image: { registry: { name: 'unknown_registry' } },
+                }),
+            ).toBeUndefined();
+        });
+
+        test('mapCurrentVersionToUpdateVersion should target the correct service by label', () => {
+            const processedServices = new Set<string>();
+            const mapping1 = dockercompose.mapCurrentVersionToUpdateVersion(
+                sharedCompose,
+                container1,
+                processedServices,
+            );
+            expect(mapping1).toEqual({
+                service: 'mariadb_nc',
+                current: 'mariadb:10.5.8',
+                update: 'mariadb:10.5.9',
+            });
+
+            const mapping2 = dockercompose.mapCurrentVersionToUpdateVersion(
+                sharedCompose,
+                container2,
+                processedServices,
+            );
+            expect(mapping2).toEqual({
+                service: 'mariadb_ha',
+                current: 'mariadb:10.5.8',
+                update: 'mariadb:10.5.9',
+            });
+        });
+
+        test('mapCurrentVersionToUpdateVersion should skip already processed service on duplicate container', () => {
+            const processedServices = new Set<string>();
+            const mapping1 = dockercompose.mapCurrentVersionToUpdateVersion(
+                sharedCompose,
+                container1,
+                processedServices,
+            );
+            expect(mapping1).toBeDefined();
+
+            // Sibling replica of container1
+            const mappingDuplicate =
+                dockercompose.mapCurrentVersionToUpdateVersion(
+                    sharedCompose,
+                    container1,
+                    processedServices,
+                );
+            expect(mappingDuplicate).toBeUndefined();
+        });
+
+        test('processComposeFile updating container1 must not rewrite container2 service image', async () => {
+            dockercompose.processComposeFile =
+                Dockercompose.prototype.processComposeFile;
+            dockercompose.configuration = {
+                ...configurationValid,
+                dryrun: false,
+            };
+
+            const rawComposeYaml = [
+                '# Sibling containers stack',
+                'services:',
+                '  mariadb_nc:',
+                '    # nextcloud db',
+                '    image: "mariadb:10.5.8"',
+                '    container_name: mariadbnc',
+                '  mariadb_ha:',
+                '    # home assistant db',
+                '    image: "mariadb:10.5.8"',
+                '    container_name: mariadbha',
+            ].join('\n');
+
+            let writtenContent = '';
+            dockercompose.getComposeFileAsObject = jest
+                .fn()
+                .mockImplementation(async () =>
+                    yaml.parse(writtenContent || rawComposeYaml),
+                );
+            dockercompose.getComposeFile = jest
+                .fn()
+                .mockImplementation(async () =>
+                    Buffer.from(writtenContent || rawComposeYaml),
+                );
+            dockercompose.writeComposeFile = jest
+                .fn()
+                .mockImplementation(async (_file, data) => {
+                    writtenContent = data;
+                });
+            dockercompose.getWatcher = jest.fn().mockReturnValue({
+                dockerApi: {},
+            });
+            const superTriggerSpy = jest
+                .spyOn(
+                    Object.getPrototypeOf(Dockercompose.prototype),
+                    'trigger',
+                )
+                .mockResolvedValue(undefined);
+
+            // Update container1 only
+            await dockercompose.processComposeFile('/path/docker-compose.yml', [
+                container1 as any,
+            ]);
+
+            const parsedAfterContainer1 = yaml.parse(writtenContent);
+            expect(parsedAfterContainer1.services.mariadb_nc.image).toBe(
+                'mariadb:10.5.9',
+            );
+            // container2 service image MUST remain 10.5.8
+            expect(parsedAfterContainer1.services.mariadb_ha.image).toBe(
+                'mariadb:10.5.8',
+            );
+            // Comments must be preserved
+            expect(writtenContent).toContain('# Sibling containers stack');
+            expect(writtenContent).toContain('# nextcloud db');
+            expect(writtenContent).toContain('# home assistant db');
+
+            // Now container2 must still belong to compose and be updatable
+            expect(
+                doesContainerBelongToCompose(parsedAfterContainer1, container2),
+            ).toBe(true);
+
+            // Update container2
+            await dockercompose.processComposeFile('/path/docker-compose.yml', [
+                container2 as any,
+            ]);
+
+            const parsedAfterContainer2 = yaml.parse(writtenContent);
+            expect(parsedAfterContainer2.services.mariadb_nc.image).toBe(
+                'mariadb:10.5.9',
+            );
+            expect(parsedAfterContainer2.services.mariadb_ha.image).toBe(
+                'mariadb:10.5.9',
+            );
+
+            superTriggerSpy.mockRestore();
+        });
+
+        test('updateComposeYaml should fallback to string replacement when YAML has syntax errors', () => {
+            const invalidYaml = 'services:\n  broken: [unclosed';
+            const updates = [
+                {
+                    service: 'broken',
+                    current: '[unclosed',
+                    update: 'fixed',
+                },
+            ];
+            const result = dockercompose.updateComposeYaml(
+                invalidYaml,
+                updates,
+            );
+            expect(result).toBe('services:\n  broken: fixed');
+        });
     });
 });

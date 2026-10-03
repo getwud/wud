@@ -921,6 +921,107 @@ describe('Kubernetes Watcher', () => {
             ).toHaveBeenCalled();
         });
 
+        test('findNewVersion watches digest for stored non-semver container with digest.watch=false when registry shouldWatchDigest is true (fixes #1337)', async () => {
+            const mockRegistryProvider = {
+                shouldWatchDigest: jest.fn().mockReturnValue(true),
+                getTags: jest.fn().mockResolvedValue(['latest']),
+                getImageManifestDigest: jest.fn().mockResolvedValue({
+                    digest: 'sha256:remote-digest-456',
+                    created: '2023-01-01',
+                    version: 2,
+                }),
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'hub.public': mockRegistryProvider },
+            });
+
+            const container: any = {
+                id: 'default_deployment_test_firefly',
+                name: 'default_deployment_test_firefly',
+                watcher: 'test',
+                labels: {},
+                image: {
+                    id: 'sha256:abc',
+                    registry: {
+                        name: 'hub.public',
+                        url: 'https://registry-1.docker.io/v2',
+                    },
+                    name: 'fireflyiii/core',
+                    tag: { value: 'latest', semver: false },
+                    digest: { watch: false, repo: 'sha256:local-digest-123' },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: { tag: 'latest' },
+            };
+
+            const mockLogChild = {
+                error: jest.fn(),
+                debug: jest.fn(),
+                warn: jest.fn(),
+            };
+            const result = await kubernetes.findNewVersion(
+                container,
+                mockLogChild,
+            );
+
+            expect(mockRegistryProvider.shouldWatchDigest).toHaveBeenCalled();
+            expect(
+                mockRegistryProvider.getImageManifestDigest,
+            ).toHaveBeenCalled();
+            expect(result.digest).toBe('sha256:remote-digest-456');
+            expect(container.image.digest.watch).toBe(true);
+        });
+
+        test('findNewVersion respects annotation watch.digest=false over registry shouldWatchDigest=true (fixes #1337)', async () => {
+            const mockRegistryProvider = {
+                shouldWatchDigest: jest.fn().mockReturnValue(true),
+                getTags: jest.fn().mockResolvedValue(['latest']),
+                getImageManifestDigest: jest.fn(),
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'hub.public': mockRegistryProvider },
+            });
+
+            const container: any = {
+                id: 'default_deployment_test_firefly',
+                name: 'default_deployment_test_firefly',
+                watcher: 'test',
+                labels: {
+                    'getwud.app/watch.digest': 'false',
+                },
+                image: {
+                    id: 'sha256:abc',
+                    registry: {
+                        name: 'hub.public',
+                        url: 'https://registry-1.docker.io/v2',
+                    },
+                    name: 'fireflyiii/core',
+                    tag: { value: 'latest', semver: false },
+                    digest: { watch: true, repo: 'sha256:local-digest-123' },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: { tag: 'latest' },
+            };
+
+            const mockLogChild = {
+                error: jest.fn(),
+                debug: jest.fn(),
+                warn: jest.fn(),
+            };
+            const result = await kubernetes.findNewVersion(
+                container,
+                mockLogChild,
+            );
+
+            expect(
+                mockRegistryProvider.getImageManifestDigest,
+            ).not.toHaveBeenCalled();
+            expect(result.digest).toBeUndefined();
+            expect(container.image.digest.watch).toBe(false);
+        });
+
         test('handles error and attaches it to container', async () => {
             registry.getState.mockReturnValue({ registry: {} });
             storeContainer.getContainer.mockReturnValue(undefined);
