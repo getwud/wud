@@ -10,4 +10,5 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 ---
 
 - 🐛 [REGISTRY] Fix cohabitation of default anonymous registries and custom instances (fixes #1316, #1321, closes #673)
+- 🐛 [TRIGGER] Fix Docker trigger reporting success when image pull fails mid-stream (fixes #1324)
 - 🐛 [WATCHER] Fix Kubernetes watcher keeping the old image version after a workload update (fixes #1338)
