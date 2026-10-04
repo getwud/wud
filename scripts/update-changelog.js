@@ -27,6 +27,7 @@ const notes = contentWithoutFrontmatter
   .replace(/^#\s+Next[^\n]*\n*/m, '')
   .replace(/^>\s+Changes below[^\n]*\n*/m, '')
   .replace(/^---\s*$/gm, '')
+  .replace(/\n{3,}/g, '\n\n')
   .trim();
 
 if (!notes) {
