@@ -11,6 +11,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 ---
 
+- 🐛 [REGISTRY] Add support for authenticated bearer token challenge for custom registries (fixes #1132)
 - 🐛 [REGISTRY] Fix cohabitation of default anonymous registries and custom instances (fixes #1316, #1321, closes #673)
 - 🐛 [TRIGGER] Fix Docker trigger reporting success when image pull fails mid-stream (fixes #1324)
 - 🐛 [TRIGGER] Fix targeted docker compose update for services sharing identical images (fixes #1323)
