@@ -12,6 +12,7 @@ import {
     transform as transformTag,
     extractTagComponents,
     isPrerelease,
+    interpolateTagFilter,
 } from '../../../tag';
 import * as event from '../../../event';
 import {
@@ -769,14 +770,22 @@ export class Swarm extends Watcher {
         let filteredTags = tags;
 
         if (container.includeTags) {
-            const includeTagsRegex = new RegExp(container.includeTags);
+            const includePattern = interpolateTagFilter(
+                container.includeTags,
+                container,
+            );
+            const includeTagsRegex = new RegExp(includePattern);
             filteredTags = filteredTags.filter((tag) =>
                 includeTagsRegex.test(tag),
             );
         }
 
         if (container.excludeTags) {
-            const excludeTagsRegex = new RegExp(container.excludeTags);
+            const excludePattern = interpolateTagFilter(
+                container.excludeTags,
+                container,
+            );
+            const excludeTagsRegex = new RegExp(excludePattern);
             filteredTags = filteredTags.filter(
                 (tag) => !excludeTagsRegex.test(tag),
             );
