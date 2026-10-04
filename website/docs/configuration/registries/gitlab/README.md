@@ -10,7 +10,7 @@ import TabItem from '@theme/TabItem';
 
 # GitLab Container Registry
 
-For immediate checks after pushes on GitLab Self-Managed, configure [Registry Events](../../events/README.md) alongside these registry credentials.
+For immediate checks after pushes on GitLab Self-Managed, configure [Registry Webhooks](../webhooks.md) on this registry instance.
 
 <DocHero
   icon="gitlab"
@@ -28,6 +28,14 @@ Public packages work out of the box with zero configuration. Configure this modu
 ## ⚙️ Configuration Variables
 
 <ConfigList>
+  <ConfigOption
+    name="WUD_REGISTRY_GITLAB_{registry_name}_WEBHOOK_TOKEN"
+    required={false}
+    type="string"
+    supported="Nonempty shared secret">
+    Enable authenticated registry push notifications for this instance. See the Registry Webhooks guide linked above for endpoint and sender configuration.
+  </ConfigOption>
+
   <ConfigOption name="WUD_REGISTRY_GITLAB_{registry_name}_TOKEN"
     required={false}
     type="string"

@@ -29,6 +29,7 @@ jest.mock('./trigger', () => ({
     init: jest.fn(() => ({ use: jest.fn(), get: jest.fn() })),
 }));
 jest.mock('./registry', () => ({
+    initEvents: jest.fn(() => ({})),
     init: jest.fn(() => ({ use: jest.fn(), get: jest.fn() })),
 }));
 jest.mock('./authentication', () => ({
@@ -55,7 +56,6 @@ jest.mock('./profile', () => ({
 jest.mock('./event', () => ({
     init: jest.fn(() => ({ use: jest.fn(), get: jest.fn() })),
 }));
-jest.mock('./registry-event', () => ({ init: jest.fn(() => ({})) }));
 
 import * as api from './api';
 import swaggerUi from 'swagger-ui-express';

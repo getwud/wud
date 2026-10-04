@@ -69,7 +69,7 @@ flowchart LR
   Discord, Matrix, Mattermost, Zulip, Telegram, Slack, Signal, WhatsApp, Bark, Prowl, Home Assistant, Gotify, Ntfy, Pushover, Apprise, Webhooks, Kafka, AMQP/RabbitMQ, NATS, Opsgenie, PagerDuty, Uptime Kuma, GitHub Actions, GitLab CI, SMTP email, shell scripts, and native Docker / Compose / Nomad auto-updaters.
 - 🔄 **Automated Container Updates**  
   Automatically pull new images and recreate containers on demand (Docker, Docker Compose, Nomad).
-- ⚡ **Registry Push Events**: [GitLab Self-Managed registry notifications](website/docs/configuration/events/README.md) immediately check matching watched images while preserving existing labels and trigger policies.
+- ⚡ **Registry Webhooks**: [Registry push notifications](website/docs/configuration/registries/webhooks.md), including GitLab Self-Managed, immediately check matching watched images while preserving existing labels and trigger policies.
 - 🏷️ **SemVer & Tag Filtering**  
   Flexible versioning strategies: target `semver` (major, minor, patch), match custom regular expressions, pin versions, or define include/exclude tag rules.
 - 🖥️ **Interactive Web UI & REST API**  

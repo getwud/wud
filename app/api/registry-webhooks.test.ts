@@ -1,7 +1,13 @@
 import express from 'express';
 import request from 'supertest';
-import { init, parseHints, matches, getConfigurations } from './registry-event';
-import * as configuration from '../configuration';
+import { initEvents, matches as matchesRegistry } from './registry';
+import { parseDistributionEvents as parseHints } from '../registries/distribution-events';
+import Registry from '../registries/Registry';
+import DockerRegistryV2 from '../registries/DockerRegistryV2';
+const matches = (
+    container: Container,
+    hint: ReturnType<typeof parseHints>[number],
+) => matchesRegistry(container, hint, 'gitlab.local');
 import * as registry from '../registry';
 import * as store from '../store/container';
 import * as event from '../event';
@@ -25,7 +31,10 @@ const container = {
     id: 'one',
     watcher: 'local',
     image: {
-        registry: { url: 'https://registry.example.com/v2' },
+        registry: {
+            name: 'gitlab.local',
+            url: 'https://registry.example.com/v2',
+        },
         name: 'apps/test',
         tag: { value: 'latest' },
         digest: { watch: false },
@@ -51,16 +60,16 @@ describe('registry notification receiver', () => {
         };
         jest.mocked(registry.getState).mockReturnValue({
             watcher: { 'docker.local': watcher },
+            registry: {
+                'gitlab.local': {
+                    configuration: { webhook: { token: 'secret' } },
+                    parseWebhook: parseHints,
+                },
+            },
         } as unknown as registry.RegistryState);
         jest.mocked(store.getContainers).mockReturnValue([container]);
         app = express();
-        app.use(
-            '/events/registry',
-            init({
-                local: { enabled: true, token: 'secret' },
-                disabled: { enabled: false },
-            }),
-        );
+        app.use('/registries', initEvents());
     });
     const send = (
         app: express.Express,
@@ -68,7 +77,7 @@ describe('registry notification receiver', () => {
         token = 'Bearer secret',
     ) =>
         request(app)
-            .post('/events/registry/gitlab/local')
+            .post('/registries/gitlab.local/events')
             .set('Authorization', token)
             .set(
                 'Content-Type',
@@ -101,12 +110,49 @@ describe('registry notification receiver', () => {
             expect(
                 (
                     await request(app)
-                        .post(`/events/registry/gitlab/${name}`)
+                        .post(`/registries/${name}/events`)
                         .send(payload)
                 ).status,
             ).toBe(404);
         },
     );
+    test('dispatches to the authenticated registry parser and hides disabled webhooks', async () => {
+        const provider = jest.mocked(registry.getState)().registry[
+            'gitlab.local'
+        ];
+        const parse = jest.fn().mockReturnValue([]);
+        provider.parseWebhook = parse;
+        expect((await send(app)).body).toEqual({ accepted: 0 });
+        expect(parse).toHaveBeenCalledWith(payload);
+        provider.configuration = {};
+        expect((await send(app)).status).toBe(404);
+        expect(parse).toHaveBeenCalledTimes(1);
+    });
+    test('rejects an unsupported provider format without checking containers', async () => {
+        const provider = jest.mocked(registry.getState)().registry[
+            'gitlab.local'
+        ];
+        provider.parseWebhook = new Registry().parseWebhook;
+        expect((await send(app)).status).toBe(400);
+        expect(watcher.getContainers).not.toHaveBeenCalled();
+    });
+    test('filters fresh containers by registry instance as well as image', async () => {
+        watcher.getContainers.mockResolvedValue([
+            {
+                ...container,
+                image: {
+                    ...container.image,
+                    registry: {
+                        ...container.image.registry,
+                        name: 'gitlab.other',
+                    },
+                },
+            },
+        ]);
+        await send(app);
+        await settle();
+        expect(watcher.processWatchContainers).toHaveBeenCalledWith([]);
+    });
     test('rejects malformed envelopes and relevant push fields', async () => {
         expect(
             (await send(app, { events: 'bad' } as unknown as typeof payload))
@@ -199,21 +245,20 @@ describe('registry notification receiver', () => {
         await settle();
         expect(watcher.processWatchContainers).toHaveBeenCalledTimes(1);
     });
-    test('honors configured host restriction', async () => {
-        app = express();
-        app.use(
-            init({
-                local: {
-                    enabled: true,
-                    token: 'secret',
-                    registry: 'other.example.com',
+    test('does not check another registry instance with the same image', async () => {
+        jest.mocked(store.getContainers).mockReturnValue([
+            {
+                ...container,
+                image: {
+                    ...container.image,
+                    registry: {
+                        ...container.image.registry,
+                        name: 'registry.other',
+                    },
                 },
-            }),
-        );
-        await request(app)
-            .post('/gitlab/local')
-            .set('Authorization', 'Bearer secret')
-            .send(payload);
+            },
+        ]);
+        await send(app);
         await settle();
         expect(watcher.getContainers).not.toHaveBeenCalled();
     });
@@ -294,16 +339,24 @@ describe('registry notification receiver', () => {
             }),
         ).toThrow();
     });
-    test('validates receiver settings and mandatory enabled secrets', () => {
-        configuration.wudEnvVars['WUD_EVENT_GITLAB_LOCAL_ENABLED'] = 'true';
-        expect(() => getConfigurations()).toThrow();
-        configuration.wudEnvVars['WUD_EVENT_GITLAB_LOCAL_TOKEN'] = 'secret';
-        expect(getConfigurations().local).toEqual({
-            enabled: true,
-            token: 'secret',
+    test('validates and masks registry webhook configuration', () => {
+        const provider = new Registry();
+        expect(() => provider.validateConfiguration({ webhook: {} })).toThrow();
+        expect(() =>
+            provider.validateConfiguration({ webhook: { token: '' } }),
+        ).toThrow();
+        const validated = provider.validateConfiguration({
+            webhook: { token: 'secret' },
         });
-        delete configuration.wudEnvVars['WUD_EVENT_GITLAB_LOCAL_ENABLED'];
-        delete configuration.wudEnvVars['WUD_EVENT_GITLAB_LOCAL_TOKEN'];
+        expect(validated.webhook.token).toBe('secret');
+        expect(provider.maskConfiguration(validated).webhook.token).not.toBe(
+            'secret',
+        );
+        expect(() => provider.parseWebhook(payload)).toThrow('unsupported');
+        const v2 = new DockerRegistryV2();
+        v2.configuration = validated;
+        expect(v2.maskConfiguration().webhook.token).not.toBe('secret');
+        expect(v2.parseWebhook(payload)).toEqual(parseHints(payload));
     });
     test.each(['simple', 'batch'])(
         'preserves explicit trigger opt-in and exclusions in %s mode',

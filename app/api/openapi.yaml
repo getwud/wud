@@ -77,9 +77,9 @@ tags:
     - name: Events
       description: Real-time Server-Sent Events (SSE) stream.
 paths:
-    /api/events/registry/gitlab/{name}:
+    /api/registries/{name}/events:
         post:
-            summary: Receive GitLab registry push notifications
+            summary: Receive registry push notifications
             description: Authenticated hints queue checks for matching watched repositories and current tags through normal watcher and trigger policies. The receiver token is independent of API login.
             security:
                 - RegistryEventToken: []
@@ -110,7 +110,7 @@ paths:
                 '401':
                     description: Invalid receiver bearer token
                 '404':
-                    description: Receiver disabled or unknown
+                    description: Registry webhook not configured or registry unknown
                 '413':
                     description: Payload exceeds 256 KiB
                 '429':

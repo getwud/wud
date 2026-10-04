@@ -10,6 +10,8 @@ import { ConfigList, ConfigOption } from '@site/src/components/ConfigOption';
 
 WUD inspects remote container registries to discover image tags, digest hashes, and semver updates for your monitored containers.
 
+To check matching images immediately after a push, configure [Registry Webhooks](./webhooks.md) on a supported registry instance. Scheduled polling remains available as fallback.
+
 :::tip[How WUD Resolves Registries]
 When WUD monitors a container (e.g. `redis:7-alpine` or `ghcr.io/owner/app:1.2.0`), it parses the image name to detect the target registry domain automatically.
 :::

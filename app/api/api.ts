@@ -15,7 +15,6 @@ import * as serverRouter from './server';
 import * as userRouter from './user';
 import * as profileRouter from './profile';
 import * as eventRouter from './event';
-import * as registryEventRouter from './registry-event';
 import { requireAuthentication } from './auth';
 
 /**
@@ -45,7 +44,7 @@ export function init() {
     router.use('/app', appRouter.init());
 
     // Registry notifications authenticate independently with their receiver secret.
-    router.use('/events/registry', registryEventRouter.init());
+    router.use('/registries', registryRouter.initEvents());
 
     // Routes to protect after this line
     router.use(requireAuthentication);

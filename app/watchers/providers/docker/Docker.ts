@@ -671,24 +671,7 @@ export class Docker extends Watcher {
     /**
      * Watch a Container.
      */
-    private readonly containerChecks = new Map<string, Promise<unknown>>();
-
-    async watchContainer(container: Container) {
-        const previous =
-            this.containerChecks.get(container.id) ?? Promise.resolve();
-        const check = previous
-            .catch(() => undefined)
-            .then(() => this.checkContainer(container));
-        this.containerChecks.set(container.id, check);
-        try {
-            return await check;
-        } finally {
-            if (this.containerChecks.get(container.id) === check)
-                this.containerChecks.delete(container.id);
-        }
-    }
-
-    private async checkContainer(container: Container) {
+    protected async checkContainer(container: Container) {
         // Child logger for the container to process
         const logContainer = this.log.child({ container: fullName(container) });
         const containerWithResult = container;

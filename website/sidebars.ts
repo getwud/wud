@@ -185,8 +185,8 @@ const sidebars = {
   registriesSidebar: [
     {
       type: 'doc',
-      id: 'configuration/events/README',
-      label: 'Registry Push Events',
+      id: 'configuration/registries/webhooks',
+      label: 'Registry Webhooks',
     },
     {
       type: 'doc',

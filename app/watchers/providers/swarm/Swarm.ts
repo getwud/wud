@@ -522,7 +522,7 @@ export class Swarm extends Watcher {
         return result;
     }
 
-    async watchContainer(container: Container) {
+    protected async checkContainer(container: Container) {
         const logContainer = this.log.child({
             container: fullName(container),
         }) as Logger;
