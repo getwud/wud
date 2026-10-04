@@ -37,6 +37,7 @@
         "flat": "5.0.2",
         "getmac": "6.6.0",
         "gotify-client": "0.4.2",
+        "http-proxy-agent": "^7.0.2",
         "https-proxy-agent": "^7.0.6",
         "jiti": "^2.6.1",
         "joi": "^17.13.7",
