@@ -15,9 +15,7 @@ Welcome to the **WUD** repository. You are operating as an autonomous agent with
 
 1. **Commit Author Identity & Fork Portability**:
    - Commits must use the human developer's configured Git author (`git config user.name` and `git config user.email`).
-   - In Manfred's environment, this resolves to:  
-     `Manfred Martin <16061231+fmartinou@users.noreply.github.com>`
-   - On forks or external contributor setups, adopt the local user's Git author.
+   - Automatically inherit whatever Git identity is configured in the environment.
    - **NEVER** attribute commits to "OpenHands", "AI", or automated bot names in commit messages, PR descriptions, or code.
 
 2. **Branching & Pull Requests**:

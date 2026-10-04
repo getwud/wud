@@ -23,7 +23,7 @@ OpenHands uses **Micro-Agents** to load contextual repo knowledge into the agent
 ```
 
 The repository microagent (`.openhands/microagents/repo.md`) injects:
-1. **Core identity and commit rules** (Strict commit author: `Manfred Martin <16061231+fmartinou@users.noreply.github.com>`).
+1. **Core identity and commit rules** (Strictly inherit user's configured Git author; never commit as AI/bot).
 2. **Architecture guidelines** (Backend `app/`, Frontend `ui/`, E2E `e2e/`, Docs `website/`).
 3. **The WUD Multi-Agent Personas and Workflows** located in [`.agents/`](../.agents/).
 

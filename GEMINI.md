@@ -46,7 +46,7 @@ Every task must follow the step-by-step sequencing defined in:
 ---
 
 ## ⚡ Non-Negotiable Project Rules
-- **Git Author**: Strictly `Manfred Martin <16061231+fmartinou@users.noreply.github.com>`.
+- **Git Author**: Must strictly inherit the user's configured Git author (`git config user.name` and `git config user.email`). Never commit as an AI/bot identity.
 - **Merging**: NEVER merge PRs to `main` without Manfred's explicit approval.
 - **Quality**: Strict TypeScript, Joi validation schemas, 100% test pass, zero coverage regression.
 - **Communication**: Zero AI fluff. Silent triage on confirmed bugs (details go on PR). Short, human 1-2 sentence closure on issues post-merge.

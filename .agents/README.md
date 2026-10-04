@@ -106,8 +106,7 @@ gh release view <version>
 
 1. **Commit Author Identity & Fork Portability**  
    - Every commit must use the human developer's configured Git author (`git config user.name` and `git config user.email`).
-   - In Manfred's repository, this resolves to `Manfred Martin <16061231+fmartinou@users.noreply.github.com>`.
-   - On forks and external developer environments, the agent adopts the local contributor's Git identity.
+   - Automatically inherit whatever Git identity is configured in the local environment.
    - **NEVER** attribute commits to "AI", "Antigravity", "OpenHands", or bot names. Never mention AI assistants in commit logs or PR descriptions.
 
 2. **Exclusive Authority for `main` and Git Tags**  
