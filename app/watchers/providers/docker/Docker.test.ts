@@ -1,5 +1,9 @@
 // @ts-nocheck
-import Docker, { getContainerName, isContainerToWatch } from './Docker';
+import Docker, {
+    getContainerName,
+    isContainerToWatch,
+    getTagCandidates,
+} from './Docker';
 import Registry from '../../../registries/Registry';
 import * as event from '../../../event';
 import * as storeContainer from '../../../store/container';
@@ -2062,6 +2066,48 @@ describe('Docker Watcher', () => {
             await docker.findNewVersion(container, mockLogChild);
 
             expect(mockRegistry.getTags).toHaveBeenCalled();
+        });
+
+        test('should interpolate dynamic variables in includeTags and excludeTags in getTagCandidates', () => {
+            mockTag.parse.mockImplementation(
+                jest.requireActual('../../../tag').parse,
+            );
+            mockTag.isGreater.mockImplementation(
+                jest.requireActual('../../../tag').isGreater,
+            );
+            const container = {
+                image: {
+                    tag: { value: '1.2.3-alpine3.20', semver: true },
+                },
+                includeTags: '^${major}\\.${minor}\\.\\d+-${flavor}$',
+                excludeTags: '.*-rc.*',
+            };
+            const tags = [
+                '1.2.0-alpine3.20',
+                '1.2.4-alpine3.20',
+                '1.2.4-alpine3.20-rc1',
+                '1.3.0-alpine3.20',
+                '1.2.4-bookworm',
+            ];
+            const logMock = { warn: jest.fn() };
+            const candidates = getTagCandidates(container, tags, logMock);
+            expect(candidates).toEqual(['1.2.4-alpine3.20']);
+        });
+
+        test('should reject tags when semver variable referenced on non-semver container', () => {
+            mockTag.parse.mockImplementation(
+                jest.requireActual('../../../tag').parse,
+            );
+            const container = {
+                image: {
+                    tag: { value: 'latest', semver: false },
+                },
+                includeTags: '^${major}\\.',
+            };
+            const tags = ['1.0.0', 'latest', '2.0.0'];
+            const logMock = { warn: jest.fn() };
+            const candidates = getTagCandidates(container, tags, logMock);
+            expect(candidates).toEqual([]);
         });
 
         test('should filter tags with different number of semver parts', async () => {

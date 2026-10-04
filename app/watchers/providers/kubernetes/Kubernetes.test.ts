@@ -1022,6 +1022,56 @@ describe('Kubernetes Watcher', () => {
             expect(container.image.digest.watch).toBe(false);
         });
 
+        test('getTagCandidates interpolates dynamic variables in includeTags and excludeTags', () => {
+            mockTag.parse.mockImplementation(
+                jest.requireActual('../../../tag').parse,
+            );
+            mockTag.isGreater.mockImplementation(
+                jest.requireActual('../../../tag').isGreater,
+            );
+            const container = {
+                image: {
+                    tag: { value: '1.2.3-alpine3.20', semver: true },
+                },
+                includeTags: '^${major}\\.${minor}\\.\\d+-${flavor}$',
+                excludeTags: '.*-rc.*',
+            };
+            const tags = [
+                '1.2.0-alpine3.20',
+                '1.2.4-alpine3.20',
+                '1.2.4-alpine3.20-rc1',
+                '1.3.0-alpine3.20',
+                '1.2.4-bookworm',
+            ];
+            const logMock = { warn: jest.fn() };
+            const candidates = kubernetes['getTagCandidates'](
+                container,
+                tags,
+                logMock,
+            );
+            expect(candidates).toEqual(['1.2.4-alpine3.20']);
+        });
+
+        test('getTagCandidates rejects tags when semver variable referenced on non-semver container', () => {
+            mockTag.parse.mockImplementation(
+                jest.requireActual('../../../tag').parse,
+            );
+            const container = {
+                image: {
+                    tag: { value: 'latest', semver: false },
+                },
+                includeTags: '^${major}\\.',
+            };
+            const tags = ['1.0.0', 'latest', '2.0.0'];
+            const logMock = { warn: jest.fn() };
+            const candidates = kubernetes['getTagCandidates'](
+                container,
+                tags,
+                logMock,
+            );
+            expect(candidates).toEqual([]);
+        });
+
         test('handles error and attaches it to container', async () => {
             registry.getState.mockReturnValue({ registry: {} });
             storeContainer.getContainer.mockReturnValue(undefined);

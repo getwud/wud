@@ -929,4 +929,53 @@ describe('Swarm Watcher - Version Lookup & Watch Cycle', () => {
             expect(storeContainer.deleteContainer).not.toHaveBeenCalled();
         });
     });
+
+    describe('getTagCandidates with dynamic tag filters', () => {
+        let watcher: Swarm;
+
+        beforeEach(() => {
+            watcher = new Swarm();
+        });
+
+        test('should interpolate dynamic variables in includeTags and excludeTags', () => {
+            const container = {
+                image: {
+                    tag: { value: '1.2.3-alpine3.20', semver: true },
+                },
+                includeTags: '^${major}\\.${minor}\\.\\d+-${flavor}$',
+                excludeTags: '.*-rc.*',
+            };
+            const tags = [
+                '1.2.0-alpine3.20',
+                '1.2.4-alpine3.20',
+                '1.2.4-alpine3.20-rc1',
+                '1.3.0-alpine3.20',
+                '1.2.4-bookworm',
+            ];
+            const logMock = { warn: jest.fn() };
+            const candidates = watcher['getTagCandidates'](
+                container as any,
+                tags,
+                logMock as any,
+            );
+            expect(candidates).toEqual(['1.2.4-alpine3.20']);
+        });
+
+        test('should reject tags when semver variable referenced on non-semver container', () => {
+            const container = {
+                image: {
+                    tag: { value: 'latest', semver: false },
+                },
+                includeTags: '^${major}\\.',
+            };
+            const tags = ['1.0.0', 'latest', '2.0.0'];
+            const logMock = { warn: jest.fn() };
+            const candidates = watcher['getTagCandidates'](
+                container as any,
+                tags,
+                logMock as any,
+            );
+            expect(candidates).toEqual([]);
+        });
+    });
 });

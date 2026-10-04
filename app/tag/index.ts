@@ -4,6 +4,7 @@
  */
 import semver from 'semver';
 import log from '../log';
+import type { Container } from '../model/container';
 
 /**
  * Known architecture and platform patterns that may prefix a tag.
@@ -75,8 +76,11 @@ export function extractTagComponents(tag) {
         }
     }
 
-    // 4. Extract flavor from suffix
+    // 4. Extract flavor and prerelease from suffix
     let flavor = '';
+    let prerelease = '';
+    const isTagPrerelease = isPrerelease(tag);
+
     if (suffix) {
         const cleanSuffix = suffix.replace(/^[-_.]/, '');
         // If suffix has no letters (e.g. 09-01 dates) or is a git commit hash, it is not an OS/distro flavor
@@ -87,10 +91,39 @@ export function extractTagComponents(tag) {
         const hasLetters = /[a-zA-Z]/.test(cleanSuffix);
 
         if (hasLetters && !isGitHash) {
-            const flavorMatch = cleanSuffix.match(
-                /^([a-zA-Z]+(?:[-_][a-zA-Z]+)*)/,
+            let flavorCandidate = cleanSuffix;
+            const prereleasePrefixMatch = cleanSuffix.match(
+                /^(?:rc|beta|alpha|preview|dev)\d*(?:[-._]\d+)*[-_.]?/i,
             );
-            flavor = flavorMatch ? flavorMatch[1].toLowerCase() : '';
+            if (prereleasePrefixMatch) {
+                flavorCandidate = cleanSuffix.substring(
+                    prereleasePrefixMatch[0].length,
+                );
+            }
+            if (flavorCandidate && !isPrerelease(flavorCandidate)) {
+                const flavorMatch = flavorCandidate.match(
+                    /^([a-zA-Z]+(?:[-_][a-zA-Z]+)*)/,
+                );
+                flavor = flavorMatch ? flavorMatch[1].toLowerCase() : '';
+            }
+        }
+    }
+
+    if (isTagPrerelease) {
+        const parsed = parse(tag);
+        if (parsed?.prerelease && parsed.prerelease.length > 0) {
+            const filteredPrerelease = parsed.prerelease.filter(
+                (part) => String(part).toLowerCase() !== flavor.toLowerCase(),
+            );
+            prerelease = filteredPrerelease.join('.');
+        }
+        if (!prerelease) {
+            const prereleaseMatch = tag.match(
+                /(?:^|[-._])((?:rc|beta|alpha|preview|dev)\d*(?:[-._]\d+)*)/i,
+            );
+            if (prereleaseMatch) {
+                prerelease = prereleaseMatch[1];
+            }
         }
     }
 
@@ -99,7 +132,8 @@ export function extractTagComponents(tag) {
         version,
         suffix,
         flavor,
-        isPrerelease: isPrerelease(tag),
+        prerelease,
+        isPrerelease: isTagPrerelease,
     };
 }
 
@@ -331,4 +365,105 @@ export function transform(transformFormula, originalTag) {
         log.debug(e);
         return originalTag;
     }
+}
+
+/**
+ * Interpolate dynamic SemVer and tag variables into a filter pattern (e.g. wud.tag.include / wud.tag.exclude).
+ *
+ * Supported variables:
+ * - ${major}: Major version
+ * - ${minor}: Minor version
+ * - ${patch}: Patch version
+ * - ${version}: Full version (${major}.${minor}.${patch})
+ * - ${flavor}: OS / distro flavor (e.g. alpine3.20, bookworm, slim)
+ * - ${prerelease}: Prerelease identifier
+ * - ${prefix}: Tag prefix (e.g. v, release-)
+ * - ${raw} / ${original}: Original image tag value
+ *
+ * If the container's tag is not a valid semver and a semver variable (${major}, ${minor}, ${patch}, ${version})
+ * is referenced, it is replaced with "(?!)" (negative lookahead guaranteed not to match) and a warning is logged.
+ *
+ * If no dynamic variables are referenced in the pattern, it is returned untouched.
+ *
+ * @param filterPattern Tag filter pattern (regex string)
+ * @param container Target container
+ * @returns Interpolated regex pattern
+ */
+export function interpolateTagFilter(
+    filterPattern: string,
+    container: Container,
+): string {
+    if (
+        !filterPattern ||
+        typeof filterPattern !== 'string' ||
+        !filterPattern.includes('${')
+    ) {
+        return filterPattern;
+    }
+
+    const rawTag = container?.image?.tag?.value ?? '';
+    const parsedSemver = parse(rawTag);
+    const components = extractTagComponents(rawTag);
+
+    return filterPattern.replace(
+        /\$\{(major|minor|patch|version|flavor|prerelease|prefix|raw|original)\}/g,
+        (_match, varName) => {
+            switch (varName) {
+                case 'major':
+                case 'minor':
+                case 'patch':
+                case 'version': {
+                    if (!parsedSemver) {
+                        log.warn(
+                            `Container image tag "${rawTag}" is not a valid semver; cannot interpolate \${${varName}} into tag filter pattern "${filterPattern}"`,
+                        );
+                        return '(?!)';
+                    }
+                    if (varName === 'major') {
+                        return String(parsedSemver.major);
+                    }
+                    if (varName === 'minor') {
+                        return String(parsedSemver.minor);
+                    }
+                    if (varName === 'patch') {
+                        return String(parsedSemver.patch);
+                    }
+                    if (varName === 'version') {
+                        return `${parsedSemver.major}.${parsedSemver.minor}.${parsedSemver.patch}`;
+                    }
+                    return '(?!)';
+                }
+                case 'flavor': {
+                    if (!components.flavor) {
+                        return '';
+                    }
+                    if (components.suffix) {
+                        const cleanSuffix = components.suffix.replace(
+                            /^[-_.]/,
+                            '',
+                        );
+                        const fullFlavorMatch = cleanSuffix.match(
+                            new RegExp(
+                                `^(${components.flavor}[-_]?[0-9]+(?:\\.[0-9]+)*)`,
+                                'i',
+                            ),
+                        );
+                        if (fullFlavorMatch) {
+                            return fullFlavorMatch[1].toLowerCase();
+                        }
+                    }
+                    return components.flavor;
+                }
+                case 'prerelease':
+                    return components.prerelease || '';
+                case 'prefix':
+                    return components.prefix || '';
+                case 'raw':
+                case 'original':
+                    return rawTag;
+                default:
+                    return _match;
+            }
+        },
+    );
 }

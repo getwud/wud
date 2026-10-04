@@ -61,7 +61,7 @@ In orchestrators that support multi-container workloads (such as Kubernetes Pods
     name="tag.exclude"
     required={false}
     type="regex"
-    supported="Valid JavaScript RegExp">
+    supported="Valid JavaScript RegExp (supports dynamic variables: ${major}, ${minor}, ${patch}, ${version}, ${flavor}, ${prerelease}, ${prefix}, ${raw}, ${original})">
     Regular expression matching image tags to ignore
   </ConfigOption>
 
@@ -69,7 +69,7 @@ In orchestrators that support multi-container workloads (such as Kubernetes Pods
     name="tag.include"
     required={false}
     type="regex"
-    supported="Valid JavaScript RegExp">
+    supported="Valid JavaScript RegExp (supports dynamic variables: ${major}, ${minor}, ${patch}, ${version}, ${flavor}, ${prerelease}, ${prefix}, ${raw}, ${original})">
     Regular expression matching image tags to consider as update candidates
   </ConfigOption>
 
@@ -337,6 +337,126 @@ services:
     deploy:
       labels:
         - getwud.app/tag.include=^\d+\.\d+\.\d+$
+```
+
+</TabItem>
+</Tabs>
+
+#### Dynamic SemVer Variable Interpolation
+
+When configuring `tag.include` or `tag.exclude`, you can dynamically interpolate variables based on the current container's image tag. This allows you to pin updates to the same major version, minor track, or OS flavor automatically without having to update the regex when bumping versions.
+
+##### Supported Variables
+
+| Variable | Description | Example (for `v1.2.3-alpine3.20`) |
+| :--- | :--- | :--- |
+| `${major}` | Major version number | `1` |
+| `${minor}` | Minor version number | `2` |
+| `${patch}` | Patch version number | `3` |
+| `${version}` | Full SemVer version (`${major}.${minor}.${patch}`) | `1.2.3` |
+| `${flavor}` | Operating system or distribution flavor | `alpine3.20` |
+| `${prerelease}` | Prerelease identifier (e.g. `rc.1`, `beta1`) | `""` |
+| `${prefix}` | Tag prefix (e.g. `v`, `release-`) | `v` |
+| `${raw}` / `${original}` | Original, untouched image tag value | `v1.2.3-alpine3.20` |
+
+:::warning[Non-SemVer Image Tags]
+If the container's tag is **not** a valid SemVer (e.g. `latest`, `stable`) and a SemVer variable (`${major}`, `${minor}`, `${patch}`, `${version}`) is referenced, WUD replaces the variable with `(?!)` (a negative lookahead that never matches any tag) and logs a warning. This safely prevents unwanted or uncontrolled updates on non-SemVer containers.
+:::
+
+:::tip[Docker Compose `$$` Escaping]
+In Docker Compose files, Docker Compose uses `$` for its own environment variable interpolation. To prevent Compose from evaluating WUD variables locally at startup, escape the dollar sign with a double dollar sign `$$`:
+
+```yaml
+labels:
+  - wud.tag.include=^$${major}\.$${minor}\.\d+$$
+```
+
+:::
+
+##### Recipes
+
+<Tabs groupId="orchestrator">
+<TabItem value="docker" label="🐳 Docker">
+
+```yaml title="compose.yaml"
+services:
+  # 1. Pin to same minor version track (patch updates only)
+  postgres:
+    image: postgres:16.2-alpine3.20
+    labels:
+      - wud.tag.include=^$${major}\.$${minor}\.\d+-$${flavor}$$
+
+  # 2. Pin to same major version track
+  redis:
+    image: redis:7.2.4-alpine
+    labels:
+      - wud.tag.include=^$${major}\.\d+\.\d+-$${flavor}$$
+
+  # 3. Preserve tag prefix (e.g. v2.4.x)
+  traefik:
+    image: traefik:v2.10.7
+    labels:
+      - wud.tag.include=^$${prefix}$${major}\.$${minor}\.\d+$$
+
+  # 4. Exclude current running tag
+  app:
+    image: myapp:1.2.3
+    labels:
+      - wud.tag.exclude=^$${raw}$$
+```
+
+</TabItem>
+<TabItem value="kubernetes" label="☸️ Kubernetes">
+
+```yaml title="deployment.yaml"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  annotations:
+    # Pin to same minor track with flavor
+    getwud.app/tag.include: "^${major}\\.${minor}\\.\\d+-${flavor}$"
+spec:
+  template:
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16.2-alpine3.20
+```
+
+</TabItem>
+<TabItem value="nomad" label="🟢 Nomad">
+
+```hcl title="job.nomad.hcl"
+job "postgres" {
+  group "db" {
+    task "server" {
+      driver = "docker"
+      config {
+        image = "postgres:16.2-alpine3.20"
+      }
+      meta {
+        # Pin to same minor track with flavor
+        "getwud.app/tag.include" = "^${major}\\.${minor}\\.\\d+-${flavor}$"
+      }
+    }
+  }
+}
+```
+
+</TabItem>
+<TabItem value="swarm" label="🐝 Docker Swarm">
+
+```yaml title="stack.yaml"
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16.2-alpine3.20
+    deploy:
+      labels:
+        # Pin to same minor track with flavor
+        - getwud.app/tag.include=^${major}\.${minor}\.\d+-${flavor}$
 ```
 
 </TabItem>

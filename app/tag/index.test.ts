@@ -586,3 +586,242 @@ describe('integration tests', () => {
         expect(transformed).toEqual(['1.21', '1.21.6', '1.21.6-alpine']);
     });
 });
+
+describe('interpolateTagFilter', () => {
+    const makeContainer = (tagValue: string, isSemver = true) => ({
+        id: 'c1',
+        name: 'test-container',
+        displayName: 'test-container',
+        displayIcon: 'mdi:docker',
+        status: 'running',
+        watcher: 'docker',
+        image: {
+            id: 'img1',
+            registry: { name: 'hub', url: 'registry-1.docker.io' },
+            name: 'library/test',
+            tag: { value: tagValue, semver: isSemver },
+            digest: { watch: false },
+            architecture: 'amd64',
+            os: 'linux',
+        },
+    });
+
+    describe('backward compatibility', () => {
+        test('should return pattern untouched when no variables are present', () => {
+            const container = makeContainer('1.2.3');
+            expect(
+                semver.interpolateTagFilter('^1\\.2\\.\\d+$', container),
+            ).toBe('^1\\.2\\.\\d+$');
+        });
+
+        test('should return null or undefined filterPattern untouched', () => {
+            const container = makeContainer('1.2.3');
+            expect(
+                semver.interpolateTagFilter(null as any, container),
+            ).toBeNull();
+            expect(
+                semver.interpolateTagFilter(undefined as any, container),
+            ).toBeUndefined();
+            expect(semver.interpolateTagFilter('', container)).toBe('');
+        });
+
+        test('should leave unknown variables untouched', () => {
+            const container = makeContainer('1.2.3');
+            expect(
+                semver.interpolateTagFilter('^${foo}-${major}$', container),
+            ).toBe('^${foo}-1$');
+        });
+    });
+
+    describe('semver variable interpolation', () => {
+        test('should interpolate major, minor, patch, version for standard semver', () => {
+            const container = makeContainer('1.2.3');
+            expect(
+                semver.interpolateTagFilter(
+                    '^${major}\\.${minor}\\.${patch}$',
+                    container,
+                ),
+            ).toBe('^1\\.2\\.3$');
+            expect(semver.interpolateTagFilter('^${version}$', container)).toBe(
+                '^1.2.3$',
+            );
+        });
+
+        test('should interpolate correctly for prefixed semver (e.g. v2.4.1)', () => {
+            const container = makeContainer('v2.4.1');
+            expect(
+                semver.interpolateTagFilter(
+                    '^${prefix}${major}\\.${minor}\\.\\d+$',
+                    container,
+                ),
+            ).toBe('^v2\\.4\\.\\d+$');
+            expect(semver.interpolateTagFilter('^${version}$', container)).toBe(
+                '^2.4.1$',
+            );
+        });
+
+        test('should interpolate correctly for zero segments', () => {
+            const container = makeContainer('0.0.1');
+            expect(
+                semver.interpolateTagFilter('^${major}\\.${minor}$', container),
+            ).toBe('^0\\.0$');
+            expect(semver.interpolateTagFilter('^${version}$', container)).toBe(
+                '^0.0.1$',
+            );
+        });
+    });
+
+    describe('tag components interpolation', () => {
+        test('should interpolate prefix (v, release-, none)', () => {
+            expect(
+                semver.interpolateTagFilter(
+                    '^${prefix}\\d+$',
+                    makeContainer('v1.0.0'),
+                ),
+            ).toBe('^v\\d+$');
+            expect(
+                semver.interpolateTagFilter(
+                    '^${prefix}\\d+$',
+                    makeContainer('release-3.0.0'),
+                ),
+            ).toBe('^release-\\d+$');
+            expect(
+                semver.interpolateTagFilter(
+                    '^${prefix}\\d+$',
+                    makeContainer('1.0.0'),
+                ),
+            ).toBe('^\\d+$');
+        });
+
+        test('should interpolate flavor (alpine3.20, bookworm, slim, alpine)', () => {
+            expect(
+                semver.interpolateTagFilter(
+                    '^\\d+\\.\\d+-${flavor}$',
+                    makeContainer('3.12-alpine3.20'),
+                ),
+            ).toBe('^\\d+\\.\\d+-alpine3.20$');
+            expect(
+                semver.interpolateTagFilter(
+                    '^\\d+-${flavor}$',
+                    makeContainer('15-bookworm'),
+                ),
+            ).toBe('^\\d+-bookworm$');
+            expect(
+                semver.interpolateTagFilter(
+                    '^\\d+-${flavor}$',
+                    makeContainer('20-slim'),
+                ),
+            ).toBe('^\\d+-slim$');
+            expect(
+                semver.interpolateTagFilter(
+                    '^\\d+\\.\\d+-${flavor}$',
+                    makeContainer('8.8-alpine'),
+                ),
+            ).toBe('^\\d+\\.\\d+-alpine$');
+            expect(
+                semver.interpolateTagFilter(
+                    '^${flavor}$',
+                    makeContainer('1.2.3'),
+                ),
+            ).toBe('^$');
+        });
+
+        test('should interpolate prerelease (rc.1, beta1, preview, none)', () => {
+            expect(
+                semver.interpolateTagFilter(
+                    '^${version}-${prerelease}$',
+                    makeContainer('1.2.3-rc.1'),
+                ),
+            ).toBe('^1.2.3-rc.1$');
+            expect(
+                semver.interpolateTagFilter(
+                    '^${version}-${prerelease}$',
+                    makeContainer('1.2.3-beta1'),
+                ),
+            ).toBe('^1.2.3-beta1$');
+            expect(
+                semver.interpolateTagFilter(
+                    '^${version}-${prerelease}$',
+                    makeContainer('1.2.3'),
+                ),
+            ).toBe('^1.2.3-$');
+        });
+
+        test('should interpolate raw and original image tag values', () => {
+            const container = makeContainer('2.11.1-alpine');
+            expect(semver.interpolateTagFilter('^${raw}$', container)).toBe(
+                '^2.11.1-alpine$',
+            );
+            expect(
+                semver.interpolateTagFilter('^${original}$', container),
+            ).toBe('^2.11.1-alpine$');
+        });
+    });
+
+    describe('non-semver edge cases', () => {
+        test('should replace semver variables with (?!) and not match any tag when tag is non-semver', () => {
+            const container = makeContainer('latest', false);
+            const interpolated = semver.interpolateTagFilter(
+                '^${major}\\.${minor}\\.\\d+$',
+                container,
+            );
+            expect(interpolated).toBe('^(?!)\\.(?!)\\.\\d+$');
+
+            const regex = new RegExp(interpolated);
+            expect(regex.test('latest')).toBe(false);
+            expect(regex.test('1.2.3')).toBe(false);
+            expect(regex.test('')).toBe(false);
+        });
+
+        test('should replace ${version} with (?!) when tag is non-semver', () => {
+            const container = makeContainer('stable', false);
+            const interpolated = semver.interpolateTagFilter(
+                '^${version}$',
+                container,
+            );
+            expect(interpolated).toBe('^(?!)$');
+
+            const regex = new RegExp(interpolated);
+            expect(regex.test('stable')).toBe(false);
+            expect(regex.test('1.0.0')).toBe(false);
+        });
+
+        test('should still resolve raw and original for non-semver tags', () => {
+            const container = makeContainer('latest', false);
+            expect(semver.interpolateTagFilter('^${raw}$', container)).toBe(
+                '^latest$',
+            );
+            expect(
+                semver.interpolateTagFilter('^${original}$', container),
+            ).toBe('^latest$');
+        });
+
+        test('should handle missing container, image or tag gracefully', () => {
+            expect(semver.interpolateTagFilter('^${raw}$', null as any)).toBe(
+                '^$',
+            );
+            expect(semver.interpolateTagFilter('^${major}$', {} as any)).toBe(
+                '^(?!)$',
+            );
+        });
+    });
+
+    describe('regex backslash preservation', () => {
+        test('should preserve regex escape sequences like \\d, \\., \\w, \\s', () => {
+            const container = makeContainer('v1.2.3-alpine3.20');
+            const pattern =
+                '^${prefix}${major}\\.${minor}\\.\\d+-(?:${flavor}|\\w+)$';
+            const interpolated = semver.interpolateTagFilter(
+                pattern,
+                container,
+            );
+
+            expect(interpolated).toBe('^v1\\.2\\.\\d+-(?:alpine3.20|\\w+)$');
+
+            const regex = new RegExp(interpolated);
+            expect(regex.test('v1.2.4-alpine3.20')).toBe(true);
+            expect(regex.test('v1.2.99-bookworm')).toBe(true);
+            expect(regex.test('v1.3.0-alpine3.20')).toBe(false);
+        });
+    });
+});
