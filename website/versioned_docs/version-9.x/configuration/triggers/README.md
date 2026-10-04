@@ -88,6 +88,24 @@ In addition to provider-specific settings, all triggers support the following co
   </ConfigOption>
 
   <ConfigOption
+    name="WUD_TRIGGER_{trigger_type}_{trigger_name}_ROLLBACKBODY"
+    required={false}
+    type="string"
+    defaultValue="Container ${name} was rolled back from ${newImageRef} to ${oldImageRef} (reason: ${reason})."
+    supported="JS string template with `name`, `scope`, `status`, `reason`, `oldImageRef`, `newImageRef`, `archiveName`, `error_step`, `error_message`, `services` and `container`">
+    Template used to render the body of a rollback notification (both success and failure are produced by the same template)
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_{trigger_type}_{trigger_name}_ROLLBACKTITLE"
+    required={false}
+    type="string"
+    defaultValue="Rollback of ${name}"
+    supported="JS string template with `name`, `scope`, `status`, `reason`, `oldImageRef`, `newImageRef`, `archiveName`, `error_step`, `error_message`, `services` and `container`">
+    Template used to render the title of a rollback notification
+  </ConfigOption>
+
+  <ConfigOption
     name="WUD_TRIGGER_{trigger_type}_{trigger_name}_SIMPLEBODY"
     required={false}
     type="string"
@@ -127,7 +145,7 @@ In addition to provider-specific settings, all triggers support the following co
 
 ## 📝 Template Placeholders & Variables
 
-Trigger titles and bodies (`SIMPLETITLE`, `SIMPLEBODY`, `BATCHTITLE`, `BATCHBODY`) are evaluated as JavaScript template literals against the container update data.
+Trigger titles and bodies (`SIMPLETITLE`, `SIMPLEBODY`, `BATCHTITLE`, `BATCHBODY`, `ROLLBACKTITLE`, `ROLLBACKBODY`) are evaluated as JavaScript template literals against the container update data.
 
 ### Simple Mode Variables
 

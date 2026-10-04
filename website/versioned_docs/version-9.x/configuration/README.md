@@ -210,3 +210,20 @@ WUD_AUTH_BASIC_JOHN_HASH__FILE=/tmp/john_hash
 :::info[Universal Support]
 This file-based secret reference feature can be used with any WUD environment variable across all watchers, registries, and triggers.
 :::
+
+---
+
+## Proxy & TLS Configuration
+
+When operating behind corporate firewalls or forward proxies, WUD automatically honors standard proxy and certificate environment variables across all components:
+
+| Environment Variable | Description | Example |
+| :--- | :--- | :--- |
+| `HTTP_PROXY` / `http_proxy` | Forward proxy URL for plain HTTP requests. Also used as fallback for HTTPS requests via HTTP `CONNECT` tunneling when `HTTPS_PROXY` is not set. | `http://proxy.corp.example.com:3128` |
+| `HTTPS_PROXY` / `https_proxy` | Dedicated forward proxy URL for HTTPS requests (HTTP/HTTPS or SOCKS5). | `http://proxy.corp.example.com:3128` or `socks5://proxy:1080` |
+| `NO_PROXY` / `no_proxy` | Comma-separated domain suffixes, hostnames, or IP addresses to bypass the proxy. | `localhost,127.0.0.1,.internal.example.com` |
+| `NODE_EXTRA_CA_CERTS` | Absolute path to additional trusted root CA certificates in PEM format (e.g. corporate private CA). | `/etc/ssl/certs/corporate-ca.pem` |
+
+:::tip[Node Runtime Proxy Support]
+When proxy environment variables are detected, WUD automatically enables Node's runtime proxy support (`--use-env-proxy`), ensuring that native HTTP/HTTPS network calls, triggers, and SDK integrations seamlessly honor your proxy configuration.
+:::
