@@ -1324,4 +1324,39 @@ describe('Nomad Watcher - Task Image Change Detection (fixes #1341)', () => {
             expect(candidates).toEqual([]);
         });
     });
+
+    test('initApiClient should configure apiClient and attach setupAxiosProxy', () => {
+        const dummyClient = {
+            interceptors: {
+                request: {
+                    use: jest.fn(),
+                },
+            },
+            defaults: {
+                baseURL: 'http://nomad.example.com:4646',
+                headers: { 'X-Nomad-Token': 'test-token' },
+            },
+        };
+        mockedAxios.create.mockReturnValue(
+            dummyClient as unknown as ReturnType<typeof axios.create>,
+        );
+
+        const testWatcher = new Nomad();
+        testWatcher.name = 'nomad_proxy_test';
+        testWatcher.type = 'nomad';
+        testWatcher.configuration = testWatcher.validateConfiguration({
+            url: 'http://nomad.example.com:4646',
+            token: 'test-token',
+        }) as unknown as typeof testWatcher.configuration;
+        testWatcher.initApiClient();
+
+        expect(mockedAxios.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                baseURL: 'http://nomad.example.com:4646',
+                headers: { 'X-Nomad-Token': 'test-token' },
+                timeout: 10000,
+            }),
+        );
+        expect(dummyClient.interceptors.request.use).toHaveBeenCalled();
+    });
 });

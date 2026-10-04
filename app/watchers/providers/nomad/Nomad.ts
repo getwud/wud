@@ -5,6 +5,7 @@ import JoiCronExpression from 'joi-cron-expression';
 const joi = JoiCronExpression(Joi);
 import cron from 'node-cron';
 import axios, { AxiosInstance } from 'axios';
+import { setupAxiosProxy } from '../../../http/proxy';
 import parse from 'parse-docker-image-name';
 import { Logger } from 'pino';
 import {
@@ -361,6 +362,7 @@ export class Nomad extends Watcher {
             httpsAgent,
             timeout: 10000,
         });
+        setupAxiosProxy(this.apiClient);
     }
 
     async deregisterComponent() {

@@ -1,9 +1,13 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosStatic } from 'axios';
+import { HttpProxyAgent } from 'http-proxy-agent';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { getProxyForUrl } from 'proxy-from-env';
 
-export type ProxyAgent = HttpsProxyAgent<string> | SocksProxyAgent;
+export type ProxyAgent =
+    | HttpsProxyAgent<string>
+    | HttpProxyAgent<string>
+    | SocksProxyAgent;
 
 export interface AxiosProxyConfig {
     httpsAgent?: ProxyAgent;
@@ -23,13 +27,19 @@ export function clearProxyAgentCache(): void {
 /**
  * Create a proxy agent for a given proxy URL.
  */
-export function createProxyAgent(proxyUrl: string): ProxyAgent {
+export function createProxyAgent(
+    proxyUrl: string,
+    isHttps: boolean | 'http:' | 'https:' = true,
+): ProxyAgent {
+    const isHttpsTarget = isHttps === true || isHttps === 'https:';
     const { protocol } = new URL(proxyUrl);
     if (protocol.startsWith('socks')) {
         return new SocksProxyAgent(proxyUrl);
     }
     if (protocol === 'http:' || protocol === 'https:') {
-        return new HttpsProxyAgent(proxyUrl);
+        return isHttpsTarget
+            ? new HttpsProxyAgent(proxyUrl)
+            : new HttpProxyAgent(proxyUrl);
     }
     throw new Error(`Unsupported proxy protocol (${protocol}) for proxy url`);
 }
@@ -37,11 +47,20 @@ export function createProxyAgent(proxyUrl: string): ProxyAgent {
 /**
  * Get or create a cached proxy agent for a proxy URL.
  */
-export function getCachedProxyAgent(proxyUrl: string): ProxyAgent {
-    let agent = proxyAgentCache.get(proxyUrl);
+export function getCachedProxyAgent(
+    proxyUrl: string,
+    isHttps: boolean | 'http:' | 'https:' = true,
+): ProxyAgent {
+    const isHttpsTarget = isHttps === true || isHttps === 'https:';
+    const { protocol } = new URL(proxyUrl);
+    const isSocks = protocol.startsWith('socks');
+    const cacheKey = isSocks
+        ? proxyUrl
+        : `${isHttpsTarget ? 'https' : 'http'}:${proxyUrl}`;
+    let agent = proxyAgentCache.get(cacheKey);
     if (!agent) {
-        agent = createProxyAgent(proxyUrl);
-        proxyAgentCache.set(proxyUrl, agent);
+        agent = createProxyAgent(proxyUrl, isHttpsTarget);
+        proxyAgentCache.set(cacheKey, agent);
     }
     return agent;
 }
@@ -72,17 +91,58 @@ export function getAxiosProxyConfig(
     targetUrl?: string,
     explicitProxyUrl?: string,
 ): AxiosProxyConfig | undefined {
-    const resolvedProxyUrl =
-        explicitProxyUrl || (targetUrl ? getProxyForUrl(targetUrl) : undefined);
+    let resolvedProxyUrl = explicitProxyUrl;
+    let isHttps = true;
+
+    if (targetUrl) {
+        let parsedTarget: URL | undefined;
+        try {
+            parsedTarget = new URL(targetUrl);
+            isHttps = parsedTarget.protocol === 'https:';
+        } catch {
+            isHttps = !targetUrl.startsWith('http://');
+        }
+
+        if (!resolvedProxyUrl) {
+            if (isHttps) {
+                const proxyFromEnv = getProxyForUrl(targetUrl);
+                if (proxyFromEnv) {
+                    resolvedProxyUrl = proxyFromEnv;
+                } else if (process.env.http_proxy || process.env.HTTP_PROXY) {
+                    // Check whether targetUrl is excluded by no_proxy / NO_PROXY
+                    let httpTargetUrl: string | undefined;
+                    if (parsedTarget) {
+                        const copy = new URL(targetUrl);
+                        copy.protocol = 'http:';
+                        httpTargetUrl = copy.toString();
+                    } else if (targetUrl.startsWith('https://')) {
+                        httpTargetUrl =
+                            'http://' + targetUrl.slice('https://'.length);
+                    }
+                    if (httpTargetUrl) {
+                        const fallbackProxy = getProxyForUrl(httpTargetUrl);
+                        if (fallbackProxy) {
+                            resolvedProxyUrl = fallbackProxy;
+                        }
+                    }
+                }
+            } else {
+                const proxyFromEnv = getProxyForUrl(targetUrl);
+                if (proxyFromEnv) {
+                    resolvedProxyUrl = proxyFromEnv;
+                }
+            }
+        }
+    }
 
     if (!resolvedProxyUrl) {
         return undefined;
     }
 
-    const agent = getCachedProxyAgent(resolvedProxyUrl);
     const parsedProxy = new URL(resolvedProxyUrl);
 
     if (parsedProxy.protocol.startsWith('socks')) {
+        const agent = getCachedProxyAgent(resolvedProxyUrl, isHttps);
         return {
             httpAgent: agent,
             httpsAgent: agent,
@@ -90,15 +150,7 @@ export function getAxiosProxyConfig(
         };
     }
 
-    let isHttps = true;
-    if (targetUrl) {
-        try {
-            const parsedTarget = new URL(targetUrl);
-            isHttps = parsedTarget.protocol === 'https:';
-        } catch {
-            isHttps = !targetUrl.startsWith('http://');
-        }
-    }
+    const agent = getCachedProxyAgent(resolvedProxyUrl, isHttps);
 
     if (isHttps) {
         return {
@@ -107,7 +159,10 @@ export function getAxiosProxyConfig(
         };
     }
 
-    return undefined;
+    return {
+        httpAgent: agent,
+        proxy: false,
+    };
 }
 
 /**
@@ -117,9 +172,6 @@ export function applyProxyConfig<T extends AxiosRequestConfig>(
     config: T,
     explicitProxyUrl?: string,
 ): T {
-    if (config.httpsAgent) {
-        return config;
-    }
     if (config.proxy === false && !explicitProxyUrl) {
         return config;
     }
@@ -135,6 +187,23 @@ export function applyProxyConfig<T extends AxiosRequestConfig>(
         config.url && config.url.startsWith('http')
             ? config.url
             : config.baseURL || config.url;
+
+    let isHttps = true;
+    if (targetUrl) {
+        try {
+            const parsedTarget = new URL(targetUrl);
+            isHttps = parsedTarget.protocol === 'https:';
+        } catch {
+            isHttps = !targetUrl.startsWith('http://');
+        }
+    }
+
+    if (isHttps && config.httpsAgent) {
+        return config;
+    }
+    if (!isHttps && config.httpAgent) {
+        return config;
+    }
 
     const proxyConfig = getAxiosProxyConfig(targetUrl, explicitProxyUrl);
     if (proxyConfig) {

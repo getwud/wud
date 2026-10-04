@@ -41,9 +41,10 @@ Retry timing is fixed and is not separately configurable.
 
 When running in an environment behind a corporate or forward HTTP proxy, WUD automatically routes outgoing registry requests through the proxy using standard environment variables:
 
-- `HTTP_PROXY` / `http_proxy`: Proxy URL for HTTP requests (e.g. `http://proxy.corp.example.com:3128`)
-- `HTTPS_PROXY` / `https_proxy`: Proxy URL for HTTPS requests (e.g. `http://proxy.corp.example.com:3128` or `socks5://proxy.corp.example.com:1080`)
-- `NO_PROXY` / `no_proxy`: Comma-separated list of domain suffixes or IP addresses to bypass the proxy (e.g. `localhost,127.0.0.1,.internal.company.com`)
+- `HTTP_PROXY` / `http_proxy`: Proxy URL for HTTP requests (e.g. `http://proxy.corp.example.com:3128`). Also used as fallback for HTTPS requests via HTTP `CONNECT` tunneling when `HTTPS_PROXY` is not set.
+- `HTTPS_PROXY` / `https_proxy`: Proxy URL for HTTPS requests (e.g. `http://proxy.corp.example.com:3128` or `socks5://proxy.corp.example.com:1080`).
+- `NO_PROXY` / `no_proxy`: Comma-separated list of domain suffixes or IP addresses to bypass the proxy (e.g. `localhost,127.0.0.1,.internal.company.com`).
+- `NODE_EXTRA_CA_CERTS`: Absolute path to a file containing additional trusted root/intermediate certificates (in PEM format) when connecting through TLS-intercepting corporate proxies or private registries.
 
 HTTPS requests through HTTP proxies are established via `CONNECT` tunneling.
 
