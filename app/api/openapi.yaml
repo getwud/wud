@@ -844,7 +844,7 @@ components:
         RegistryEventToken:
             type: http
             scheme: bearer
-            description: Token configured by WUD_EVENT_GITLAB_<NAME>_TOKEN
+            description: Token configured by WUD_REGISTRY_<NAME>_WEBHOOK_TOKEN
         basicAuth:
             type: http
             scheme: basic
