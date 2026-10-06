@@ -47,6 +47,7 @@ import mockCron from 'node-cron';
 import mockParse from 'parse-docker-image-name';
 import * as mockTag from '../../../tag';
 import * as mockPrometheus from '../../../prometheus/watcher';
+import { UnsupportedArtifactError } from '../../../registries/Registry';
 
 // ─── Mock helpers ─────────────────────────────────────────────────────────────
 
@@ -1020,6 +1021,104 @@ describe('Kubernetes Watcher', () => {
             ).not.toHaveBeenCalled();
             expect(result.digest).toBeUndefined();
             expect(container.image.digest.watch).toBe(false);
+        });
+
+        test('findNewVersion skips Helm chart candidate tags and selects the next container candidate tag', async () => {
+            mockTag.isGreater.mockImplementation((t1, t2) => t1 > t2);
+            const mockRegistryProvider = {
+                shouldWatchDigest: jest.fn().mockReturnValue(false),
+                getTags: jest
+                    .fn()
+                    .mockResolvedValue(['2.0.0', '1.9.0', '1.0.0']),
+                getImageManifestDigest: jest
+                    .fn()
+                    .mockImplementation(async (img) => {
+                        if (img.tag.value === '2.0.0') {
+                            throw new UnsupportedArtifactError(
+                                'Helm chart detected',
+                            );
+                        }
+                        return {
+                            digest: 'sha256:validContainer190',
+                            version: 2,
+                        };
+                    }),
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'hub.public': mockRegistryProvider },
+            });
+
+            const container: any = {
+                id: 'c1',
+                image: {
+                    registry: { name: 'hub.public' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                },
+            };
+
+            const mockLogChild = {
+                error: jest.fn(),
+                debug: jest.fn(),
+                warn: jest.fn(),
+                info: jest.fn(),
+            };
+            const result = await kubernetes.findNewVersion(
+                container,
+                mockLogChild,
+            );
+
+            expect(
+                mockRegistryProvider.getImageManifestDigest,
+            ).toHaveBeenCalledTimes(2);
+            expect(result.tag).toBe('1.9.0');
+            expect(mockLogChild.info).toHaveBeenCalledWith(
+                'Candidate tag 2.0.0 is a non-container OCI artifact, skipping',
+            );
+        });
+
+        test('findNewVersion keeps current tag when all candidate tags are Helm charts', async () => {
+            mockTag.isGreater.mockImplementation((t1, t2) => t1 > t2);
+            const mockRegistryProvider = {
+                shouldWatchDigest: jest.fn().mockReturnValue(false),
+                getTags: jest.fn().mockResolvedValue(['2.0.0', '1.0.0']),
+                getImageManifestDigest: jest
+                    .fn()
+                    .mockRejectedValue(
+                        new UnsupportedArtifactError('Helm chart detected'),
+                    ),
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'hub.public': mockRegistryProvider },
+            });
+
+            const container: any = {
+                id: 'c1',
+                image: {
+                    registry: { name: 'hub.public' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                },
+            };
+
+            const mockLogChild = {
+                error: jest.fn(),
+                debug: jest.fn(),
+                warn: jest.fn(),
+                info: jest.fn(),
+            };
+            const result = await kubernetes.findNewVersion(
+                container,
+                mockLogChild,
+            );
+
+            expect(
+                mockRegistryProvider.getImageManifestDigest,
+            ).toHaveBeenCalledTimes(1);
+            expect(result.tag).toBe('1.0.0');
+            expect(mockLogChild.info).toHaveBeenCalledWith(
+                'Candidate tag 2.0.0 is a non-container OCI artifact, skipping',
+            );
         });
 
         test('getTagCandidates interpolates dynamic variables in includeTags and excludeTags', () => {

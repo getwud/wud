@@ -11,7 +11,13 @@ jest.mock('../prometheus/registry', () => ({
     }),
 }));
 
-import Registry, { getUserAgent } from './Registry';
+import Registry, {
+    getUserAgent,
+    UnsupportedArtifactError,
+    isNonContainerArtifact,
+    isNonContainerArtifactError,
+    resolveCandidateTag,
+} from './Registry';
 
 const registry = new Registry();
 registry.register('registry', 'hub', 'test', {});
@@ -942,5 +948,438 @@ describe('shouldWatchDigest', () => {
         expect(registry.shouldWatchDigest(undefined, 'image/name', true)).toBe(
             true,
         );
+    });
+});
+
+describe('isNonContainerArtifact', () => {
+    test('should return false for null or undefined', () => {
+        expect(isNonContainerArtifact(null)).toBe(false);
+        expect(isNonContainerArtifact(undefined)).toBe(false);
+    });
+
+    test('should identify Helm chart with config.mediaType application/vnd.cncf.helm.config.v1+json', () => {
+        const manifest = {
+            schemaVersion: 2,
+            mediaType: 'application/vnd.oci.image.manifest.v1+json',
+            config: {
+                mediaType: 'application/vnd.cncf.helm.config.v1+json',
+                digest: 'sha256:123',
+            },
+        };
+        expect(isNonContainerArtifact(manifest)).toBe(true);
+    });
+
+    test('should identify Helm chart with artifactType application/vnd.cncf.helm.chart.v1+json', () => {
+        const manifest = {
+            schemaVersion: 2,
+            mediaType: 'application/vnd.oci.image.manifest.v1+json',
+            artifactType: 'application/vnd.cncf.helm.chart.v1+json',
+            config: {
+                mediaType: 'application/vnd.oci.empty.v1+json',
+                digest: 'sha256:empty',
+            },
+        };
+        expect(isNonContainerArtifact(manifest)).toBe(true);
+    });
+
+    test('should identify Helm chart with layer mediaType application/vnd.cncf.helm.chart.content.v1.tar+gzip', () => {
+        const manifest = {
+            schemaVersion: 2,
+            mediaType: 'application/vnd.oci.image.manifest.v1+json',
+            config: {
+                mediaType: 'application/vnd.oci.empty.v1+json',
+                digest: 'sha256:empty',
+            },
+            layers: [
+                {
+                    mediaType:
+                        'application/vnd.cncf.helm.chart.content.v1.tar+gzip',
+                    digest: 'sha256:content',
+                },
+            ],
+        };
+        expect(isNonContainerArtifact(manifest)).toBe(true);
+    });
+
+    test('should identify generic non-container OCI artifact with non-container config.mediaType', () => {
+        const manifest = {
+            schemaVersion: 2,
+            mediaType: 'application/vnd.oci.image.manifest.v1+json',
+            config: {
+                mediaType: 'application/vnd.oci.empty.v1+json',
+                digest: 'sha256:empty',
+            },
+        };
+        expect(isNonContainerArtifact(manifest)).toBe(true);
+    });
+
+    test('should identify generic non-container OCI artifact with artifactType set', () => {
+        const manifest = {
+            schemaVersion: 2,
+            mediaType: 'application/vnd.oci.image.manifest.v1+json',
+            artifactType: 'application/spdx+json',
+        };
+        expect(isNonContainerArtifact(manifest)).toBe(true);
+    });
+
+    test('should return true for index where all manifests are Helm artifacts', () => {
+        const manifest = {
+            schemaVersion: 2,
+            mediaType: 'application/vnd.oci.image.index.v1+json',
+            manifests: [
+                {
+                    artifactType: 'application/vnd.cncf.helm.chart.v1+json',
+                    mediaType: 'application/vnd.oci.image.manifest.v1+json',
+                    digest: 'sha256:helm1',
+                },
+                {
+                    mediaType:
+                        'application/vnd.cncf.helm.chart.content.v1.tar+gzip',
+                    digest: 'sha256:helm2',
+                },
+            ],
+        };
+        expect(isNonContainerArtifact(manifest)).toBe(true);
+    });
+
+    test('should return false for multi-arch container manifest list', () => {
+        const manifest = {
+            schemaVersion: 2,
+            mediaType:
+                'application/vnd.docker.distribution.manifest.list.v2+json',
+            manifests: [
+                {
+                    platform: { architecture: 'amd64', os: 'linux' },
+                    mediaType:
+                        'application/vnd.docker.distribution.manifest.v2+json',
+                    digest: 'sha256:amd64',
+                },
+            ],
+        };
+        expect(isNonContainerArtifact(manifest)).toBe(false);
+    });
+
+    test('should return false for single-platform container image with docker image config', () => {
+        const manifest = {
+            schemaVersion: 2,
+            mediaType: 'application/vnd.docker.distribution.manifest.v2+json',
+            config: {
+                mediaType: 'application/vnd.docker.container.image.v1+json',
+                digest: 'sha256:config',
+            },
+        };
+        expect(isNonContainerArtifact(manifest)).toBe(false);
+    });
+
+    test('should return false for single-platform container image with OCI image config', () => {
+        const manifest = {
+            schemaVersion: 2,
+            mediaType: 'application/vnd.oci.image.manifest.v1+json',
+            config: {
+                mediaType: 'application/vnd.oci.image.config.v1+json',
+                digest: 'sha256:config',
+            },
+        };
+        expect(isNonContainerArtifact(manifest)).toBe(false);
+    });
+
+    test('should return false for legacy schemaVersion 1 image', () => {
+        const manifest = {
+            schemaVersion: 1,
+            history: [{ v1Compatibility: '{}' }],
+        };
+        expect(isNonContainerArtifact(manifest)).toBe(false);
+    });
+});
+
+describe('getImageManifestDigest with non-container OCI artifacts', () => {
+    test('should throw UnsupportedArtifactError when manifest is a Helm chart via config mediaType', async () => {
+        const registryMocked = new Registry();
+        registryMocked.log = log;
+        registryMocked.callRegistry = () => ({
+            schemaVersion: 2,
+            mediaType: 'application/vnd.oci.image.manifest.v1+json',
+            config: {
+                mediaType: 'application/vnd.cncf.helm.config.v1+json',
+                digest: 'sha256:helmconfig',
+            },
+            layers: [
+                {
+                    mediaType:
+                        'application/vnd.cncf.helm.chart.content.v1.tar+gzip',
+                    digest: 'sha256:layer',
+                },
+            ],
+        });
+
+        await expect(
+            registryMocked.getImageManifestDigest({
+                name: 'helm-repo',
+                architecture: 'amd64',
+                os: 'linux',
+                tag: { value: '0.1.0' },
+                registry: { url: 'https://registry.example.com' },
+            }),
+        ).rejects.toThrow(UnsupportedArtifactError);
+    });
+
+    test('should throw UnsupportedArtifactError when manifest has Helm artifactType', async () => {
+        const registryMocked = new Registry();
+        registryMocked.log = log;
+        registryMocked.callRegistry = () => ({
+            schemaVersion: 2,
+            mediaType: 'application/vnd.oci.image.manifest.v1+json',
+            artifactType: 'application/vnd.cncf.helm.chart.v1+json',
+            config: {
+                mediaType: 'application/vnd.oci.empty.v1+json',
+                digest: 'sha256:empty',
+            },
+        });
+
+        await expect(
+            registryMocked.getImageManifestDigest({
+                name: 'helm-repo',
+                architecture: 'amd64',
+                os: 'linux',
+                tag: { value: '0.1.0' },
+                registry: { url: 'https://registry.example.com' },
+            }),
+        ).rejects.toThrow(UnsupportedArtifactError);
+    });
+
+    test('should throw UnsupportedArtifactError when index only contains Helm artifacts', async () => {
+        const registryMocked = new Registry();
+        registryMocked.log = log;
+        registryMocked.callRegistry = () => ({
+            schemaVersion: 2,
+            mediaType: 'application/vnd.oci.image.index.v1+json',
+            manifests: [
+                {
+                    artifactType: 'application/vnd.cncf.helm.chart.v1+json',
+                    mediaType: 'application/vnd.oci.image.manifest.v1+json',
+                    digest: 'sha256:helm1',
+                },
+            ],
+        });
+
+        await expect(
+            registryMocked.getImageManifestDigest({
+                name: 'helm-repo',
+                architecture: 'amd64',
+                os: 'linux',
+                tag: { value: '0.1.0' },
+                registry: { url: 'https://registry.example.com' },
+            }),
+        ).rejects.toThrow(UnsupportedArtifactError);
+    });
+
+    test('should filter out Helm artifacts in multi-arch index and find valid container manifest', async () => {
+        const registryMocked = new Registry();
+        registryMocked.log = log;
+        registryMocked.callRegistry = (options) => {
+            if (options.method === 'head') {
+                return {
+                    headers: {
+                        'docker-content-digest':
+                            'sha256:containerManifestDigest',
+                    },
+                };
+            }
+            return {
+                schemaVersion: 2,
+                mediaType: 'application/vnd.oci.image.index.v1+json',
+                manifests: [
+                    {
+                        artifactType: 'application/vnd.cncf.helm.chart.v1+json',
+                        mediaType: 'application/vnd.oci.image.manifest.v1+json',
+                        digest: 'sha256:helmDigest',
+                    },
+                    {
+                        platform: { architecture: 'amd64', os: 'linux' },
+                        mediaType:
+                            'application/vnd.docker.distribution.manifest.v2+json',
+                        digest: 'sha256:containerDigest',
+                    },
+                ],
+            };
+        };
+
+        const result = await registryMocked.getImageManifestDigest({
+            name: 'mixed-repo',
+            architecture: 'amd64',
+            os: 'linux',
+            tag: { value: '1.0.0' },
+            registry: { url: 'https://registry.example.com' },
+        });
+
+        expect(result).toEqual({
+            digest: 'sha256:containerManifestDigest',
+            version: 2,
+        });
+    });
+});
+
+describe('getImageConfig with non-container OCI artifacts', () => {
+    test('should throw UnsupportedArtifactError when config manifest is non-container artifact', async () => {
+        const registryMocked = new Registry();
+        registryMocked.log = log;
+        registryMocked.callRegistry = () => ({
+            schemaVersion: 2,
+            mediaType: 'application/vnd.oci.image.manifest.v1+json',
+            config: {
+                mediaType: 'application/vnd.cncf.helm.config.v1+json',
+                digest: 'sha256:helmconfig',
+            },
+        });
+
+        await expect(
+            registryMocked.getImageConfig(
+                {
+                    name: 'helm-repo',
+                    registry: { url: 'https://registry.example.com' },
+                },
+                'sha256:manifestDigest',
+            ),
+        ).rejects.toThrow(UnsupportedArtifactError);
+    });
+});
+
+describe('resolveCandidateTag', () => {
+    const mockImage = {
+        name: 'my-app',
+        architecture: 'amd64',
+        os: 'linux',
+        tag: { value: '1.0.0' },
+        registry: { url: 'https://registry.example.com' },
+    };
+
+    test('should return immediately with first candidate when candidate is a container image', async () => {
+        const registryMocked = new Registry();
+        registryMocked.getImageManifestDigest = jest.fn().mockResolvedValue({
+            digest: 'sha256:containerDigest',
+            version: 2,
+        });
+
+        const result = await resolveCandidateTag(registryMocked, mockImage, [
+            '1.2.0',
+            '1.1.0',
+        ]);
+
+        expect(result).toEqual({
+            tag: '1.2.0',
+            remoteDigest: {
+                digest: 'sha256:containerDigest',
+                version: 2,
+            },
+        });
+        expect(registryMocked.getImageManifestDigest).toHaveBeenCalledTimes(1);
+    });
+
+    test('should skip Helm chart candidate tag and return next valid container tag', async () => {
+        const registryMocked = new Registry();
+        const logMock = { info: jest.fn(), warn: jest.fn(), debug: jest.fn() };
+
+        registryMocked.getImageManifestDigest = jest
+            .fn()
+            .mockRejectedValueOnce(
+                new UnsupportedArtifactError('Helm chart detected'),
+            )
+            .mockResolvedValueOnce({
+                digest: 'sha256:validContainerDigest',
+                version: 2,
+            });
+
+        const result = await resolveCandidateTag(
+            registryMocked,
+            mockImage,
+            ['2.0.0', '1.9.0'],
+            logMock,
+        );
+
+        expect(result).toEqual({
+            tag: '1.9.0',
+            remoteDigest: {
+                digest: 'sha256:validContainerDigest',
+                version: 2,
+            },
+        });
+        expect(registryMocked.getImageManifestDigest).toHaveBeenCalledTimes(2);
+        expect(logMock.info).toHaveBeenCalledWith(
+            'Candidate tag 2.0.0 is a non-container OCI artifact, skipping',
+        );
+    });
+
+    test('should return empty object when all candidate tags are Helm charts', async () => {
+        const registryMocked = new Registry();
+        const logMock = { info: jest.fn() };
+
+        registryMocked.getImageManifestDigest = jest
+            .fn()
+            .mockRejectedValue(
+                new UnsupportedArtifactError('Helm chart detected'),
+            );
+
+        const result = await resolveCandidateTag(
+            registryMocked,
+            mockImage,
+            ['2.0.0', '1.9.0'],
+            logMock,
+        );
+
+        expect(result).toEqual({});
+        expect(registryMocked.getImageManifestDigest).toHaveBeenCalledTimes(2);
+    });
+
+    test('should return empty object when tagsCandidates is empty', async () => {
+        const registryMocked = new Registry();
+        registryMocked.getImageManifestDigest = jest.fn();
+
+        const result = await resolveCandidateTag(registryMocked, mockImage, []);
+
+        expect(result).toEqual({});
+        expect(registryMocked.getImageManifestDigest).not.toHaveBeenCalled();
+    });
+
+    test('should fallback to candidate tag if registry does not implement getImageManifestDigest', async () => {
+        const mockRegistryNoDigest = {};
+
+        const result = await resolveCandidateTag(
+            mockRegistryNoDigest,
+            mockImage,
+            ['2.0.0', '1.9.0'],
+        );
+
+        expect(result).toEqual({ tag: '2.0.0' });
+    });
+
+    test('should rethrow unexpected errors', async () => {
+        const registryMocked = new Registry();
+        registryMocked.getImageManifestDigest = jest
+            .fn()
+            .mockRejectedValue(new Error('Network error'));
+
+        await expect(
+            resolveCandidateTag(registryMocked, mockImage, ['2.0.0']),
+        ).rejects.toThrow('Network error');
+    });
+
+    test('should invoke resolveCandidateTag via Registry method', async () => {
+        const registryMocked = new Registry();
+        registryMocked.getImageManifestDigest = jest.fn().mockResolvedValue({
+            digest: 'sha256:digest1',
+            version: 2,
+        });
+
+        const result = await registryMocked.resolveCandidateTag(mockImage, [
+            '2.0.0',
+        ]);
+
+        expect(result).toEqual({
+            tag: '2.0.0',
+            remoteDigest: {
+                digest: 'sha256:digest1',
+                version: 2,
+            },
+        });
     });
 });

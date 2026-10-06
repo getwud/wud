@@ -11,6 +11,7 @@ import { getLabelValue } from './label';
 import * as event from '../../../event';
 import * as storeContainer from '../../../store/container';
 import * as registry from '../../../registry';
+import { UnsupportedArtifactError } from '../../../registries/Registry';
 
 jest.mock('dockerode');
 jest.mock('node-cron', () => ({
@@ -751,6 +752,75 @@ describe('Swarm Watcher - Version Lookup & Watch Cycle', () => {
         expect(mockRegistry.getImageManifestDigest).not.toHaveBeenCalled();
         expect(result.digest).toBeUndefined();
         expect(container.image.digest.watch).toBe(false);
+    });
+
+    test('findNewVersion should skip Helm chart candidate tags and select next container candidate tag', async () => {
+        const mockRegistry = {
+            getId: () => 'hub',
+            getTags: jest.fn().mockResolvedValue(['2.0.0', '1.9.0', '1.0.0']),
+            getImageManifestDigest: jest
+                .fn()
+                .mockImplementation(async (img) => {
+                    if (img.tag.value === '2.0.0') {
+                        throw new UnsupportedArtifactError(
+                            'Helm chart detected',
+                        );
+                    }
+                    return { digest: 'sha256:validContainer190', version: 2 };
+                }),
+            shouldWatchDigest: jest.fn().mockReturnValue(false),
+        };
+
+        (registry.getState as jest.Mock).mockReturnValue({
+            registry: { hub: mockRegistry },
+        });
+
+        const container: any = {
+            id: 'c1',
+            labels: {},
+            image: {
+                registry: { name: 'hub', url: 'registry-1.docker.io' },
+                name: 'test/image',
+                tag: { value: '1.0.0', semver: true },
+                digest: { watch: false },
+            },
+        };
+
+        const result = await watcher.findNewVersion(container, watcher.log);
+        expect(mockRegistry.getImageManifestDigest).toHaveBeenCalledTimes(2);
+        expect(result.tag).toBe('1.9.0');
+    });
+
+    test('findNewVersion should keep current tag when all candidate tags are Helm charts', async () => {
+        const mockRegistry = {
+            getId: () => 'hub',
+            getTags: jest.fn().mockResolvedValue(['2.0.0', '1.0.0']),
+            getImageManifestDigest: jest
+                .fn()
+                .mockRejectedValue(
+                    new UnsupportedArtifactError('Helm chart detected'),
+                ),
+            shouldWatchDigest: jest.fn().mockReturnValue(false),
+        };
+
+        (registry.getState as jest.Mock).mockReturnValue({
+            registry: { hub: mockRegistry },
+        });
+
+        const container: any = {
+            id: 'c1',
+            labels: {},
+            image: {
+                registry: { name: 'hub', url: 'registry-1.docker.io' },
+                name: 'test/image',
+                tag: { value: '1.0.0', semver: true },
+                digest: { watch: false },
+            },
+        };
+
+        const result = await watcher.findNewVersion(container, watcher.log);
+        expect(mockRegistry.getImageManifestDigest).toHaveBeenCalledTimes(1);
+        expect(result.tag).toBe('1.0.0');
     });
 
     test('watch cycle updates container and store when service image changes', async () => {

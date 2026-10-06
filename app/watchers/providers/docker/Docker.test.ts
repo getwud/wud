@@ -4,7 +4,9 @@ import Docker, {
     isContainerToWatch,
     getTagCandidates,
 } from './Docker';
-import Registry from '../../../registries/Registry';
+import Registry, {
+    UnsupportedArtifactError,
+} from '../../../registries/Registry';
 import * as event from '../../../event';
 import * as storeContainer from '../../../store/container';
 import * as registry from '../../../registry';
@@ -2210,6 +2212,159 @@ describe('Docker Watcher', () => {
             // 4.5.5-ls244 normalizes to the same 4.5.5 as the current image,
             // so it must NOT be proposed as the next tag.
             expect(result).toEqual({ tag: '4.5.5-ls239' });
+        });
+
+        test('should skip Helm chart candidate tags and select the next container candidate tag', async () => {
+            mockTag.isGreater.mockImplementation((t1, t2) => t1 > t2);
+            const container = {
+                image: {
+                    registry: { name: 'hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                },
+            };
+            const mockRegistry = {
+                getTags: jest
+                    .fn()
+                    .mockResolvedValue(['2.0.0', '1.9.0', '1.0.0']),
+                getImageManifestDigest: jest
+                    .fn()
+                    .mockImplementation(async (img) => {
+                        if (img.tag.value === '2.0.0') {
+                            throw new UnsupportedArtifactError(
+                                'Helm chart detected',
+                            );
+                        }
+                        return {
+                            digest: 'sha256:validContainer190',
+                            version: 2,
+                        };
+                    }),
+                shouldWatchDigest: jest.fn(() => false),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const mockLogChild = {
+                error: jest.fn(),
+                warn: jest.fn(),
+                info: jest.fn(),
+            };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(mockRegistry.getImageManifestDigest).toHaveBeenCalledTimes(
+                2,
+            );
+            expect(result).toEqual({ tag: '1.9.0' });
+            expect(mockLogChild.info).toHaveBeenCalledWith(
+                'Candidate tag 2.0.0 is a non-container OCI artifact, skipping',
+            );
+        });
+
+        test('should keep current tag when all candidate tags are Helm charts', async () => {
+            mockTag.isGreater.mockImplementation((t1, t2) => t1 > t2);
+            const container = {
+                image: {
+                    registry: { name: 'hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                },
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['2.0.0', '1.0.0']),
+                getImageManifestDigest: jest
+                    .fn()
+                    .mockRejectedValue(
+                        new UnsupportedArtifactError('Helm chart detected'),
+                    ),
+                shouldWatchDigest: jest.fn(() => false),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const mockLogChild = {
+                error: jest.fn(),
+                warn: jest.fn(),
+                info: jest.fn(),
+            };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(mockRegistry.getImageManifestDigest).toHaveBeenCalledTimes(
+                1,
+            );
+            expect(result).toEqual({ tag: '1.0.0' });
+            expect(mockLogChild.info).toHaveBeenCalledWith(
+                'Candidate tag 2.0.0 is a non-container OCI artifact, skipping',
+            );
+        });
+
+        test('should skip Helm chart and resolve digest of next candidate tag when watchDigest is enabled', async () => {
+            mockTag.isGreater.mockImplementation((t1, t2) => t1 > t2);
+            const container = {
+                id: 'c1',
+                labels: { 'wud.watch.digest': 'true' },
+                image: {
+                    registry: { name: 'hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: {
+                        watch: true,
+                        repo: 'sha256:localRepoDigest',
+                        value: 'sha256:localDigest',
+                    },
+                },
+            };
+            const mockRegistry = {
+                getTags: jest
+                    .fn()
+                    .mockResolvedValue(['2.0.0', '1.9.0', '1.0.0']),
+                getImageManifestDigest: jest
+                    .fn()
+                    .mockImplementation(async (img, digest) => {
+                        if (digest === 'sha256:localRepoDigest') {
+                            return { digest: 'sha256:localDigest', version: 2 };
+                        }
+                        if (img.tag.value === '2.0.0') {
+                            throw new UnsupportedArtifactError(
+                                'Helm chart detected',
+                            );
+                        }
+                        return {
+                            digest: 'sha256:remoteDigest190',
+                            created: '2026-10-06T00:00:00Z',
+                            version: 2,
+                        };
+                    }),
+                getImageConfig: jest.fn().mockResolvedValue({
+                    created: '2026-10-06T00:00:00Z',
+                    version: '1.9.0',
+                }),
+                shouldWatchDigest: jest.fn(() => true),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const mockLogChild = {
+                error: jest.fn(),
+                warn: jest.fn(),
+                info: jest.fn(),
+                debug: jest.fn(),
+            };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            // 1 call for candidate 2.0.0 (rejected)
+            // 1 call for candidate 1.9.0 (accepted)
+            // 1 call for local repo digest
+            expect(mockRegistry.getImageManifestDigest).toHaveBeenCalledTimes(
+                3,
+            );
+            expect(result.tag).toBe('1.9.0');
+            expect(result.digest).toBe('sha256:remoteDigest190');
+            expect(mockLogChild.info).toHaveBeenCalledWith(
+                'Candidate tag 2.0.0 is a non-container OCI artifact, skipping',
+            );
         });
     });
 
