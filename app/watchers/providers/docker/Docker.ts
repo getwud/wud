@@ -44,6 +44,10 @@ import {
     resolveRegistry,
     isRegistryRegistered,
 } from '../../../registries/registryProvider';
+import {
+    resolveCandidateTag,
+    isNonContainerArtifactError,
+} from '../../../registries/Registry';
 import { getWatchContainerGauge } from '../../../prometheus/watcher';
 import Watcher from '../../Watcher';
 import { ComponentConfiguration } from '../../../registry/Component';
@@ -916,6 +920,14 @@ export class Docker extends Watcher {
                 logContainer,
             );
 
+            const { tag: candidateTag, remoteDigest: candidateRemoteDigest } =
+                await resolveCandidateTag(
+                    registryProvider,
+                    container.image,
+                    tagsCandidates,
+                    logContainer,
+                );
+
             // Must watch digest? => Find local/remote digests on registry
             if (watchDigest && container.image.digest.repo) {
                 // If we have a tag candidate BUT we also watch digest
@@ -925,14 +937,27 @@ export class Docker extends Watcher {
                 const imageToGetDigestFrom = JSON.parse(
                     JSON.stringify(container.image),
                 );
-                if (tagsCandidates.length > 0) {
-                    [imageToGetDigestFrom.tag.value] = tagsCandidates;
+                if (candidateTag) {
+                    imageToGetDigestFrom.tag.value = candidateTag;
                 }
 
-                const remoteDigest =
-                    await registryProvider.getImageManifestDigest(
-                        imageToGetDigestFrom,
-                    );
+                let remoteDigest = candidateRemoteDigest;
+                if (!remoteDigest) {
+                    try {
+                        remoteDigest =
+                            await registryProvider.getImageManifestDigest(
+                                imageToGetDigestFrom,
+                            );
+                    } catch (e: any) {
+                        if (isNonContainerArtifactError(e)) {
+                            logContainer.warn(
+                                `Image ${imageToGetDigestFrom.name}:${imageToGetDigestFrom.tag.value} is a non-container OCI artifact`,
+                            );
+                            return result;
+                        }
+                        throw e;
+                    }
+                }
 
                 result.digest = remoteDigest.digest;
                 result.created = remoteDigest.created;
@@ -1000,9 +1025,8 @@ export class Docker extends Watcher {
                 }
             }
 
-            // The first one in the array is the highest
-            if (tagsCandidates && tagsCandidates.length > 0) {
-                [result.tag] = tagsCandidates;
+            if (candidateTag) {
+                result.tag = candidateTag;
             }
         }
         return result;
