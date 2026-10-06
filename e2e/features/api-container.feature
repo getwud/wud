@@ -21,11 +21,11 @@ Feature: WUD Container API Exposure
     And response body path $[<index>].updateAvailable should be <updateAvailable>
     Examples:
       | index | registry       | containerName            | registryUrl                                             | imageName                    | tag               | resultTag         | updateAvailable | testCase                     |
-      | 1     | ghcr.private   | ghcr_radarr              | https://ghcr.io/v2                                      | linuxserver/radarr           | 5.14.0.9383-ls245 | 6.4.4.10685-ls318 | true            | GHCR complex semver update   |
+      | 1     | ghcr.private   | ghcr_radarr              | https://ghcr.io/v2                                      | linuxserver/radarr           | 5.14.0.9383-ls245 | 6.4.4.10685-ls319 | true            | GHCR complex semver update   |
       | 3     | hub.public     | hub_alpine_latest        | https://registry-1.docker.io/v2                         | library/alpine               | latest            | latest            | false           | Hub latest tag no update     |
       | 4     | hub.public     | hub_homeassistant_202161 | https://registry-1.docker.io/v2                         | homeassistant/home-assistant | 2021.6.1          | 2026.9.4          | true            | Hub date-based versioning    |
       | 5     | hub.public     | hub_nginx_latest         | https://registry-1.docker.io/v2                         | library/nginx                | latest            | latest            | true            | Hub latest tag digest update |
-      | 6     | lscr.private   | lscr_radarr              | https://lscr.io/v2                                      | linuxserver/radarr           | 5.14.0.9383-ls245 | 6.4.4.10685-ls318 | true            | LSCR complex semver update   |
+      | 6     | lscr.private   | lscr_radarr              | https://lscr.io/v2                                      | linuxserver/radarr           | 5.14.0.9383-ls245 | 6.4.4.10685-ls319 | true            | LSCR complex semver update   |
       | 7     | quay.public    | quay_prometheus          | https://quay.io/v2                                      | prometheus/prometheus        | v2.52.0           | v3.15.0           | true            | Quay semver major update     |
 
     @ci-only
@@ -59,7 +59,7 @@ Feature: WUD Container API Exposure
     And response body path $.name should be hub_nginx_latest
     And response body path $.image.tag.semver should be false
     And response body path $.image.digest.value should be sha256:4aacdcf186934dcb02f642579314075910f1855590fd3039d8fa4c9f96e48315
-    And response body path $.result.digest should be sha256:9c0f39aa1c46f5062ba080555a067ebb82d5f63a8cf4d63f6ef2e76fc9ff2d0c
+    And response body path $.result.digest should be sha256:8792d66247249c7efa6b5ba788664dd5cc827073eaea0b1b6eac70846ec6d58e
     And response body path $.updateAvailable should be true
 
   # Test link functionality
