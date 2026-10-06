@@ -12,6 +12,8 @@ abstract class Watcher extends Component {
      */
     abstract watch(): Promise<any[]>;
 
+    abstract getContainers(): Promise<Container[]>;
+
     /**
      * Process a list of containers and emit progress.
      * @param containers
@@ -47,7 +49,24 @@ abstract class Watcher extends Component {
      * @param container
      * @returns {Promise<any>}
      */
-    abstract watchContainer(container: Container): Promise<any>;
+    private readonly containerChecks = new Map<string, Promise<unknown>>();
+
+    async watchContainer(container: Container) {
+        const previous =
+            this.containerChecks.get(container.id) ?? Promise.resolve();
+        const check = previous
+            .catch(() => undefined)
+            .then(() => this.checkContainer(container));
+        this.containerChecks.set(container.id, check);
+        try {
+            return await check;
+        } finally {
+            if (this.containerChecks.get(container.id) === check)
+                this.containerChecks.delete(container.id);
+        }
+    }
+
+    protected abstract checkContainer(container: Container): Promise<any>;
 }
 
 export default Watcher;

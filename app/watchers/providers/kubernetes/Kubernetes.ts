@@ -404,7 +404,7 @@ export class Kubernetes extends Watcher {
     /**
      * Watch a single WUD Container (find new version, update store).
      */
-    async watchContainer(container: Container) {
+    protected async checkContainer(container: Container) {
         const logContainer = this.log.child({
             container: fullName(container),
         }) as Logger;

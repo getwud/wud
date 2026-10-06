@@ -29,6 +29,7 @@ jest.mock('./trigger', () => ({
     init: jest.fn(() => ({ use: jest.fn(), get: jest.fn() })),
 }));
 jest.mock('./registry', () => ({
+    initEvents: jest.fn(() => ({})),
     init: jest.fn(() => ({ use: jest.fn(), get: jest.fn() })),
 }));
 jest.mock('./authentication', () => ({

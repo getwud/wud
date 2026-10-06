@@ -185,6 +185,11 @@ const sidebars = {
   registriesSidebar: [
     {
       type: 'doc',
+      id: 'configuration/registries/webhooks',
+      label: 'Registry Webhooks',
+    },
+    {
+      type: 'doc',
       id: 'configuration/registries/README',
       label: 'Overview & Zero-Config',
     },

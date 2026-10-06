@@ -11,6 +11,13 @@ const MAX_RATE_LIMIT_RETRIES = 2;
 const RATE_LIMIT_BACKOFF_BASE_MS = 2000;
 const MAX_RETRY_AFTER_MS = 60000;
 
+export interface RegistryPushHint {
+    host: string;
+    repository: string;
+    tag: string;
+    digest: string;
+}
+
 export interface RegistryManifest {
     digest?: string;
     version?: number;
@@ -85,10 +92,14 @@ export class Registry extends Component {
             configuration !== null &&
             typeof configuration === 'object' &&
             !Array.isArray(configuration);
-        const { concurrency, proxy, ...providerConfiguration } =
+        const { concurrency, proxy, webhook, ...providerConfiguration } =
             isObjectConfiguration
                 ? configuration
-                : { concurrency: undefined, proxy: undefined };
+                : {
+                      concurrency: undefined,
+                      proxy: undefined,
+                      webhook: undefined,
+                  };
 
         const concurrencyValidated = this.joi
             .number()
@@ -109,6 +120,13 @@ export class Registry extends Component {
             throw proxyValidated.error;
         }
 
+        const webhookValidated = this.joi
+            .object({ token: this.joi.string().min(1).required() })
+            .unknown(false)
+            .optional()
+            .validate(webhook);
+        if (webhookValidated.error) throw webhookValidated.error;
+
         const providerSchema = this.getConfigurationSchema();
         let providerConfigurationValidated = providerSchema.validate(
             isObjectConfiguration ? providerConfiguration : configuration,
@@ -117,7 +135,8 @@ export class Registry extends Component {
             providerConfigurationValidated.error &&
             isObjectConfiguration &&
             (Object.hasOwn(configuration, 'concurrency') ||
-                Object.hasOwn(configuration, 'proxy')) &&
+                Object.hasOwn(configuration, 'proxy') ||
+                Object.hasOwn(configuration, 'webhook')) &&
             Object.keys(providerConfiguration).length === 0
         ) {
             const anonymousConfigurationValidated = providerSchema.validate('');
@@ -136,10 +155,30 @@ export class Registry extends Component {
                 ? providerConfigurationValidated.value
                 : {}),
             concurrency: concurrencyValidated.value,
+            ...(webhookValidated.value !== undefined
+                ? { webhook: webhookValidated.value }
+                : {}),
             ...(proxyValidated.value !== undefined
                 ? { proxy: proxyValidated.value }
                 : {}),
         };
+    }
+
+    parseWebhook(body: unknown): RegistryPushHint[] {
+        void body;
+        throw new Error('Registry webhook format is unsupported');
+    }
+
+    maskConfiguration(
+        configuration?: ComponentConfiguration,
+    ): ComponentConfiguration {
+        const masked = { ...(configuration || this.configuration) };
+        if (masked.webhook?.token)
+            masked.webhook = {
+                ...masked.webhook,
+                token: Registry.mask(masked.webhook.token),
+            };
+        return masked;
     }
 
     /**

@@ -7,4 +7,6 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 > Changes below are merged on `main` and will be included in the upcoming release.
 
+- 🚀 [REGISTRY] Add authenticated registry webhooks to immediately check matching watched images through existing update and trigger policies.
+
 ---

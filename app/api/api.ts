@@ -43,6 +43,9 @@ export function init() {
     // Mount app router
     router.use('/app', appRouter.init());
 
+    // Registry notifications authenticate independently with their receiver secret.
+    router.use('/registries', registryRouter.initEvents());
+
     // Routes to protect after this line
     router.use(requireAuthentication);
 

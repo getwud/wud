@@ -756,7 +756,7 @@ export class Docker extends Watcher {
     /**
      * Watch a Container.
      */
-    async watchContainer(container: Container) {
+    protected async checkContainer(container: Container) {
         // Child logger for the container to process
         const logContainer = this.log.child({ container: fullName(container) });
         const containerWithResult = container;

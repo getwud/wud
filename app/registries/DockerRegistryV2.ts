@@ -1,6 +1,7 @@
+import { parseDistributionEvents } from './distribution-events';
 import axios, { AxiosRequestConfig } from 'axios';
 import { ContainerImage } from '../model/container';
-import Registry, { getUserAgent } from './Registry';
+import Registry, { getUserAgent, RegistryPushHint } from './Registry';
 import { applyProxyConfig, maskProxy } from '../http/proxy';
 
 /**
@@ -22,6 +23,10 @@ export class DockerRegistryV2 extends Registry {
      * Regex pattern used to match image URLs.
      */
     protected registryPattern?: RegExp;
+
+    parseWebhook(body: unknown): RegistryPushHint[] {
+        return parseDistributionEvents(body);
+    }
 
     /**
      * List of sensitive configuration field names to mask.
@@ -97,7 +102,7 @@ export class DockerRegistryV2 extends Registry {
         if (!this.configuration || typeof this.configuration !== 'object') {
             return {};
         }
-        const masked = { ...this.configuration };
+        const masked = super.maskConfiguration();
         this.sensitiveFields.forEach((field) => {
             if (masked[field]) {
                 masked[field] = DockerRegistryV2.mask(masked[field]);
@@ -113,7 +118,7 @@ export class DockerRegistryV2 extends Registry {
      * Backward-compatible mask configuration for sensitive fields.
      */
     maskSensitiveFields(fields: string[]): Record<string, any> {
-        const masked = { ...this.configuration };
+        const masked = super.maskConfiguration();
         fields.forEach((field) => {
             if (masked[field]) {
                 masked[field] = DockerRegistryV2.mask(masked[field]);
