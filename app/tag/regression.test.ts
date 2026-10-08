@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { isGreater } from './index';
+import { isGreater, transform } from './index';
 import { getTagCandidates } from '../watchers/providers/docker/Docker';
 
 describe('Exotic Tag Resolution & Hardening Regressions (#1278)', () => {
@@ -146,6 +146,28 @@ describe('Exotic Tag Resolution & Hardening Regressions (#1278)', () => {
 
         test('4.6.2 vs 20.04.1 -> NOT an upgrade', () => {
             expect(isGreater('20.04.1', '4.6.2')).toBe(false);
+        });
+
+        test('2.4.1 vs 20.04.1 -> NOT an upgrade (#1361)', () => {
+            expect(isGreater('20.04.1', '2.4.1')).toBe(false);
+        });
+
+        test('24.04.8-1.1 vs 24.04.9-1.1 -> IS an upgrade (#1361)', () => {
+            expect(isGreater('24.04.9-1.1', '24.04.8-1.1')).toBe(true);
+        });
+
+        test('24.04.8 vs 24.04.9 -> IS an upgrade (#1361)', () => {
+            expect(isGreater('24.04.9', '24.04.8')).toBe(true);
+        });
+
+        test('Collabora CalVer with transform -> IS an upgrade (#1361)', () => {
+            const formula =
+                '^(\\d+).(\\d+).(\\d+).(\\d+).(\\d+)$ => $1.$2.$3-$4.$5';
+            const currentTag = transform(formula, '24.04.8.1.1');
+            const candidateTag = transform(formula, '24.04.9.1.1');
+            expect(currentTag).toBe('24.04.8-1.1');
+            expect(candidateTag).toBe('24.04.9-1.1');
+            expect(isGreater(candidateTag, currentTag)).toBe(true);
         });
 
         test('4.6.2 vs 4.6.3 -> IS an upgrade', () => {
