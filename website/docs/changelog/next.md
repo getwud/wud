@@ -20,5 +20,6 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [TRIGGER] Prevent concurrent transactions and rollback archive deletion on the same compose project (fixes #1368)
 - 🐛 [TRIGGER] Prevent auto-update loop when container has no resolvable new tag (fixes #1007)
 - 🐛 [UI] Restore version position next to current version in container header (fixes #1068)
+- 🐛 [TRIGGER] Fix container recreation on Docker 29 with containerd store (fixes #1081)
 
 ---
