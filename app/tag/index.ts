@@ -234,9 +234,10 @@ export function isGreater(version1, version2) {
     if (
         version2Semver.major < 100 &&
         typeof version1 === 'string' &&
-        /^\d{2}\.0\d(?:\.|$)/.test(version1)
+        /^\d{2}\.0\d(?:\.|$)/.test(version1) &&
+        !(typeof version2 === 'string' && /^\d{2}\.0\d(?:\.|$)/.test(version2))
     ) {
-        // e.g. 20.04.1 (Ubuntu CalVer tag)
+        // e.g. 20.04.1 (Ubuntu CalVer tag) vs standard SemVer (e.g. 4.6.2)
         return false;
     }
 

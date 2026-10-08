@@ -375,6 +375,24 @@ describe('isGreater', () => {
             expected: false,
             desc: 'legacy Ubuntu CalVer tag vs SemVer release',
         },
+        {
+            v1: '20.04.1',
+            v2: '2.4.1',
+            expected: false,
+            desc: 'legacy Ubuntu CalVer tag vs SemVer release (#1361)',
+        },
+        {
+            v1: '24.04.9-1.1',
+            v2: '24.04.8-1.1',
+            expected: true,
+            desc: 'upgrading 2-digit CalVer to newer 2-digit CalVer (#1361)',
+        },
+        {
+            v1: '24.04.9',
+            v2: '24.04.8',
+            expected: true,
+            desc: 'upgrading 2-digit CalVer to newer 2-digit CalVer (#1361)',
+        },
 
         // Architecture-prefixed versions (#135, #625)
         {
