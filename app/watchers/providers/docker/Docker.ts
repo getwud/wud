@@ -1213,12 +1213,13 @@ export class Docker extends Watcher {
         const os = image.Os;
         const variant = image.Variant;
         const created = image.Created;
-        const repoDigest = getRepoDigest(image);
         const imageId = image.Id;
 
         // Parse image to get registry, organization...
         let imageNameToParse = container.Image;
-        if (imageNameToParse.includes('sha256:')) {
+        let pinnedDigest: string | undefined;
+
+        if (imageNameToParse.startsWith('sha256:')) {
             if (!image.RepoTags || image.RepoTags.length === 0) {
                 this.log.warn(
                     `Cannot get a reliable tag for this image [${imageNameToParse}]`,
@@ -1228,6 +1229,17 @@ export class Docker extends Watcher {
             // Get the first repo tag (better than nothing ;)
             [imageNameToParse] = image.RepoTags;
         }
+
+        if (imageNameToParse.includes('@')) {
+            const [imageRef, digest] = imageNameToParse.split('@');
+            imageNameToParse = imageRef;
+            if (digest && digest.includes(':')) {
+                pinnedDigest = digest;
+            }
+        }
+
+        const repoDigest = pinnedDigest || getRepoDigest(image);
+
         let parsedImage = parse(imageNameToParse);
         const tagName =
             parsedImage && parsedImage.tag ? parsedImage.tag : 'latest';

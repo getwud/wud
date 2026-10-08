@@ -2848,6 +2848,114 @@ describe('Docker Watcher', () => {
             expect(result).toBeDefined();
         });
 
+        test('should resolve image name and tag directly for digest-pinned containers (#1362)', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const container = {
+                Id: '123',
+                Image: 'postgres:17.11-alpine@sha256:b0f9123456789012345678901234567890123456789012345678901234567890',
+                Names: ['/repro'],
+                State: 'running',
+                Labels: {},
+            };
+            const imageDetails = {
+                RepoTags: ['aaa-repro/backup:1', 'postgres:17-alpine'],
+                RepoDigests: [
+                    'postgres@sha256:b0f9123456789012345678901234567890123456789012345678901234567890',
+                ],
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+                Id: 'image123',
+            };
+            mockImage.inspect.mockResolvedValue(imageDetails);
+            mockParse.mockReturnValue({
+                domain: undefined,
+                path: 'postgres',
+                tag: '17.11-alpine',
+            });
+
+            const mockRegistry = {
+                normalizeImage: jest.fn((img) => img),
+                getId: () => 'hub',
+                match: () => true,
+                shouldWatchDigest: jest.fn(() => false),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+
+            const containerModule = await import('../../../model/container');
+            const validateContainer = containerModule.validate;
+            // @ts-ignore
+            validateContainer.mockImplementation((c) => c);
+
+            const result = await docker.addImageDetailsToContainer(container);
+
+            expect(result).toBeDefined();
+            // Verify mockParse was called with stripped repo:tag, NOT the first RepoTag 'aaa-repro/backup:1'
+            expect(mockParse).toHaveBeenCalledWith('postgres:17.11-alpine');
+            expect(result.image.name).toEqual('postgres');
+            expect(result.image.tag.value).toEqual('17.11-alpine');
+            expect(result.image.digest.repo).toEqual(
+                'sha256:b0f9123456789012345678901234567890123456789012345678901234567890',
+            );
+        });
+
+        test('should resolve digest-only pinned containers without tag (#1362)', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const container = {
+                Id: '124',
+                Image: 'ghcr.io/immich-app/postgres@sha256:b0f9123456789012345678901234567890123456789012345678901234567890',
+                Names: ['/immich-db'],
+                State: 'running',
+                Labels: {},
+            };
+            const imageDetails = {
+                RepoTags: [
+                    'ghcr.io/immich-app/postgres@sha256:b0f9123456789012345678901234567890123456789012345678901234567890',
+                ],
+                RepoDigests: [
+                    'ghcr.io/immich-app/postgres@sha256:b0f9123456789012345678901234567890123456789012345678901234567890',
+                ],
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01',
+                Id: 'image124',
+            };
+            mockImage.inspect.mockResolvedValue(imageDetails);
+            mockParse.mockReturnValue({
+                domain: 'ghcr.io',
+                path: 'immich-app/postgres',
+                tag: undefined,
+            });
+
+            const mockRegistry = {
+                normalizeImage: jest.fn((img) => img),
+                getId: () => 'ghcr',
+                match: () => true,
+                shouldWatchDigest: jest.fn(() => false),
+            };
+            registry.getState.mockReturnValue({
+                registry: { ghcr: mockRegistry },
+            });
+
+            const containerModule = await import('../../../model/container');
+            const validateContainer = containerModule.validate;
+            // @ts-ignore
+            validateContainer.mockImplementation((c) => c);
+
+            const result = await docker.addImageDetailsToContainer(container);
+
+            expect(result).toBeDefined();
+            expect(mockParse).toHaveBeenCalledWith(
+                'ghcr.io/immich-app/postgres',
+            );
+            expect(result.image.tag.value).toEqual('latest');
+            expect(result.image.digest.repo).toEqual(
+                'sha256:b0f9123456789012345678901234567890123456789012345678901234567890',
+            );
+        });
+
         test('should handle container with no repo tags', async () => {
             await docker.register('watcher', 'docker', 'test', {});
             const mockLog = { warn: jest.fn() };
