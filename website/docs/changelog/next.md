@@ -13,5 +13,6 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [TAG] Fix CalVer upgrade comparison when container is already on CalVer (fixes #1361)
 - 🐛 [REGISTRY] Fix OCIR Bearer token exchange for private repositories (#1367)
 - 🐛 [UI] Add fallback mechanism for copy to clipboard on non-secure contexts and Wayland (fixes #1359)
+- 🐛 [WATCHER] Fix image name and tag resolution for digest-pinned containers in Docker watcher (fixes #1362)
 
 ---
