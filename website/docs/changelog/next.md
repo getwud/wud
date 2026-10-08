@@ -19,5 +19,6 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [TRIGGER] Add summary mode for Home Assistant MQTT discovery (fixes #1357)
 - 🐛 [TRIGGER] Prevent concurrent transactions and rollback archive deletion on the same compose project (fixes #1368)
 - 🐛 [UI] Restore version position next to current version in container header (fixes #1068)
+- 🐛 [WATCHER] Improve error handling and logging during container image processing (fixes #989)
 
 ---
