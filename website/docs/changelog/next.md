@@ -12,5 +12,6 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [TRIGGER] Exclude wud-self-update helper container from watcher scan (fixes #1356)
 - 🐛 [TAG] Fix CalVer upgrade comparison when container is already on CalVer (fixes #1361)
 - 🐛 [REGISTRY] Fix OCIR Bearer token exchange for private repositories (#1367)
+- 🐛 [UI] Add fallback mechanism for copy to clipboard on non-secure contexts and Wayland (fixes #1359)
 
 ---

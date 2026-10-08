@@ -126,7 +126,7 @@ describe('ConfigurationServerView.vue', () => {
     });
 
     const vm = wrapper.vm as any;
-    vm.copyValue('port', 3000);
+    await vm.copyValue('port', 3000);
 
     expect(mockClipboard.writeText).toHaveBeenCalledWith('3000');
     expect(emitMock).toHaveBeenCalledWith('notify', 'port copied to clipboard');

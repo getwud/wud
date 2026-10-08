@@ -137,6 +137,7 @@
 import { getServer, getServerIcon } from "@/services/server";
 import { getLog, getLogIcon } from "@/services/log";
 import { getStore, getStoreIcon } from "@/services/store";
+import { copyToClipboard } from "@/services/clipboard";
 import { defineComponent } from "vue";
 
 export default defineComponent({
@@ -231,15 +232,23 @@ export default defineComponent({
       );
     },
 
-    copyValue(key: string, value: any) {
+    async copyValue(key: string, value: any) {
       const textToCopy =
         value === null || value === undefined
           ? ""
           : typeof value === "object"
           ? JSON.stringify(value, null, 2)
           : String(value);
-      navigator.clipboard.writeText(textToCopy);
-      (this as any).$eventBus?.emit("notify", `${key} copied to clipboard`);
+      const copied = await copyToClipboard(textToCopy);
+      if (copied) {
+        (this as any).$eventBus?.emit("notify", `${key} copied to clipboard`);
+      } else {
+        (this as any).$eventBus?.emit(
+          "notify",
+          `Unable to copy ${key} to clipboard`,
+          "warning"
+        );
+      }
     },
 
     async refreshServer() {

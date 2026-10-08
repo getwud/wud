@@ -376,6 +376,7 @@ import {
   ApiTokenItem,
 } from '@/services/profile';
 import { UserItem } from '@/services/user';
+import { copyToClipboard } from '@/services/clipboard';
 
 export default defineComponent({
   name: 'ProfileView',
@@ -555,10 +556,10 @@ export default defineComponent({
 
     const copyTokenToClipboard = async () => {
       if (!generatedSecret.value) return;
-      try {
-        await navigator.clipboard.writeText(generatedSecret.value);
+      const copied = await copyToClipboard(generatedSecret.value);
+      if (copied) {
         notify('Token copied to clipboard', 'success');
-      } catch {
+      } else {
         notify('Unable to copy to clipboard', 'warning');
       }
     };
