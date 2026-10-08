@@ -57,7 +57,7 @@ describe('ConfigurationDrawerContent.vue', () => {
     expect(wrapper.text()).toContain('Default configuration');
   });
 
-  it('copies value to clipboard', () => {
+  it('copies value to clipboard', async () => {
     Object.assign(navigator, {
       clipboard: {
         writeText: jest.fn(),
@@ -70,7 +70,7 @@ describe('ConfigurationDrawerContent.vue', () => {
       },
     });
 
-    (wrapper.vm as any).copyValue('url', 'https://registry.hub.docker.com');
+    await (wrapper.vm as any).copyValue('url', 'https://registry.hub.docker.com');
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://registry.hub.docker.com');
   });
 });

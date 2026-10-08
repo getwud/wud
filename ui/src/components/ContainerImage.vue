@@ -98,6 +98,7 @@
 
 <script lang="ts">
 import { getRegistryProviderIcon } from "@/services/registry";
+import { copyToClipboard } from "@/services/clipboard";
 import { defineComponent } from "vue";
 
 export default defineComponent({
@@ -130,9 +131,17 @@ export default defineComponent({
   },
 
   methods: {
-    copyToClipboard(kind: string, value: string) {
-      navigator.clipboard.writeText(value);
-      (this as any).$eventBus.emit("notify", `${kind} copied to clipboard`);
+    async copyToClipboard(kind: string, value: string) {
+      const copied = await copyToClipboard(value);
+      if (copied) {
+        (this as any).$eventBus.emit("notify", `${kind} copied to clipboard`);
+      } else {
+        (this as any).$eventBus.emit(
+          "notify",
+          `Unable to copy ${kind} to clipboard`,
+          "warning"
+        );
+      }
     },
   },
 });
