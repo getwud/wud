@@ -162,7 +162,7 @@ test.describe('Role-Based Access Control (RBAC)', () => {
     });
     expect(userRes.status()).toBe(403);
 
-    const watchRes = await page.request.post('/api/containers/watch');
+    const watchRes = await page.request.post('/api/containers/watch?async=true');
     expect(watchRes.status()).not.toBe(403);
   });
 
