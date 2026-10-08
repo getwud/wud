@@ -173,7 +173,12 @@ describe('Event API', () => {
 
         handler(req, res);
 
-        expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        expect(res.writeHead).toHaveBeenCalledWith(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache, no-transform',
+            Connection: 'keep-alive',
+            'X-Accel-Buffering': 'no',
+        });
 
         req.emit('close');
 

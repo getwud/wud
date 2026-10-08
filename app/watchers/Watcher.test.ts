@@ -71,3 +71,23 @@ test('a failed check releases the container lock for queued and subsequent check
     await expect(next).resolves.toEqual({});
     await expect(watcher.watchContainer(container('one'))).resolves.toEqual({});
 });
+
+test('processWatchContainers emits watch-stop even if a container check fails (#1360)', async () => {
+    const watcher = new TestWatcher();
+    const event = await import('../event');
+    const emitWatchStartSpy = jest.spyOn(event, 'emitWatchStart');
+    const emitWatchStopSpy = jest.spyOn(event, 'emitWatchStop');
+
+    watcher.check.mockRejectedValueOnce(new Error('check failed'));
+
+    await expect(
+        watcher.processWatchContainers([container('one')]),
+    ).rejects.toThrow('check failed');
+
+    expect(emitWatchStartSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ total: 1 }),
+    );
+    expect(emitWatchStopSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ total: 1 }),
+    );
+});

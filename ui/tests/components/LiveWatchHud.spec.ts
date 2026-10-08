@@ -116,4 +116,76 @@ describe('LiveWatchHud.vue', () => {
     await wrapper.vm.$nextTick();
     expect(wrapper.find('.live-watch-hud').exists()).toBe(false);
   });
+
+  it('auto-completes and closes when progress reaches total even without watch-stop event (#1360)', async () => {
+    const wrapper = mount(LiveWatchHud, {
+      global: { plugins: [vuetify] }
+    });
+
+    emitEvent('wud:watch-start', { watcher: 'docker.local', total: 2 });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.live-watch-hud').exists()).toBe(true);
+
+    // Emit progress completing all containers without ever receiving wud:watch-stop
+    emitEvent('wud:watch-progress', {
+      watcher: 'docker.local',
+      processed: 2,
+      total: 2,
+      container: { name: 'app' }
+    });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.text()).toContain('2 / 2');
+
+    // HUD remains visible immediately
+    expect(wrapper.find('.live-watch-hud').exists()).toBe(true);
+
+    // Fast-forward 3000ms
+    jest.advanceTimersByTime(3000);
+    await wrapper.vm.$nextTick();
+
+    // HUD closes automatically
+    expect(wrapper.find('.live-watch-hud').exists()).toBe(false);
+  });
+
+  it('auto-dismisses after 15 seconds of inactivity if progress stalls (#1360)', async () => {
+    const wrapper = mount(LiveWatchHud, {
+      global: { plugins: [vuetify] }
+    });
+
+    emitEvent('wud:watch-start', { watcher: 'docker.local', total: 10 });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.live-watch-hud').exists()).toBe(true);
+
+    emitEvent('wud:watch-progress', {
+      watcher: 'docker.local',
+      processed: 3,
+      total: 10,
+      container: { name: 'app' }
+    });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.live-watch-hud').exists()).toBe(true);
+
+    // Advance 10s (still under 15s)
+    jest.advanceTimersByTime(10000);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.live-watch-hud').exists()).toBe(true);
+
+    // Advance another 5s (total 15s)
+    jest.advanceTimersByTime(5000);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.live-watch-hud').exists()).toBe(false);
+  });
+
+  it('closes immediately when close button is clicked', async () => {
+    const wrapper = mount(LiveWatchHud, {
+      global: { plugins: [vuetify] }
+    });
+
+    emitEvent('wud:watch-start', { watcher: 'docker.local', total: 5 });
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('.live-watch-hud').exists()).toBe(true);
+
+    await wrapper.find('.v-btn').trigger('click');
+    expect(wrapper.find('.live-watch-hud').exists()).toBe(false);
+  });
 });
