@@ -1347,6 +1347,7 @@ test('trigger should delegate to a helper container when selfupdate is enabled',
     expect(createContainer).toHaveBeenCalledTimes(1);
     const helperSpec = createContainer.mock.calls[0][0];
     expect(helperSpec.name).toEqual('wud-self-update');
+    expect(helperSpec.Labels).toEqual({ 'wud.watch': 'false' });
     // The helper runs the image WUD runs right now, not the one being installed.
     expect(helperSpec.Image).toEqual('sha256:currentimage');
     // Kept after the run: its logs are the only record if the swap fails.
