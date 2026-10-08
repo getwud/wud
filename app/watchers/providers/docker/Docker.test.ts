@@ -3,6 +3,7 @@ import Docker, {
     getContainerName,
     isContainerToWatch,
     getTagCandidates,
+    formatErrorMessage,
 } from './Docker';
 import Registry, {
     UnsupportedArtifactError,
@@ -4107,6 +4108,494 @@ describe('Docker Watcher', () => {
                             '^prod-.*',
                         ),
                     ).toBe(false);
+                });
+            });
+        });
+
+        describe('Error Handling and Resiliency (Issue #989)', () => {
+            describe('formatErrorMessage', () => {
+                test('should return Unknown error for null or undefined or empty', () => {
+                    expect(formatErrorMessage(null)).toBe('Unknown error');
+                    expect(formatErrorMessage(undefined)).toBe('Unknown error');
+                    expect(formatErrorMessage('')).toBe('Unknown error');
+                    expect(formatErrorMessage('   ')).toBe('Unknown error');
+                });
+
+                test('should return trimmed string when input is a string', () => {
+                    expect(formatErrorMessage('Custom error message  ')).toBe(
+                        'Custom error message',
+                    );
+                });
+
+                test('should extract Dockerode json message', () => {
+                    const err = {
+                        json: { message: 'No such image: sha256:1234' },
+                    };
+                    expect(formatErrorMessage(err)).toBe(
+                        'No such image: sha256:1234',
+                    );
+                });
+
+                test('should extract Dockerode reason and status code', () => {
+                    const err = {
+                        statusCode: 404,
+                        reason: 'not found',
+                    };
+                    expect(formatErrorMessage(err)).toBe('(404) not found');
+                });
+
+                test('should extract Axios response data message', () => {
+                    const err = {
+                        message: 'Request failed with status code 404',
+                        response: {
+                            data: { message: 'repository not found' },
+                        },
+                    };
+                    expect(formatErrorMessage(err)).toBe(
+                        'Request failed with status code 404: repository not found',
+                    );
+                });
+
+                test('should extract Axios response data errors array', () => {
+                    const err = {
+                        message: 'Request failed with status code 400',
+                        response: {
+                            data: {
+                                errors: [
+                                    {
+                                        code: 'MANIFEST_UNKNOWN',
+                                        message: 'manifest unknown',
+                                    },
+                                ],
+                            },
+                        },
+                    };
+                    expect(formatErrorMessage(err)).toBe(
+                        'Request failed with status code 400: manifest unknown',
+                    );
+                });
+
+                test('should extract Axios response string data', () => {
+                    const err = {
+                        message: 'Request failed with status code 500',
+                        response: {
+                            data: 'Internal server error from registry',
+                        },
+                    };
+                    expect(formatErrorMessage(err)).toBe(
+                        'Request failed with status code 500: Internal server error from registry',
+                    );
+                });
+
+                test('should return non-empty e.message when not "Error"', () => {
+                    expect(
+                        formatErrorMessage(new Error('Connection timed out')),
+                    ).toBe('Connection timed out');
+                });
+
+                test('should fallback to code or name when message is generic "Error"', () => {
+                    const errWithCode = {
+                        message: 'Error',
+                        code: 'ECONNRESET',
+                    };
+                    expect(formatErrorMessage(errWithCode)).toBe(
+                        'Error ECONNRESET',
+                    );
+
+                    const errWithName = {
+                        message: 'Error',
+                        name: 'TimeoutError',
+                    };
+                    expect(formatErrorMessage(errWithName)).toBe(
+                        'TimeoutError',
+                    );
+
+                    const genericErr = new Error('Error');
+                    expect(formatErrorMessage(genericErr)).toBe(
+                        'Unknown error',
+                    );
+                });
+            });
+
+            describe('checkContainer resilience', () => {
+                test('should format error message and attach to container when findNewVersion fails', async () => {
+                    const watcher = new Docker();
+                    watcher.log = {
+                        child: jest.fn().mockReturnValue({
+                            debug: jest.fn(),
+                            warn: jest.fn(),
+                        }),
+                    };
+                    jest.spyOn(watcher, 'findNewVersion').mockRejectedValue(
+                        new Error('Registry unavailable'),
+                    );
+                    const container = {
+                        id: 'c1',
+                        name: 'app',
+                        watcher: 'docker',
+                    };
+                    const report = await watcher.checkContainer(container);
+                    expect(report).toBeDefined();
+                    expect(report.container.error).toEqual({
+                        message: 'Registry unavailable',
+                    });
+                });
+
+                test('should handle storage failure in mapContainerToContainerReport without crashing', async () => {
+                    const watcher = new Docker();
+                    const mockLogContainer = {
+                        debug: jest.fn(),
+                        warn: jest.fn(),
+                    };
+                    watcher.log = {
+                        child: jest.fn().mockReturnValue(mockLogContainer),
+                    };
+                    jest.spyOn(watcher, 'findNewVersion').mockResolvedValue({
+                        tag: '1.0.0',
+                    });
+                    jest.spyOn(
+                        watcher,
+                        'mapContainerToContainerReport',
+                    ).mockImplementation(() => {
+                        throw new Error('Database disk full');
+                    });
+                    const container = {
+                        id: 'c2',
+                        name: 'db-app',
+                        watcher: 'docker',
+                    };
+                    const report = await watcher.checkContainer(container);
+                    expect(report).toBeDefined();
+                    expect(report.container.error).toEqual({
+                        message: 'Database disk full',
+                    });
+                    expect(mockLogContainer.warn).toHaveBeenCalledWith(
+                        expect.stringContaining('Database disk full'),
+                    );
+                });
+            });
+
+            describe('findNewVersion error handling and fallbacks', () => {
+                test('should fallback to repo digest if remote v2 manifest lookup for local digest fails', async () => {
+                    const watcher = new Docker();
+                    const mockRegistry = {
+                        shouldWatchDigest: jest.fn().mockReturnValue(true),
+                        getTags: jest.fn().mockResolvedValue([]),
+                        getImageManifestDigest: jest
+                            .fn()
+                            .mockResolvedValueOnce({
+                                digest: 'sha256:remote-new',
+                                version: 2,
+                            })
+                            .mockRejectedValueOnce(
+                                new Error('Manifest not found for old digest'),
+                            ),
+                    };
+                    registry.getState.mockReturnValue({
+                        registry: { hub: mockRegistry },
+                    });
+
+                    const container = {
+                        id: 'c-digest',
+                        image: {
+                            registry: { name: 'hub', url: 'docker.io' },
+                            name: 'my-org/my-image',
+                            tag: { value: 'latest', semver: false },
+                            digest: {
+                                watch: true,
+                                repo: 'sha256:local-old',
+                            },
+                        },
+                    };
+                    const logContainer = {
+                        warn: jest.fn(),
+                        debug: jest.fn(),
+                        error: jest.fn(),
+                    };
+
+                    const result = await watcher.findNewVersion(
+                        container,
+                        logContainer,
+                    );
+                    expect(result.digest).toBe('sha256:remote-new');
+                    expect(container.image.digest.value).toBe(
+                        'sha256:local-old',
+                    );
+                });
+
+                test('should fallback to local image id if local image inspect fails in legacy v1 digest check', async () => {
+                    const watcher = new Docker();
+                    const mockRegistry = {
+                        shouldWatchDigest: jest.fn().mockReturnValue(true),
+                        getTags: jest.fn().mockResolvedValue([]),
+                        getImageManifestDigest: jest
+                            .fn()
+                            .mockResolvedValueOnce({
+                                digest: 'sha256:remote-v1',
+                                version: 1,
+                            }),
+                    };
+                    registry.getState.mockReturnValue({
+                        registry: { hub: mockRegistry },
+                    });
+                    mockImage.inspect.mockRejectedValueOnce(
+                        new Error('Image pruned locally'),
+                    );
+
+                    const container = {
+                        id: 'c-legacy',
+                        image: {
+                            id: 'sha256:local-img-id',
+                            registry: { name: 'hub', url: 'docker.io' },
+                            name: 'my-org/legacy-img',
+                            tag: { value: 'latest', semver: false },
+                            digest: {
+                                watch: true,
+                                repo: 'sha256:local-repo',
+                            },
+                        },
+                    };
+                    const logContainer = {
+                        warn: jest.fn(),
+                        debug: jest.fn(),
+                        error: jest.fn(),
+                    };
+
+                    const result = await watcher.findNewVersion(
+                        container,
+                        logContainer,
+                    );
+                    expect(result.digest).toBe('sha256:remote-v1');
+                    expect(container.image.digest.value).toBe(
+                        'sha256:local-img-id',
+                    );
+                });
+
+                test('should proceed to digest check when tag fetching fails if watchDigest is true', async () => {
+                    const watcher = new Docker();
+                    const mockRegistry = {
+                        shouldWatchDigest: jest.fn().mockReturnValue(true),
+                        getTags: jest
+                            .fn()
+                            .mockRejectedValue(new Error('Rate limit 429')),
+                        getImageManifestDigest: jest.fn().mockResolvedValue({
+                            digest: 'sha256:remote-digest-ok',
+                            version: 2,
+                        }),
+                    };
+                    registry.getState.mockReturnValue({
+                        registry: { hub: mockRegistry },
+                    });
+
+                    const container = {
+                        id: 'c-rate-limited',
+                        labels: { 'wud.watch.digest': 'true' },
+                        includeTags: '^1\\.',
+                        image: {
+                            registry: { name: 'hub', url: 'docker.io' },
+                            name: 'my-org/rate-limited',
+                            tag: { value: '1.0.0', semver: true },
+                            digest: {
+                                watch: true,
+                                repo: 'sha256:local-repo',
+                            },
+                        },
+                    };
+                    const logContainer = {
+                        warn: jest.fn(),
+                        debug: jest.fn(),
+                        error: jest.fn(),
+                    };
+
+                    const result = await watcher.findNewVersion(
+                        container,
+                        logContainer,
+                    );
+                    expect(logContainer.warn).toHaveBeenCalledWith(
+                        expect.stringContaining('Rate limit 429'),
+                    );
+                    expect(result.digest).toBe('sha256:remote-digest-ok');
+                });
+
+                test('should throw informative error when tag fetching fails and watchDigest is false', async () => {
+                    const watcher = new Docker();
+                    const mockRegistry = {
+                        shouldWatchDigest: jest.fn().mockReturnValue(false),
+                        getTags: jest
+                            .fn()
+                            .mockRejectedValue(new Error('Network error 503')),
+                    };
+                    registry.getState.mockReturnValue({
+                        registry: { hub: mockRegistry },
+                    });
+
+                    const container = {
+                        id: 'c-err',
+                        labels: { 'wud.watch.digest': 'false' },
+                        image: {
+                            registry: { name: 'hub', url: 'docker.io' },
+                            name: 'my-org/net-err',
+                            tag: { value: '1.0.0', semver: true },
+                        },
+                    };
+                    const logContainer = {
+                        warn: jest.fn(),
+                        debug: jest.fn(),
+                        error: jest.fn(),
+                    };
+
+                    await expect(
+                        watcher.findNewVersion(container, logContainer),
+                    ).rejects.toThrow(
+                        'Failed to fetch tags from registry (Network error 503)',
+                    );
+                });
+            });
+
+            describe('addImageDetailsToContainer robustness', () => {
+                beforeEach(async () => {
+                    await docker.register('watcher', 'docker', 'test', {});
+                    docker.log = {
+                        warn: jest.fn(),
+                        debug: jest.fn(),
+                        info: jest.fn(),
+                    };
+                });
+                test('should filter out <none>:<none> and select first valid repo tag', async () => {
+                    mockImage.inspect.mockResolvedValueOnce({
+                        Id: 'sha256:img123',
+                        Architecture: 'amd64',
+                        Os: 'linux',
+                        RepoTags: ['<none>:<none>', 'myrepo/myimage:1.2.3'],
+                    });
+
+                    const res = await docker.addImageDetailsToContainer(
+                        {
+                            Id: 'c-none',
+                            Image: 'sha256:img123',
+                            State: 'running',
+                        },
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                    );
+
+                    expect(res).toBeDefined();
+                });
+
+                test('should return undefined and log warning if all RepoTags are <none>', async () => {
+                    const warnSpy = jest.spyOn(docker.log, 'warn');
+                    mockImage.inspect.mockResolvedValueOnce({
+                        Id: 'sha256:img456',
+                        Architecture: 'amd64',
+                        Os: 'linux',
+                        RepoTags: ['<none>:<none>'],
+                    });
+
+                    const res = await docker.addImageDetailsToContainer(
+                        {
+                            Id: 'c-all-none',
+                            Image: 'sha256:img456',
+                            State: 'running',
+                        },
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                    );
+
+                    expect(res).toBeUndefined();
+                    expect(warnSpy).toHaveBeenCalledWith(
+                        expect.stringContaining(
+                            'Cannot get a reliable tag for this image [sha256:img456]',
+                        ),
+                    );
+                });
+
+                test('should handle container with undefined Labels without crashing', async () => {
+                    mockImage.inspect.mockResolvedValueOnce({
+                        Id: 'sha256:img789',
+                        Architecture: 'amd64',
+                        Os: 'linux',
+                        RepoTags: ['myrepo/myimage:latest'],
+                    });
+
+                    const res = await docker.addImageDetailsToContainer(
+                        {
+                            Id: 'c-no-labels',
+                            Image: 'myrepo/myimage:latest',
+                            State: 'running',
+                            Labels: undefined,
+                        },
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                    );
+
+                    expect(res).toBeDefined();
+                });
+            });
+
+            describe('getTagCandidates resilience', () => {
+                test('should handle invalid includeTags regex gracefully', () => {
+                    const mockLog = { warn: jest.fn(), debug: jest.fn() };
+                    const container = {
+                        includeTags: '[invalid(',
+                        image: { tag: { value: '1.0.0', semver: true } },
+                    };
+                    const res = getTagCandidates(
+                        container,
+                        ['1.0.0', '1.0.1'],
+                        mockLog,
+                    );
+                    expect(mockLog.warn).toHaveBeenCalledWith(
+                        expect.stringContaining('Invalid includeTags regex'),
+                    );
+                    expect(Array.isArray(res)).toBe(true);
+                });
+
+                test('should handle invalid excludeTags regex gracefully', () => {
+                    const mockLog = { warn: jest.fn(), debug: jest.fn() };
+                    const container = {
+                        excludeTags: '[invalid(',
+                        image: { tag: { value: '1.0.0', semver: true } },
+                    };
+                    const res = getTagCandidates(
+                        container,
+                        ['1.0.0', '1.0.1'],
+                        mockLog,
+                    );
+                    expect(mockLog.warn).toHaveBeenCalledWith(
+                        expect.stringContaining('Invalid excludeTags regex'),
+                    );
+                    expect(Array.isArray(res)).toBe(true);
+                });
+
+                test('should filter out non-string or empty tags safely', () => {
+                    const mockLog = { warn: jest.fn(), debug: jest.fn() };
+                    const container = {
+                        image: { tag: { value: '1.0.0', semver: true } },
+                    };
+                    const res = getTagCandidates(
+                        container,
+                        ['', '  ', null, undefined, '1.1.0'],
+                        mockLog,
+                    );
+                    expect(Array.isArray(res)).toBe(true);
                 });
             });
         });
