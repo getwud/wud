@@ -980,6 +980,7 @@ class Docker extends Trigger {
             container.updateKind?.kind === 'digest'
                 ? container.image?.tag?.value
                 : (container.updateKind?.remoteValue ??
+                  container.result?.tag ??
                   container.image?.tag?.value ??
                   'latest');
 
@@ -1182,6 +1183,53 @@ class Docker extends Trigger {
     }
 
     /**
+     * Check whether a container has a resolvable new tag or digest to update to.
+     */
+    hasResolvableUpdate(container: Container): boolean {
+        if (!container.updateAvailable) {
+            return false;
+        }
+
+        const updateKind = container.updateKind?.kind;
+        const remoteTag =
+            container.updateKind?.remoteValue ?? container.result?.tag;
+        const currentTag =
+            container.updateKind?.localValue ?? container.image?.tag?.value;
+        const remoteDigest =
+            container.updateKind?.remoteValue ?? container.result?.digest;
+        const currentDigest =
+            container.updateKind?.localValue ?? container.image?.digest?.value;
+
+        if (updateKind === 'digest') {
+            return Boolean(
+                remoteDigest &&
+                    remoteDigest !== currentDigest &&
+                    remoteDigest !== '',
+            );
+        }
+
+        if (updateKind === 'tag') {
+            return Boolean(
+                remoteTag && remoteTag !== currentTag && remoteTag !== '',
+            );
+        }
+
+        // Unknown or unspecified updateKind: verify whether either a tag or digest difference is resolvable
+        if (remoteTag && remoteTag !== currentTag && remoteTag !== '') {
+            return true;
+        }
+        if (
+            remoteDigest &&
+            remoteDigest !== currentDigest &&
+            remoteDigest !== ''
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Replace the container according to the provided options.
      *
      * When a rollback gate is enabled (or `archive` is requested), the old
@@ -1199,6 +1247,17 @@ class Docker extends Trigger {
         if (!container.updateAvailable) {
             logContainer.info(
                 `No update available for container ${fullName(container)} => skip trigger`,
+            );
+            return undefined;
+        }
+
+        if (!this.hasResolvableUpdate(container)) {
+            const candidateTag =
+                container.updateKind?.remoteValue ??
+                container.result?.tag ??
+                'null';
+            logContainer.info(
+                `No resolvable update for container ${fullName(container)} (newTag: ${candidateTag}) => skip trigger`,
             );
             return undefined;
         }
@@ -1297,6 +1356,17 @@ class Docker extends Trigger {
             newImage,
             logContainer,
         );
+
+        if (
+            newImageSpec &&
+            currentContainerSpec.Image &&
+            newImageSpec.Id === currentContainerSpec.Image
+        ) {
+            logContainer.info(
+                `Container ${container.name} is already running the latest image (${newImageSpec.Id}) => skip trigger`,
+            );
+            return undefined;
+        }
 
         // Clone current container spec
         const containerToCreateInspect = this.cloneContainer(
