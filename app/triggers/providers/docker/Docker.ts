@@ -942,6 +942,7 @@ class Docker extends Trigger {
         const helper = await dockerApi.createContainer({
             name: helperName,
             Image: currentContainerSpec.Image,
+            Labels: { 'wud.watch': 'false' },
             Env: [`${SELF_UPDATE_PAYLOAD_ENV}=${JSON.stringify(payload)}`],
             // The helper does not serve HTTP, so the image healthcheck (which
             // curls the API) would only ever mark it unhealthy.
