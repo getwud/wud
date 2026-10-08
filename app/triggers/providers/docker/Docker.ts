@@ -315,6 +315,17 @@ class Docker extends Trigger {
             }
             return await image.inspect();
         } catch (e: any) {
+            const fqRef = this.getFullyQualifiedImage(imageRef);
+            if (fqRef && fqRef !== imageRef) {
+                try {
+                    const fqImage = await dockerApi.getImage(fqRef);
+                    if (fqImage && typeof fqImage.inspect === 'function') {
+                        return await fqImage.inspect();
+                    }
+                } catch {
+                    // Fall through to logging the original error
+                }
+            }
             logContainer.warn(
                 `Unable to inspect image ${imageRef} (${e.message})`,
             );
@@ -549,8 +560,14 @@ class Docker extends Trigger {
     ): Promise<Dockerode.Container> {
         logContainer.info(`Create container ${containerName}`);
         try {
+            const containerOptions = {
+                ...containerToCreate,
+                Image: containerToCreate.Image
+                    ? this.getFullyQualifiedImage(containerToCreate.Image)
+                    : containerToCreate.Image,
+            };
             const newContainer =
-                await dockerApi.createContainer(containerToCreate);
+                await dockerApi.createContainer(containerOptions);
             logContainer.info(
                 `Container ${containerName} recreated on new image with success`,
             );
@@ -784,6 +801,90 @@ class Docker extends Trigger {
     }
 
     /**
+     * Resolve the exact, fully qualified image reference.
+     * On Docker 29 with containerd image store active by default, Docker stores
+     * pulled images with their canonical reference (e.g. docker.io/library/nginx:1.31.2).
+     * Recreating containers with unqualified names (e.g. nginx:1.31.2) causes
+     * HTTP 404 No such image.
+     */
+    getFullyQualifiedImage(
+        image?: string,
+        imageSpec?: Dockerode.ImageInspectInfo,
+    ): string {
+        if (!image) {
+            return '';
+        }
+
+        // 1. If inspect spec of the pulled image is available, look for a matching RepoTag
+        if (imageSpec?.RepoTags && imageSpec.RepoTags.length > 0) {
+            if (imageSpec.RepoTags.includes(image)) {
+                return image;
+            }
+            const matchingTag = imageSpec.RepoTags.find((repoTag) => {
+                if (repoTag === image) {
+                    return true;
+                }
+                if (repoTag.endsWith(`/${image}`)) {
+                    return true;
+                }
+                if (repoTag.endsWith(`/library/${image}`)) {
+                    return true;
+                }
+                return false;
+            });
+            if (matchingTag) {
+                return matchingTag;
+            }
+        }
+
+        // 2. Separate tag or digest from the repository path
+        let repo = image;
+        let suffix = '';
+
+        if (image.includes('@')) {
+            const atIndex = image.indexOf('@');
+            repo = image.substring(0, atIndex);
+            suffix = image.substring(atIndex);
+        } else if (image.includes(':')) {
+            const slashIndex = image.indexOf('/');
+            const lastColonIndex = image.lastIndexOf(':');
+            if (slashIndex === -1 || lastColonIndex > slashIndex) {
+                repo = image.substring(0, lastColonIndex);
+                suffix = image.substring(lastColonIndex);
+            }
+        }
+
+        const parts = repo.split('/');
+
+        // Single part: e.g. 'nginx' -> 'docker.io/library/nginx'
+        if (parts.length === 1) {
+            return `docker.io/library/${parts[0]}${suffix}`;
+        }
+
+        // Two parts: e.g. 'bitnami/redis', 'library/nginx', 'ghcr.io/app', 'localhost:5000/app'
+        if (parts.length === 2) {
+            const [first, second] = parts;
+            if (
+                first.includes('.') ||
+                first.includes(':') ||
+                first === 'localhost'
+            ) {
+                if (first === 'docker.io' && !second.includes('/')) {
+                    return `docker.io/library/${second}${suffix}`;
+                }
+                return `${repo}${suffix}`;
+            }
+            if (first === 'library') {
+                return `docker.io/library/${second}${suffix}`;
+            }
+            return `docker.io/${first}/${second}${suffix}`;
+        }
+
+        // Three or more parts: e.g. 'docker.io/library/nginx', 'ghcr.io/org/repo'
+        return `${repo}${suffix}`;
+    }
+
+    /**
      * Clone container specs.
      */
     cloneContainer(
@@ -793,10 +894,14 @@ class Docker extends Trigger {
         newImageSpec?: Dockerode.ImageInspectInfo,
     ): Dockerode.ContainerCreateOptions {
         const containerName = currentContainer.Name.replace('/', '');
+        const fullyQualifiedImage = this.getFullyQualifiedImage(
+            newImage,
+            newImageSpec,
+        );
         const containerClone: Dockerode.ContainerCreateOptions = {
             ...currentContainer.Config,
             name: containerName,
-            Image: newImage,
+            Image: fullyQualifiedImage,
             HostConfig: currentContainer.HostConfig,
             NetworkingConfig: {
                 EndpointsConfig: currentContainer.NetworkSettings?.Networks,
@@ -875,6 +980,7 @@ class Docker extends Trigger {
             container.updateKind?.kind === 'digest'
                 ? container.image?.tag?.value
                 : (container.updateKind?.remoteValue ??
+                  container.result?.tag ??
                   container.image?.tag?.value ??
                   'latest');
 
@@ -979,7 +1085,20 @@ class Docker extends Trigger {
             container.image,
             tagOrDigestToRemove,
         );
-        await this.removeImage(dockerApi, oldImage, logContainer);
+        const fqOldImage = this.getFullyQualifiedImage(oldImage);
+        try {
+            await this.removeImage(dockerApi, fqOldImage, logContainer);
+        } catch (e: any) {
+            if (fqOldImage !== oldImage) {
+                try {
+                    await this.removeImage(dockerApi, oldImage, logContainer);
+                    return;
+                } catch {
+                    // Fall through to throw original error
+                }
+            }
+            throw e;
+        }
     }
 
     /**
@@ -1064,6 +1183,53 @@ class Docker extends Trigger {
     }
 
     /**
+     * Check whether a container has a resolvable new tag or digest to update to.
+     */
+    hasResolvableUpdate(container: Container): boolean {
+        if (!container.updateAvailable) {
+            return false;
+        }
+
+        const updateKind = container.updateKind?.kind;
+        const remoteTag =
+            container.updateKind?.remoteValue ?? container.result?.tag;
+        const currentTag =
+            container.updateKind?.localValue ?? container.image?.tag?.value;
+        const remoteDigest =
+            container.updateKind?.remoteValue ?? container.result?.digest;
+        const currentDigest =
+            container.updateKind?.localValue ?? container.image?.digest?.value;
+
+        if (updateKind === 'digest') {
+            return Boolean(
+                remoteDigest &&
+                    remoteDigest !== currentDigest &&
+                    remoteDigest !== '',
+            );
+        }
+
+        if (updateKind === 'tag') {
+            return Boolean(
+                remoteTag && remoteTag !== currentTag && remoteTag !== '',
+            );
+        }
+
+        // Unknown or unspecified updateKind: verify whether either a tag or digest difference is resolvable
+        if (remoteTag && remoteTag !== currentTag && remoteTag !== '') {
+            return true;
+        }
+        if (
+            remoteDigest &&
+            remoteDigest !== currentDigest &&
+            remoteDigest !== ''
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Replace the container according to the provided options.
      *
      * When a rollback gate is enabled (or `archive` is requested), the old
@@ -1081,6 +1247,17 @@ class Docker extends Trigger {
         if (!container.updateAvailable) {
             logContainer.info(
                 `No update available for container ${fullName(container)} => skip trigger`,
+            );
+            return undefined;
+        }
+
+        if (!this.hasResolvableUpdate(container)) {
+            const candidateTag =
+                container.updateKind?.remoteValue ??
+                container.result?.tag ??
+                'null';
+            logContainer.info(
+                `No resolvable update for container ${fullName(container)} (newTag: ${candidateTag}) => skip trigger`,
             );
             return undefined;
         }
@@ -1179,6 +1356,17 @@ class Docker extends Trigger {
             newImage,
             logContainer,
         );
+
+        if (
+            newImageSpec &&
+            currentContainerSpec.Image &&
+            newImageSpec.Id === currentContainerSpec.Image
+        ) {
+            logContainer.info(
+                `Container ${container.name} is already running the latest image (${newImageSpec.Id}) => skip trigger`,
+            );
+            return undefined;
+        }
 
         // Clone current container spec
         const containerToCreateInspect = this.cloneContainer(
