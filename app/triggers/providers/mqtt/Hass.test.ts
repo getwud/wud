@@ -804,3 +804,255 @@ describe('handleInstallCommand', () => {
         expect(testfix2Mock.trigger).not.toHaveBeenCalled();
     });
 });
+
+describe('discovery_entities: summary', () => {
+    let summaryHass;
+
+    beforeEach(async () => {
+        summaryHass = new Hass({
+            configuration: {
+                topic: 'topic',
+                hass: {
+                    discovery: true,
+                    discovery_entities: 'summary',
+                    prefix: 'homeassistant',
+                    devicename: 'wud',
+                    deviceid: 'wud',
+                },
+            },
+            log,
+        });
+        await summaryHass.init(mqttClientMock);
+        mqttClientMock.publish.mockClear();
+    });
+
+    test('publishSummaryUpdates must publish empty array when no containers have updates', async () => {
+        jest.spyOn(containerStore, 'getContainers').mockReturnValue([
+            {
+                name: 'app1',
+                updateAvailable: false,
+            },
+        ]);
+
+        await summaryHass.publishSummaryUpdates();
+
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'topic/updates',
+            '[]',
+            { retain: true },
+        );
+    });
+
+    test('publishSummaryUpdates must publish formatted summary items for containers with updates', async () => {
+        jest.spyOn(containerStore, 'getContainers').mockReturnValue([
+            {
+                name: 'app1',
+                displayName: 'App One',
+                watcher: 'local',
+                stack: 'my-stack',
+                updateAvailable: true,
+                updateKind: {
+                    kind: 'tag',
+                    localValue: '1.0.0',
+                    remoteValue: '1.1.0',
+                    semverDiff: 'minor',
+                },
+                result: {
+                    link: 'https://github.com/release/1.1.0',
+                },
+            },
+            {
+                name: 'app2',
+                displayName: 'app2',
+                watcher: 'remote',
+                labels: {
+                    'com.docker.compose.project': 'compose-stack',
+                },
+                updateAvailable: true,
+                updateKind: {
+                    kind: 'digest',
+                    localValue: 'sha256:11111111111111111111',
+                    remoteValue: 'sha256:22222222222222222222',
+                },
+            },
+            {
+                name: 'app3',
+                updateAvailable: false,
+            },
+        ]);
+
+        await summaryHass.publishSummaryUpdates();
+
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'topic/updates',
+            JSON.stringify([
+                {
+                    name: 'app1',
+                    displayName: 'App One',
+                    kind: 'tag',
+                    localValue: '1.0.0',
+                    remoteValue: '1.1.0',
+                    watcher: 'local',
+                    stack: 'my-stack',
+                    semverDiff: 'minor',
+                    link: 'https://github.com/release/1.1.0',
+                },
+                {
+                    name: 'app2',
+                    displayName: 'app2',
+                    kind: 'digest',
+                    localValue: 'sha256:11111111111111111111',
+                    remoteValue: 'sha256:22222222222222222222',
+                    watcher: 'remote',
+                    stack: 'compose-stack',
+                },
+            ]),
+            { retain: true },
+        );
+    });
+
+    test('addContainerSensor in summary mode must remove per-container update entity and refresh summary', async () => {
+        jest.spyOn(containerStore, 'getContainers').mockReturnValue([]);
+
+        await summaryHass.addContainerSensor({
+            name: 'my-app',
+            watcher: 'local',
+        });
+
+        // Must remove the update entity discovery config
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'homeassistant/update/topic_local_my-app/config',
+            '',
+            { retain: true },
+        );
+        // Must NOT publish container update config
+        const updateConfigCalls = mqttClientMock.publish.mock.calls.filter(
+            ([topic, payload]) =>
+                topic.includes('homeassistant/update/') && payload !== '',
+        );
+        expect(updateConfigCalls).toHaveLength(0);
+    });
+
+    test('removeContainerSensor in summary mode must clear container state and discovery topic and update summary', async () => {
+        jest.spyOn(containerStore, 'getContainers').mockReturnValue([]);
+
+        await summaryHass.removeContainerSensor({
+            name: 'my-app',
+            watcher: 'local',
+        });
+
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'topic/local/my-app',
+            '',
+            { retain: true },
+        );
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'homeassistant/update/topic_local_my-app/config',
+            '',
+            { retain: true },
+        );
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'topic/updates',
+            '[]',
+            { retain: true },
+        );
+    });
+
+    test('updateContainerSensors in summary mode must publish summary sensor and remove watcher sensors', async () => {
+        jest.spyOn(containerStore, 'getContainers').mockReturnValue([]);
+
+        await summaryHass.updateContainerSensors({
+            name: 'my-app',
+            watcher: 'local',
+        });
+
+        // Global sensors discovery (total_count, total_update_count, total_update_status)
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'homeassistant/sensor/topic_total_count/config',
+            expect.any(String),
+            { retain: true },
+        );
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'homeassistant/sensor/topic_update_count/config',
+            expect.any(String),
+            { retain: true },
+        );
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'homeassistant/binary_sensor/topic_update_status/config',
+            expect.any(String),
+            { retain: true },
+        );
+
+        // Discovered summary sensor: sensor.wud_updates
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'homeassistant/sensor/topic_updates/config',
+            JSON.stringify({
+                unique_id: 'topic_updates',
+                default_entity_id: 'sensor.wud_updates',
+                name: 'updates',
+                device: {
+                    identifiers: ['wud'],
+                    manufacturer: 'wud',
+                    model: 'wud',
+                    name: 'wud',
+                    sw_version: 'unknown',
+                },
+                icon: 'mdi:package-up',
+                state_topic: 'topic/update_count',
+                json_attributes_topic: 'topic/updates',
+            }),
+            { retain: true },
+        );
+
+        // Cleans up watcher sensors
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'homeassistant/sensor/topic_local_total_count/config',
+            '',
+            { retain: true },
+        );
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'homeassistant/sensor/topic_local_update_count/config',
+            '',
+            { retain: true },
+        );
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'homeassistant/binary_sensor/topic_local_update_status/config',
+            '',
+            { retain: true },
+        );
+
+        // Must NOT publish watcher sensor configs
+        const watcherConfigs = mqttClientMock.publish.mock.calls.filter(
+            ([topic, payload]) =>
+                topic.includes('topic_local_') && payload !== '',
+        );
+        expect(watcherConfigs).toHaveLength(0);
+
+        // Publishes summary payload to topic/updates
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'topic/updates',
+            '[]',
+            { retain: true },
+        );
+    });
+
+    test('updateWatcherSensors in summary mode must remove watcher status sensor', async () => {
+        await summaryHass.updateWatcherSensors({
+            watcher: {
+                name: 'local',
+            },
+            isRunning: true,
+        });
+
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'homeassistant/binary_sensor/topic_local_running/config',
+            '',
+            { retain: true },
+        );
+        // Must not publish watcher status sensor payload or discovery config
+        const nonDeleteCalls = mqttClientMock.publish.mock.calls.filter(
+            ([, payload]) => payload !== '',
+        );
+        expect(nonDeleteCalls).toHaveLength(0);
+    });
+});
