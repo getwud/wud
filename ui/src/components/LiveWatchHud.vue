@@ -31,17 +31,60 @@ const watchers = ref<Record<string, { processed: number; total: number; active: 
 const currentContainer = ref<any>(null);
 const currentWatcher = ref<string>('');
 
+let autoCloseTimer: ReturnType<typeof setTimeout> | null = null;
+let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+
 const totalCount = computed(() => Object.values(watchers.value).reduce((sum, w) => sum + w.total, 0));
 const totalProcessed = computed(() => Object.values(watchers.value).reduce((sum, w) => sum + w.processed, 0));
-const allFinished = computed(() => Object.values(watchers.value).every(w => !w.active));
+const allFinished = computed(() => {
+  const list = Object.values(watchers.value);
+  if (list.length === 0) return true;
+  return list.every(w => !w.active || (w.total > 0 && w.processed >= w.total));
+});
 
 const progressPercent = computed(() => {
   if (totalCount.value === 0) return 0;
   return Math.round((totalProcessed.value / totalCount.value) * 100);
 });
 
+const clearAutoCloseTimer = () => {
+  if (autoCloseTimer) {
+    clearTimeout(autoCloseTimer);
+    autoCloseTimer = null;
+  }
+};
+
+const clearInactivityTimer = () => {
+  if (inactivityTimer) {
+    clearTimeout(inactivityTimer);
+    inactivityTimer = null;
+  }
+};
+
+const scheduleAutoClose = () => {
+  clearAutoCloseTimer();
+  autoCloseTimer = setTimeout(() => {
+    if (allFinished.value) {
+      isVisible.value = false;
+      clearInactivityTimer();
+    }
+  }, 3000);
+};
+
+const resetInactivityTimer = () => {
+  clearInactivityTimer();
+  inactivityTimer = setTimeout(() => {
+    if (isVisible.value) {
+      isVisible.value = false;
+      clearAutoCloseTimer();
+    }
+  }, 15000);
+};
+
 const onWatchStart = (data: any) => {
   isVisible.value = true;
+  resetInactivityTimer();
+  clearAutoCloseTimer();
   if (data.watcher) {
     watchers.value[data.watcher] = {
       processed: 0,
@@ -52,18 +95,30 @@ const onWatchStart = (data: any) => {
 };
 
 const onWatchProgress = (data: any) => {
+  if (!isVisible.value) {
+    isVisible.value = true;
+  }
+  resetInactivityTimer();
+  const isFinished = data.total > 0 && data.processed >= data.total;
   if (data.watcher && watchers.value[data.watcher]) {
     watchers.value[data.watcher].processed = data.processed;
     watchers.value[data.watcher].total = data.total;
+    if (isFinished) {
+      watchers.value[data.watcher].active = false;
+    }
   } else if (data.watcher) {
     watchers.value[data.watcher] = {
       processed: data.processed,
       total: data.total,
-      active: true,
+      active: !isFinished,
     };
   }
   currentContainer.value = data.container;
   currentWatcher.value = data.watcher;
+
+  if (allFinished.value) {
+    scheduleAutoClose();
+  }
 };
 
 const onWatchStop = (data: any) => {
@@ -74,11 +129,7 @@ const onWatchStop = (data: any) => {
   }
   
   if (allFinished.value) {
-    setTimeout(() => {
-      if (allFinished.value) {
-        isVisible.value = false;
-      }
-    }, 3000);
+    scheduleAutoClose();
   }
 };
 
@@ -89,6 +140,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  clearAutoCloseTimer();
+  clearInactivityTimer();
   eventService.off('wud:watch-start', onWatchStart);
   eventService.off('wud:watch-progress', onWatchProgress);
   eventService.off('wud:watch-stop', onWatchStop);
@@ -96,6 +149,8 @@ onUnmounted(() => {
 
 function closeHud() {
   isVisible.value = false;
+  clearAutoCloseTimer();
+  clearInactivityTimer();
 }
 </script>
 

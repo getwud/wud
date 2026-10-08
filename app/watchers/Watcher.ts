@@ -26,22 +26,29 @@ abstract class Watcher extends Component {
         }
 
         let processed = 0;
-        const containerReports = await Promise.all(
-            containers.map(async (container) => {
-                const report = await this.watchContainer(container);
-                processed++;
-                event.emitWatchProgress({
-                    watcher: this.name,
-                    processed,
-                    total,
-                    container,
-                });
-                return report;
-            }),
-        );
-
-        event.emitWatchStop({ watcher: this.name, processed, total });
-        return containerReports;
+        try {
+            const containerReports = await Promise.all(
+                containers.map(async (container) => {
+                    try {
+                        const report = await this.watchContainer(container);
+                        return report;
+                    } finally {
+                        processed++;
+                        event.emitWatchProgress({
+                            watcher: this.name,
+                            processed,
+                            total,
+                            container,
+                        });
+                    }
+                }),
+            );
+            return containerReports;
+        } finally {
+            if (total > 0) {
+                event.emitWatchStop({ watcher: this.name, processed, total });
+            }
+        }
     }
 
     /**
