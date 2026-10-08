@@ -71,6 +71,17 @@ describe('ContainerItem', () => {
     expect(wrapper.vm.newVersion).toBe('1.1.0');
   });
 
+  it('renders new version badge before v-spacer in container title', () => {
+    const cardTitle = wrapper.find('.v-card-title');
+    expect(cardTitle.exists()).toBe(true);
+    const html = cardTitle.html();
+    const arrowIndex = html.indexOf('mdi-arrow-right');
+    const spacerIndex = html.indexOf('v-spacer');
+    expect(arrowIndex).toBeGreaterThan(-1);
+    expect(spacerIndex).toBeGreaterThan(-1);
+    expect(arrowIndex).toBeLessThan(spacerIndex);
+  });
+
   it('displays correct update severity color for minor update', () => {
     expect(wrapper.vm.newVersionClass).toBe('warning');
   });
