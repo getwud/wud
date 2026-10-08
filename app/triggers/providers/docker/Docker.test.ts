@@ -1167,6 +1167,125 @@ test('trigger should skip and return without error when updateAvailable is false
     watcherSpy.mockRestore();
 });
 
+test('trigger should skip and return when newTag is null or not resolvable (fixes #1007)', async () => {
+    const watcherSpy = jest.spyOn(docker, 'getWatcher');
+    await expect(
+        docker.trigger({
+            updateAvailable: true,
+            watcher: 'test',
+            id: '123456789',
+            name: 'container-name',
+            image: {
+                name: 'test/test',
+                tag: { value: '1.0.0' },
+                registry: {
+                    name: 'hub',
+                    url: 'my-registry',
+                },
+            },
+            result: {
+                tag: null,
+            },
+            updateKind: {
+                kind: 'tag',
+                remoteValue: null,
+            },
+        }),
+    ).resolves.toBeUndefined();
+
+    expect(watcherSpy).not.toHaveBeenCalled();
+    watcherSpy.mockRestore();
+});
+
+test('trigger should skip when updateKind is unknown and remote tag equals current tag (fixes #1007)', async () => {
+    const watcherSpy = jest.spyOn(docker, 'getWatcher');
+    await expect(
+        docker.trigger({
+            updateAvailable: true,
+            watcher: 'test',
+            id: '123456789',
+            name: 'container-name',
+            image: {
+                name: 'test/test',
+                tag: { value: '1.0.0' },
+                registry: {
+                    name: 'hub',
+                    url: 'my-registry',
+                },
+            },
+            result: {
+                tag: '1.0.0',
+            },
+            updateKind: {
+                kind: 'unknown',
+            },
+        }),
+    ).resolves.toBeUndefined();
+
+    expect(watcherSpy).not.toHaveBeenCalled();
+    watcherSpy.mockRestore();
+});
+
+test('trigger should skip when container is already running the latest image (fixes #1007)', async () => {
+    const createContainer = jest.fn();
+    const dockerApi = {
+        getContainer: jest.fn(() => ({
+            inspect: () =>
+                Promise.resolve({
+                    Name: '/container-name',
+                    Id: '123456798',
+                    Image: 'sha256:same-image-hash',
+                    State: { Running: true },
+                }),
+            stop: jest.fn(),
+            remove: jest.fn(),
+            start: jest.fn(),
+        })),
+        createContainer,
+        pull: jest.fn(() => Promise.resolve()),
+        getImage: jest.fn((imageRef) => ({
+            inspect: () =>
+                Promise.resolve({
+                    Id: 'sha256:same-image-hash',
+                }),
+        })),
+        modem: {
+            followProgress: (pullStream: any, res: any) => res(),
+        },
+    };
+
+    const watcherSpy = jest.spyOn(docker, 'getWatcher').mockReturnValue({
+        dockerApi,
+    } as any);
+
+    await expect(
+        docker.trigger({
+            updateAvailable: true,
+            watcher: 'test',
+            id: '123456789',
+            name: 'container-name',
+            image: {
+                name: 'test/test',
+                tag: { value: '1.0.0' },
+                registry: {
+                    name: 'hub',
+                    url: 'my-registry',
+                },
+            },
+            result: {
+                tag: '2.0.0',
+            },
+            updateKind: {
+                kind: 'tag',
+                remoteValue: '2.0.0',
+            },
+        }),
+    ).resolves.toBeUndefined();
+
+    watcherSpy.mockRestore();
+    expect(createContainer).not.toHaveBeenCalled();
+});
+
 test('trigger should throw when watcher is not found', async () => {
     const watcherSpy = jest
         .spyOn(docker, 'getWatcher')

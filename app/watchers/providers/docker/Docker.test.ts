@@ -409,6 +409,37 @@ describe('Docker Watcher', () => {
             expect(docker.watchCronDebounced).toHaveBeenCalled();
         });
 
+        test('should ignore create/destroy events for wud-self-update helper container', async () => {
+            docker.watchCronDebounced = jest.fn();
+            const event = JSON.stringify({
+                Action: 'create',
+                id: 'helper123',
+                Actor: {
+                    Attributes: {
+                        name: 'wud-self-update',
+                    },
+                },
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+            expect(docker.watchCronDebounced).not.toHaveBeenCalled();
+        });
+
+        test('should ignore create/destroy events for container with wud.watch=false', async () => {
+            docker.watchCronDebounced = jest.fn();
+            const event = JSON.stringify({
+                Action: 'create',
+                id: 'ignored123',
+                Actor: {
+                    Attributes: {
+                        name: 'ignored-container',
+                        'wud.watch': 'false',
+                    },
+                },
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+            expect(docker.watchCronDebounced).not.toHaveBeenCalled();
+        });
+
         test('should process chunked create/destroy events', async () => {
             const mockStream = { on: jest.fn() };
             mockDockerApi.getEvents.mockImplementation((options, callback) => {
@@ -915,6 +946,31 @@ describe('Docker Watcher', () => {
                     '2 containers watched, 1 errors, 1 available updates',
                 ),
             );
+        });
+
+        test('should skip watchFromCron when already watching', async () => {
+            await docker.register('watcher', 'docker', 'test', {
+                cron: '0 * * * *',
+            });
+            const mockLog = { info: jest.fn() };
+            docker.log = mockLog;
+            docker.watch = jest
+                .fn()
+                .mockImplementation(
+                    () =>
+                        new Promise((resolve) =>
+                            setTimeout(() => resolve([]), 50),
+                        ),
+                );
+
+            const firstWatch = docker.watchFromCron();
+            const secondWatch = await docker.watchFromCron();
+
+            expect(secondWatch).toEqual([]);
+            expect(mockLog.info).toHaveBeenCalledWith(
+                'Watcher is already watching => skip watchFromCron',
+            );
+            await firstWatch;
         });
 
         test('should emit watcher events during watch', async () => {

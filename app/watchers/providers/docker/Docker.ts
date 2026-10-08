@@ -77,7 +77,7 @@ export interface DockerWatcherConfiguration extends ComponentConfiguration {
 const START_WATCHER_DELAY_MS = 1000;
 
 // Debounce delay used when performing a watch after a docker event has been received
-const DEBOUNCED_WATCH_CRON_MS = 5000;
+const DEBOUNCED_WATCH_CRON_MS = 10000;
 
 /**
  * Return all supported registries
@@ -417,6 +417,7 @@ export class Docker extends Watcher {
     public watchCronDebounced: any;
     public listenDockerEventsTimeout: any;
     public dockerEventsStream: any;
+    private isWatching = false;
 
     getConfigurationSchema() {
         return joi.object().keys({
@@ -595,14 +596,29 @@ export class Docker extends Watcher {
             ? dockerEvent.Actor.Attributes.name.replace(/\//, '')
             : undefined;
 
-        // Rollback archive containers should never be processed or indexed
-        if (eventName && ROLLBACK_ARCHIVE_REGEX.test(eventName)) {
+        // Rollback archive containers and self-update helper should never be processed or indexed
+        if (
+            eventName &&
+            (ROLLBACK_ARCHIVE_REGEX.test(eventName) ||
+                eventName === 'wud-self-update')
+        ) {
+            return;
+        }
+
+        const eventLabels = dockerEvent.Actor?.Attributes || {};
+        const wudWatchAttr = eventLabels[wudWatch] || eventLabels['wud.watch'];
+        if (
+            wudWatchAttr !== undefined &&
+            wudWatchAttr.toLowerCase() === 'false'
+        ) {
             return;
         }
 
         // If the container was created or destroyed => perform a watch
         if (action === 'destroy' || action === 'create') {
-            await this.watchCronDebounced();
+            if (typeof this.watchCronDebounced === 'function') {
+                await this.watchCronDebounced();
+            }
         } else {
             // Update container state in db if so
             try {
@@ -699,29 +715,39 @@ export class Docker extends Watcher {
         if (!this.log || typeof this.log.info !== 'function') {
             return [];
         }
-        this.log.info(`Cron started (${this.configuration.cron})`);
-
-        // Get container reports
-        const containerReports = await this.watch();
-
-        // Count container reports
-        const containerReportsCount = containerReports.length;
-
-        // Count container available updates
-        const containerUpdatesCount = containerReports.filter(
-            (containerReport) => containerReport.container.updateAvailable,
-        ).length;
-
-        // Count container errors
-        const containerErrorsCount = containerReports.filter(
-            (containerReport) => containerReport.container.error !== undefined,
-        ).length;
-
-        const stats = `${containerReportsCount} containers watched, ${containerErrorsCount} errors, ${containerUpdatesCount} available updates`;
-        if (this.log && typeof this.log.info === 'function') {
-            this.log.info(`Cron finished (${stats})`);
+        if (this.isWatching) {
+            this.log.info('Watcher is already watching => skip watchFromCron');
+            return [];
         }
-        return containerReports;
+        this.isWatching = true;
+        try {
+            this.log.info(`Cron started (${this.configuration.cron})`);
+
+            // Get container reports
+            const containerReports = await this.watch();
+
+            // Count container reports
+            const containerReportsCount = containerReports.length;
+
+            // Count container available updates
+            const containerUpdatesCount = containerReports.filter(
+                (containerReport) => containerReport.container.updateAvailable,
+            ).length;
+
+            // Count container errors
+            const containerErrorsCount = containerReports.filter(
+                (containerReport) =>
+                    containerReport.container.error !== undefined,
+            ).length;
+
+            const stats = `${containerReportsCount} containers watched, ${containerErrorsCount} errors, ${containerUpdatesCount} available updates`;
+            if (this.log && typeof this.log.info === 'function') {
+                this.log.info(`Cron finished (${stats})`);
+            }
+            return containerReports;
+        } finally {
+            this.isWatching = false;
+        }
     }
 
     /**
