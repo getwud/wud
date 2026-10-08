@@ -71,6 +71,85 @@ describe('ContainersView', () => {
     expect(Array.isArray(wrapper.vm.updateKinds)).toBe(true);
   });
 
+  it('computes update kinds correctly including digest and semverDiff', async () => {
+    wrapper.vm.containers = [
+      {
+        id: '1',
+        updateAvailable: true,
+        updateKind: { kind: 'tag', semverDiff: 'minor' },
+      },
+      {
+        id: '2',
+        updateAvailable: true,
+        updateKind: { kind: 'tag', semverDiff: 'major' },
+      },
+      {
+        id: '3',
+        updateAvailable: true,
+        updateKind: { kind: 'digest' },
+      },
+      {
+        id: '4',
+        updateAvailable: false,
+        updateKind: { kind: 'tag', semverDiff: 'patch' },
+      },
+    ];
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.updateKinds).toEqual(['digest', 'major', 'minor']);
+  });
+
+  it('filters containers by update kind when updateKindSelected is digest', async () => {
+    wrapper.vm.containers = [
+      {
+        id: '1',
+        displayName: 'Digest Container',
+        updateAvailable: true,
+        updateKind: { kind: 'digest' },
+      },
+      {
+        id: '2',
+        displayName: 'Tag Container',
+        updateAvailable: true,
+        updateKind: { kind: 'tag', semverDiff: 'minor' },
+      },
+      {
+        id: '3',
+        displayName: 'Up to date Container',
+        updateAvailable: false,
+      },
+    ];
+    wrapper.vm.updateKindSelected = 'digest';
+    await wrapper.vm.$nextTick();
+
+    const filtered = wrapper.vm.containersFiltered;
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].id).toBe('1');
+  });
+
+  it('filters containers by update kind when updateKindSelected is a semverDiff', async () => {
+    wrapper.vm.containers = [
+      {
+        id: '1',
+        displayName: 'Digest Container',
+        updateAvailable: true,
+        updateKind: { kind: 'digest' },
+      },
+      {
+        id: '2',
+        displayName: 'Minor Tag Container',
+        updateAvailable: true,
+        updateKind: { kind: 'tag', semverDiff: 'minor' },
+      },
+    ];
+    wrapper.vm.updateKindSelected = 'minor';
+    await wrapper.vm.$nextTick();
+
+    const filtered = wrapper.vm.containersFiltered;
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].id).toBe('2');
+  });
+
   it('computes all container labels correctly', () => {
     const labels = wrapper.vm.allContainerLabels;
     expect(labels).toContain('app');

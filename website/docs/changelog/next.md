@@ -14,5 +14,6 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [REGISTRY] Fix OCIR Bearer token exchange for private repositories (#1367)
 - 🐛 [UI] Add fallback mechanism for copy to clipboard on non-secure contexts and Wayland (fixes #1359)
 - 🐛 [WATCHER] Fix image name and tag resolution for digest-pinned containers in Docker watcher (fixes #1362)
+- 🐛 [UI] Add digest option to update kind filter on containers page (fixes #1364)
 
 ---

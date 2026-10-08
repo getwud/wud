@@ -643,21 +643,32 @@ export default defineComponent({
       return [...new Set(allStacks)].sort();
     },
     updateKinds() {
-      return [
-        ...new Set(
-          this.containers
-            .filter((c) => c.updateAvailable && c.updateKind?.kind === "tag" && c.updateKind?.semverDiff)
-            .map((c) => c.updateKind.semverDiff)
-            .sort()
-        ),
-      ];
+      const kinds = this.containers
+        .filter((c) => c.updateAvailable)
+        .map((c) => {
+          if (c.updateKind?.kind === "digest") {
+            return "digest";
+          }
+          if (c.updateKind?.kind === "tag" && c.updateKind?.semverDiff) {
+            return c.updateKind.semverDiff;
+          }
+          return null;
+        })
+        .filter((k): k is string => Boolean(k));
+      return [...new Set(kinds)].sort();
     },
     containersFiltered() {
       return this.containers
         .filter((c) => (this.registrySelected ? this.registrySelected === c.image?.registry?.name : true))
         .filter((c) => (this.watcherSelected ? this.watcherSelected === c.watcher : true))
         .filter((c) => (this.stackSelected ? this.stackSelected === c.stack : true))
-        .filter((c) => (this.updateKindSelected ? this.updateKindSelected === c.updateKind?.semverDiff : true))
+        .filter((c) => {
+          if (!this.updateKindSelected) return true;
+          if (this.updateKindSelected === "digest") {
+            return c.updateKind?.kind === "digest";
+          }
+          return c.updateKind?.semverDiff === this.updateKindSelected;
+        })
         .filter((c) => (this.updateAvailableSelected ? c.updateAvailable : true))
         .filter((c) => {
           if (!this.searchQuery) return true;
