@@ -7,6 +7,7 @@ import { getState } from '../../../registry';
 import { fullName } from '../../../model/container';
 import { HookManager } from '../../hooks/HookManager';
 import { performProjectTransaction } from './rollback';
+import { projectMutex } from './mutex';
 
 /**
  * Find the compose service key corresponding to a container.
@@ -357,71 +358,163 @@ class Dockercompose extends Docker {
      * @returns {Promise<void>}
      */
     async processComposeFile(composeFile, containers) {
-        this.log.info(`Processing compose file: ${composeFile}`);
+        return projectMutex.withLock(composeFile, async () => {
+            this.log.info(`Processing compose file: ${composeFile}`);
 
-        const compose = await this.getComposeFileAsObject(composeFile);
+            const compose = await this.getComposeFileAsObject(composeFile);
 
-        // Filter containers that belong to this compose file
-        const containersFiltered = containers.filter((container) =>
-            doesContainerBelongToCompose(compose, container),
-        );
-
-        if (containersFiltered.length === 0) {
-            this.log.warn(`No containers found in compose file ${composeFile}`);
-            return;
-        }
-
-        // Track which services have already been mapped to avoid duplicates
-        // (multiple containers can share the same image/service)
-        const processedServices = new Set();
-
-        // [{ current: '1.0.0', update: '2.0.0' }, {...}]
-        const currentVersionToUpdateVersionArray = containersFiltered
-            .map((container) => {
-                const mapping = this.mapCurrentVersionToUpdateVersion(
-                    compose,
-                    container,
-                    processedServices,
-                );
-                return mapping;
-            })
-            .filter((map) => map !== undefined);
-
-        // Dry-run?
-        if (this.configuration.dryrun) {
-            this.log.info(
-                `Do not replace existing docker-compose file ${composeFile} (dry-run mode enabled)`,
+            // Filter containers that belong to this compose file
+            const containersFiltered = containers.filter((container) =>
+                doesContainerBelongToCompose(compose, container),
             );
-        } else if (
-            containersFiltered.some(
-                (container) => this.resolveRollback(container).enabled,
-            )
-        ) {
-            // Quality Gate Pre-update hooks for all containers in this compose stack
-            for (const container of containersFiltered) {
-                const watcher = this.getWatcher(container);
-                await HookManager.runPreHooks(
-                    container,
-                    this.configuration.hooks,
-                    {
-                        triggerName: this.name,
-                        dockerApi: watcher?.dockerApi,
-                        log: this.log,
-                    },
+
+            if (containersFiltered.length === 0) {
+                this.log.warn(
+                    `No containers found in compose file ${composeFile}`,
                 );
+                return;
             }
 
-            // CLI-free project transaction with whole-project revert.
-            const committed = await performProjectTransaction(
-                this,
-                composeFile,
-                containersFiltered,
-                currentVersionToUpdateVersionArray,
+            // Track which services have already been mapped to avoid duplicates
+            // (multiple containers can share the same image/service)
+            const processedServices = new Set();
+
+            // [{ current: '1.0.0', update: '2.0.0' }, {...}]
+            const currentVersionToUpdateVersionArray = containersFiltered
+                .map((container) => {
+                    const mapping = this.mapCurrentVersionToUpdateVersion(
+                        compose,
+                        container,
+                        processedServices,
+                    );
+                    return mapping;
+                })
+                .filter(
+                    (map) => map !== undefined && map.current !== map.update,
+                );
+
+            if (currentVersionToUpdateVersionArray.length === 0) {
+                this.log.info(
+                    `No updates to apply for containers in compose file ${composeFile}`,
+                );
+                return;
+            }
+
+            const updateServiceKeys = new Set(
+                currentVersionToUpdateVersionArray.map((m) => m.service),
+            );
+            const containersToUpdate = containersFiltered.filter(
+                (container) => {
+                    const serviceKey = findServiceKeyForContainer(
+                        compose,
+                        container,
+                    );
+                    return serviceKey && updateServiceKeys.has(serviceKey);
+                },
+            );
+
+            if (containersToUpdate.length === 0) {
+                this.log.info(
+                    `No containers to update in compose file ${composeFile}`,
+                );
+                return;
+            }
+
+            // Dry-run?
+            if (this.configuration.dryrun) {
+                this.log.info(
+                    `Do not replace existing docker-compose file ${composeFile} (dry-run mode enabled)`,
+                );
+            } else if (
+                containersToUpdate.some(
+                    (container) => this.resolveRollback(container).enabled,
+                )
+            ) {
+                // Quality Gate Pre-update hooks for all containers in this compose stack
+                for (const container of containersToUpdate) {
+                    const watcher = this.getWatcher(container);
+                    await HookManager.runPreHooks(
+                        container,
+                        this.configuration.hooks,
+                        {
+                            triggerName: this.name,
+                            dockerApi: watcher?.dockerApi,
+                            log: this.log,
+                        },
+                    );
+                }
+
+                // CLI-free project transaction with whole-project revert.
+                const committed = await performProjectTransaction(
+                    this,
+                    composeFile,
+                    containersToUpdate,
+                    currentVersionToUpdateVersionArray,
+                );
+
+                // Post-update hooks for all containers in this compose stack
+                if (committed) {
+                    for (const container of containersToUpdate) {
+                        const watcher = this.getWatcher(container);
+                        await HookManager.runPostHooks(
+                            container,
+                            this.configuration.hooks,
+                            {
+                                triggerName: this.name,
+                                dockerApi: watcher?.dockerApi,
+                                log: this.log,
+                            },
+                        );
+                    }
+                }
+                return;
+            } else {
+                // Quality Gate Pre-update hooks for all containers in this compose stack
+                for (const container of containersToUpdate) {
+                    const watcher = this.getWatcher(container);
+                    await HookManager.runPreHooks(
+                        container,
+                        this.configuration.hooks,
+                        {
+                            triggerName: this.name,
+                            dockerApi: watcher?.dockerApi,
+                            log: this.log,
+                        },
+                    );
+                }
+
+                // Backup docker-compose file
+                if (this.configuration.backup) {
+                    const backupFile = `${composeFile}.back`;
+                    await this.backup(composeFile, backupFile);
+                }
+
+                // Read the compose file as a string
+                const composeFileStr = (
+                    await this.getComposeFile(composeFile)
+                ).toString();
+
+                // Replace all versions targeting specific services in YAML
+                const updatedComposeFileStr = this.updateComposeYaml(
+                    composeFileStr,
+                    currentVersionToUpdateVersionArray,
+                );
+
+                // Write docker-compose.yml file back
+                await this.writeComposeFile(composeFile, updatedComposeFileStr);
+            }
+
+            // Update all containers
+            // (super.notify will take care of the dry-run mode for each container as well)
+            await Promise.all(
+                containersToUpdate.map((container) =>
+                    super.trigger(container, { runHooks: false }),
+                ),
             );
 
             // Post-update hooks for all containers in this compose stack
-            if (committed) {
-                for (const container of containersFiltered) {
+            if (!this.configuration.dryrun) {
+                for (const container of containersToUpdate) {
                     const watcher = this.getWatcher(container);
                     await HookManager.runPostHooks(
                         container,
@@ -434,66 +527,7 @@ class Dockercompose extends Docker {
                     );
                 }
             }
-            return;
-        } else {
-            // Quality Gate Pre-update hooks for all containers in this compose stack
-            for (const container of containersFiltered) {
-                const watcher = this.getWatcher(container);
-                await HookManager.runPreHooks(
-                    container,
-                    this.configuration.hooks,
-                    {
-                        triggerName: this.name,
-                        dockerApi: watcher?.dockerApi,
-                        log: this.log,
-                    },
-                );
-            }
-
-            // Backup docker-compose file
-            if (this.configuration.backup) {
-                const backupFile = `${composeFile}.back`;
-                await this.backup(composeFile, backupFile);
-            }
-
-            // Read the compose file as a string
-            const composeFileStr = (
-                await this.getComposeFile(composeFile)
-            ).toString();
-
-            // Replace all versions targeting specific services in YAML
-            const updatedComposeFileStr = this.updateComposeYaml(
-                composeFileStr,
-                currentVersionToUpdateVersionArray,
-            );
-
-            // Write docker-compose.yml file back
-            await this.writeComposeFile(composeFile, updatedComposeFileStr);
-        }
-
-        // Update all containers
-        // (super.notify will take care of the dry-run mode for each container as well)
-        await Promise.all(
-            containersFiltered.map((container) =>
-                super.trigger(container, { runHooks: false }),
-            ),
-        );
-
-        // Post-update hooks for all containers in this compose stack
-        if (!this.configuration.dryrun) {
-            for (const container of containersFiltered) {
-                const watcher = this.getWatcher(container);
-                await HookManager.runPostHooks(
-                    container,
-                    this.configuration.hooks,
-                    {
-                        triggerName: this.name,
-                        dockerApi: watcher?.dockerApi,
-                        log: this.log,
-                    },
-                );
-            }
-        }
+        });
     }
 
     /**
