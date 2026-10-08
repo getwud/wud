@@ -16,6 +16,7 @@ const configurationValid = {
     clientid: 'wud',
     hass: {
         discovery: false,
+        discovery_entities: 'all',
         enabled: false,
         prefix: 'homeassistant',
         deviceid: 'wud',
@@ -363,4 +364,27 @@ test('triggerRollback should publish the rollback report on the rollback topic',
         'wud/container/rollback',
         JSON.stringify(report),
     );
+});
+
+test('validateConfiguration should accept discovery_entities = summary', () => {
+    const validated = mqtt.validateConfiguration({
+        ...configurationValid,
+        hass: {
+            ...configurationValid.hass,
+            discovery_entities: 'summary',
+        },
+    });
+    expect(validated.hass.discovery_entities).toEqual('summary');
+});
+
+test('validateConfiguration should reject invalid discovery_entities', () => {
+    expect(() => {
+        mqtt.validateConfiguration({
+            ...configurationValid,
+            hass: {
+                ...configurationValid.hass,
+                discovery_entities: 'invalid',
+            },
+        });
+    }).toThrow();
 });
