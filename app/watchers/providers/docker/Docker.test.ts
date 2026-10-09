@@ -4,6 +4,7 @@ import Docker, {
     isContainerToWatch,
     getTagCandidates,
     formatErrorMessage,
+    getRepoDigest,
 } from './Docker';
 import Registry, {
     UnsupportedArtifactError,
@@ -4596,6 +4597,298 @@ describe('Docker Watcher', () => {
                         mockLog,
                     );
                     expect(Array.isArray(res)).toBe(true);
+                });
+            });
+        });
+
+        describe('Podman image digest and ID resolution (issue #934)', () => {
+            describe('getRepoDigest', () => {
+                test('should extract digest from standard RepoDigests with @sha256:', () => {
+                    const img = {
+                        RepoDigests: [
+                            'ghcr.io/getwud/wud@sha256:5e631077694151f44b31966169f142f61fb4c01231c0361db57345f7b04c6988',
+                        ],
+                    };
+                    expect(getRepoDigest(img)).toBe(
+                        'sha256:5e631077694151f44b31966169f142f61fb4c01231c0361db57345f7b04c6988',
+                    );
+                });
+
+                test('should extract and normalize 64-hex digest from RepoDigests without sha256: prefix', () => {
+                    const img = {
+                        RepoDigests: [
+                            'ghcr.io/getwud/wud@5e631077694151f44b31966169f142f61fb4c01231c0361db57345f7b04c6988',
+                        ],
+                    };
+                    expect(getRepoDigest(img)).toBe(
+                        'sha256:5e631077694151f44b31966169f142f61fb4c01231c0361db57345f7b04c6988',
+                    );
+                });
+
+                test('should fall back to image.Digest when RepoDigests is empty (Podman inspect format)', () => {
+                    const img = {
+                        Id: '1c882e3cfc50d7b167353eb3a02121248f7ebcf68250c508a159c75966ec24eb',
+                        Digest: 'sha256:5e631077694151f44b31966169f142f61fb4c01231c0361db57345f7b04c6988',
+                        RepoDigests: [],
+                    };
+                    expect(getRepoDigest(img)).toBe(
+                        'sha256:5e631077694151f44b31966169f142f61fb4c01231c0361db57345f7b04c6988',
+                    );
+                });
+
+                test('should fall back to image.Digest when RepoDigests is undefined', () => {
+                    const img = {
+                        Digest: 'sha256:5e631077694151f44b31966169f142f61fb4c01231c0361db57345f7b04c6988',
+                    };
+                    expect(getRepoDigest(img)).toBe(
+                        'sha256:5e631077694151f44b31966169f142f61fb4c01231c0361db57345f7b04c6988',
+                    );
+                });
+
+                test('should normalize 64-hex image.Digest to sha256: prefix', () => {
+                    const img = {
+                        Digest: '5e631077694151f44b31966169f142f61fb4c01231c0361db57345f7b04c6988',
+                    };
+                    expect(getRepoDigest(img)).toBe(
+                        'sha256:5e631077694151f44b31966169f142f61fb4c01231c0361db57345f7b04c6988',
+                    );
+                });
+
+                test('should return undefined when neither RepoDigests nor Digest is available', () => {
+                    const img = {
+                        Id: '1c882e3cfc50d7b167353eb3a02121248f7ebcf68250c508a159c75966ec24eb',
+                    };
+                    expect(getRepoDigest(img)).toBeUndefined();
+                });
+            });
+
+            describe('addImageDetailsToContainer with Podman formats', () => {
+                test('should resolve 64-hex image ID in container.Image to RepoTags', async () => {
+                    const watcher = new Docker();
+                    const podmanHexId =
+                        '1c882e3cfc50d7b167353eb3a02121248f7ebcf68250c508a159c75966ec24eb';
+                    const mockInspect = {
+                        Id: podmanHexId,
+                        RepoTags: ['ghcr.io/getwud/wud:8.2.0'],
+                        RepoDigests: [
+                            'ghcr.io/getwud/wud@sha256:5e631077694151f44b31966169f142f61fb4c01231c0361db57345f7b04c6988',
+                        ],
+                        Architecture: 'amd64',
+                        Os: 'linux',
+                    };
+                    watcher.dockerApi = {
+                        getImage: jest.fn().mockReturnValue({
+                            inspect: jest.fn().mockResolvedValue(mockInspect),
+                        }),
+                    };
+
+                    mockParse.mockReturnValueOnce({
+                        domain: 'ghcr.io',
+                        path: 'getwud/wud',
+                        tag: '8.2.0',
+                    });
+
+                    const container = {
+                        Id: 'container-podman-1',
+                        Image: podmanHexId,
+                        State: 'running',
+                        Labels: {},
+                    };
+
+                    const res = await watcher.addImageDetailsToContainer(
+                        container,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                    );
+
+                    expect(mockParse).toHaveBeenCalledWith(
+                        'ghcr.io/getwud/wud:8.2.0',
+                    );
+                    expect(res).toBeDefined();
+                    expect(res.image.name).toBe('getwud/wud');
+                    expect(res.image.tag.value).toBe('8.2.0');
+                    expect(res.image.tag.semver).toBe(true);
+                    expect(res.image.digest.repo).toBe(
+                        'sha256:5e631077694151f44b31966169f142f61fb4c01231c0361db57345f7b04c6988',
+                    );
+                });
+
+                test('should extract repo digest from Podman Digest field when RepoDigests is empty', async () => {
+                    const watcher = new Docker();
+                    const podmanHexId =
+                        '1c882e3cfc50d7b167353eb3a02121248f7ebcf68250c508a159c75966ec24eb';
+                    const mockInspect = {
+                        Id: podmanHexId,
+                        RepoTags: ['ghcr.io/getwud/wud:8.2.0'],
+                        RepoDigests: [],
+                        Digest: 'sha256:5e631077694151f44b31966169f142f61fb4c01231c0361db57345f7b04c6988',
+                        Architecture: 'amd64',
+                        Os: 'linux',
+                    };
+                    watcher.dockerApi = {
+                        getImage: jest.fn().mockReturnValue({
+                            inspect: jest.fn().mockResolvedValue(mockInspect),
+                        }),
+                    };
+
+                    const container = {
+                        Id: 'container-podman-2',
+                        Image: 'ghcr.io/getwud/wud:8.2.0',
+                        State: 'running',
+                        Labels: {},
+                    };
+
+                    const res = await watcher.addImageDetailsToContainer(
+                        container,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                    );
+
+                    expect(res).toBeDefined();
+                    expect(res.image.digest.repo).toBe(
+                        'sha256:5e631077694151f44b31966169f142f61fb4c01231c0361db57345f7b04c6988',
+                    );
+                });
+            });
+
+            describe('findNewVersion with Podman images and digests', () => {
+                test('should not show update when Podman container has matching digest and version is not 1', async () => {
+                    const watcher = new Docker();
+                    const manifestDigest =
+                        'sha256:5e631077694151f44b31966169f142f61fb4c01231c0361db57345f7b04c6988';
+                    const podmanHexId =
+                        '1c882e3cfc50d7b167353eb3a02121248f7ebcf68250c508a159c75966ec24eb';
+
+                    const mockRegistry = {
+                        shouldWatchDigest: jest.fn().mockReturnValue(true),
+                        getTags: jest.fn().mockResolvedValue(['8.2.0']),
+                        getImageManifestDigest: jest
+                            .fn()
+                            .mockImplementation((img, digest) => {
+                                if (digest === manifestDigest) {
+                                    return Promise.resolve({
+                                        digest: manifestDigest,
+                                        version: 2,
+                                    });
+                                }
+                                return Promise.resolve({
+                                    digest: manifestDigest,
+                                    version: 2,
+                                });
+                            }),
+                    };
+                    registry.getState.mockReturnValue({
+                        registry: { ghcr: mockRegistry },
+                    });
+
+                    const container = {
+                        id: 'container-podman-wud',
+                        image: {
+                            id: podmanHexId,
+                            registry: {
+                                name: 'ghcr',
+                                url: 'ghcr.io',
+                            },
+                            name: 'getwud/wud',
+                            tag: { value: '8.2.0', semver: true },
+                            digest: {
+                                watch: true,
+                                repo: manifestDigest,
+                            },
+                        },
+                        labels: {
+                            'wud.watch.digest': 'true',
+                        },
+                    };
+
+                    const logContainer = {
+                        warn: jest.fn(),
+                        debug: jest.fn(),
+                        error: jest.fn(),
+                    };
+
+                    const result = await watcher.findNewVersion(
+                        container,
+                        logContainer,
+                    );
+
+                    expect(result.digest).toBe(manifestDigest);
+                    expect(container.image.digest.value).toBe(manifestDigest);
+                    expect(container.image.digest.value).not.toBe(podmanHexId);
+                });
+
+                test('should normalize Podman hex image Id with sha256: in legacy v1 fallback', async () => {
+                    const watcher = new Docker();
+                    const podmanHexId =
+                        '1c882e3cfc50d7b167353eb3a02121248f7ebcf68250c508a159c75966ec24eb';
+
+                    const mockRegistry = {
+                        shouldWatchDigest: jest.fn().mockReturnValue(true),
+                        getTags: jest.fn().mockResolvedValue([]),
+                        getImageManifestDigest: jest
+                            .fn()
+                            .mockResolvedValueOnce({
+                                digest: 'sha256:remote-v1',
+                                version: 1,
+                            }),
+                    };
+                    registry.getState.mockReturnValue({
+                        registry: { hub: mockRegistry },
+                    });
+
+                    watcher.dockerApi = {
+                        getImage: jest.fn().mockReturnValue({
+                            inspect: jest.fn().mockResolvedValue({
+                                Config: { Image: '' },
+                                Id: podmanHexId,
+                            }),
+                        }),
+                    };
+
+                    const container = {
+                        id: 'container-legacy-podman',
+                        image: {
+                            id: podmanHexId,
+                            registry: {
+                                name: 'hub',
+                                url: 'docker.io',
+                            },
+                            name: 'my-org/legacy',
+                            tag: { value: 'latest', semver: false },
+                            digest: {
+                                watch: true,
+                                repo: 'sha256:local-repo',
+                            },
+                        },
+                    };
+
+                    const logContainer = {
+                        warn: jest.fn(),
+                        debug: jest.fn(),
+                        error: jest.fn(),
+                    };
+
+                    const result = await watcher.findNewVersion(
+                        container,
+                        logContainer,
+                    );
+
+                    expect(result.digest).toBe('sha256:remote-v1');
+                    expect(container.image.digest.value).toBe(
+                        `sha256:${podmanHexId}`,
+                    );
                 });
             });
         });

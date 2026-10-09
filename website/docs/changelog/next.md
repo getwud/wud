@@ -24,5 +24,6 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [UI] Restore version position next to current version in container header (fixes #1068)
 - 🐛 [TRIGGER] Fix container recreation on Docker 29 with containerd store (fixes #1081)
 - 🐛 [WATCHER] Improve error handling and logging during container image processing (fixes #989)
+- 🐛 [WATCHER] Fix image ID treated as digest under Podman (fixes #934)
 
 ---

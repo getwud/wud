@@ -416,16 +416,42 @@ export function getContainerName(container: any) {
 /**
  * Get image repo digest.
  */
-function getRepoDigest(containerImage: any) {
+export function getRepoDigest(containerImage: any): string | undefined {
     if (
-        !containerImage.RepoDigests ||
-        containerImage.RepoDigests.length === 0
+        containerImage?.RepoDigests &&
+        Array.isArray(containerImage.RepoDigests) &&
+        containerImage.RepoDigests.length > 0
     ) {
-        return undefined;
+        for (const fullDigest of containerImage.RepoDigests) {
+            if (typeof fullDigest === 'string') {
+                if (fullDigest.includes('@')) {
+                    const digest = fullDigest.split('@')[1];
+                    if (digest) {
+                        if (digest.startsWith('sha256:')) {
+                            return digest;
+                        }
+                        if (/^[a-f0-9]{64}$/i.test(digest)) {
+                            return `sha256:${digest}`;
+                        }
+                    }
+                } else if (fullDigest.startsWith('sha256:')) {
+                    return fullDigest;
+                } else if (/^[a-f0-9]{64}$/i.test(fullDigest)) {
+                    return `sha256:${fullDigest}`;
+                }
+            }
+        }
     }
-    const fullDigest = containerImage.RepoDigests[0];
-    const digestSplit = fullDigest.split('@');
-    return digestSplit[1];
+    // Podman inspect provides Digest at image top level
+    if (containerImage?.Digest && typeof containerImage.Digest === 'string') {
+        if (containerImage.Digest.startsWith('sha256:')) {
+            return containerImage.Digest;
+        }
+        if (/^[a-f0-9]{64}$/i.test(containerImage.Digest)) {
+            return `sha256:${containerImage.Digest}`;
+        }
+    }
+    return undefined;
 }
 
 export const ROLLBACK_ARCHIVE_REGEX = /-wud-old-\d+$/;
@@ -1201,7 +1227,7 @@ export class Docker extends Watcher {
                     result.created = remoteDigest.created;
                 }
 
-                if (remoteDigest?.version === 2) {
+                if (remoteDigest?.version !== 1) {
                     // Regular v2 manifest => Get manifest digest
                     try {
                         const digestV2 =
@@ -1209,7 +1235,8 @@ export class Docker extends Watcher {
                                 imageToGetDigestFrom,
                                 container.image.digest.repo,
                             );
-                        container.image.digest.value = digestV2.digest;
+                        container.image.digest.value =
+                            digestV2?.digest || container.image.digest.repo;
                     } catch (e: any) {
                         const errorDetail = formatErrorMessage(e);
                         if (
@@ -1233,8 +1260,11 @@ export class Docker extends Watcher {
                         const image = await this.dockerApi
                             .getImage(container.image.id)
                             .inspect();
+                        const rawId = image.Config?.Image || image.Id;
                         container.image.digest.value =
-                            image.Config?.Image || image.Id;
+                            rawId && /^[a-f0-9]{64}$/i.test(rawId)
+                                ? `sha256:${rawId}`
+                                : rawId;
                     } catch (e: any) {
                         const errorDetail = formatErrorMessage(e);
                         if (
@@ -1245,7 +1275,11 @@ export class Docker extends Watcher {
                                 `Cannot inspect local image ${container.image.id} (${errorDetail}), falling back to image id`,
                             );
                         }
-                        container.image.digest.value = container.image.id;
+                        const rawId = container.image.id;
+                        container.image.digest.value =
+                            rawId && /^[a-f0-9]{64}$/i.test(rawId)
+                                ? `sha256:${rawId}`
+                                : rawId;
                     }
                 }
 
@@ -1254,7 +1288,7 @@ export class Docker extends Watcher {
                 // but the remote version label and build date both live in the
                 // image config blob.
                 if (
-                    remoteDigest?.version === 2 &&
+                    remoteDigest?.version !== 1 &&
                     result.digest !== undefined &&
                     container.image.digest.value !== result.digest
                 ) {
@@ -1489,7 +1523,18 @@ export class Docker extends Watcher {
         let imageNameToParse = container.Image;
         let pinnedDigest: string | undefined;
 
-        if (imageNameToParse.startsWith('sha256:')) {
+        const rawNameToParse = (imageNameToParse || '').replace(/^sha256:/, '');
+        const rawImageId = (image.Id || '').replace(/^sha256:/, '');
+        const isImageId =
+            typeof imageNameToParse === 'string' &&
+            (imageNameToParse.startsWith('sha256:') ||
+                /^[a-f0-9]{64}$/i.test(imageNameToParse) ||
+                (rawImageId !== '' &&
+                    rawNameToParse.length >= 12 &&
+                    /^[a-f0-9]+$/i.test(rawNameToParse) &&
+                    rawImageId.startsWith(rawNameToParse)));
+
+        if (isImageId) {
             const validRepoTags = (image.RepoTags || []).filter(
                 (tag: string) =>
                     tag && tag !== '<none>:<none>' && !tag.endsWith(':<none>'),
