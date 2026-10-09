@@ -1,6 +1,15 @@
 <template>
+  <img
+    v-if="isImageUrl && !hasImageError"
+    :src="icon"
+    class="icon-renderer icon-image"
+    alt=""
+    loading="lazy"
+    :style="iconStyle"
+    @error="onImageError"
+  />
   <Icon
-    v-if="normalizedIcon"
+    v-else-if="normalizedIcon"
     :icon="normalizedIcon"
     :style="iconStyle"
     :width="size"
@@ -35,9 +44,36 @@ export default defineComponent({
     },
   },
 
+  data() {
+    return {
+      hasImageError: false,
+    };
+  },
+
+  watch: {
+    icon() {
+      this.hasImageError = false;
+    },
+  },
+
   computed: {
+    isImageUrl(): boolean {
+      if (!this.icon) return false;
+
+      const iconName = this.icon.trim().toLowerCase();
+      return (
+        iconName.startsWith("http://") ||
+        iconName.startsWith("https://") ||
+        iconName.startsWith("data:image/")
+      );
+    },
+
     normalizedIcon(): string {
       if (!this.icon) return "";
+
+      if (this.isImageUrl) {
+        return this.hasImageError ? "mdi:docker" : "";
+      }
 
       const iconName = this.icon.trim().toLowerCase();
 
@@ -87,14 +123,21 @@ export default defineComponent({
       return `simple-icons:${iconName}`;
     },
 
-    iconStyle() {
+    iconStyle(): Record<string, string> {
       return {
         width: `${this.size}px`,
         height: `${this.size}px`,
         marginRight: `${this.marginRight}px`,
         display: "inline-block",
         verticalAlign: "middle",
+        objectFit: "contain",
       };
+    },
+  },
+
+  methods: {
+    onImageError() {
+      this.hasImageError = true;
     },
   },
 });
@@ -104,5 +147,9 @@ export default defineComponent({
 .icon-renderer {
   display: inline-block;
   vertical-align: middle;
+}
+
+.icon-image {
+  object-fit: contain;
 }
 </style>
