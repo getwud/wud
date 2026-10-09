@@ -150,6 +150,24 @@ In addition to provider-specific settings, all triggers support the following co
     Template used to render the notification title in simple mode
   </ConfigOption>
 
+  <ConfigOption
+    name="WUD_TRIGGER_{trigger_type}_{trigger_name}_SUCCESSBODY"
+    required={false}
+    type="string"
+    defaultValue="Container ${container.name} has been successfully updated."
+    supported="JS string template with `container` object">
+    Template used to render the notification body when an update is successful
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_{trigger_type}_{trigger_name}_SUCCESSTITLE"
+    required={false}
+    type="string"
+    defaultValue="Update SUCCESS for ${container.name}"
+    supported="JS string template with `container` object">
+    Template used to render the notification title when an update is successful
+  </ConfigOption>
+
   <ConfigOption name="WUD_TRIGGER_{trigger_type}_{trigger_name}_THRESHOLD"
     type="enum"
     required={false}
@@ -172,7 +190,7 @@ In addition to provider-specific settings, all triggers support the following co
 
 ## 📝 Template Placeholders & Variables
 
-Trigger titles and bodies (`SIMPLETITLE`, `SIMPLEBODY`, `BATCHTITLE`, `BATCHBODY`, `ROLLBACKTITLE`, `ROLLBACKBODY`) are evaluated as JavaScript template literals against the container update data.
+Trigger titles and bodies (`SIMPLETITLE`, `SIMPLEBODY`, `BATCHTITLE`, `BATCHBODY`, `SUCCESSTITLE`, `SUCCESSBODY`, `FAILURETITLE`, `FAILUREBODY`, `ROLLBACKTITLE`, `ROLLBACKBODY`) are evaluated as JavaScript template literals against the container update data.
 
 ### Simple Mode Variables
 
