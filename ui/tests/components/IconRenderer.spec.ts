@@ -134,5 +134,107 @@ describe('IconRenderer', () => {
     expect(style.width).toBe('24px');
     expect(style.height).toBe('24px');
     expect(style.marginRight).toBe('8px');
+    expect(style.objectFit).toBe('contain');
+  });
+
+  describe('image URLs', () => {
+    it('renders img tag for http URLs', () => {
+      const wrapper = mount(IconRenderer, {
+        props: { icon: 'http://example.com/icon.png' }
+      });
+
+      const img = wrapper.find('img');
+      expect(img.exists()).toBe(true);
+      expect(img.attributes('src')).toBe('http://example.com/icon.png');
+      expect(img.classes()).toContain('icon-renderer');
+      expect(img.classes()).toContain('icon-image');
+      expect(img.attributes('alt')).toBe('');
+      expect(img.attributes('loading')).toBe('lazy');
+      expect(wrapper.findComponent(Icon).exists()).toBe(false);
+    });
+
+    it('renders img tag for https URLs', () => {
+      const wrapper = mount(IconRenderer, {
+        props: { icon: 'https://example.com/logo.svg' }
+      });
+
+      const img = wrapper.find('img');
+      expect(img.exists()).toBe(true);
+      expect(img.attributes('src')).toBe('https://example.com/logo.svg');
+      expect(img.classes()).toContain('icon-renderer');
+      expect(img.classes()).toContain('icon-image');
+      expect(img.attributes('alt')).toBe('');
+      expect(img.attributes('loading')).toBe('lazy');
+      expect(wrapper.findComponent(Icon).exists()).toBe(false);
+    });
+
+    it('renders img tag for data:image URLs', () => {
+      const dataUri = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+      const wrapper = mount(IconRenderer, {
+        props: { icon: dataUri }
+      });
+
+      const img = wrapper.find('img');
+      expect(img.exists()).toBe(true);
+      expect(img.attributes('src')).toBe(dataUri);
+      expect(img.classes()).toContain('icon-renderer');
+      expect(img.classes()).toContain('icon-image');
+      expect(img.attributes('alt')).toBe('');
+      expect(img.attributes('loading')).toBe('lazy');
+      expect(wrapper.findComponent(Icon).exists()).toBe(false);
+    });
+
+    it('falls back to Iconify mdi:docker on error', async () => {
+      const wrapper = mount(IconRenderer, {
+        props: { icon: 'https://example.com/broken.png' }
+      });
+
+      expect(wrapper.find('img').exists()).toBe(true);
+      expect(wrapper.findComponent(Icon).exists()).toBe(false);
+
+      await wrapper.find('img').trigger('error');
+
+      expect(wrapper.find('img').exists()).toBe(false);
+      expect(wrapper.findComponent(Icon).exists()).toBe(true);
+      expect(wrapper.findComponent(Icon).props('icon')).toBe('mdi:docker');
+      expect(wrapper.vm.normalizedIcon).toBe('mdi:docker');
+    });
+
+    it('resets error state when icon prop changes', async () => {
+      const wrapper = mount(IconRenderer, {
+        props: { icon: 'https://example.com/broken.png' }
+      });
+
+      await wrapper.find('img').trigger('error');
+      expect(wrapper.find('img').exists()).toBe(false);
+      expect(wrapper.findComponent(Icon).exists()).toBe(true);
+
+      await wrapper.setProps({ icon: 'https://example.com/new.png' });
+      expect(wrapper.find('img').exists()).toBe(true);
+      expect(wrapper.findComponent(Icon).exists()).toBe(false);
+    });
+
+    it('continues to render Icon component for regular icon strings', () => {
+      const mdiWrapper = mount(IconRenderer, {
+        props: { icon: 'mdi:docker' }
+      });
+      expect(mdiWrapper.find('img').exists()).toBe(false);
+      expect(mdiWrapper.findComponent(Icon).exists()).toBe(true);
+      expect(mdiWrapper.vm.normalizedIcon).toBe('mdi:docker');
+
+      const siWrapper = mount(IconRenderer, {
+        props: { icon: 'si:nginx' }
+      });
+      expect(siWrapper.find('img').exists()).toBe(false);
+      expect(siWrapper.findComponent(Icon).exists()).toBe(true);
+      expect(siWrapper.vm.normalizedIcon).toBe('simple-icons:nginx');
+
+      const nameWrapper = mount(IconRenderer, {
+        props: { icon: 'nginx' }
+      });
+      expect(nameWrapper.find('img').exists()).toBe(false);
+      expect(nameWrapper.findComponent(Icon).exists()).toBe(true);
+      expect(nameWrapper.vm.normalizedIcon).toBe('simple-icons:nginx');
+    });
   });
 });
