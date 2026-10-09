@@ -56,6 +56,33 @@ In addition to provider-specific settings, all triggers support the following co
   </ConfigOption>
 
   <ConfigOption
+    name="WUD_TRIGGER_{trigger_type}_{trigger_name}_EVENTS"
+    required={false}
+    type="string"
+    defaultValue="available"
+    supported="Comma-separated string of `available`, `pre`, `success`, `failure`, `rollback`">
+    Subscribed container update lifecycle events. Can be overridden per container via `wud.trigger.events` or `wud.trigger.<name>.events`.
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_{trigger_type}_{trigger_name}_FAILUREBODY"
+    required={false}
+    type="string"
+    defaultValue="Container ${container.name} update failed: ${error}"
+    supported="JS string template with `container` object and `error` string">
+    Template used to render the notification body when an update fails
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_{trigger_type}_{trigger_name}_FAILURETITLE"
+    required={false}
+    type="string"
+    defaultValue="Update FAILED for ${container.name}"
+    supported="JS string template with `container` object">
+    Template used to render the notification title when an update fails
+  </ConfigOption>
+
+  <ConfigOption
     name="WUD_TRIGGER_{trigger_type}_{trigger_name}_INCLUDEBYDEFAULT"
     required={false}
     type="boolean"

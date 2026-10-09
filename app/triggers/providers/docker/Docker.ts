@@ -1216,29 +1216,114 @@ class Docker extends Trigger {
 
         // Quality Gate Pre-update hooks
         const runHooks = opts.runHooks ?? true;
-        if (runHooks) {
-            await HookManager.runPreHooks(container, this.configuration.hooks, {
-                triggerName: this.name,
-                dockerApi,
-                log: logContainer,
-            });
-        }
+        try {
+            event.emitContainerUpdatePre(container);
+            if (runHooks) {
+                await HookManager.runPreHooks(
+                    container,
+                    this.configuration.hooks,
+                    {
+                        triggerName: this.name,
+                        dockerApi,
+                        log: logContainer,
+                    },
+                );
+            }
 
-        // Gated / archived path.
-        if (useArchive) {
-            const outcome = await this.replaceWithHealthGate(
-                dockerApi,
-                registry,
-                container,
-                currentContainer,
-                currentContainerSpec,
-                containerToCreateInspect,
-                opts.gate ?? this.resolveRollback(container),
-                currentContainerState.Running,
-                { ...opts, deferPrune },
-                logContainer,
-            );
-            if (!outcome.rolledBack && runHooks) {
+            // Gated / archived path.
+            if (useArchive) {
+                const outcome = await this.replaceWithHealthGate(
+                    dockerApi,
+                    registry,
+                    container,
+                    currentContainer,
+                    currentContainerSpec,
+                    containerToCreateInspect,
+                    opts.gate ?? this.resolveRollback(container),
+                    currentContainerState.Running,
+                    { ...opts, deferPrune },
+                    logContainer,
+                );
+
+                if (outcome.rolledBack) {
+                    if (runHooks) {
+                        await HookManager.runRollbackHooks(
+                            container,
+                            this.configuration.hooks,
+                            {
+                                triggerName: this.name,
+                                dockerApi,
+                                log: logContainer,
+                            },
+                        );
+                    }
+                } else {
+                    if (runHooks) {
+                        await HookManager.runPostHooks(
+                            container,
+                            this.configuration.hooks,
+                            {
+                                triggerName: this.name,
+                                dockerApi,
+                                log: logContainer,
+                            },
+                        );
+                    }
+                    event.emitContainerUpdateSuccess(container);
+                }
+                return outcome;
+            }
+
+            // Stop current container
+            if (currentContainerState.Running) {
+                await this.stopContainer(
+                    currentContainer,
+                    container.name,
+                    container.id,
+                    logContainer,
+                );
+            }
+
+            if (!autoRemove) {
+                // Remove current container
+                await this.removeContainer(
+                    currentContainer,
+                    container.name,
+                    container.id,
+                    logContainer,
+                );
+            } else {
+                // This is a special case when the container is set to be removed automatically when it stops.
+                // In this case, we need to wait for the container to be removed before creating the new one.
+                await this.waitContainerRemoved(
+                    currentContainer,
+                    container.name,
+                    container.id,
+                    logContainer,
+                );
+            }
+
+            // Create new container
+            const newContainer =
+                await this.createContainerWithMultiNetworkFallback(
+                    dockerApi,
+                    containerToCreateInspect,
+                    currentContainerSpec,
+                    container.name,
+                    logContainer,
+                );
+
+            // Start container if it was running
+            if (currentContainerState.Running) {
+                await this.startContainer(
+                    newContainer,
+                    container.name,
+                    logContainer,
+                );
+            }
+
+            // Post-update hooks
+            if (runHooks) {
                 await HookManager.runPostHooks(
                     container,
                     this.configuration.hooks,
@@ -1249,77 +1334,39 @@ class Docker extends Trigger {
                     },
                 );
             }
-            return outcome;
-        }
+            event.emitContainerUpdateSuccess(container);
 
-        // Stop current container
-        if (currentContainerState.Running) {
-            await this.stopContainer(
-                currentContainer,
-                container.name,
-                container.id,
-                logContainer,
-            );
-        }
-
-        if (!autoRemove) {
-            // Remove current container
-            await this.removeContainer(
-                currentContainer,
-                container.name,
-                container.id,
-                logContainer,
-            );
-        } else {
-            // This is a special case when the container is set to be removed automatically when it stops.
-            // In this case, we need to wait for the container to be removed before creating the new one.
-            await this.waitContainerRemoved(
-                currentContainer,
-                container.name,
-                container.id,
-                logContainer,
-            );
-        }
-
-        // Create new container
-        const newContainer = await this.createContainerWithMultiNetworkFallback(
-            dockerApi,
-            containerToCreateInspect,
-            currentContainerSpec,
-            container.name,
-            logContainer,
-        );
-
-        // Start container if it was running
-        if (currentContainerState.Running) {
-            await this.startContainer(
-                newContainer,
-                container.name,
-                logContainer,
-            );
-        }
-
-        // Post-update hooks
-        if (runHooks) {
-            await HookManager.runPostHooks(
-                container,
-                this.configuration.hooks,
-                {
-                    triggerName: this.name,
+            // Remove previous image (only when updateKind is tag)
+            if (this.configuration.prune) {
+                await this.removePreviousImage(
                     dockerApi,
-                    log: logContainer,
-                },
-            );
-        }
-
-        // Remove previous image (only when updateKind is tag)
-        if (this.configuration.prune) {
-            await this.removePreviousImage(
-                dockerApi,
-                registry,
-                container,
-                logContainer,
-            );
+                    registry,
+                    container,
+                    logContainer,
+                );
+            }
+        } catch (e: any) {
+            logContainer.error(`Container update failed: ${e.message}`);
+            if (runHooks) {
+                try {
+                    await HookManager.runFailureHooks(
+                        container,
+                        this.configuration.hooks,
+                        {
+                            triggerName: this.name,
+                            dockerApi,
+                            log: logContainer,
+                        },
+                    );
+                } catch (hookErr: any) {
+                    logContainer.error(
+                        `Failure hooks failed: ${hookErr.message}`,
+                    );
+                }
+            }
+            container.error = e.message;
+            event.emitContainerUpdateFailure(container);
+            throw e;
         }
         return undefined;
     }

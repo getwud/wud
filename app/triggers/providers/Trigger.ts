@@ -6,12 +6,17 @@ import { AlternativesSchema, ObjectSchema } from 'joi';
 
 export interface TriggerConfiguration extends ComponentConfiguration {
     auto?: boolean;
+    events?: string | string[];
     threshold?: string;
     mode?: string;
     once?: boolean;
     simpletitle?: string;
     simplebody?: string;
     batchtitle?: string;
+    successtitle?: string;
+    successbody?: string;
+    failuretitle?: string;
+    failurebody?: string;
     rollbacktitle?: string;
     rollbackbody?: string;
     includebydefault?: boolean;
@@ -256,6 +261,57 @@ class Trigger extends Component {
         }
     }
 
+    getSubscribedEvents(container?: Container): string[] {
+        let events = this.configuration.events || ['available'];
+
+        // Surcharge par label (wud.trigger.<name>.events ou wud.trigger.events)
+        if (container?.labels) {
+            const specificLabel =
+                this.type && this.name
+                    ? container.labels[
+                          `wud.trigger.${this.type}.${this.name}.events`
+                      ]
+                    : undefined;
+            const typeLabel = this.type
+                ? container.labels[`wud.trigger.${this.type}.events`]
+                : undefined;
+            const genericLabel = container.labels['wud.trigger.events'];
+
+            const labelValue = specificLabel ?? typeLabel ?? genericLabel;
+            if (labelValue !== undefined) {
+                events = labelValue;
+            }
+        }
+
+        if (typeof events === 'string') {
+            events = events.split(',').map((e) => e.trim());
+        }
+        return events as string[];
+    }
+
+    async handleContainerUpdatePre(container: Container) {
+        if (!this.mustTrigger(container)) return;
+        if (!this.getSubscribedEvents(container).includes('pre')) return;
+        this.log.debug(`Handling pre-update event for ${container.name}`);
+        // Base logic for pre-update triggers can be added here or in overriding classes
+    }
+
+    async handleContainerUpdateSuccess(container: Container) {
+        if (!this.mustTrigger(container)) return;
+        if (!this.getSubscribedEvents(container).includes('success')) return;
+        this.log.debug(
+            `Handling successful update event for ${container.name}`,
+        );
+        // Base logic for success triggers can be added here or in overriding classes
+    }
+
+    async handleContainerUpdateFailure(container: Container) {
+        if (!this.mustTrigger(container)) return;
+        if (!this.getSubscribedEvents(container).includes('failure')) return;
+        this.log.debug(`Handling failed update event for ${container.name}`);
+        // Base logic for failure triggers can be added here or in overriding classes
+    }
+
     isTriggerIncludedOrExcluded(containerResult: Container, trigger: string) {
         const triggers = trigger
             .split(/\s*,\s*/)
@@ -351,22 +407,35 @@ class Trigger extends Component {
         await this.initTrigger();
         if (this.configuration.auto) {
             this.log.info(`Registering for auto execution`);
-            if (
-                this.configuration.mode &&
-                this.configuration.mode.toLowerCase() === 'simple'
-            ) {
-                event.registerContainerReport(async (containerReport) =>
-                    this.handleContainerReport(containerReport),
-                );
+            const configuredEvents = this.getSubscribedEvents();
+            if (configuredEvents.includes('available')) {
+                // To keep backward compatibility, simple and batch modes still check global 'available' event
+                if (
+                    this.configuration.mode &&
+                    this.configuration.mode.toLowerCase() === 'simple'
+                ) {
+                    event.registerContainerReport(async (containerReport) =>
+                        this.handleContainerReport(containerReport),
+                    );
+                }
+                if (
+                    this.configuration.mode &&
+                    this.configuration.mode.toLowerCase() === 'batch'
+                ) {
+                    event.registerContainerReports(async (containersReports) =>
+                        this.handleContainerReports(containersReports),
+                    );
+                }
             }
-            if (
-                this.configuration.mode &&
-                this.configuration.mode.toLowerCase() === 'batch'
-            ) {
-                event.registerContainerReports(async (containersReports) =>
-                    this.handleContainerReports(containersReports),
-                );
-            }
+            event.registerContainerUpdatePre(async (container) =>
+                this.handleContainerUpdatePre(container),
+            );
+            event.registerContainerUpdateSuccess(async (container) =>
+                this.handleContainerUpdateSuccess(container),
+            );
+            event.registerContainerUpdateFailure(async (container) =>
+                this.handleContainerUpdateFailure(container),
+            );
         } else {
             this.log.info(`Registering for manual execution`);
         }
@@ -430,6 +499,13 @@ class Trigger extends Component {
         const schema = this.getConfigurationSchema() as ObjectSchema;
         const schemaWithDefaultOptions = schema.append({
             auto: this.joi.bool().default(true),
+            events: this.joi
+                .alternatives()
+                .try(
+                    this.joi.string(),
+                    this.joi.array().items(this.joi.string()),
+                )
+                .default(['available']),
             threshold: this.joi
                 .string()
                 .insensitive()
@@ -461,6 +537,20 @@ class Trigger extends Component {
             batchtitle: this.joi
                 .string()
                 .default('${containers.length} updates available'),
+            successtitle: this.joi
+                .string()
+                .default('Update SUCCESS for ${container.name}'),
+            successbody: this.joi
+                .string()
+                .default(
+                    'Container ${container.name} has been successfully updated.',
+                ),
+            failuretitle: this.joi
+                .string()
+                .default('Update FAILED for ${container.name}'),
+            failurebody: this.joi
+                .string()
+                .default('Container ${container.name} update failed: ${error}'),
             rollbacktitle: this.joi
                 .string()
                 .default(Trigger.DEFAULT_ROLLBACK_TITLE),

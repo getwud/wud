@@ -746,6 +746,59 @@ describe('HookManager', () => {
             await HookManager.runHooks('pre', testContainer, [hook], context);
             expect(inspectCount).toBe(2);
         });
+        it('should run failure hooks properly', async () => {
+            const stream = new PassThrough();
+            mockExec.start.mockImplementation(async () => {
+                setImmediate(() => stream.end());
+                return stream;
+            });
+
+            const context: HookContext = {
+                triggerName: 'docker_local',
+                dockerApi: mockDockerApi,
+                log: mockLog,
+            };
+
+            const hook: Hook = {
+                phase: 'failure',
+                type: 'exec',
+                command: 'echo failed',
+            };
+
+            await HookManager.runFailureHooks(testContainer, [hook], context);
+
+            expect(mockDockerApi.getContainer).toHaveBeenCalledWith(
+                testContainer.id,
+            );
+            expect(mockExec.start).toHaveBeenCalled();
+        });
+
+        it('should run rollback hooks properly', async () => {
+            const stream = new PassThrough();
+            mockExec.start.mockImplementation(async () => {
+                setImmediate(() => stream.end());
+                return stream;
+            });
+
+            const context: HookContext = {
+                triggerName: 'docker_local',
+                dockerApi: mockDockerApi,
+                log: mockLog,
+            };
+
+            const hook: Hook = {
+                phase: 'rollback',
+                type: 'exec',
+                command: 'echo rollback',
+            };
+
+            await HookManager.runRollbackHooks(testContainer, [hook], context);
+
+            expect(mockDockerApi.getContainer).toHaveBeenCalledWith(
+                testContainer.id,
+            );
+            expect(mockExec.start).toHaveBeenCalled();
+        });
     });
 
     describe('executeTriggerHook (Type C)', () => {

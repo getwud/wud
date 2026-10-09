@@ -1,6 +1,10 @@
+- 🚀 [TRIGGER] Add lifecycle events and failure/rollback hooks for container updates (fixes #1008)
+
 ---
 title: Next (Unreleased)
 description: Unreleased changes and upcoming features in WUD (What's Up Docker?).
+- 🚀 [TRIGGER] Add lifecycle events and failure/rollback hooks for container updates (fixes #1008)
+
 ---
 
 # Next (Unreleased)
@@ -18,5 +22,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [UI] Fix Live Watch HUD completion under reverse proxies and unhandled watcher errors (fixes #1360)
 - 🚀 [TRIGGER] Add summary mode for Home Assistant MQTT discovery (fixes #1357)
 - 🐛 [TRIGGER] Prevent concurrent transactions and rollback archive deletion on the same compose project (fixes #1368)
+
+- 🚀 [TRIGGER] Add lifecycle events and failure/rollback hooks for container updates (fixes #1008)
 
 ---

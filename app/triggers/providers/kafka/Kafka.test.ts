@@ -26,6 +26,11 @@ const configurationValid = {
 
     batchtitle: '${containers.length} updates available',
     rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+    events: ['available'],
+    successtitle: 'Update SUCCESS for ${container.name}',
+    successbody: 'Container ${container.name} has been successfully updated.',
+    failuretitle: 'Update FAILED for ${container.name}',
+    failurebody: 'Container ${container.name} update failed: ${error}',
     rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
 };
 
@@ -39,6 +44,12 @@ test('validateConfiguration should return validated configuration when valid', a
     expect(validatedConfiguration).toStrictEqual({
         ...configurationValid,
         rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+        events: ['available'],
+        successtitle: 'Update SUCCESS for ${container.name}',
+        successbody:
+            'Container ${container.name} has been successfully updated.',
+        failuretitle: 'Update FAILED for ${container.name}',
+        failurebody: 'Container ${container.name} update failed: ${error}',
         rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
     });
 });
@@ -50,6 +61,12 @@ test('validateConfiguration should apply_default_configuration', async () => {
     expect(validatedConfiguration).toStrictEqual({
         ...configurationValid,
         rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
+        events: ['available'],
+        successtitle: 'Update SUCCESS for ${container.name}',
+        successbody:
+            'Container ${container.name} has been successfully updated.',
+        failuretitle: 'Update FAILED for ${container.name}',
+        failurebody: 'Container ${container.name} update failed: ${error}',
         rollbackbody: Trigger.DEFAULT_ROLLBACK_BODY,
     });
 });
