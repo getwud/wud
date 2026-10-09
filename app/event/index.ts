@@ -11,6 +11,9 @@ const WUD_CONTAINER_REMOVED = 'wud:container-removed';
 const WUD_CONTAINER_REPORT = 'wud:container-report';
 const WUD_CONTAINER_REPORTS = 'wud:container-reports';
 const WUD_CONTAINER_ROLLBACK = 'wud:container-rollback';
+const WUD_CONTAINER_UPDATE_PRE = 'wud:container-update-pre';
+const WUD_CONTAINER_UPDATE_SUCCESS = 'wud:container-update-success';
+const WUD_CONTAINER_UPDATE_FAILURE = 'wud:container-update-failure';
 
 // Watcher events
 const WUD_WATCH_START = 'wud:watch-start';
@@ -152,6 +155,30 @@ export function registerContainerRemoved(handler) {
     eventEmitter.on(WUD_CONTAINER_REMOVED, handler);
 }
 
+export function emitContainerUpdatePre(containerUpdatePre) {
+    eventEmitter.emit(WUD_CONTAINER_UPDATE_PRE, containerUpdatePre);
+}
+
+export function registerContainerUpdatePre(handler) {
+    eventEmitter.on(WUD_CONTAINER_UPDATE_PRE, handler);
+}
+
+export function emitContainerUpdateSuccess(containerUpdateSuccess) {
+    eventEmitter.emit(WUD_CONTAINER_UPDATE_SUCCESS, containerUpdateSuccess);
+}
+
+export function registerContainerUpdateSuccess(handler) {
+    eventEmitter.on(WUD_CONTAINER_UPDATE_SUCCESS, handler);
+}
+
+export function emitContainerUpdateFailure(containerUpdateFailure) {
+    eventEmitter.emit(WUD_CONTAINER_UPDATE_FAILURE, containerUpdateFailure);
+}
+
+export function registerContainerUpdateFailure(handler) {
+    eventEmitter.on(WUD_CONTAINER_UPDATE_FAILURE, handler);
+}
+
 export function emitWatcherStart(watcher) {
     eventEmitter.emit(WUD_WATCHER_START, watcher);
 }
@@ -210,6 +237,15 @@ export function unregisterContainerUpdated(handler) {
 }
 export function unregisterContainerRemoved(handler) {
     eventEmitter.off(WUD_CONTAINER_REMOVED, handler);
+}
+export function unregisterContainerUpdatePre(handler) {
+    eventEmitter.off(WUD_CONTAINER_UPDATE_PRE, handler);
+}
+export function unregisterContainerUpdateSuccess(handler) {
+    eventEmitter.off(WUD_CONTAINER_UPDATE_SUCCESS, handler);
+}
+export function unregisterContainerUpdateFailure(handler) {
+    eventEmitter.off(WUD_CONTAINER_UPDATE_FAILURE, handler);
 }
 export function unregisterWatcherStart(handler) {
     eventEmitter.off(WUD_WATCHER_START, handler);

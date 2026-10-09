@@ -7,7 +7,7 @@ import { getState } from '../../registry';
 
 export interface Hook {
     type: 'exec' | 'trigger';
-    phase: 'pre' | 'post';
+    phase: 'pre' | 'post' | 'failure' | 'rollback';
     command?: string;
     target?: string;
     trigger?: string;
@@ -22,7 +22,7 @@ export interface HookContext {
 
 export const hookSchema = Joi.object({
     type: Joi.string().valid('exec', 'trigger').required(),
-    phase: Joi.string().valid('pre', 'post').required(),
+    phase: Joi.string().valid('pre', 'post', 'failure', 'rollback').required(),
     command: Joi.string().when('type', {
         is: 'exec',
         then: Joi.required(),
@@ -60,8 +60,10 @@ export function parseContainerHooks(labels?: Record<string, string>): Hook[] {
             const hook = hookMap.get(index)!;
             if (prop === 'phase') {
                 const normalized = value.toLowerCase();
-                if (normalized === 'pre' || normalized === 'post') {
-                    hook.phase = normalized;
+                if (
+                    ['pre', 'post', 'failure', 'rollback'].includes(normalized)
+                ) {
+                    hook.phase = normalized as any;
                 }
             } else if (prop === 'type') {
                 const normalized = value.toLowerCase();
@@ -113,7 +115,7 @@ export function parseContainerHooks(labels?: Record<string, string>): Hook[] {
  * Get all hooks applicable for a given phase, merging trigger global hooks with container labels.
  */
 export function getHooksForPhase(
-    phase: 'pre' | 'post',
+    phase: 'pre' | 'post' | 'failure' | 'rollback',
     container: Container,
     globalHooks?: Hook[],
 ): Hook[] {
@@ -387,10 +389,32 @@ export class HookManager {
     }
 
     /**
+     * Run all failure hooks. Throws an Error if any hook fails.
+     */
+    static async runFailureHooks(
+        container: Container,
+        globalHooks: Hook[] | undefined,
+        context: HookContext,
+    ): Promise<void> {
+        return this.runHooks('failure', container, globalHooks, context);
+    }
+
+    /**
+     * Run all rollback hooks. Throws an Error if any hook fails.
+     */
+    static async runRollbackHooks(
+        container: Container,
+        globalHooks: Hook[] | undefined,
+        context: HookContext,
+    ): Promise<void> {
+        return this.runHooks('rollback', container, globalHooks, context);
+    }
+
+    /**
      * Run hooks for a specific phase in sequential order.
      */
     static async runHooks(
-        phase: 'pre' | 'post',
+        phase: 'pre' | 'post' | 'failure' | 'rollback',
         container: Container,
         globalHooks: Hook[] | undefined,
         context: HookContext,

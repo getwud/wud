@@ -6,6 +6,7 @@ import Docker from '../docker/Docker';
 import { getState } from '../../../registry';
 import { fullName } from '../../../model/container';
 import { HookManager } from '../../hooks/HookManager';
+import * as event from '../../../event';
 import { performProjectTransaction } from './rollback';
 import { projectMutex } from './mutex';
 
@@ -420,40 +421,123 @@ class Dockercompose extends Docker {
                 return;
             }
 
-            // Dry-run?
-            if (this.configuration.dryrun) {
-                this.log.info(
-                    `Do not replace existing docker-compose file ${composeFile} (dry-run mode enabled)`,
-                );
-            } else if (
-                containersToUpdate.some(
-                    (container) => this.resolveRollback(container).enabled,
-                )
-            ) {
-                // Quality Gate Pre-update hooks for all containers in this compose stack
+            try {
                 for (const container of containersToUpdate) {
-                    const watcher = this.getWatcher(container);
-                    await HookManager.runPreHooks(
-                        container,
-                        this.configuration.hooks,
-                        {
-                            triggerName: this.name,
-                            dockerApi: watcher?.dockerApi,
-                            log: this.log,
-                        },
+                    event.emitContainerUpdatePre(container);
+                }
+
+                // Dry-run?
+                if (this.configuration.dryrun) {
+                    this.log.info(
+                        `Do not replace existing docker-compose file ${composeFile} (dry-run mode enabled)`,
+                    );
+                } else if (
+                    containersToUpdate.some(
+                        (container) => this.resolveRollback(container).enabled,
+                    )
+                ) {
+                    // Quality Gate Pre-update hooks for all containers in this compose stack
+                    for (const container of containersToUpdate) {
+                        const watcher = this.getWatcher(container);
+                        await HookManager.runPreHooks(
+                            container,
+                            this.configuration.hooks,
+                            {
+                                triggerName: this.name,
+                                dockerApi: watcher?.dockerApi,
+                                log: this.log,
+                            },
+                        );
+                    }
+
+                    // CLI-free project transaction with whole-project revert.
+                    const committed = await performProjectTransaction(
+                        this,
+                        composeFile,
+                        containersToUpdate,
+                        currentVersionToUpdateVersionArray,
+                    );
+
+                    // Post-update or rollback hooks for all containers in this compose stack
+                    if (committed) {
+                        for (const container of containersToUpdate) {
+                            const watcher = this.getWatcher(container);
+                            await HookManager.runPostHooks(
+                                container,
+                                this.configuration.hooks,
+                                {
+                                    triggerName: this.name,
+                                    dockerApi: watcher?.dockerApi,
+                                    log: this.log,
+                                },
+                            );
+                            event.emitContainerUpdateSuccess(container);
+                        }
+                    } else {
+                        // Rolled back
+                        for (const container of containersToUpdate) {
+                            const watcher = this.getWatcher(container);
+                            await HookManager.runRollbackHooks(
+                                container,
+                                this.configuration.hooks,
+                                {
+                                    triggerName: this.name,
+                                    dockerApi: watcher?.dockerApi,
+                                    log: this.log,
+                                },
+                            );
+                        }
+                    }
+                    return;
+                } else {
+                    // Quality Gate Pre-update hooks for all containers in this compose stack
+                    for (const container of containersToUpdate) {
+                        const watcher = this.getWatcher(container);
+                        await HookManager.runPreHooks(
+                            container,
+                            this.configuration.hooks,
+                            {
+                                triggerName: this.name,
+                                dockerApi: watcher?.dockerApi,
+                                log: this.log,
+                            },
+                        );
+                    }
+
+                    // Backup docker-compose file
+                    if (this.configuration.backup) {
+                        const backupFile = `${composeFile}.back`;
+                        await this.backup(composeFile, backupFile);
+                    }
+
+                    // Read the compose file as a string
+                    const composeFileStr = (
+                        await this.getComposeFile(composeFile)
+                    ).toString();
+
+                    // Replace all versions targeting specific services in YAML
+                    const updatedComposeFileStr = this.updateComposeYaml(
+                        composeFileStr,
+                        currentVersionToUpdateVersionArray,
+                    );
+
+                    // Write docker-compose.yml file back
+                    await this.writeComposeFile(
+                        composeFile,
+                        updatedComposeFileStr,
                     );
                 }
 
-                // CLI-free project transaction with whole-project revert.
-                const committed = await performProjectTransaction(
-                    this,
-                    composeFile,
-                    containersToUpdate,
-                    currentVersionToUpdateVersionArray,
+                // Update all containers
+                // (super.notify will take care of the dry-run mode for each container as well)
+                await Promise.all(
+                    containersToUpdate.map((container) =>
+                        super.trigger(container, { runHooks: false }),
+                    ),
                 );
 
                 // Post-update hooks for all containers in this compose stack
-                if (committed) {
+                if (!this.configuration.dryrun) {
                     for (const container of containersToUpdate) {
                         const watcher = this.getWatcher(container);
                         await HookManager.runPostHooks(
@@ -465,67 +549,32 @@ class Dockercompose extends Docker {
                                 log: this.log,
                             },
                         );
+                        event.emitContainerUpdateSuccess(container);
                     }
                 }
-                return;
-            } else {
-                // Quality Gate Pre-update hooks for all containers in this compose stack
+            } catch (e: any) {
+                this.log.error(`Compose update failed: ${e.message}`);
                 for (const container of containersToUpdate) {
+                    container.error = e.message;
                     const watcher = this.getWatcher(container);
-                    await HookManager.runPreHooks(
-                        container,
-                        this.configuration.hooks,
-                        {
-                            triggerName: this.name,
-                            dockerApi: watcher?.dockerApi,
-                            log: this.log,
-                        },
-                    );
+                    try {
+                        await HookManager.runFailureHooks(
+                            container,
+                            this.configuration.hooks,
+                            {
+                                triggerName: this.name,
+                                dockerApi: watcher?.dockerApi,
+                                log: this.log,
+                            },
+                        );
+                    } catch (hookErr: any) {
+                        this.log.error(
+                            `Failure hooks failed for ${container.name}: ${hookErr.message}`,
+                        );
+                    }
+                    event.emitContainerUpdateFailure(container);
                 }
-
-                // Backup docker-compose file
-                if (this.configuration.backup) {
-                    const backupFile = `${composeFile}.back`;
-                    await this.backup(composeFile, backupFile);
-                }
-
-                // Read the compose file as a string
-                const composeFileStr = (
-                    await this.getComposeFile(composeFile)
-                ).toString();
-
-                // Replace all versions targeting specific services in YAML
-                const updatedComposeFileStr = this.updateComposeYaml(
-                    composeFileStr,
-                    currentVersionToUpdateVersionArray,
-                );
-
-                // Write docker-compose.yml file back
-                await this.writeComposeFile(composeFile, updatedComposeFileStr);
-            }
-
-            // Update all containers
-            // (super.notify will take care of the dry-run mode for each container as well)
-            await Promise.all(
-                containersToUpdate.map((container) =>
-                    super.trigger(container, { runHooks: false }),
-                ),
-            );
-
-            // Post-update hooks for all containers in this compose stack
-            if (!this.configuration.dryrun) {
-                for (const container of containersToUpdate) {
-                    const watcher = this.getWatcher(container);
-                    await HookManager.runPostHooks(
-                        container,
-                        this.configuration.hooks,
-                        {
-                            triggerName: this.name,
-                            dockerApi: watcher?.dockerApi,
-                            log: this.log,
-                        },
-                    );
-                }
+                throw e;
             }
         });
     }
