@@ -46,6 +46,7 @@ const sampleContainers = [
 beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
+    container.testable_reset();
     store.getContainers = jest.fn(() => sampleContainers);
 });
 
@@ -67,7 +68,7 @@ test('gauge must be populated on init when containers are in the store', async (
     spySet.mockClear();
 
     onAdded(sampleContainers[0]);
-    jest.advanceTimersByTime(5000);
+    container.populateGauge();
 
     expect(spySet).toHaveBeenCalledWith(
         {
@@ -114,7 +115,7 @@ test('gauge must accept snoozed container properties without warning', async () 
     spySet.mockClear();
 
     onAdded(snoozedContainer);
-    jest.advanceTimersByTime(5000);
+    container.populateGauge();
 
     expect(spyLog).not.toHaveBeenCalled();
     expect(spySet).toHaveBeenCalledWith(
@@ -158,7 +159,7 @@ test('gauge must accept a container carrying a remote version and build date', a
     spyLog.mockClear();
 
     onAdded(withRemoteConfig);
-    jest.advanceTimersByTime(5000);
+    container.populateGauge();
 
     expect(spyLog).not.toHaveBeenCalled();
     expect(spySet).toHaveBeenCalledWith(
@@ -184,7 +185,7 @@ test("gauge must warn when data don't match expected labels", async () => {
     expect(spyLog).toHaveBeenCalled();
 });
 
-test('interval tick should skip full rebuild when metrics are clean', async () => {
+test('collect should skip full rebuild when metrics are clean', async () => {
     event.registerContainerAdded.mockImplementation(() => jest.fn());
     event.registerContainerUpdated.mockImplementation(() => jest.fn());
     event.registerContainerRemoved.mockImplementation(() => jest.fn());
@@ -195,13 +196,13 @@ test('interval tick should skip full rebuild when metrics are clean', async () =
 
     spyReset.mockClear();
     spySet.mockClear();
-    jest.advanceTimersByTime(5000);
+    container.populateGauge();
 
     expect(spyReset).not.toHaveBeenCalled();
     expect(spySet).not.toHaveBeenCalled();
 });
 
-test('container event should mark metrics dirty and rebuild on next interval', async () => {
+test('container event should mark metrics dirty and rebuild on next collect', async () => {
     let onAdded;
     event.registerContainerAdded.mockImplementation((handler) => {
         onAdded = handler;
@@ -215,7 +216,7 @@ test('container event should mark metrics dirty and rebuild on next interval', a
     spySet.mockClear();
 
     onAdded(sampleContainers[0]);
-    jest.advanceTimersByTime(5000);
+    container.populateGauge();
 
     expect(spySet).toHaveBeenCalledTimes(1);
 });
@@ -254,7 +255,7 @@ test('gauge should register container with delay and cool-down labels without wa
     spySet.mockClear();
 
     onAdded(coolContainer);
-    jest.advanceTimersByTime(5000);
+    container.populateGauge();
 
     expect(spyWarn).not.toHaveBeenCalled();
     expect(spySet).toHaveBeenCalledWith(
