@@ -66,11 +66,6 @@
               {{ container.image.tag.value }}
             </v-chip>
           </span>
-        </div>
-        
-        <v-spacer />
-        
-        <div class="d-flex align-center" style="gap: 8px">
           <span v-if="smAndUp && container.updateAvailable" class="d-flex align-center" style="gap: 4px">
             <v-icon>mdi-arrow-right</v-icon>
             <v-tooltip bottom>
@@ -92,7 +87,11 @@
               <span class="text-caption">Copy to clipboard</span>
             </v-tooltip>
           </span>
-
+        </div>
+        
+        <v-spacer />
+        
+        <div class="d-flex align-center" style="gap: 8px">
           <span
             v-if="smAndUp && oldestFirst"
             class="text-caption"

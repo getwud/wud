@@ -487,7 +487,7 @@ test('clone should clone an existing container spec', async () => {
             a: 'a',
             b: 'b',
         },
-        Image: 'test/test:2.0.0',
+        Image: 'docker.io/test/test:2.0.0',
         configA: 'a',
         configB: 'b',
         name: 'test',
@@ -814,7 +814,7 @@ describe('cloneContainer with image reconciliation', () => {
         );
 
         expect(clone.name).toEqual('my-app');
-        expect(clone.Image).toEqual('my-app:2.0.0');
+        expect(clone.Image).toEqual('docker.io/library/my-app:2.0.0');
         expect(clone.Env).toEqual([
             'PATH=/usr/local/bin:/bin',
             'VERSION=2.0.0',
@@ -1171,6 +1171,125 @@ test('trigger should skip and return without error when updateAvailable is false
 
     expect(watcherSpy).not.toHaveBeenCalled();
     watcherSpy.mockRestore();
+});
+
+test('trigger should skip and return when newTag is null or not resolvable (fixes #1007)', async () => {
+    const watcherSpy = jest.spyOn(docker, 'getWatcher');
+    await expect(
+        docker.trigger({
+            updateAvailable: true,
+            watcher: 'test',
+            id: '123456789',
+            name: 'container-name',
+            image: {
+                name: 'test/test',
+                tag: { value: '1.0.0' },
+                registry: {
+                    name: 'hub',
+                    url: 'my-registry',
+                },
+            },
+            result: {
+                tag: null,
+            },
+            updateKind: {
+                kind: 'tag',
+                remoteValue: null,
+            },
+        }),
+    ).resolves.toBeUndefined();
+
+    expect(watcherSpy).not.toHaveBeenCalled();
+    watcherSpy.mockRestore();
+});
+
+test('trigger should skip when updateKind is unknown and remote tag equals current tag (fixes #1007)', async () => {
+    const watcherSpy = jest.spyOn(docker, 'getWatcher');
+    await expect(
+        docker.trigger({
+            updateAvailable: true,
+            watcher: 'test',
+            id: '123456789',
+            name: 'container-name',
+            image: {
+                name: 'test/test',
+                tag: { value: '1.0.0' },
+                registry: {
+                    name: 'hub',
+                    url: 'my-registry',
+                },
+            },
+            result: {
+                tag: '1.0.0',
+            },
+            updateKind: {
+                kind: 'unknown',
+            },
+        }),
+    ).resolves.toBeUndefined();
+
+    expect(watcherSpy).not.toHaveBeenCalled();
+    watcherSpy.mockRestore();
+});
+
+test('trigger should skip when container is already running the latest image (fixes #1007)', async () => {
+    const createContainer = jest.fn();
+    const dockerApi = {
+        getContainer: jest.fn(() => ({
+            inspect: () =>
+                Promise.resolve({
+                    Name: '/container-name',
+                    Id: '123456798',
+                    Image: 'sha256:same-image-hash',
+                    State: { Running: true },
+                }),
+            stop: jest.fn(),
+            remove: jest.fn(),
+            start: jest.fn(),
+        })),
+        createContainer,
+        pull: jest.fn(() => Promise.resolve()),
+        getImage: jest.fn((imageRef) => ({
+            inspect: () =>
+                Promise.resolve({
+                    Id: 'sha256:same-image-hash',
+                }),
+        })),
+        modem: {
+            followProgress: (pullStream: any, res: any) => res(),
+        },
+    };
+
+    const watcherSpy = jest.spyOn(docker, 'getWatcher').mockReturnValue({
+        dockerApi,
+    } as any);
+
+    await expect(
+        docker.trigger({
+            updateAvailable: true,
+            watcher: 'test',
+            id: '123456789',
+            name: 'container-name',
+            image: {
+                name: 'test/test',
+                tag: { value: '1.0.0' },
+                registry: {
+                    name: 'hub',
+                    url: 'my-registry',
+                },
+            },
+            result: {
+                tag: '2.0.0',
+            },
+            updateKind: {
+                kind: 'tag',
+                remoteValue: '2.0.0',
+            },
+        }),
+    ).resolves.toBeUndefined();
+
+    watcherSpy.mockRestore();
+    expect(createContainer).not.toHaveBeenCalled();
 });
 
 test('trigger should throw when watcher is not found', async () => {
@@ -1794,5 +1913,233 @@ describe('performUpdate rollback branch', () => {
             'my-registry/test/test:1.2.3',
         );
         expect(currentContainer.remove).toHaveBeenCalled();
+    });
+});
+
+describe('Docker 29 containerd store & fully qualified image (#1081)', () => {
+    describe('getFullyQualifiedImage', () => {
+        test('should return empty string for empty/undefined input', () => {
+            expect(docker.getFullyQualifiedImage(undefined)).toEqual('');
+            expect(docker.getFullyQualifiedImage('')).toEqual('');
+        });
+
+        test('should qualify official Docker Hub images without tag', () => {
+            expect(docker.getFullyQualifiedImage('nginx')).toEqual(
+                'docker.io/library/nginx',
+            );
+        });
+
+        test('should qualify official Docker Hub images with tag', () => {
+            expect(docker.getFullyQualifiedImage('nginx:1.31.2')).toEqual(
+                'docker.io/library/nginx:1.31.2',
+            );
+        });
+
+        test('should qualify official Docker Hub images with library prefix', () => {
+            expect(
+                docker.getFullyQualifiedImage('library/nginx:1.31.2'),
+            ).toEqual('docker.io/library/nginx:1.31.2');
+        });
+
+        test('should qualify user/org Docker Hub images', () => {
+            expect(docker.getFullyQualifiedImage('bitnami/redis:7.0')).toEqual(
+                'docker.io/bitnami/redis:7.0',
+            );
+        });
+
+        test('should qualify docker.io official images missing library prefix', () => {
+            expect(
+                docker.getFullyQualifiedImage('docker.io/nginx:1.31.2'),
+            ).toEqual('docker.io/library/nginx:1.31.2');
+        });
+
+        test('should preserve already fully qualified docker.io images', () => {
+            expect(
+                docker.getFullyQualifiedImage('docker.io/library/nginx:1.31.2'),
+            ).toEqual('docker.io/library/nginx:1.31.2');
+            expect(
+                docker.getFullyQualifiedImage('docker.io/bitnami/redis:7.0'),
+            ).toEqual('docker.io/bitnami/redis:7.0');
+        });
+
+        test('should preserve third-party registries', () => {
+            expect(
+                docker.getFullyQualifiedImage('ghcr.io/owner/repo:1.0.0'),
+            ).toEqual('ghcr.io/owner/repo:1.0.0');
+            expect(
+                docker.getFullyQualifiedImage('quay.io/coreos/etcd:v3.5'),
+            ).toEqual('quay.io/coreos/etcd:v3.5');
+        });
+
+        test('should preserve registry domain with custom port', () => {
+            expect(
+                docker.getFullyQualifiedImage('localhost:5000/my-image:v1'),
+            ).toEqual('localhost:5000/my-image:v1');
+            expect(
+                docker.getFullyQualifiedImage(
+                    'registry.internal:5000/team/app:1.0',
+                ),
+            ).toEqual('registry.internal:5000/team/app:1.0');
+        });
+
+        test('should qualify official images pinned by digest', () => {
+            expect(
+                docker.getFullyQualifiedImage(
+                    'nginx@sha256:45b23d064c0fc53ff7b79ac61ac134e3f4f7ac9b284debc1aaf80d3f539f66fa',
+                ),
+            ).toEqual(
+                'docker.io/library/nginx@sha256:45b23d064c0fc53ff7b79ac61ac134e3f4f7ac9b284debc1aaf80d3f539f66fa',
+            );
+        });
+
+        test('should qualify user images pinned by digest', () => {
+            expect(
+                docker.getFullyQualifiedImage(
+                    'bitnami/redis@sha256:45b23d064c0fc53ff7b79ac61ac134e3f4f7ac9b284debc1aaf80d3f539f66fa',
+                ),
+            ).toEqual(
+                'docker.io/bitnami/redis@sha256:45b23d064c0fc53ff7b79ac61ac134e3f4f7ac9b284debc1aaf80d3f539f66fa',
+            );
+        });
+
+        test('should adopt matching RepoTag from imageSpec if available', () => {
+            const imageSpec = {
+                RepoTags: [
+                    'docker.io/library/nginx:1.31.2',
+                    'docker.io/library/nginx:latest',
+                ],
+            } as any;
+            expect(
+                docker.getFullyQualifiedImage('nginx:1.31.2', imageSpec),
+            ).toEqual('docker.io/library/nginx:1.31.2');
+        });
+
+        test('should adopt exact RepoTag from imageSpec when identical', () => {
+            const imageSpec = {
+                RepoTags: ['custom-registry.io/app:v2'],
+            } as any;
+            expect(
+                docker.getFullyQualifiedImage(
+                    'custom-registry.io/app:v2',
+                    imageSpec,
+                ),
+            ).toEqual('custom-registry.io/app:v2');
+        });
+    });
+
+    describe('cloneContainer with Docker 29 containerd store', () => {
+        test('should set Image to fully qualified name when recreating container with unqualified image (#1081)', () => {
+            const base = {
+                Name: '/local_nginx',
+                Id: 'abc123456789',
+                Config: {
+                    Image: 'nginx:1.31.0',
+                    Env: ['FOO=bar'],
+                },
+                HostConfig: {},
+                NetworkSettings: { Networks: {} },
+            } as any;
+
+            const clone = docker.cloneContainer(base, 'nginx:1.31.2');
+            expect(clone.Image).toEqual('docker.io/library/nginx:1.31.2');
+        });
+
+        test('should use RepoTag from newImageSpec when recreating container (#1081)', () => {
+            const base = {
+                Name: '/local_nginx',
+                Id: 'abc123456789',
+                Config: { Image: 'nginx:1.31.0' },
+                HostConfig: {},
+                NetworkSettings: { Networks: {} },
+            } as any;
+
+            const newImageSpec = {
+                RepoTags: ['docker.io/library/nginx:1.31.2'],
+                Config: {},
+            } as any;
+
+            const clone = docker.cloneContainer(
+                base,
+                'nginx:1.31.2',
+                undefined,
+                newImageSpec,
+            );
+            expect(clone.Image).toEqual('docker.io/library/nginx:1.31.2');
+        });
+    });
+
+    describe('createContainer with Docker 29 containerd store', () => {
+        test('should ensure Image is fully qualified when sent to dockerApi.createContainer (#1081)', async () => {
+            let capturedOptions: any;
+            const mockDockerApi = {
+                createContainer: jest.fn((opts) => {
+                    capturedOptions = opts;
+                    return Promise.resolve({ id: 'new-container-id' });
+                }),
+            };
+
+            await docker.createContainer(
+                mockDockerApi as any,
+                {
+                    name: 'local_nginx',
+                    Image: 'nginx:1.31.2',
+                },
+                'local_nginx',
+                log,
+            );
+
+            expect(mockDockerApi.createContainer).toHaveBeenCalledTimes(1);
+            expect(capturedOptions.Image).toEqual(
+                'docker.io/library/nginx:1.31.2',
+            );
+        });
+    });
+
+    describe('inspectImage fallback on Docker 29', () => {
+        test('should fall back to fully qualified ref when unqualified ref fails with not found (#1081)', async () => {
+            const mockInspect = {
+                Id: 'sha256:pulled123',
+                RepoTags: ['docker.io/library/nginx:1.31.2'],
+            };
+            const mockDockerApi = {
+                getImage: jest.fn((ref) => {
+                    if (ref === 'nginx:1.31.2') {
+                        return {
+                            inspect: jest.fn(() =>
+                                Promise.reject(
+                                    new Error(
+                                        '(HTTP code 404) no such image: nginx:1.31.2',
+                                    ),
+                                ),
+                            ),
+                        };
+                    }
+                    if (ref === 'docker.io/library/nginx:1.31.2') {
+                        return {
+                            inspect: jest.fn(() =>
+                                Promise.resolve(mockInspect),
+                            ),
+                        };
+                    }
+                    return {
+                        inspect: jest.fn(() =>
+                            Promise.reject(new Error('not found')),
+                        ),
+                    };
+                }),
+            };
+
+            const result = await docker.inspectImage(
+                mockDockerApi as any,
+                'nginx:1.31.2',
+                log,
+            );
+
+            expect(result).toEqual(mockInspect);
+            expect(mockDockerApi.getImage).toHaveBeenCalledWith('nginx:1.31.2');
+            expect(mockDockerApi.getImage).toHaveBeenCalledWith(
+                'docker.io/library/nginx:1.31.2',
+            );
+        });
     });
 });

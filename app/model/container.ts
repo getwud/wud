@@ -306,15 +306,21 @@ function isCandidateUpdateAvailable(container: Container): boolean {
 
     // Compare tags otherwise
     let updateAvailable = false;
-    const localTag = transformTag(
-        container.transformTags,
-        container.image.tag.value,
-    );
-    const remoteTag = transformTag(
-        container.transformTags,
-        container.result.tag,
-    );
-    updateAvailable = localTag !== remoteTag;
+    if (
+        container.result.tag !== undefined &&
+        container.result.tag !== null &&
+        container.result.tag !== ''
+    ) {
+        const localTag = transformTag(
+            container.transformTags,
+            container.image.tag.value,
+        );
+        const remoteTag = transformTag(
+            container.transformTags,
+            container.result.tag,
+        );
+        updateAvailable = localTag !== remoteTag;
+    }
 
     // Fallback to image created date (especially for legacy v1 manifests)
     if (
@@ -435,7 +441,12 @@ function addUpdateKindProperty(container: Container) {
                 container.result !== undefined &&
                 container.updateAvailable
             ) {
-                if (container.image.tag.value !== container.result.tag) {
+                if (
+                    container.result.tag !== undefined &&
+                    container.result.tag !== null &&
+                    container.result.tag !== '' &&
+                    container.image.tag.value !== container.result.tag
+                ) {
                     updateKind.kind = 'tag';
                     let semverDiffWud: ContainerUpdateKind['semverDiff'] =
                         'unknown';

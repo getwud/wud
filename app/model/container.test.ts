@@ -178,6 +178,36 @@ test('model should not flag updateAvailable when tag is equal', async () => {
     expect(containerValidated.updateAvailable).toBeFalsy();
 });
 
+test('model should not flag updateAvailable when result tag is not defined or empty (fixes #1007)', async () => {
+    const containerValidated = container.validate({
+        id: 'container-123456789',
+        name: 'test',
+        watcher: 'test',
+        image: {
+            id: 'image-123456789',
+            registry: {
+                name: 'hub',
+                url: 'https://hub',
+            },
+            name: 'organization/image',
+            tag: {
+                value: '1.0.0',
+                semver: true,
+            },
+            digest: {
+                watch: false,
+                repo: undefined,
+            },
+            architecture: 'arch',
+            os: 'os',
+            created: '2021-06-12T05:33:38.440Z',
+        },
+        result: {},
+    });
+    expect(containerValidated.updateAvailable).toBeFalsy();
+    expect(containerValidated.updateKind.kind).toBe('unknown');
+});
+
 test('model should flag updateAvailable when digest is different', async () => {
     const containerValidated = container.validate({
         id: 'container-123456789',
