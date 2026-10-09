@@ -1000,6 +1000,8 @@ describe('discovery_entities: summary', () => {
                 icon: 'mdi:package-up',
                 state_topic: 'topic/update_count',
                 json_attributes_topic: 'topic/updates',
+                json_attributes_template:
+                    "{{ {'updates': value_json} | tojson }}",
             }),
             { retain: true },
         );

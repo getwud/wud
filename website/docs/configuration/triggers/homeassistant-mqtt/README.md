@@ -116,7 +116,7 @@ To avoid this entity explosion while still getting full visibility into availabl
   - `link`: Release notes / repository link (if available)
 - **Single Summary Sensor (`sensor.wud_updates`)**: Discovers a single sensor with:
   - **State**: Total count of pending updates (`{topic}/update_count`).
-  - **Attributes (`json_attributes_topic`)**: The full array from `{topic}/updates`.
+  - **Attributes (`json_attributes_topic`)**: The list of pending updates under the `updates` attribute (e.g. `state_attr('sensor.wud_updates', 'updates')`).
 - **Global Sensors Kept**: The global connection status (`binary_sensor.wud_connection_status`), total container count (`sensor.wud_total_count`), total update count (`sensor.wud_total_update_count`), and update status (`binary_sensor.wud_total_update_status`) continue to be discovered and updated.
 - **Skipped & Cleaned Up Entities**: Per-container `update` entities and per-watcher devices/sensors are omitted. If switching from `all` to `summary` mode, their discovery topics are automatically deleted.
 

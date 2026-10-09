@@ -393,6 +393,8 @@ class Hass {
                     default_entity_id: `sensor.${this.configuration.hass.deviceid}_updates`,
                     state_topic: `${this.configuration.topic}/update_count`,
                     json_attributes_topic: `${this.configuration.topic}/updates`,
+                    json_attributes_template:
+                        "{{ {'updates': value_json} | tojson }}",
                 },
             },
             watcherTotalCount: {
