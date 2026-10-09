@@ -10,6 +10,7 @@ import {
 
 let gaugeContainer;
 let metricsDirty = true;
+let listenersRegistered = false;
 
 /**
  * Populate gauge.
@@ -45,9 +46,7 @@ export function populateGauge() {
  */
 export function init() {
     // Replace gauge if init is called more than once
-    if (gaugeContainer) {
-        register.removeSingleMetric(gaugeContainer.name);
-    }
+    register.removeSingleMetric('wud_containers');
     gaugeContainer = new Gauge({
         name: 'wud_containers',
         help: 'The watched containers',
@@ -102,18 +101,27 @@ export function init() {
             'watcher',
         ],
     });
-    log.debug('Start container metrics interval');
+    log.debug('Init container metrics');
     metricsDirty = true;
-    registerContainerAdded(() => {
-        metricsDirty = true;
-    });
-    registerContainerUpdated(() => {
-        metricsDirty = true;
-    });
-    registerContainerRemoved(() => {
-        metricsDirty = true;
-    });
-    setInterval(populateGauge, 5000);
+    if (!listenersRegistered) {
+        registerContainerAdded(() => {
+            metricsDirty = true;
+        });
+        registerContainerUpdated(() => {
+            metricsDirty = true;
+        });
+        registerContainerRemoved(() => {
+            metricsDirty = true;
+        });
+        listenersRegistered = true;
+    }
     populateGauge();
     return gaugeContainer;
+}
+
+export function testable_reset() {
+    metricsDirty = true;
+    listenersRegistered = false;
+    register.removeSingleMetric('wud_containers');
+    gaugeContainer = undefined;
 }
