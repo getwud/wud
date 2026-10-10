@@ -98,6 +98,28 @@ To keep Home Assistant devices organized and clean:
 When upgrading to this version, if the legacy monolithic **wud** device already exists in Home Assistant, it is recommended to delete it from the Home Assistant UI (**Settings > Devices & services > MQTT > wud device > Delete**). Home Assistant will then cleanly rediscover the new per-watcher devices (`wud_<watcher>`) alongside the global `wud` device without orphan entities or duplicates.
 :::
 
+### 📋 Summary Mode (Lite Integration)
+
+On larger setups with many containers or watchers, exposing individual Home Assistant `update` entities can flood the **Settings > Updates** panel, entity registry, and recorder.
+
+To avoid this entity explosion while still getting full visibility into available updates, set `WUD_TRIGGER_MQTT_{trigger_name}_HASS_DISCOVERY_ENTITIES=summary`:
+
+- **Summary topic (`{topic}/updates`)**: Publishes a retained JSON array of all containers that currently have an update available. If no updates are pending, publishes an empty array (`[]`). Each item includes:
+  - `name`: Container name
+  - `displayName`: Container display name (falls back to name)
+  - `watcher`: Watcher name
+  - `stack`: Compose project / stack name (if known)
+  - `kind`: Update kind (`tag` or `digest`)
+  - `localValue`: Currently deployed tag or digest
+  - `remoteValue`: Newly available tag or digest
+  - `semverDiff`: SemVer change type (`major`, `minor`, `patch`, `prerelease`, if applicable)
+  - `link`: Release notes / repository link (if available)
+- **Single Summary Sensor (`sensor.wud_updates`)**: Discovers a single sensor with:
+  - **State**: Total count of pending updates (`{topic}/update_count`).
+  - **Attributes (`json_attributes_topic`)**: The list of pending updates under the `updates` attribute (e.g. `state_attr('sensor.wud_updates', 'updates')`).
+- **Global Sensors Kept**: The global connection status (`binary_sensor.wud_connection_status`), total container count (`sensor.wud_total_count`), total update count (`sensor.wud_total_update_count`), and update status (`binary_sensor.wud_total_update_status`) continue to be discovered and updated.
+- **Skipped & Cleaned Up Entities**: Per-container `update` entities and per-watcher devices/sensors are omitted. If switching from `all` to `summary` mode, their discovery topics are automatically deleted.
+
 ### 🔐 MQTT Permissions & Broker ACLs
 
 When using an MQTT broker with Access Control Lists (ACLs) enabled (e.g. Mosquitto):
@@ -126,8 +148,16 @@ Here are the variables specifically relevant to Home Assistant:
     name="WUD_TRIGGER_MQTT_{trigger_name}_HASS_DISCOVERY"
     required={false}
     type="boolean"
-    defaultValue="false">
-    Enable Home Assistant MQTT Auto-Discovery
+    defaultValue="true (when HASS_ENABLED=true)">
+    Enable Home Assistant MQTT Auto-Discovery. Defaults to <code>true</code> when <code>HASS_ENABLED=true</code> (<code>false</code> when <code>HASS_ENABLED=false</code>).
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_MQTT_{trigger_name}_HASS_DISCOVERY_ENTITIES"
+    required={false}
+    type="string"
+    defaultValue="all">
+    Discovery entities mode (<code>all</code> or <code>summary</code>). In <code>all</code> mode (default), discovers individual container update entities and per-watcher devices/sensors. In <code>summary</code> mode, discovers a single summary sensor (<code>sensor.wud_updates</code>) with pending updates list in attributes, plus global counts/status.
   </ConfigOption>
 
   <ConfigOption

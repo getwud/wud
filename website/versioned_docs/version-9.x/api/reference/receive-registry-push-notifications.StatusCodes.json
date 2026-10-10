@@ -1,0 +1,1 @@
+{"responses":{"202":{"description":"Hints accepted for asynchronous checking"},"400":{"description":"Malformed notification"},"401":{"description":"Invalid receiver bearer token"},"404":{"description":"Registry webhook not configured or registry unknown"},"413":{"description":"Payload exceeds 256 KiB"},"429":{"description":"Receiver queue is full"}}}

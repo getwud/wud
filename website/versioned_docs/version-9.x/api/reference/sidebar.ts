@@ -268,6 +268,18 @@ const sidebar: SidebarsConfig = {
         },
       ],
     },
+    {
+      type: "category",
+      label: "UNTAGGED",
+      items: [
+        {
+          type: "doc",
+          id: "api/reference/receive-registry-push-notifications",
+          label: "Receive registry push notifications",
+          className: "api-method post",
+        },
+      ],
+    },
   ],
 };
 

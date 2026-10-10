@@ -1,0 +1,1 @@
+{"title":"Body","body":{"required":true,"content":{"application/vnd.docker.distribution.events.v2+json":{"schema":{"type":"object","required":["events"],"properties":{"events":{"type":"array","maxItems":100,"items":{"type":"object"}}}}}}}}

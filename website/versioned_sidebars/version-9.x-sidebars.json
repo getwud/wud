@@ -161,6 +161,11 @@
   "registriesSidebar": [
     {
       "type": "doc",
+      "id": "configuration/registries/webhooks",
+      "label": "Registry Webhooks"
+    },
+    {
+      "type": "doc",
       "id": "configuration/registries/README",
       "label": "Overview & Zero-Config"
     },
@@ -749,6 +754,18 @@
           "id": "api/reference/get-events",
           "label": "Subscribe to Server-Sent Events (SSE)",
           "className": "api-method get"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "UNTAGGED",
+      "items": [
+        {
+          "type": "doc",
+          "id": "api/reference/receive-registry-push-notifications",
+          "label": "Receive registry push notifications",
+          "className": "api-method post"
         }
       ]
     }

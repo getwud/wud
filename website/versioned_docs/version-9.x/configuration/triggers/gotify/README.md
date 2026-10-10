@@ -44,6 +44,14 @@ import TabItem from '@theme/TabItem';
     supported="Integer >= `0`">
     Gotify notification priority level (0–10)
   </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_GOTIFY_{trigger_name}_EXTRAS"
+    required={false}
+    type="json"
+    supported="JSON object or string">
+    Gotify extra message data (e.g. `client::display` for Markdown/HTML rendering or `client::notification` for click actions) [see Gotify docs](https://gotify.net/docs/msgextra)
+  </ConfigOption>
 </ConfigList>
 
 :::info
@@ -54,7 +62,7 @@ This trigger also supports all [common trigger configuration options](../README.
 
 ## 🚀 Examples
 
-### Push Notifications to Gotify
+### Push Notifications to Gotify (with Markdown Support)
 
 <Tabs>
 <TabItem value="docker-compose" label="Docker Compose">
@@ -67,6 +75,7 @@ services:
       - WUD_TRIGGER_GOTIFY_LOCAL_URL=http://gotify.example.com
       - WUD_TRIGGER_GOTIFY_LOCAL_TOKEN=AWp8A.TbBO3xpn4
       - WUD_TRIGGER_GOTIFY_LOCAL_PRIORITY=5
+      - WUD_TRIGGER_GOTIFY_LOCAL_EXTRAS={"client::display":{"contentType":"text/markdown"}}
 ```
 
 </TabItem>
@@ -77,7 +86,20 @@ docker run \
   -e WUD_TRIGGER_GOTIFY_LOCAL_URL="http://gotify.example.com" \
   -e WUD_TRIGGER_GOTIFY_LOCAL_TOKEN="AWp8A.TbBO3xpn4" \
   -e WUD_TRIGGER_GOTIFY_LOCAL_PRIORITY=5 \
+  -e WUD_TRIGGER_GOTIFY_LOCAL_EXTRAS='{"client::display":{"contentType":"text/markdown"}}' \
   getwud/wud
+```
+
+</TabItem>
+<TabItem value="container-label" label="Per-Container Override">
+
+```yaml
+services:
+  my-app:
+    image: my-app:1.2.0
+    labels:
+      - wud.trigger.gotify.extras={"client::display":{"contentType":"text/markdown"}}
+      - wud.trigger.gotify.local.extras={"client::notification":{"click":{"url":"https://myapp.example.com"}}}
 ```
 
 </TabItem>

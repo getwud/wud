@@ -36,7 +36,7 @@ In orchestrators that support multi-container workloads (such as Kubernetes Pods
     required={false}
     type="string"
     defaultValue="mdi:docker"
-    supported="Any Iconify icon (mdi, simple-icons, selfhst, logos, fa6, etc.)">
+    supported="Any Iconify icon (mdi, simple-icons, selfhst, logos, fa6, etc.) or image URL (HTTP/HTTPS/data:image/)">
     Custom display icon for the workload in the UI and integrations
   </ConfigOption>
 
@@ -79,6 +79,22 @@ In orchestrators that support multi-container workloads (such as Kubernetes Pods
     type="regex"
     supported="`$regex => $string` with capturing groups">
     Transform rule to extract clean semver versions from non-standard tags
+  </ConfigOption>
+
+  <ConfigOption
+    name="trigger.<type>.<name>.enabled"
+    type="boolean"
+    required={false}
+    supported="Boolean (`true`, `false`)">
+    Enable or disable a specific trigger instance for this container (takes precedence over trigger type, include/exclude lists, and default settings)
+  </ConfigOption>
+
+  <ConfigOption
+    name="trigger.<type>.enabled"
+    type="boolean"
+    required={false}
+    supported="Boolean (`true`, `false`)">
+    Enable or disable all triggers of a specific provider type for this container (takes precedence over include/exclude lists and default settings)
   </ConfigOption>
 
   <ConfigOption
@@ -655,13 +671,15 @@ Customize how workloads appear in the WUD Web UI and smart home integrations (e.
 
 #### Supported Icons
 
-WUD supports the full [Iconify](https://icon-sets.iconify.design/) catalog (over 150,000+ open-source icons across 150+ collections) using the standard `collection:icon-name` format:
+WUD supports the full [Iconify](https://icon-sets.iconify.design/) catalog (over 150,000+ open-source icons across 150+ collections) using the standard `collection:icon-name` format, as well as arbitrary image URLs:
 
 - `mdi:` for [Material Design Icons](https://icon-sets.iconify.design/mdi/) (`mdi:database`, `mdi:docker`)
 - `simple-icons:` (or `si:`) for [Simple Icons](https://icon-sets.iconify.design/simple-icons/) (`simple-icons:mysql`, `si:mariadb`)
 - `selfhst:` (or `sh:`) for [Selfh.st Icons](https://icon-sets.iconify.design/selfhst/) (`selfhst:authentik`, `selfhst:jellyfin`)
 - `logos:` for [SVG Logos](https://icon-sets.iconify.design/logos/) (`logos:redis`, `logos:postgresql`)
 - `fa6-solid:`, `fa6-regular:`, `fa6-brands:` for [Font Awesome](https://icon-sets.iconify.design/fa6-solid/) (`fa6-brands:github`, `fa:heart`)
+- `http://` or `https://` for external image URLs (`https://example.com/icon.png`)
+- `data:image/` for embedded base64/inline image data URIs (`data:image/png;base64,...`)
 
 <Tabs groupId="orchestrator">
 <TabItem value="docker" label="🐳 Docker">

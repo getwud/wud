@@ -16,7 +16,7 @@ import Export from "@theme/ApiExplorer/Export";
 
 <span
   className={"theme-doc-version-badge badge badge--secondary"}
-  children={"Version: 9.3.0"}
+  children={"Version: 9.4.0"}
 >
 </span>
 
@@ -90,6 +90,33 @@ All error responses follow a consistent JSON format:
     className={"openapi-tabs__security-schemes"}
   >
     <TabItem
+      label={"HTTP: Bearer Auth"}
+      value={"RegistryEventToken"}
+    >
+      
+      
+      Token configured by WUD_REGISTRY_&lt;NAME&gt;_WEBHOOK_TOKEN
+      
+      <div>
+        <table>
+          <tbody>
+            <tr>
+              <th>
+                Security Scheme Type:
+              </th><td>
+                http
+              </td>
+            </tr><tr>
+              <th>
+                HTTP Authorization Scheme:
+              </th><td>
+                bearer
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </TabItem><TabItem
       label={"HTTP: Basic Auth"}
       value={"basicAuth"}
     >
