@@ -164,6 +164,45 @@ class Trigger extends Component {
     }
 
     /**
+     * Find a label value by base suffix checking `wud.<suffix>`, `getwud.app/<suffix>`, and `<suffix>`.
+     */
+    static findLabelValue(
+        labels: Record<string, unknown> | undefined,
+        suffix: string,
+    ): unknown {
+        if (!labels) {
+            return undefined;
+        }
+        const candidates = [`wud.${suffix}`, `getwud.app/${suffix}`, suffix];
+        for (const key of candidates) {
+            if (labels[key] !== undefined) {
+                return labels[key];
+            }
+        }
+        return undefined;
+    }
+
+    /**
+     * Parse a boolean value from label string or boolean.
+     */
+    static parseBooleanLabel(value: unknown): boolean | undefined {
+        if (value === undefined || value === null) {
+            return undefined;
+        }
+        if (typeof value === 'boolean') {
+            return value;
+        }
+        const trimmed = String(value).trim().toLowerCase();
+        if (trimmed === 'true') {
+            return true;
+        }
+        if (trimmed === 'false') {
+            return false;
+        }
+        return undefined;
+    }
+
+    /**
      * Handle container report (simple mode).
      * @param containerReport
      * @returns {Promise<void>}
@@ -389,14 +428,63 @@ class Trigger extends Component {
     }
 
     /**
+     * Return true if this trigger is enabled for the container.
+     * Precedence:
+     * 1. Specific instance label (wud.trigger.<type>.<name>.enabled)
+     * 2. Specific type label (wud.trigger.<type>.enabled)
+     * 3. Historical global filtering (wud.trigger.include / wud.trigger.exclude)
+     * 4. Default configuration (includebydefault !== false)
+     */
+    isTriggerEnabled(containerResult: Container): boolean {
+        const labels = containerResult.labels as
+            | Record<string, unknown>
+            | undefined;
+
+        if (this.type && this.name) {
+            const instanceVal = Trigger.parseBooleanLabel(
+                Trigger.findLabelValue(
+                    labels,
+                    `trigger.${this.type}.${this.name}.enabled`,
+                ),
+            );
+            if (instanceVal !== undefined) {
+                return instanceVal;
+            }
+        }
+
+        if (this.type) {
+            const typeVal = Trigger.parseBooleanLabel(
+                Trigger.findLabelValue(labels, `trigger.${this.type}.enabled`),
+            );
+            if (typeVal !== undefined) {
+                return typeVal;
+            }
+        }
+
+        const triggerInclude =
+            containerResult.triggerInclude ||
+            (Trigger.findLabelValue(labels, 'trigger.include') as
+                | string
+                | undefined);
+        const triggerExclude =
+            containerResult.triggerExclude ||
+            (Trigger.findLabelValue(labels, 'trigger.exclude') as
+                | string
+                | undefined);
+
+        return (
+            this.isTriggerIncluded(containerResult, triggerInclude) &&
+            !this.isTriggerExcluded(containerResult, triggerExclude)
+        );
+    }
+
+    /**
      * Return true if must trigger on this container.
      */
     mustTrigger(containerResult: Container) {
-        const { triggerInclude, triggerExclude } = containerResult;
         return (
             this.isDigestAllowed(containerResult) &&
-            this.isTriggerIncluded(containerResult, triggerInclude) &&
-            !this.isTriggerExcluded(containerResult, triggerExclude)
+            this.isTriggerEnabled(containerResult)
         );
     }
 
