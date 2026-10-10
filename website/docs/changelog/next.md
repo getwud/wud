@@ -28,5 +28,6 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [AUTH] Support multiple pending callback states and serialized redirect session checks in OIDC (fixes #896)
 - 🚀 [TRIGGER] Support extras in Gotify trigger (fixes #960)
 - 🐛 [TRIGGER] Handle pinned image digests when updating compose file (fixes #834)
+- 🚀 [WATCHER] Include container name in tag transform error logs (fixes #752)
 
 ---

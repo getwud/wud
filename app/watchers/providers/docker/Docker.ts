@@ -281,8 +281,9 @@ export function getTagCandidates(
         filteredTags = filteredTags.filter((tag) => {
             try {
                 return (
-                    parseSemver(transformTag(container.transformTags, tag)) !==
-                    null
+                    parseSemver(
+                        transformTag(container.transformTags, tag, container),
+                    ) !== null
                 );
             } catch {
                 return false;
@@ -309,10 +310,12 @@ export function getTagCandidates(
                 const tagTransformed = transformTag(
                     container.transformTags,
                     tag,
+                    container,
                 );
                 const currentTransformed = transformTag(
                     container.transformTags,
                     container.image.tag.value,
+                    container,
                 );
                 return (
                     tagTransformed !== currentTransformed &&
@@ -332,8 +335,8 @@ export function getTagCandidates(
         filteredTags.sort((t1, t2) => {
             try {
                 const greater = isGreaterSemver(
-                    transformTag(container.transformTags, t2),
-                    transformTag(container.transformTags, t1),
+                    transformTag(container.transformTags, t2, container),
+                    transformTag(container.transformTags, t1, container),
                 );
                 return greater ? 1 : -1;
             } catch {
@@ -1359,6 +1362,8 @@ export class Docker extends Watcher {
     ) {
         const containerId = container.Id || container.id;
         const containerLabels = container.Labels || container.labels || {};
+        const effectiveTransformTags =
+            transformTags ?? containerLabels[wudTagTransform];
         const stack =
             containerLabels[wudStack] ||
             containerLabels[dockerComposeProject] ||
@@ -1581,7 +1586,9 @@ export class Docker extends Watcher {
                 `${container.Image} - ${parsedImage.domain} - No Registry Provider found`,
             );
         }
-        const parsedTag = parseSemver(transformTag(transformTags, tagName));
+        const parsedTag = parseSemver(
+            transformTag(effectiveTransformTags, tagName, containerName),
+        );
         const isSemver = parsedTag !== null && parsedTag !== undefined;
         const watchDigestLabel = containerLabels[wudWatchDigest];
         let watchDigest = false;
@@ -1609,7 +1616,7 @@ export class Docker extends Watcher {
             delay,
             includeTags,
             excludeTags,
-            transformTags,
+            transformTags: effectiveTransformTags,
             linkTemplate,
             displayName,
             displayIcon,
