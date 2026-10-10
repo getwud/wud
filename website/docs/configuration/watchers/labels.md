@@ -82,6 +82,22 @@ In orchestrators that support multi-container workloads (such as Kubernetes Pods
   </ConfigOption>
 
   <ConfigOption
+    name="trigger.<type>.<name>.enabled"
+    type="boolean"
+    required={false}
+    supported="Boolean (`true`, `false`)">
+    Enable or disable a specific trigger instance for this container (takes precedence over trigger type, include/exclude lists, and default settings)
+  </ConfigOption>
+
+  <ConfigOption
+    name="trigger.<type>.enabled"
+    type="boolean"
+    required={false}
+    supported="Boolean (`true`, `false`)">
+    Enable or disable all triggers of a specific provider type for this container (takes precedence over include/exclude lists and default settings)
+  </ConfigOption>
+
+  <ConfigOption
     name="trigger.exclude"
     type="list"
     required={false}

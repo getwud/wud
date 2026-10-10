@@ -34,17 +34,29 @@ export const UPDATE_TRIGGER_TYPES = [
  * associated with the container.
  */
 export function getAssociatedTriggerIds(
-    container: Pick<Container, 'triggerInclude' | 'triggerExclude'>,
+    container: Pick<Container, 'triggerInclude' | 'triggerExclude' | 'labels'>,
 ): Map<string, string | undefined> {
-    const includedTriggers = container.triggerInclude
-        ? container.triggerInclude
+    const labels = container.labels as Record<string, unknown> | undefined;
+    const triggerInclude =
+        container.triggerInclude ||
+        (Trigger.findLabelValue(labels, 'trigger.include') as
+            | string
+            | undefined);
+    const triggerExclude =
+        container.triggerExclude ||
+        (Trigger.findLabelValue(labels, 'trigger.exclude') as
+            | string
+            | undefined);
+
+    const includedTriggers = triggerInclude
+        ? triggerInclude
               .split(/\s*,\s*/)
               .map((includedTrigger) =>
                   Trigger.parseIncludeOrIncludeTriggerString(includedTrigger),
               )
         : undefined;
-    const excludedTriggerIds = container.triggerExclude
-        ? container.triggerExclude
+    const excludedTriggerIds = triggerExclude
+        ? triggerExclude
               .split(/\s*,\s*/)
               .map(
                   (excludedTrigger) =>
@@ -56,16 +68,58 @@ export function getAssociatedTriggerIds(
 
     const associated = new Map<string, string | undefined>();
     Object.entries(registry.getState().trigger).forEach(([id, trigger]) => {
-        let isAssociated = trigger.configuration?.includebydefault !== false;
+        const type =
+            trigger.type ||
+            (id.includes('.') ? id.slice(0, id.indexOf('.')) : id);
+        const name =
+            trigger.name ||
+            (id.includes('.') ? id.slice(id.indexOf('.') + 1) : '');
+
+        let isAssociated: boolean;
         let threshold: string | undefined;
-        if (includedTriggers) {
+
+        // 1. Specific instance label
+        const instanceVal =
+            type && name
+                ? Trigger.parseBooleanLabel(
+                      Trigger.findLabelValue(
+                          labels,
+                          `trigger.${type}.${name}.enabled`,
+                      ),
+                  )
+                : undefined;
+
+        // 2. Specific type label
+        const typeVal = type
+            ? Trigger.parseBooleanLabel(
+                  Trigger.findLabelValue(labels, `trigger.${type}.enabled`),
+              )
+            : undefined;
+
+        if (instanceVal !== undefined) {
+            isAssociated = instanceVal;
+        } else if (typeVal !== undefined) {
+            isAssociated = typeVal;
+        } else {
+            // 3. Historical global filtering & 4. Default configuration
+            isAssociated = trigger.configuration?.includebydefault !== false;
+            if (includedTriggers) {
+                const includedTrigger = includedTriggers.find(
+                    (tr) => tr.id === id,
+                );
+                isAssociated = !!includedTrigger;
+                threshold = includedTrigger?.threshold;
+            }
+            if (excludedTriggerIds && excludedTriggerIds.includes(id)) {
+                isAssociated = false;
+            }
+        }
+
+        if (isAssociated && !threshold && includedTriggers) {
             const includedTrigger = includedTriggers.find((tr) => tr.id === id);
-            isAssociated = !!includedTrigger;
             threshold = includedTrigger?.threshold;
         }
-        if (excludedTriggerIds && excludedTriggerIds.includes(id)) {
-            isAssociated = false;
-        }
+
         if (isAssociated) {
             associated.set(id, threshold);
         }

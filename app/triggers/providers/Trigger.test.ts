@@ -874,3 +874,334 @@ describe('rollback notifications', () => {
         expect(trigger.renderRollbackBody(report)).toContain('web-wud-old-123');
     });
 });
+
+describe('granular per-trigger labels (fixes #691)', () => {
+    test('Case 1: targeted activation of auto-update trigger with includebydefault=false while default notification triggers still fire', () => {
+        // Trigger 1: docker.autoupdate (includebydefault: false)
+        const autoUpdateTrigger = new Trigger();
+        autoUpdateTrigger.type = 'docker';
+        autoUpdateTrigger.name = 'autoupdate';
+        autoUpdateTrigger.configuration = { includebydefault: false };
+
+        // Trigger 2: telegram.notify (includebydefault: true)
+        const notifyTrigger = new Trigger();
+        notifyTrigger.type = 'telegram';
+        notifyTrigger.name = 'notify';
+        notifyTrigger.configuration = { includebydefault: true };
+
+        const container = {
+            name: 'my-app',
+            labels: {
+                'wud.trigger.docker.autoupdate.enabled': 'true',
+            },
+        };
+
+        expect(autoUpdateTrigger.isTriggerEnabled(container)).toBe(true);
+        expect(autoUpdateTrigger.mustTrigger(container)).toBe(true);
+
+        expect(notifyTrigger.isTriggerEnabled(container)).toBe(true);
+        expect(notifyTrigger.mustTrigger(container)).toBe(true);
+    });
+
+    test('Case 2: targeted deactivation of default trigger (wud.trigger.telegram.notify.enabled=false)', () => {
+        const notifyTrigger = new Trigger();
+        notifyTrigger.type = 'telegram';
+        notifyTrigger.name = 'notify';
+        notifyTrigger.configuration = { includebydefault: true };
+
+        const otherTrigger = new Trigger();
+        otherTrigger.type = 'smtp';
+        otherTrigger.name = 'mail';
+        otherTrigger.configuration = { includebydefault: true };
+
+        const container = {
+            name: 'my-app',
+            labels: {
+                'wud.trigger.telegram.notify.enabled': 'false',
+            },
+        };
+
+        expect(notifyTrigger.isTriggerEnabled(container)).toBe(false);
+        expect(notifyTrigger.mustTrigger(container)).toBe(false);
+
+        expect(otherTrigger.isTriggerEnabled(container)).toBe(true);
+        expect(otherTrigger.mustTrigger(container)).toBe(true);
+    });
+
+    describe('Case 3: precedence instance (<type>.<name>) > type (<type>) > global include/exclude > includebydefault', () => {
+        test('instance=true overrides type=false', () => {
+            const tr = new Trigger();
+            tr.type = 'docker';
+            tr.name = 'autoupdate';
+            tr.configuration = { includebydefault: false };
+
+            const container = {
+                labels: {
+                    'wud.trigger.docker.enabled': 'false',
+                    'wud.trigger.docker.autoupdate.enabled': 'true',
+                },
+            };
+
+            expect(tr.isTriggerEnabled(container)).toBe(true);
+        });
+
+        test('instance=false overrides type=true', () => {
+            const tr = new Trigger();
+            tr.type = 'docker';
+            tr.name = 'autoupdate';
+            tr.configuration = { includebydefault: false };
+
+            const container = {
+                labels: {
+                    'wud.trigger.docker.enabled': 'true',
+                    'wud.trigger.docker.autoupdate.enabled': 'false',
+                },
+            };
+
+            expect(tr.isTriggerEnabled(container)).toBe(false);
+        });
+
+        test('instance=true overrides global triggerExclude', () => {
+            const tr = new Trigger();
+            tr.type = 'docker';
+            tr.name = 'autoupdate';
+            tr.configuration = { includebydefault: true };
+
+            const container = {
+                triggerExclude: 'docker.autoupdate',
+                labels: {
+                    'wud.trigger.docker.autoupdate.enabled': 'true',
+                },
+            };
+
+            expect(tr.isTriggerEnabled(container)).toBe(true);
+        });
+
+        test('instance=false overrides global triggerInclude', () => {
+            const tr = new Trigger();
+            tr.type = 'docker';
+            tr.name = 'autoupdate';
+            tr.configuration = { includebydefault: false };
+
+            const container = {
+                triggerInclude: 'docker.autoupdate',
+                labels: {
+                    'wud.trigger.docker.autoupdate.enabled': 'false',
+                },
+            };
+
+            expect(tr.isTriggerEnabled(container)).toBe(false);
+        });
+
+        test('type=true overrides global triggerExclude', () => {
+            const tr = new Trigger();
+            tr.type = 'docker';
+            tr.name = 'autoupdate';
+            tr.configuration = { includebydefault: true };
+
+            const container = {
+                triggerExclude: 'docker.autoupdate',
+                labels: {
+                    'wud.trigger.docker.enabled': 'true',
+                },
+            };
+
+            expect(tr.isTriggerEnabled(container)).toBe(true);
+        });
+
+        test('type=false overrides global triggerInclude', () => {
+            const tr = new Trigger();
+            tr.type = 'docker';
+            tr.name = 'autoupdate';
+            tr.configuration = { includebydefault: false };
+
+            const container = {
+                triggerInclude: 'docker.autoupdate',
+                labels: {
+                    'wud.trigger.docker.enabled': 'false',
+                },
+            };
+
+            expect(tr.isTriggerEnabled(container)).toBe(false);
+        });
+
+        test('global triggerInclude / triggerExclude overrides includebydefault', () => {
+            const trInclude = new Trigger();
+            trInclude.type = 'docker';
+            trInclude.name = 'autoupdate';
+            trInclude.configuration = { includebydefault: false };
+
+            const trExclude = new Trigger();
+            trExclude.type = 'telegram';
+            trExclude.name = 'notify';
+            trExclude.configuration = { includebydefault: true };
+
+            const container = {
+                triggerInclude: 'docker.autoupdate',
+                triggerExclude: 'telegram.notify',
+            };
+
+            expect(trInclude.isTriggerEnabled(container)).toBe(true);
+            expect(trExclude.isTriggerEnabled(container)).toBe(false);
+        });
+
+        test('falls back to includebydefault when no labels or include/exclude match', () => {
+            const trDefaultTrue = new Trigger();
+            trDefaultTrue.type = 'telegram';
+            trDefaultTrue.name = 'notify';
+            trDefaultTrue.configuration = { includebydefault: true };
+
+            const trDefaultFalse = new Trigger();
+            trDefaultFalse.type = 'docker';
+            trDefaultFalse.name = 'autoupdate';
+            trDefaultFalse.configuration = { includebydefault: false };
+
+            const container = {};
+
+            expect(trDefaultTrue.isTriggerEnabled(container)).toBe(true);
+            expect(trDefaultFalse.isTriggerEnabled(container)).toBe(false);
+        });
+    });
+
+    describe('Case 4: strict backward compatibility with wud.trigger.include / exclude allowlist', () => {
+        test('triggerInclude exclusively includes specified trigger and excludes others', () => {
+            const trIncluded = new Trigger();
+            trIncluded.type = 'dockercompose';
+            trIncluded.name = 'local';
+            trIncluded.configuration = { includebydefault: false };
+
+            const trOther = new Trigger();
+            trOther.type = 'telegram';
+            trOther.name = 'notify';
+            trOther.configuration = { includebydefault: true };
+
+            const container = {
+                triggerInclude: 'dockercompose.local',
+            };
+
+            expect(trIncluded.isTriggerEnabled(container)).toBe(true);
+            expect(trOther.isTriggerEnabled(container)).toBe(false);
+        });
+
+        test('triggerExclude excludes specified trigger while others remain enabled', () => {
+            const trExcluded = new Trigger();
+            trExcluded.type = 'dockercompose';
+            trExcluded.name = 'local';
+            trExcluded.configuration = { includebydefault: true };
+
+            const trOther = new Trigger();
+            trOther.type = 'telegram';
+            trOther.name = 'notify';
+            trOther.configuration = { includebydefault: true };
+
+            const container = {
+                triggerExclude: 'dockercompose.local',
+            };
+
+            expect(trExcluded.isTriggerEnabled(container)).toBe(false);
+            expect(trOther.isTriggerEnabled(container)).toBe(true);
+        });
+
+        test('honors threshold on triggerInclude', () => {
+            const tr = new Trigger();
+            tr.type = 'dockercompose';
+            tr.name = 'local';
+            tr.configuration = { includebydefault: false };
+
+            const containerPatch = {
+                triggerInclude: 'dockercompose.local:patch',
+                updateKind: { kind: 'tag', semverDiff: 'minor' },
+            };
+            const containerMatch = {
+                triggerInclude: 'dockercompose.local:minor',
+                updateKind: { kind: 'tag', semverDiff: 'minor' },
+            };
+
+            expect(tr.isTriggerEnabled(containerPatch)).toBe(false);
+            expect(tr.isTriggerEnabled(containerMatch)).toBe(true);
+        });
+    });
+
+    describe('label prefix support (canonical getwud.app/, wud., unprefixed)', () => {
+        test('supports getwud.app/ prefix', () => {
+            const tr = new Trigger();
+            tr.type = 'docker';
+            tr.name = 'autoupdate';
+            tr.configuration = { includebydefault: false };
+
+            const container = {
+                labels: {
+                    'getwud.app/trigger.docker.autoupdate.enabled': 'true',
+                },
+            };
+
+            expect(tr.isTriggerEnabled(container)).toBe(true);
+        });
+
+        test('supports boolean values (true / false)', () => {
+            const tr = new Trigger();
+            tr.type = 'docker';
+            tr.name = 'autoupdate';
+            tr.configuration = { includebydefault: false };
+
+            expect(
+                tr.isTriggerEnabled({
+                    labels: { 'wud.trigger.docker.autoupdate.enabled': true },
+                }),
+            ).toBe(true);
+            expect(
+                tr.isTriggerEnabled({
+                    labels: { 'wud.trigger.docker.autoupdate.enabled': false },
+                }),
+            ).toBe(false);
+        });
+
+        test('supports case-insensitive string values', () => {
+            const tr = new Trigger();
+            tr.type = 'docker';
+            tr.name = 'autoupdate';
+            tr.configuration = { includebydefault: false };
+
+            expect(
+                tr.isTriggerEnabled({
+                    labels: { 'wud.trigger.docker.autoupdate.enabled': 'TRUE' },
+                }),
+            ).toBe(true);
+            expect(
+                tr.isTriggerEnabled({
+                    labels: {
+                        'wud.trigger.docker.autoupdate.enabled': 'False',
+                    },
+                }),
+            ).toBe(false);
+        });
+    });
+
+    describe('static helpers: findLabelValue and parseBooleanLabel', () => {
+        test('findLabelValue returns undefined when labels undefined', () => {
+            expect(Trigger.findLabelValue(undefined, 'test')).toBeUndefined();
+        });
+
+        test('findLabelValue finds wud., getwud.app/, or unprefixed label', () => {
+            expect(Trigger.findLabelValue({ 'wud.test': 'val1' }, 'test')).toBe(
+                'val1',
+            );
+            expect(
+                Trigger.findLabelValue({ 'getwud.app/test': 'val2' }, 'test'),
+            ).toBe('val2');
+            expect(Trigger.findLabelValue({ test: 'val3' }, 'test')).toBe(
+                'val3',
+            );
+        });
+
+        test('parseBooleanLabel parses boolean, string, and returns undefined for invalid', () => {
+            expect(Trigger.parseBooleanLabel(true)).toBe(true);
+            expect(Trigger.parseBooleanLabel(false)).toBe(false);
+            expect(Trigger.parseBooleanLabel('true')).toBe(true);
+            expect(Trigger.parseBooleanLabel('FALSE')).toBe(false);
+            expect(Trigger.parseBooleanLabel(undefined)).toBeUndefined();
+            expect(Trigger.parseBooleanLabel(null)).toBeUndefined();
+            expect(Trigger.parseBooleanLabel('invalid')).toBeUndefined();
+        });
+    });
+});

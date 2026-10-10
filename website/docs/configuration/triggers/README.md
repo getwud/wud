@@ -87,7 +87,7 @@ In addition to provider-specific settings, all triggers support the following co
     required={false}
     type="boolean"
     defaultValue="true">
-    Associate trigger with all containers by default (`false` makes it opt-in via `wud.trigger.include`)
+    Associate trigger with all containers by default (`false` makes it opt-in via container labels or `wud.trigger.include`)
   </ConfigOption>
 
   <ConfigOption name="WUD_TRIGGER_{trigger_type}_{trigger_name}_MODE"
@@ -219,6 +219,61 @@ In batch mode (`MODE=batch`), multiple container updates are grouped into a sing
 | :--- | :--- | :--- |
 | `containers` | Array of updated `container` objects | `[ { name: 'web', ... }, ... ]` |
 | `containers.length` | Total number of containers with available updates | `3` |
+
+---
+
+## 🎯 Container Trigger Filtering & Precedence
+
+You can control which triggers execute for a given container by attaching labels (or annotations/metadata) directly to your workload.
+
+### Precedence Order
+
+When evaluating whether a trigger applies to a container, WUD checks rules in the following 3-level order:
+
+| Level | Rule | Example Label | Effect |
+| :--- | :--- | :--- | :--- |
+| **1. Specific Trigger** (Highest) | `wud.trigger.<type>.<name>.enabled` | `wud.trigger.docker.autoupdate.enabled=true` | Explicitly enables or disables this specific trigger instance, ignoring all lower-level settings. |
+| **2. Trigger Type** | `wud.trigger.<type>.enabled` | `wud.trigger.docker.enabled=false` | Enables or disables all triggers of that type (e.g. all `docker` updaters or all `telegram` notifications). |
+| **3. Global Filters & Defaults** | `wud.trigger.include` / `wud.trigger.exclude` / `INCLUDEBYDEFAULT` | `wud.trigger.include=docker.autoupdate` | Evaluates legacy include/exclude lists. If no labels apply, falls back to the trigger's `INCLUDEBYDEFAULT` configuration. |
+
+:::info[Supported Prefixes]
+Labels can be formatted using `wud.trigger.<...>` (Docker / Docker Compose), `getwud.app/trigger.<...>` (Kubernetes, Swarm, Nomad), or `trigger.<...>`.
+:::
+
+### Concrete Use Case: Targeted Auto-Update Opt-In
+
+A common workflow is to keep auto-updates disabled globally, while selectively enabling auto-updates for specific containers:
+
+1. **Configure your auto-update trigger with `INCLUDEBYDEFAULT=false`**:
+
+   ```bash
+   # Update trigger is registered, but does NOT run on containers by default
+   WUD_TRIGGER_DOCKER_AUTOUPDATE_AUTO=true
+   WUD_TRIGGER_DOCKER_AUTOUPDATE_INCLUDEBYDEFAULT=false
+
+   # Notification triggers remain enabled by default
+   WUD_TRIGGER_TELEGRAM_NOTIFY_AUTO=true
+   WUD_TRIGGER_TELEGRAM_NOTIFY_INCLUDEBYDEFAULT=true
+   ```
+
+2. **Opt-in specific containers using the granular label**:
+
+   ```yaml
+   services:
+     web:
+       image: nginx:latest
+       labels:
+         # Only this container is auto-updated; telegram notifications still fire for all containers
+         - "wud.trigger.docker.autoupdate.enabled=true"
+
+     database:
+       image: postgres:16
+       # No label: will receive telegram notification, but will NOT be auto-updated
+   ```
+
+:::tip[Granular Labels vs wud.trigger.include]
+The legacy `wud.trigger.include` label acts as an exclusive allowlist: setting `wud.trigger.include=docker.autoupdate` would disable all other triggers (including Telegram notifications) for that container. Granular labels (`wud.trigger.<type>.<name>.enabled=true|false`) allow targeted opt-in or opt-out without interfering with other triggers.
+:::
 
 ---
 
