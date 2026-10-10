@@ -27,5 +27,6 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [WATCHER] Fix image ID treated as digest under Podman (fixes #934)
 - 🐛 [AUTH] Support multiple pending callback states and serialized redirect session checks in OIDC (fixes #896)
 - 🚀 [TRIGGER] Support extras in Gotify trigger (fixes #960)
+- 🐛 [TRIGGER] Handle pinned image digests when updating compose file (fixes #834)
 
 ---

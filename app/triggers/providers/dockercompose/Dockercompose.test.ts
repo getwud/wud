@@ -3,9 +3,11 @@ import log from '../../../log';
 import Dockercompose, {
     doesContainerBelongToCompose,
     findServiceKeyForContainer,
+    isMatchingServiceImage,
 } from './Dockercompose';
 import { testTriggerProvider } from '../TriggerTestHelper';
 import { HookManager } from '../../hooks/HookManager';
+import { Container } from '../../../model/container';
 
 jest.mock('../../../registry', () => ({
     getState() {
@@ -910,6 +912,358 @@ describe('Dockercompose Trigger - file operations', () => {
                 updates,
             );
             expect(result).toBe('services:\n  broken: fixed');
+        });
+    });
+
+    describe('Digest-pinning in compose file (#834)', () => {
+        const mockRegistry = {
+            getImageFullName: (
+                image: { name: string },
+                tagOrDigest?: string,
+            ) => (tagOrDigest ? `${image.name}:${tagOrDigest}` : image.name),
+        };
+
+        const digestContainer = {
+            name: 'my-service',
+            updateAvailable: true,
+            image: {
+                registry: { name: 'hub' },
+                name: 'test/test',
+                tag: { value: '1.2.3', semver: true },
+                digest: {
+                    watch: true,
+                    repo: 'sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                    value: 'sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                },
+            },
+            updateKind: {
+                kind: 'tag',
+                localValue: '1.2.3',
+                remoteValue: '4.5.6',
+            },
+            result: {
+                tag: '4.5.6',
+                digest: 'sha256:new2222222222222222222222222222222222222222222222222222222222222',
+            },
+        } as unknown as Container;
+
+        describe('isMatchingServiceImage', () => {
+            test('should match standard image tag', () => {
+                expect(
+                    isMatchingServiceImage(
+                        'test/test:1.2.3',
+                        digestContainer,
+                        mockRegistry as any,
+                    ),
+                ).toBe(true);
+            });
+
+            test('should match tag + digest pinned image', () => {
+                expect(
+                    isMatchingServiceImage(
+                        'test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                        digestContainer,
+                        mockRegistry as any,
+                    ),
+                ).toBe(true);
+            });
+
+            test('should match tagless digest pinned image by repo and digest', () => {
+                expect(
+                    isMatchingServiceImage(
+                        'test/test@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                        digestContainer,
+                        mockRegistry as any,
+                    ),
+                ).toBe(true);
+            });
+
+            test('should match tagless digest pinned image when container tag is latest', () => {
+                const latestContainer = {
+                    ...digestContainer,
+                    image: {
+                        ...digestContainer.image,
+                        tag: { value: 'latest', semver: false },
+                    },
+                } as unknown as Container;
+
+                expect(
+                    isMatchingServiceImage(
+                        'test/test@sha256:anydigest',
+                        latestContainer,
+                        mockRegistry as any,
+                    ),
+                ).toBe(true);
+            });
+
+            test('should return false when repository does not match', () => {
+                expect(
+                    isMatchingServiceImage(
+                        'other/repo:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                        digestContainer,
+                        mockRegistry as any,
+                    ),
+                ).toBe(false);
+            });
+        });
+
+        describe('findServiceKeyForContainer', () => {
+            test('should find service with tag + digest pinned image', () => {
+                const compose = {
+                    services: {
+                        webapp: {
+                            image: 'test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                        },
+                    },
+                };
+                expect(
+                    findServiceKeyForContainer(compose as any, digestContainer),
+                ).toBe('webapp');
+            });
+
+            test('should find service with tagless digest pinned image', () => {
+                const compose = {
+                    services: {
+                        webapp: {
+                            image: 'test/test@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                        },
+                    },
+                };
+                expect(
+                    findServiceKeyForContainer(compose as any, digestContainer),
+                ).toBe('webapp');
+            });
+
+            test('should find service by com.docker.compose.service label with digest pinned image', () => {
+                const labeledContainer = {
+                    ...digestContainer,
+                    labels: {
+                        'com.docker.compose.service': 'custom_service',
+                    },
+                } as unknown as Container;
+                const compose = {
+                    services: {
+                        custom_service: {
+                            image: 'test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                        },
+                    },
+                };
+                expect(
+                    findServiceKeyForContainer(
+                        compose as any,
+                        labeledContainer,
+                    ),
+                ).toBe('custom_service');
+            });
+        });
+
+        describe('mapCurrentVersionToUpdateVersion with digest pinning', () => {
+            test('should update both tag and digest for tag update on tag+digest pinned image', () => {
+                const compose = {
+                    services: {
+                        test: {
+                            image: 'test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                        },
+                    },
+                };
+                const mapping = dockercompose.mapCurrentVersionToUpdateVersion(
+                    compose as any,
+                    digestContainer,
+                    new Set(),
+                );
+                expect(mapping).toEqual({
+                    service: 'test',
+                    current:
+                        'test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                    update: 'test/test:4.5.6@sha256:new2222222222222222222222222222222222222222222222222222222222222',
+                });
+            });
+
+            test('should update only digest for digest update on tag+digest pinned image', () => {
+                const compose = {
+                    services: {
+                        test: {
+                            image: 'test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                        },
+                    },
+                };
+                const digestUpdateContainer = {
+                    ...digestContainer,
+                    updateKind: {
+                        kind: 'digest',
+                        localValue:
+                            'sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                        remoteValue:
+                            'sha256:new2222222222222222222222222222222222222222222222222222222222222',
+                    },
+                    result: {
+                        digest: 'sha256:new2222222222222222222222222222222222222222222222222222222222222',
+                    },
+                } as unknown as Container;
+
+                const mapping = dockercompose.mapCurrentVersionToUpdateVersion(
+                    compose as any,
+                    digestUpdateContainer,
+                    new Set(),
+                );
+                expect(mapping).toEqual({
+                    service: 'test',
+                    current:
+                        'test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                    update: 'test/test:1.2.3@sha256:new2222222222222222222222222222222222222222222222222222222222222',
+                });
+            });
+
+            test('should preserve tagless format when updating digest on tagless pinned image', () => {
+                const compose = {
+                    services: {
+                        test: {
+                            image: 'test/test@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                        },
+                    },
+                };
+                const taglessDigestContainer = {
+                    ...digestContainer,
+                    updateKind: {
+                        kind: 'digest',
+                        localValue:
+                            'sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                        remoteValue:
+                            'sha256:new2222222222222222222222222222222222222222222222222222222222222',
+                    },
+                    result: {
+                        digest: 'sha256:new2222222222222222222222222222222222222222222222222222222222222',
+                    },
+                } as unknown as Container;
+
+                const mapping = dockercompose.mapCurrentVersionToUpdateVersion(
+                    compose as any,
+                    taglessDigestContainer,
+                    new Set(),
+                );
+                expect(mapping).toEqual({
+                    service: 'test',
+                    current:
+                        'test/test@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                    update: 'test/test@sha256:new2222222222222222222222222222222222222222222222222222222222222',
+                });
+            });
+
+            test('should update tag and digest on tagless pinned image when tag update occurs', () => {
+                const compose = {
+                    services: {
+                        test: {
+                            image: 'test/test@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                        },
+                    },
+                };
+                const mapping = dockercompose.mapCurrentVersionToUpdateVersion(
+                    compose as any,
+                    digestContainer,
+                    new Set(),
+                );
+                expect(mapping).toEqual({
+                    service: 'test',
+                    current:
+                        'test/test@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                    update: 'test/test:4.5.6@sha256:new2222222222222222222222222222222222222222222222222222222222222',
+                });
+            });
+
+            test('should strip stale pinned digest when no new remote digest is available for tag update', () => {
+                const compose = {
+                    services: {
+                        test: {
+                            image: 'test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                        },
+                    },
+                };
+                const containerWithoutRemoteDigest = {
+                    ...digestContainer,
+                    result: {
+                        tag: '4.5.6',
+                    },
+                } as unknown as Container;
+
+                const mapping = dockercompose.mapCurrentVersionToUpdateVersion(
+                    compose as any,
+                    containerWithoutRemoteDigest,
+                    new Set(),
+                );
+                expect(mapping).toEqual({
+                    service: 'test',
+                    current:
+                        'test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                    update: 'test/test:4.5.6',
+                });
+            });
+
+            test('should preserve custom registry and port while updating tag and pinned digest', () => {
+                const compose = {
+                    services: {
+                        test: {
+                            image: 'registry.example.com:5000/myorg/myapp:1.0.0@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                        },
+                    },
+                };
+                const customRegistryContainer = {
+                    ...digestContainer,
+                    image: {
+                        ...digestContainer.image,
+                        name: 'registry.example.com:5000/myorg/myapp',
+                        tag: { value: '1.0.0', semver: true },
+                    },
+                    updateKind: {
+                        kind: 'tag',
+                        localValue: '1.0.0',
+                        remoteValue: '2.0.0',
+                    },
+                    result: {
+                        tag: '2.0.0',
+                        digest: 'sha256:new2222222222222222222222222222222222222222222222222222222222222',
+                    },
+                } as unknown as Container;
+
+                const mapping = dockercompose.mapCurrentVersionToUpdateVersion(
+                    compose as any,
+                    customRegistryContainer,
+                    new Set(),
+                );
+                expect(mapping).toEqual({
+                    service: 'test',
+                    current:
+                        'registry.example.com:5000/myorg/myapp:1.0.0@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                    update: 'registry.example.com:5000/myorg/myapp:2.0.0@sha256:new2222222222222222222222222222222222222222222222222222222222222',
+                });
+            });
+        });
+
+        describe('updateComposeYaml with digest pinning', () => {
+            test('should update digest-pinned image preserving yaml structure and quotes', () => {
+                const composeYaml = `version: '3.8'
+services:
+  web:
+    image: "test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111"
+    restart: always
+`;
+                const updates = [
+                    {
+                        service: 'web',
+                        current:
+                            'test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                        update: 'test/test:4.5.6@sha256:new2222222222222222222222222222222222222222222222222222222222222',
+                    },
+                ];
+
+                const result = dockercompose.updateComposeYaml(
+                    composeYaml,
+                    updates,
+                );
+                expect(result).toContain(
+                    'image: "test/test:4.5.6@sha256:new2222222222222222222222222222222222222222222222222222222222222"',
+                );
+                expect(result).toContain('restart: always');
+            });
         });
     });
 });
