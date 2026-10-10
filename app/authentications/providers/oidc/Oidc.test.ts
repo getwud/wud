@@ -1,7 +1,14 @@
 import { ValidationError } from 'joi';
 import express from 'express';
 import * as client from 'openid-client';
-import Oidc from './Oidc';
+import Oidc, {
+    prunePendingChecks,
+    withOidcSessionLock,
+    reloadSession,
+    saveSession,
+    OIDC_CHECKS_TTL_MS,
+    OIDC_MAX_PENDING_CHECKS,
+} from './Oidc';
 import * as userStore from '../../../store/user';
 
 // Mock the openid-client module
@@ -546,4 +553,465 @@ test('callback should redirect to login with error parameter when authentication
     expect(res.redirect).toHaveBeenCalledWith(
         'http://localhost:3000/#/login?error=Invalid%20authorization%20code',
     );
+});
+
+describe('OIDC state and session handling (Issue #896)', () => {
+    test('redirect should store multiple pending states in session across multiple calls', async () => {
+        oidc.configuration = { ...configurationValid, ttl: -1 };
+        (oidc as any).cachedConfig = mockConfig;
+        (client.calculatePKCECodeChallenge as jest.Mock).mockResolvedValue(
+            'challenge',
+        );
+        (client.buildAuthorizationUrl as jest.Mock).mockReturnValue(
+            new URL('https://idp/auth'),
+        );
+
+        (client.randomPKCECodeVerifier as jest.Mock)
+            .mockReturnValueOnce('verifier-1')
+            .mockReturnValueOnce('verifier-2');
+        (client.randomState as jest.Mock)
+            .mockReturnValueOnce('state-1')
+            .mockReturnValueOnce('state-2');
+
+        const session: any = {};
+        const req1: any = {
+            protocol: 'http',
+            headers: { host: 'localhost:3000' },
+            sessionID: 'sess-123',
+            session,
+            query: { next: '/tab1' },
+        };
+        const res1: any = { json: jest.fn() };
+
+        await oidc.redirect(req1, res1);
+
+        expect(session.oidc.pending['state-1']).toBeDefined();
+        expect(session.oidc.pending['state-1'].codeVerifier).toBe('verifier-1');
+        expect(session.oidc.pending['state-1'].next).toBe('/tab1');
+
+        const req2: any = {
+            protocol: 'http',
+            headers: { host: 'localhost:3000' },
+            sessionID: 'sess-123',
+            session,
+            query: { next: '/tab2' },
+        };
+        const res2: any = { json: jest.fn() };
+
+        await oidc.redirect(req2, res2);
+
+        // Both states must be present in pending checks
+        expect(session.oidc.pending['state-1']).toBeDefined();
+        expect(session.oidc.pending['state-2']).toBeDefined();
+        expect(session.oidc.pending['state-1'].codeVerifier).toBe('verifier-1');
+        expect(session.oidc.pending['state-2'].codeVerifier).toBe('verifier-2');
+        expect(session.oidc.pending['state-2'].next).toBe('/tab2');
+        // Legacy single-check fields match latest redirect
+        expect(session.oidc.state).toBe('state-2');
+        expect(session.oidc.codeVerifier).toBe('verifier-2');
+    });
+
+    test('callback should resolve earlier pending state even after subsequent redirect', async () => {
+        oidc.configuration = { ...configurationValid, ttl: -1 };
+        (oidc as any).cachedConfig = mockConfig;
+        (client.authorizationCodeGrant as jest.Mock).mockResolvedValue({
+            access_token: 'token-tab1',
+            claims: () => ({ sub: 'user-1' }),
+        });
+        (client.fetchUserInfo as jest.Mock).mockResolvedValue({
+            email: 'user1@example.com',
+        });
+
+        const session: any = {
+            oidc: {
+                codeVerifier: 'verifier-2',
+                state: 'state-2',
+                next: '/tab2',
+                pending: {
+                    'state-1': {
+                        state: 'state-1',
+                        codeVerifier: 'verifier-1',
+                        next: '/tab1',
+                        createdAt: Date.now(),
+                    },
+                    'state-2': {
+                        state: 'state-2',
+                        codeVerifier: 'verifier-2',
+                        next: '/tab2',
+                        createdAt: Date.now(),
+                    },
+                },
+            },
+        };
+
+        const req: any = {
+            protocol: 'http',
+            headers: { host: 'localhost:3000' },
+            originalUrl: '/auth/oidc/oidc/cb?code=code-1&state=state-1',
+            sessionID: 'sess-123',
+            session,
+            query: { code: 'code-1', state: 'state-1' },
+            login: jest.fn((user, cb) => cb(null)),
+        };
+        const res: any = {
+            redirect: jest.fn(),
+            status: jest.fn().mockReturnThis(),
+            send: jest.fn(),
+        };
+
+        await oidc.callback(req, res);
+
+        // Verification must use verifier-1 for state-1, NOT verifier-2
+        expect(client.authorizationCodeGrant).toHaveBeenCalledWith(
+            mockConfig,
+            expect.any(URL),
+            expect.objectContaining({
+                pkceCodeVerifier: 'verifier-1',
+                expectedState: 'state-1',
+            }),
+        );
+        expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/tab1');
+
+        // State 1 must be consumed, state 2 must still remain pending
+        expect(session.oidc.pending['state-1']).toBeUndefined();
+        expect(session.oidc.pending['state-2']).toBeDefined();
+    });
+
+    test('callback should allow multiple pending states to be resolved independently', async () => {
+        oidc.configuration = { ...configurationValid, ttl: -1 };
+        (oidc as any).cachedConfig = mockConfig;
+        (client.authorizationCodeGrant as jest.Mock)
+            .mockResolvedValueOnce({
+                access_token: 'token-a',
+                claims: () => ({ sub: 'sub-a' }),
+            })
+            .mockResolvedValueOnce({
+                access_token: 'token-b',
+                claims: () => ({ sub: 'sub-b' }),
+            });
+        (client.fetchUserInfo as jest.Mock).mockResolvedValue({
+            email: 'user@example.com',
+        });
+
+        const session: any = {
+            oidc: {
+                pending: {
+                    'state-a': {
+                        state: 'state-a',
+                        codeVerifier: 'verifier-a',
+                        next: '/route-a',
+                        createdAt: Date.now(),
+                    },
+                    'state-b': {
+                        state: 'state-b',
+                        codeVerifier: 'verifier-b',
+                        next: '/route-b',
+                        createdAt: Date.now(),
+                    },
+                },
+            },
+        };
+
+        // First callback for state-a
+        const reqA: any = {
+            protocol: 'http',
+            headers: { host: 'localhost:3000' },
+            originalUrl: '/auth/oidc/oidc/cb?code=c1&state=state-a',
+            sessionID: 'sess-ab',
+            session,
+            query: { code: 'c1', state: 'state-a' },
+            login: jest.fn((user, cb) => cb(null)),
+        };
+        const resA: any = { redirect: jest.fn() };
+        await oidc.callback(reqA, resA);
+
+        expect(resA.redirect).toHaveBeenCalledWith(
+            'http://localhost:3000/route-a',
+        );
+        expect(session.oidc.pending['state-a']).toBeUndefined();
+        expect(session.oidc.pending['state-b']).toBeDefined();
+
+        // Second callback for state-b
+        const reqB: any = {
+            protocol: 'http',
+            headers: { host: 'localhost:3000' },
+            originalUrl: '/auth/oidc/oidc/cb?code=c2&state=state-b',
+            sessionID: 'sess-ab',
+            session,
+            query: { code: 'c2', state: 'state-b' },
+            login: jest.fn((user, cb) => cb(null)),
+        };
+        const resB: any = { redirect: jest.fn() };
+        await oidc.callback(reqB, resB);
+
+        expect(resB.redirect).toHaveBeenCalledWith(
+            'http://localhost:3000/route-b',
+        );
+        expect(session.oidc.pending['state-b']).toBeUndefined();
+        expect(Object.keys(session.oidc.pending).length).toBe(0);
+    });
+
+    test('callback should fallback to legacy single-state session structure', async () => {
+        oidc.configuration = { ...configurationValid, ttl: -1 };
+        (oidc as any).cachedConfig = mockConfig;
+        (client.authorizationCodeGrant as jest.Mock).mockResolvedValue({
+            access_token: 'token-legacy',
+            claims: () => ({ sub: 'user-legacy' }),
+        });
+        (client.fetchUserInfo as jest.Mock).mockResolvedValue({
+            email: 'legacy@example.com',
+        });
+
+        const session: any = {
+            oidc: {
+                codeVerifier: 'legacy-verifier',
+                state: 'legacy-state',
+                next: '/dashboard',
+            },
+        };
+
+        const req: any = {
+            protocol: 'http',
+            headers: { host: 'localhost:3000' },
+            originalUrl: '/auth/oidc/oidc/cb?code=c&state=legacy-state',
+            sessionID: 'sess-legacy',
+            session,
+            query: { code: 'c', state: 'legacy-state' },
+            login: jest.fn((user, cb) => cb(null)),
+        };
+        const res: any = { redirect: jest.fn() };
+
+        await oidc.callback(req, res);
+
+        expect(client.authorizationCodeGrant).toHaveBeenCalledWith(
+            mockConfig,
+            expect.any(URL),
+            expect.objectContaining({
+                pkceCodeVerifier: 'legacy-verifier',
+                expectedState: 'legacy-state',
+            }),
+        );
+        expect(res.redirect).toHaveBeenCalledWith(
+            'http://localhost:3000/dashboard',
+        );
+    });
+
+    test('callback should redirect to login when state does not match any pending check', async () => {
+        oidc.configuration = { ...configurationValid, ttl: -1 };
+        (oidc as any).cachedConfig = mockConfig;
+
+        const session: any = {
+            oidc: {
+                pending: {
+                    'state-valid': {
+                        state: 'state-valid',
+                        codeVerifier: 'verifier-valid',
+                        createdAt: Date.now(),
+                    },
+                },
+            },
+        };
+
+        const req: any = {
+            protocol: 'http',
+            headers: { host: 'localhost:3000' },
+            originalUrl: '/auth/oidc/oidc/cb?code=c&state=unknown-state',
+            sessionID: 'sess-test',
+            session,
+            query: { code: 'c', state: 'unknown-state' },
+            login: jest.fn(),
+        };
+        const res: any = { redirect: jest.fn() };
+
+        await oidc.callback(req, res);
+
+        expect(res.redirect).toHaveBeenCalledWith(
+            'http://localhost:3000/#/login?error=OIDC%20session%20state%20mismatch%20or%20expired',
+        );
+    });
+
+    test('callback should redirect to login when session oidc is missing', async () => {
+        oidc.configuration = { ...configurationValid, ttl: -1 };
+        (oidc as any).cachedConfig = mockConfig;
+
+        const req: any = {
+            protocol: 'http',
+            headers: { host: 'localhost:3000' },
+            originalUrl: '/auth/oidc/oidc/cb?code=c&state=state-1',
+            sessionID: 'sess-empty',
+            session: {},
+            query: { code: 'c', state: 'state-1' },
+            login: jest.fn(),
+        };
+        const res: any = { redirect: jest.fn() };
+
+        await oidc.callback(req, res);
+
+        expect(res.redirect).toHaveBeenCalledWith(
+            'http://localhost:3000/#/login?error=OIDC%20session%20state%20not%20found',
+        );
+    });
+
+    test('callback should support empty state query param when PKCE is used (Authentik)', async () => {
+        oidc.configuration = { ...configurationValid, ttl: -1 };
+        (oidc as any).cachedConfig = mockConfig;
+        (client.authorizationCodeGrant as jest.Mock).mockResolvedValue({
+            access_token: 'token-authentik',
+            claims: () => ({ sub: 'sub-authentik' }),
+        });
+        (client.fetchUserInfo as jest.Mock).mockResolvedValue({
+            email: 'authentik@example.com',
+        });
+
+        const session: any = {
+            oidc: {
+                codeVerifier: 'verifier-authentik',
+                state: '',
+            },
+        };
+
+        const req: any = {
+            protocol: 'http',
+            headers: { host: 'localhost:3000' },
+            originalUrl: '/auth/oidc/oidc/cb?code=c&state=',
+            sessionID: 'sess-authentik',
+            session,
+            query: { code: 'c', state: '' },
+            login: jest.fn((user, cb) => cb(null)),
+        };
+        const res: any = { redirect: jest.fn() };
+
+        await oidc.callback(req, res);
+
+        expect(client.authorizationCodeGrant).toHaveBeenCalledWith(
+            mockConfig,
+            expect.any(URL),
+            expect.objectContaining({
+                pkceCodeVerifier: 'verifier-authentik',
+                expectedState: client.skipStateCheck,
+            }),
+        );
+    });
+
+    test('prunePendingChecks should expire checks older than TTL', () => {
+        const now = 1_000_000;
+        const pending = {
+            expired: {
+                state: 'expired',
+                codeVerifier: 'v1',
+                createdAt: now - OIDC_CHECKS_TTL_MS - 1000,
+            },
+            valid: {
+                state: 'valid',
+                codeVerifier: 'v2',
+                createdAt: now - 5000,
+            },
+        };
+
+        const result = prunePendingChecks(pending, now);
+        expect(result['expired']).toBeUndefined();
+        expect(result['valid']).toBeDefined();
+        expect(result['valid'].state).toBe('valid');
+    });
+
+    test('prunePendingChecks should limit pending checks to OIDC_MAX_PENDING_CHECKS', () => {
+        const now = 10_000_000;
+        const pending: any = {};
+        for (let i = 1; i <= 15; i++) {
+            pending[`state-${i}`] = {
+                state: `state-${i}`,
+                codeVerifier: `verifier-${i}`,
+                createdAt: now - (16 - i) * 1000,
+            };
+        }
+
+        const result = prunePendingChecks(pending, now);
+        const keys = Object.keys(result);
+        expect(keys.length).toBe(OIDC_MAX_PENDING_CHECKS);
+        // The oldest 5 states (state-1 to state-5) must have been dropped
+        expect(result['state-1']).toBeUndefined();
+        expect(result['state-5']).toBeUndefined();
+        // The newest 10 states (state-6 to state-15) must be present
+        expect(result['state-6']).toBeDefined();
+        expect(result['state-15']).toBeDefined();
+    });
+
+    test('withOidcSessionLock should serialize concurrent operations on the same sessionID', async () => {
+        const order: string[] = [];
+        let releaseFirst: () => void = () => {};
+        const firstStarted = new Promise<void>((resolve) => {
+            releaseFirst = resolve;
+        });
+
+        const op1 = withOidcSessionLock('sess-lock', async () => {
+            order.push('op1-start');
+            await firstStarted;
+            order.push('op1-end');
+        });
+
+        const op2 = withOidcSessionLock('sess-lock', async () => {
+            order.push('op2-start');
+            order.push('op2-end');
+        });
+
+        // Let op1 run first
+        releaseFirst();
+        await Promise.all([op1, op2]);
+
+        expect(order).toEqual(['op1-start', 'op1-end', 'op2-start', 'op2-end']);
+    });
+
+    test('saveSession and reloadSession should invoke session methods if present', async () => {
+        const reloadMock = jest.fn((cb) => cb());
+        const saveMock = jest.fn((cb) => cb());
+
+        const req: any = {
+            session: {
+                reload: reloadMock,
+                save: saveMock,
+            },
+        };
+
+        await reloadSession(req);
+        expect(reloadMock).toHaveBeenCalled();
+
+        await saveSession(req);
+        expect(saveMock).toHaveBeenCalled();
+    });
+
+    test('getStrategy cb route handler should redirect to login on unhandled error', async () => {
+        const expressApp: any = {
+            get: jest.fn(),
+        };
+
+        oidc.getStrategy(expressApp);
+
+        // Find the cb route handler
+        const cbCall = expressApp.get.mock.calls.find(
+            (call: any[]) => call[0] === `/auth/oidc/${oidc.name}/cb`,
+        );
+        expect(cbCall).toBeDefined();
+        const handler = cbCall[1];
+
+        const req: any = {
+            protocol: 'http',
+            headers: { host: 'localhost:3000' },
+            originalUrl: '/auth/oidc/oidc/cb',
+            query: {},
+        };
+        const res: any = {
+            redirect: jest.fn(),
+        };
+
+        // Spy on callback and reject with an error
+        jest.spyOn(oidc, 'callback').mockRejectedValueOnce(
+            new Error('Unhandled boom'),
+        );
+
+        await handler(req, res);
+
+        expect(res.redirect).toHaveBeenCalledWith(
+            'http://localhost:3000/#/login?error=Unhandled%20boom',
+        );
+    });
 });

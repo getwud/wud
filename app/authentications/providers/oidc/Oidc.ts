@@ -10,15 +10,136 @@ import {
     UserRole,
 } from '../../../store/user';
 
+export interface OidcPendingCheck {
+    codeVerifier: string;
+    state: string;
+    next?: string;
+    createdAt: number;
+}
+
 // Extend express-session to store OIDC data in session
 declare module 'express-session' {
     interface SessionData {
-        oidc: {
-            codeVerifier: string;
+        oidc?: {
+            codeVerifier?: string;
             state?: string;
             next?: string;
+            pending?: Record<string, OidcPendingCheck>;
         };
     }
+}
+
+export const OIDC_CHECKS_TTL_MS = 10 * 60 * 1000;
+export const OIDC_MAX_PENDING_CHECKS = 10;
+export const OIDC_SESSION_LOCK_WAIT_TIMEOUT_MS = 10 * 1000;
+export const OIDC_SESSION_LOCK_STALE_TTL_MS = 60 * 1000;
+
+export const oidcSessionLocks = new Map<string, Promise<void>>();
+
+export async function withOidcSessionLock<T>(
+    sessionId: string | undefined,
+    operation: () => Promise<T>,
+): Promise<T> {
+    if (!sessionId) {
+        return operation();
+    }
+    const previousLock = oidcSessionLocks.get(sessionId) || Promise.resolve();
+    let releaseLock: (() => void) | undefined;
+    const currentLock = new Promise<void>((resolve) => {
+        releaseLock = resolve;
+    });
+    const nextLock = previousLock
+        .catch(() => undefined)
+        .then(() => currentLock);
+    oidcSessionLocks.set(sessionId, nextLock);
+
+    const staleLockCleanupTimer = setTimeout(() => {
+        if (oidcSessionLocks.get(sessionId) === nextLock) {
+            oidcSessionLocks.delete(sessionId);
+        }
+    }, OIDC_SESSION_LOCK_STALE_TTL_MS);
+    if (typeof staleLockCleanupTimer.unref === 'function') {
+        staleLockCleanupTimer.unref();
+    }
+
+    let previousLockWaitTimer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        await Promise.race([
+            previousLock.catch(() => undefined),
+            new Promise<void>((resolve) => {
+                previousLockWaitTimer = setTimeout(
+                    resolve,
+                    OIDC_SESSION_LOCK_WAIT_TIMEOUT_MS,
+                );
+                if (typeof previousLockWaitTimer.unref === 'function') {
+                    previousLockWaitTimer.unref();
+                }
+            }),
+        ]);
+        return await operation();
+    } finally {
+        if (previousLockWaitTimer !== undefined) {
+            clearTimeout(previousLockWaitTimer);
+        }
+        clearTimeout(staleLockCleanupTimer);
+        releaseLock?.();
+        if (oidcSessionLocks.get(sessionId) === nextLock) {
+            oidcSessionLocks.delete(sessionId);
+        }
+    }
+}
+
+export async function reloadSession(req: Request): Promise<void> {
+    if (req.session && typeof req.session.reload === 'function') {
+        await new Promise<void>((resolve) => {
+            req.session.reload(() => {
+                resolve();
+            });
+        });
+    }
+}
+
+export async function saveSession(req: Request): Promise<void> {
+    if (req.session && typeof req.session.save === 'function') {
+        await new Promise<void>((resolve, reject) => {
+            req.session.save((err) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve();
+                }
+            });
+        });
+    }
+}
+
+export function prunePendingChecks(
+    pending: Record<string, OidcPendingCheck> | undefined,
+    now = Date.now(),
+): Record<string, OidcPendingCheck> {
+    if (!pending || typeof pending !== 'object') {
+        return {};
+    }
+    const result: Record<string, OidcPendingCheck> = {};
+    const validEntries = Object.entries(pending).filter(([, check]) => {
+        return (
+            check &&
+            typeof check === 'object' &&
+            typeof check.state === 'string' &&
+            typeof check.codeVerifier === 'string' &&
+            typeof check.createdAt === 'number' &&
+            now - check.createdAt <= OIDC_CHECKS_TTL_MS
+        );
+    });
+
+    validEntries.sort(([, a], [, b]) => b.createdAt - a.createdAt);
+    for (const [state, check] of validEntries.slice(
+        0,
+        OIDC_MAX_PENDING_CHECKS,
+    )) {
+        result[state] = check;
+    }
+    return result;
 }
 
 /**
@@ -205,7 +326,10 @@ class Oidc extends Authentication {
                 await this.callback(req, res);
             } catch (e: any) {
                 this.log.warn(`Error during OIDC callback (${e.message})`);
-                res.status(500).send(e.message);
+                const publicUrl = getPublicUrl(req).replace(/\/$/, '');
+                res.redirect(
+                    `${publicUrl}/#/login?error=${encodeURIComponent(e.message)}`,
+                );
             }
         });
         const strategy = new OidcStrategy(
@@ -254,11 +378,34 @@ class Oidc extends Authentication {
                 ? rawNext
                 : undefined;
 
-        req.session.oidc = {
-            codeVerifier,
-            state,
-            next,
-        };
+        await withOidcSessionLock(req.sessionID, async () => {
+            await reloadSession(req);
+
+            if (!req.session) {
+                throw new Error(
+                    'Unable to initialize OIDC checks because no session is available',
+                );
+            }
+
+            const currentPending = prunePendingChecks(
+                req.session.oidc?.pending,
+            );
+            currentPending[state] = {
+                codeVerifier,
+                state,
+                next,
+                createdAt: Date.now(),
+            };
+
+            req.session.oidc = {
+                codeVerifier,
+                state,
+                next,
+                pending: currentPending,
+            };
+
+            await saveSession(req);
+        });
 
         const authUrl = client.buildAuthorizationUrl(config, parameters);
         this.log.debug(`Build redirection url [${authUrl}]`);
@@ -272,22 +419,83 @@ class Oidc extends Authentication {
             const config = await this.ensureDiscovered();
             this.log.debug('Validate callback data');
 
-            const oidcChecks = req.session?.oidc;
-            if (!oidcChecks) {
+            const callbackState =
+                typeof req.query.state === 'string'
+                    ? req.query.state
+                    : undefined;
+
+            let matchedCheck: OidcPendingCheck | undefined;
+
+            await withOidcSessionLock(req.sessionID, async () => {
+                await reloadSession(req);
+
+                const oidcSession = req.session?.oidc;
+                if (!oidcSession) {
+                    throw new Error('OIDC session state not found');
+                }
+
+                const pending = prunePendingChecks(oidcSession.pending);
+
+                if (callbackState && pending[callbackState]) {
+                    matchedCheck = pending[callbackState];
+                    delete pending[callbackState];
+                } else if (
+                    oidcSession.state &&
+                    oidcSession.codeVerifier &&
+                    (!callbackState || oidcSession.state === callbackState)
+                ) {
+                    matchedCheck = {
+                        codeVerifier: oidcSession.codeVerifier,
+                        state: oidcSession.state,
+                        next: oidcSession.next,
+                        createdAt: Date.now(),
+                    };
+                } else if (
+                    !callbackState &&
+                    req.query.state === '' &&
+                    oidcSession.codeVerifier
+                ) {
+                    matchedCheck = {
+                        codeVerifier: oidcSession.codeVerifier,
+                        state: '',
+                        next: oidcSession.next,
+                        createdAt: Date.now(),
+                    };
+                }
+
+                if (!matchedCheck) {
+                    this.log.warn(
+                        `OIDC callback state [${callbackState || 'none'}] does not match any pending session checks (pending: ${Object.keys(pending).length})`,
+                    );
+                    throw new Error('OIDC session state mismatch or expired');
+                }
+
+                if (req.session && req.session.oidc) {
+                    req.session.oidc.pending = pending;
+                    if (req.session.oidc.state === matchedCheck.state) {
+                        delete req.session.oidc.state;
+                        delete req.session.oidc.codeVerifier;
+                        delete req.session.oidc.next;
+                    }
+                }
+
+                await saveSession(req);
+            });
+
+            if (!matchedCheck) {
                 throw new Error('OIDC session state not found');
             }
-            const nextUrl = oidcChecks.next;
-            delete req.session.oidc.next;
 
+            const nextUrl = matchedCheck.next;
             const currentUrl = new URL(
                 `${getPublicUrl(req)}${req.originalUrl}`,
             );
 
             // Authentik sends an empty state back instead of not sending it at all when PKCE is not supported, so in that case we skip the state check
             const check: client.AuthorizationCodeGrantChecks = {
-                pkceCodeVerifier: oidcChecks.codeVerifier,
-                expectedState: oidcChecks.state
-                    ? oidcChecks.state
+                pkceCodeVerifier: matchedCheck.codeVerifier,
+                expectedState: matchedCheck.state
+                    ? matchedCheck.state
                     : req.query.state === ''
                       ? client.skipStateCheck
                       : undefined,
