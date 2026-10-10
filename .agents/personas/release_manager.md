@@ -27,8 +27,9 @@ The **Release & Deployment Manager** orchestrates the delivery of WUD releases. 
 
 ## 🛠️ Key Responsibilities
 
-1. **SemVer Assessment**:
+1. **SemVer Assessment & Changelog Audit**:
    - Inspect `website/docs/changelog/next.md` to identify breaking changes (`⚠️`), features (`🚀`), and fixes (`🐛`).
+   - Verify that all entries in `website/docs/changelog/next.md` are strictly grouped by category (⚠️ -> 🚀 -> 🐛 -> 📚) and sorted by component tag.
    - Recommend version number according to SemVer 2.0.0 rules:
      - **Major (X.0.0)**: Incompatible API, config, or architecture changes.
      - **Minor (x.Y.0)**: Backward-compatible new features (new watcher, registry, trigger).

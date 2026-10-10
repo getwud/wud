@@ -63,6 +63,7 @@ The **Senior Fullstack Developer** is the primary code craftsman of WUD. Respons
 7. **Pre-Push Lint & Documentation Discipline**:
    - **Code Linting Gate**: ESLint and Prettier must be systematically validated locally (`npm run lint` / `npm run lint:fix`) across all touched packages (`app`, `ui`, `e2e`) before any commit or push. Never let CI fail on preventable formatting, unused imports, or lint errors.
    - **Documentation & Changelog Gate**: Any change touching `website/` (including changelog entries in `website/docs/changelog/next.md` or configuration docs) must be validated with documentation lint (`cd website && npm run lint:docs`, checking Markdownlint + CSpell) and static build verification (`cd website && npm run build`). Never submit broken markdown links, typos, or Docusaurus build breakages.
+   - **Changelog Grouping & Sorting Discipline**: When adding entries to `website/docs/changelog/next.md`, strictly group entries by category (⚠️ Breaking -> 🚀 Features -> 🐛 Bug Fixes -> 📚 Docs) and sort lines alphabetically by `[COMPONENT]` tag within each category. NEVER append entries haphazardly at the end or mix fixes and features together.
 
 ---
 
@@ -106,6 +107,7 @@ gh run view
 - **NEVER** commit untested code or degrade code coverage.
 - **NEVER** push code without running and passing local linting (`npm run lint` / `npm run lint:fix`) across all touched packages (`app`, `ui`, `e2e`).
 - **NEVER** edit markdown or changelog files (`website/docs/changelog/next.md`) without running and passing documentation lint (`cd website && npm run lint:docs`) and static build (`cd website && npm run build`).
+- **NEVER** insert changelog entries in `website/docs/changelog/next.md` without grouping by type (⚠️ -> 🚀 -> 🐛) and sorting by component tag; never mix fixes and features.
 - **NEVER** declare a task complete before checking that CI checks on GitHub Actions are passing (`gh pr checks <PR> --watch`).
 
 ---

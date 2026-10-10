@@ -20,20 +20,52 @@ if (!fs.existsSync(nextFile)) {
 
 const nextContent = fs.readFileSync(nextFile, 'utf8');
 
+function sortChangelogNotes(text) {
+  const lines = text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  const getRank = (line) => {
+    if (line.includes('⚠️')) return 1;
+    if (line.includes('🚀')) return 2;
+    if (line.includes('🐛')) return 3;
+    if (line.includes('📚') || line.includes('🛠️') || line.includes('📝')) return 4;
+    return 5;
+  };
+
+  const getTag = (line) => {
+    const match = line.match(/\[([A-Z0-9_/-]+)\]/);
+    return match ? match[1] : '';
+  };
+
+  lines.sort((a, b) => {
+    const rankDiff = getRank(a) - getRank(b);
+    if (rankDiff !== 0) return rankDiff;
+    const tagDiff = getTag(a).localeCompare(getTag(b));
+    if (tagDiff !== 0) return tagDiff;
+    return a.localeCompare(b);
+  });
+
+  return lines.join('\n');
+}
+
 // Extract the release notes after frontmatter and header
 // Removes frontmatter, # Next header, blockquote, and any horizontal separator lines
 const contentWithoutFrontmatter = nextContent.replace(/^---[\s\S]*?---\s*/, '');
-const notes = contentWithoutFrontmatter
+const rawNotes = contentWithoutFrontmatter
   .replace(/^#\s+Next[^\n]*\n*/m, '')
   .replace(/^>\s+Changes below[^\n]*\n*/m, '')
   .replace(/^---\s*$/gm, '')
   .replace(/\n{3,}/g, '\n\n')
   .trim();
 
-if (!notes) {
+if (!rawNotes) {
   console.error('❌ Error: No unreleased notes found in next.md.');
   process.exit(1);
 }
+
+const notes = sortChangelogNotes(rawNotes);
 
 const major = version.split('.')[0];
 const targetChangelogFile = path.join(changelogDir, `v${major}.md`);

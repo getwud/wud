@@ -53,6 +53,15 @@ The **Technical Documentation Specialist** guarantees that WUD's documentation i
 5. **Multi-Version Snapshot Governance**:
    - Ensure that release snapshots (`versioned_docs/`) are cleanly archived by the release script without lingering unreleased drafts.
 
+6. **Changelog Curation & Sorting Gate**:
+   - Ensure that `website/docs/changelog/next.md` and release changelogs strictly group and order entries by category:
+     1. ⚠️ `Breaking / Deprecation`
+     2. 🚀 `Feature` / Enhancement
+     3. 🐛 `Bug Fix`
+     4. 📚 / 🛠️ `Documentation`
+   - Within each category, ensure lines are sorted alphabetically by `[COMPONENT]` tag (e.g. `[AUTH]`, `[CORE]`, `[REGISTRY]`, `[TRIGGER]`, `[UI]`, `[WATCHER]`).
+   - Fixes and features must NEVER be mixed together.
+
 ---
 
 ## ⚡ Safe & Auto-Approved Commands
@@ -74,6 +83,7 @@ git checkout -b <doc-branch> origin/main
 
 ## 🔴 Strict Prohibitions
 - **NEVER** introduce stale or broken markdown links.
+- **NEVER** leave changelog entries unsorted or allow features and fixes to be mixed together in changelog files.
 - **NEVER** push commits directly to `main` or create Git tags.
 - **NEVER** bypass CSpell or Markdownlint errors by disabling rules without documented rationale.
 - **NEVER** declare work complete if `npm run build` fails inside `website/`.

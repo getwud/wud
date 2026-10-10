@@ -131,9 +131,16 @@ Whenever implementing a feature or bugfix, **strictly adhere to the following wo
 ### 5. Changelog Updates (`website/docs/changelog/next.md`)
 - **Always** document your unreleased change in `website/docs/changelog/next.md`.
 - Use the standard category emoji conventions:
+  - ⚠️ `Breaking / Deprecation` (e.g. `- ⚠️ [CONFIG] Deprecate WUD_OLD_VAR in favor of WUD_NEW_VAR`)
   - 🚀 `Feature` / Enhancement (e.g. `- 🚀 [TRIGGER] Add new XYZ trigger`)
   - 🐛 `Bug Fix` (e.g. `- 🐛 [REGISTRY] Fix token refresh on 401`)
-  - ⚠️ `Breaking / Deprecation` (e.g. `- ⚠️ [CONFIG] Deprecate WUD_OLD_VAR in favor of WUD_NEW_VAR`)
+  - 📚 / 🛠️ `Documentation` (e.g. `- 📚 [DOCS] Document remote TLS configuration`)
+- **Strict Grouping & Sorting by Type**: Changelog entries MUST NEVER mix features and fixes together. Always group and sort lines by category in the following order:
+  1. ⚠️ `Breaking / Deprecation`
+  2. 🚀 `Feature`
+  3. 🐛 `Bug Fix`
+  4. 📚 / 🛠️ `Documentation`
+  Within each category, sort lines alphabetically by `[COMPONENT]` tag (e.g. `[AUTH]`, `[CORE]`, `[REGISTRY]`, `[TRIGGER]`, `[UI]`, `[WATCHER]`).
 ### 6. Release Process
 - Use `./scripts/release.sh <version>` to automate release preparation (package bumps, changelog transfer, Docusaurus docs snapshotting).
 - **Tag & Release Naming Convention**: NEVER prefix versions with `v` in Git tags or GitHub Release titles (e.g. use `9.0.0`, NOT `v9.0.0`).
