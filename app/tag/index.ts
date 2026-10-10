@@ -327,9 +327,14 @@ export function diff(version1, version2) {
  * Transform a tag using a formula.
  * @param transformFormula
  * @param originalTag
+ * @param container Optional container name or container context to identify the container upon error
  * @return {*}
  */
-export function transform(transformFormula, originalTag) {
+export function transform(
+    transformFormula?: string,
+    originalTag?: string,
+    container?: string | Container | { name?: string; id?: string },
+): string | undefined {
     // No formula ? return original tag value
     if (!transformFormula || transformFormula === '') {
         return originalTag;
@@ -360,8 +365,15 @@ export function transform(transformFormula, originalTag) {
         return transformedTag;
     } catch (e) {
         // Upon error; log & fallback to original tag value
+        const containerContext =
+            typeof container === 'object' && container !== null
+                ? container.name || container.id
+                : container;
+        const containerSuffix = containerContext
+            ? ` for container [${containerContext}]`
+            : '';
         log.warn(
-            `Error when applying transform function [${transformFormula}]to tag [${originalTag}]`,
+            `Error when applying transform function [${transformFormula}] to tag [${originalTag}]${containerSuffix}`,
         );
         log.debug(e);
         return originalTag;

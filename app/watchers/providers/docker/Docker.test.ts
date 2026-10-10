@@ -4891,6 +4891,82 @@ describe('Docker Watcher', () => {
                     );
                 });
             });
+
+            describe('Tag transform container context (#752)', () => {
+                test('should pass containerName to transform when inspecting container with transformTags label', async () => {
+                    await docker.register('watcher', 'docker', 'test', {});
+                    const container = {
+                        Id: '123456789',
+                        Image: 'test-image:1.0.0',
+                        Names: ['/my-test-container'],
+                        State: 'running',
+                        Labels: {
+                            'wud.tag.transform': '^(\\d+)\\..* => $1',
+                        },
+                    };
+                    const imageDetails = {
+                        RepoTags: ['test-image:1.0.0'],
+                        Architecture: 'amd64',
+                        Os: 'linux',
+                        Created: '2023-01-01',
+                        Id: 'image123',
+                    };
+                    mockImage.inspect.mockResolvedValue(imageDetails);
+
+                    await docker.addImageDetailsToContainer(container);
+
+                    expect(mockTag.transform).toHaveBeenCalledWith(
+                        '^(\\d+)\\..* => $1',
+                        '1.0.0',
+                        'my-test-container',
+                    );
+                });
+
+                test('should pass container to transform when evaluating candidate tags in findNewVersion', async () => {
+                    await docker.register('watcher', 'docker', 'test', {});
+                    const container = {
+                        name: 'my-service',
+                        transformTags: '^(\\d+)\\..* => $1',
+                        image: {
+                            registry: { name: 'hub' },
+                            tag: { value: '1.0.0', semver: true },
+                            digest: { watch: false },
+                        },
+                    };
+                    const mockRegistry = {
+                        getTags: jest
+                            .fn()
+                            .mockResolvedValue(['1.0.0', '2.0.0']),
+                        shouldWatchDigest: jest.fn(() => false),
+                    };
+                    registry.getState.mockReturnValue({
+                        registry: { hub: mockRegistry },
+                    });
+                    mockTag.transform.mockImplementation(
+                        (_formula, tag) => tag,
+                    );
+                    mockTag.parse.mockReturnValue({
+                        major: 1,
+                        minor: 0,
+                        patch: 0,
+                    });
+                    mockTag.isGreater.mockReturnValue(true);
+
+                    const logContainer = {
+                        warn: jest.fn(),
+                        debug: jest.fn(),
+                        error: jest.fn(),
+                    };
+
+                    await docker.findNewVersion(container, logContainer);
+
+                    expect(mockTag.transform).toHaveBeenCalledWith(
+                        '^(\\d+)\\..* => $1',
+                        '2.0.0',
+                        container,
+                    );
+                });
+            });
         });
     });
 });

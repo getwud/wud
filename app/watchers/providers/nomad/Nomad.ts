@@ -731,7 +731,9 @@ export class Nomad extends Watcher {
             };
         }
 
-        const parsedTag = parseSemver(transformTag(transformTags, tagName));
+        const parsedTag = parseSemver(
+            transformTag(transformTags, tagName, task.Name),
+        );
         const isSemver = parsedTag !== null && parsedTag !== undefined;
 
         const watchDigestMeta = getMeta(
@@ -994,8 +996,9 @@ export class Nomad extends Watcher {
 
             filteredTags = filteredTags.filter(
                 (tag) =>
-                    parseSemver(transformTag(container.transformTags, tag)) !==
-                    null,
+                    parseSemver(
+                        transformTag(container.transformTags, tag, container),
+                    ) !== null,
             );
 
             // Keep only tags with the same number of numeric segments
@@ -1015,10 +1018,12 @@ export class Nomad extends Watcher {
                 const tagTransformed = transformTag(
                     container.transformTags,
                     tag,
+                    container,
                 );
                 const currentTransformed = transformTag(
                     container.transformTags,
                     container.image.tag.value,
+                    container,
                 );
                 return (
                     tagTransformed !== currentTransformed &&
@@ -1028,8 +1033,8 @@ export class Nomad extends Watcher {
 
             filteredTags.sort((t1, t2) => {
                 const greater = isGreaterSemver(
-                    transformTag(container.transformTags, t2),
-                    transformTag(container.transformTags, t1),
+                    transformTag(container.transformTags, t2, container),
+                    transformTag(container.transformTags, t1, container),
                 );
                 return greater ? 1 : -1;
             });

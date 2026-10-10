@@ -237,7 +237,7 @@ function getLink(container: Container, originalTagValue: string) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const original = originalTagValue;
     const transformed = container.transformTags
-        ? transformTag(container.transformTags, originalTagValue)
+        ? transformTag(container.transformTags, originalTagValue, container)
         : originalTagValue;
     let major = '';
     let minor = '';
@@ -314,10 +314,12 @@ function isCandidateUpdateAvailable(container: Container): boolean {
         const localTag = transformTag(
             container.transformTags,
             container.image.tag.value,
+            container,
         );
         const remoteTag = transformTag(
             container.transformTags,
             container.result.tag,
+            container,
         );
         updateAvailable = localTag !== remoteTag;
     }
@@ -456,10 +458,12 @@ function addUpdateKindProperty(container: Container) {
                             transformTag(
                                 container.transformTags,
                                 container.image.tag.value,
+                                container,
                             ),
                             transformTag(
                                 container.transformTags,
                                 container.result.tag,
+                                container,
                             ),
                         );
                         switch (semverDiff) {
