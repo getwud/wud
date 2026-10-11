@@ -15,6 +15,8 @@ import { getServerConfiguration } from '../configuration';
 
 const configuration = getServerConfiguration();
 
+let server;
+
 /**
  * Init Http API.
  * @returns {Promise<void>}
@@ -86,7 +88,7 @@ export async function init() {
                 );
                 throw e;
             }
-            https
+            server = https
                 .createServer({ key: serverKey, cert: serverCert }, app)
                 .listen(configuration.port, () => {
                     log.info(
@@ -95,7 +97,7 @@ export async function init() {
                 });
         } else {
             // Listen plain HTTP
-            app.listen(configuration.port, () => {
+            server = app.listen(configuration.port, () => {
                 log.info(
                     `Server listening on port ${configuration.port} (HTTP)`,
                 );
@@ -104,4 +106,35 @@ export async function init() {
     } else {
         log.debug('API/UI disabled');
     }
+}
+
+/**
+ * Stop HTTP/HTTPS server and close connections.
+ */
+export async function close(): Promise<void> {
+    if (!server) {
+        return;
+    }
+    const currentServer = server;
+    server = undefined;
+    log.info('Closing API server');
+    return new Promise((resolve, reject) => {
+        if (typeof currentServer.closeIdleConnections === 'function') {
+            currentServer.closeIdleConnections();
+        }
+        currentServer.close((err) => {
+            if (err) {
+                log.error(`Error closing API server: ${err.message}`);
+                return reject(err);
+            }
+            log.info('API server closed');
+            resolve();
+        });
+    });
+}
+
+export const stop = close;
+
+export function getServer() {
+    return server;
 }

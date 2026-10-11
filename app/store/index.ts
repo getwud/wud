@@ -113,6 +113,14 @@ class Store {
         this.log.info('Disposing db store');
         closeDatabase();
     }
+
+    public close() {
+        this.dispose();
+    }
 }
 
 export const store = new Store();
+
+export function close() {
+    store.close();
+}

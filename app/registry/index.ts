@@ -22,6 +22,7 @@ import {
     isRegistryRegistered,
     findRegistryProvider,
 } from '../registries/registryProvider';
+import { registerShutdownHandlers } from '../runtime/shutdown';
 
 export interface RegistryState {
     trigger: Record<string, Trigger>;
@@ -487,7 +488,7 @@ async function deregisterAuthentications() {
  * Deregister all components.
  * @returns {Promise}
  */
-async function deregisterAll() {
+export async function deregisterAll() {
     try {
         await deregisterWatchers();
         await deregisterTriggers();
@@ -518,13 +519,11 @@ export async function registerComponents() {
 }
 
 /**
- * Install signal handlers so WUD can gracefully deregister components.
+ * Install signal handlers so WUD can gracefully shut down.
  * NOT called in one-shot mode.
  */
 export function startBackground() {
-    // Gracefully exit when possible
-    process.on('SIGINT', deregisterAll);
-    process.on('SIGTERM', deregisterAll);
+    registerShutdownHandlers();
 }
 
 export async function init() {

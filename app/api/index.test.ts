@@ -4,6 +4,13 @@ import https from 'https';
 import fs from 'fs';
 import express from 'express';
 
+const mockServer = {
+    close: jest.fn((cb) => {
+        if (cb) cb();
+    }),
+    closeIdleConnections: jest.fn(),
+};
+
 jest.mock('../configuration', () => ({
     getServerConfiguration: jest.fn(() => ({
         enabled: true,
@@ -20,7 +27,10 @@ jest.mock('./prometheus', () => ({ init: jest.fn() }));
 jest.mock('./health', () => ({ init: jest.fn() }));
 jest.mock('https', () => ({
     createServer: jest.fn().mockReturnValue({
-        listen: jest.fn((port, cb) => cb()),
+        listen: jest.fn((port, cb) => {
+            if (cb) cb();
+            return mockServer;
+        }),
     }),
 }));
 jest.mock('fs');
@@ -28,7 +38,10 @@ jest.mock('express', () => {
     const mockApp = {
         set: jest.fn(),
         use: jest.fn(),
-        listen: jest.fn((port, cb) => cb()),
+        listen: jest.fn((port, cb) => {
+            if (cb) cb();
+            return mockServer;
+        }),
     };
     return jest.fn(() => mockApp);
 });
@@ -130,5 +143,50 @@ describe('API Index', () => {
             indexLocal = require('./index');
         });
         await expect(indexLocal.init()).rejects.toThrow('cert err');
+    });
+
+    test('close should do nothing when server is not running', async () => {
+        let indexLocal;
+        jest.isolateModules(() => {
+            indexLocal = require('./index');
+        });
+        await expect(indexLocal.close()).resolves.toBeUndefined();
+    });
+
+    test('close should close server and closeIdleConnections', async () => {
+        let indexLocal;
+        jest.isolateModules(() => {
+            indexLocal = require('./index');
+        });
+        await indexLocal.init();
+        expect(indexLocal.getServer()).toBeDefined();
+
+        await indexLocal.close();
+
+        expect(mockServer.closeIdleConnections).toHaveBeenCalled();
+        expect(mockServer.close).toHaveBeenCalled();
+        expect(indexLocal.getServer()).toBeUndefined();
+    });
+
+    test('close should reject when server.close returns an error', async () => {
+        let indexLocal;
+        jest.isolateModules(() => {
+            indexLocal = require('./index');
+        });
+        await indexLocal.init();
+
+        mockServer.close.mockImplementationOnce((cb) =>
+            cb(new Error('close failed')),
+        );
+
+        await expect(indexLocal.close()).rejects.toThrow('close failed');
+    });
+
+    test('stop should be alias for close', async () => {
+        let indexLocal;
+        jest.isolateModules(() => {
+            indexLocal = require('./index');
+        });
+        expect(indexLocal.stop).toBe(indexLocal.close);
     });
 });

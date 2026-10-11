@@ -84,4 +84,15 @@ describe('Store Module', () => {
         store.dispose();
         expect(mockClose).toHaveBeenCalled();
     });
+
+    test('should close store via close method and close helper function', () => {
+        const { closeDatabase: mockClose } = require('./db');
+        const { close } = require('./index');
+
+        store.close();
+        expect(mockClose).toHaveBeenCalledTimes(1);
+
+        close();
+        expect(mockClose).toHaveBeenCalledTimes(2);
+    });
 });
