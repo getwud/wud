@@ -1,4 +1,10 @@
-import { createRouter, createWebHistory, createWebHashHistory, RouteRecordRaw } from "vue-router";
+import {
+  createRouter,
+  createWebHistory,
+  createWebHashHistory,
+  RouteRecordRaw,
+  RouteLocationNormalized,
+} from "vue-router";
 import { getUser } from "@/services/auth";
 import { isDemoMode } from "@/services/mock";
 import { nextTick } from "vue";
@@ -74,18 +80,81 @@ const router = createRouter({
 });
 
 /**
+ * Validate that a redirect URL is a safe local relative path.
+ * Must start with '/', must not start with '//' or '/\', must not contain backslashes,
+ * and must not contain any protocol scheme (http:, https:, javascript:, data:, etc.).
+ *
+ * @param url
+ * @returns {boolean}
+ */
+export function isSafeRedirect(url: unknown): boolean {
+  if (typeof url !== "string") {
+    return false;
+  }
+  const trimmed = url.trim();
+  if (
+    !trimmed.startsWith("/") ||
+    trimmed.startsWith("//") ||
+    trimmed.startsWith("/\\") ||
+    trimmed.includes("\\")
+  ) {
+    return false;
+  }
+  // Disallow any protocol scheme (e.g. http:, https:, javascript:, data:, etc.)
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) {
+    return false;
+  }
+  // Check decoded URL as well to prevent bypass via URL encoding
+  try {
+    const decoded = decodeURIComponent(trimmed);
+    if (
+      !decoded.startsWith("/") ||
+      decoded.startsWith("//") ||
+      decoded.startsWith("/\\") ||
+      decoded.includes("\\") ||
+      /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(decoded)
+    ) {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Get a safe redirect destination. Returns the sanitized relative URL if valid,
+ * or falls back to { name: "home" }.
+ *
+ * @param url
+ * @returns {string | { name: "home" }}
+ */
+export function getSafeRedirect(url: unknown): string | { name: "home" } {
+  if (isSafeRedirect(url)) {
+    return (url as string).trim();
+  }
+  return { name: "home" };
+}
+
+/**
  * Apply authentication navigation guard.
  * @param to
- * @param from
- * @returns {Promise<void>}
+ * @returns {Promise<any>}
  */
-async function applyAuthNavigationGuard(to) {
+export async function applyAuthNavigationGuard(to: RouteLocationNormalized) {
   // Allow forcing access to the login page when capturing screenshots by
   // using the `screenshots` query parameter (e.g. #/login?screenshots=true).
-  if (isDemoMode() && to.name === "login" && !to.query?.screenshots) {
-    return { name: "home" };
-  }
   if (to.name === "login") {
+    if (isDemoMode() && to.query?.screenshots) {
+      return true;
+    }
+    if (isDemoMode()) {
+      return { name: "home" };
+    }
+    const user = await getUser();
+    if (user !== undefined) {
+      return getSafeRedirect(to.query?.next);
+    }
     return true;
   } else {
     // Get current user
@@ -106,10 +175,10 @@ async function applyAuthNavigationGuard(to) {
           (router as any).app.config.globalProperties.$eventBus.emit("authenticated", user);
         }
       });
-      
+
       // Next route in param? redirect
-      if (to.query.next) {
-        return to.query.next;
+      if (to.query?.next !== undefined) {
+        return getSafeRedirect(to.query.next);
       } else {
         return true;
       }
@@ -131,7 +200,5 @@ async function applyAuthNavigationGuard(to) {
 router.beforeEach(async (to) => {
   return await applyAuthNavigationGuard(to);
 });
-
-
 
 export default router;
