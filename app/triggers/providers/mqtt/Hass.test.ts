@@ -875,7 +875,7 @@ describe('handleInstallCommand', () => {
     });
 });
 
-describe('discovery_entities: summary', () => {
+describe('entities: summary', () => {
     let summaryHass;
 
     beforeEach(async () => {
@@ -884,7 +884,7 @@ describe('discovery_entities: summary', () => {
                 topic: 'topic',
                 hass: {
                     discovery: true,
-                    discovery_entities: 'summary',
+                    entities: 'summary',
                     prefix: 'homeassistant',
                     devicename: 'wud',
                     deviceid: 'wud',
@@ -1126,5 +1126,41 @@ describe('discovery_entities: summary', () => {
             ([, payload]) => payload !== '',
         );
         expect(nonDeleteCalls).toHaveLength(0);
+    });
+
+    test('legacy discovery_entities: summary also activates summary mode', async () => {
+        const legacyHass = new Hass({
+            configuration: {
+                topic: 'topic',
+                hass: {
+                    discovery: true,
+                    discovery_entities: 'summary',
+                    prefix: 'homeassistant',
+                    devicename: 'wud',
+                    deviceid: 'wud',
+                },
+            },
+            log,
+        });
+        await legacyHass.init(mqttClientMock);
+        mqttClientMock.publish.mockClear();
+
+        jest.spyOn(containerStore, 'getContainers').mockReturnValue([]);
+        await legacyHass.addContainerSensor({
+            name: 'my-app',
+            watcher: 'local',
+        });
+
+        // Must remove the update entity discovery config
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'homeassistant/update/topic_local_my-app/config',
+            '',
+            { retain: true },
+        );
+        const updateConfigCalls = mqttClientMock.publish.mock.calls.filter(
+            ([topic, payload]) =>
+                topic.includes('homeassistant/update/') && payload !== '',
+        );
+        expect(updateConfigCalls).toHaveLength(0);
     });
 });

@@ -136,6 +136,13 @@ class Hass {
         this.log = log;
     }
 
+    private isSummary(): boolean {
+        return (
+            this.configuration.hass.entities === 'summary' ||
+            this.configuration.hass.discovery_entities === 'summary'
+        );
+    }
+
     /**
      * Initialize the component.
      *
@@ -276,7 +283,7 @@ class Hass {
             topic: this.getContainerStateTopic({ container }),
         };
 
-        if (this.configuration.hass.discovery_entities === 'summary') {
+        if (this.isSummary()) {
             if (this.configuration.hass.discovery) {
                 await this.removeSensor({
                     discoveryTopic:
@@ -343,7 +350,7 @@ class Hass {
                 discoveryTopic: this.getDiscoveryTopic(containerStateSensor),
             });
         }
-        if (this.configuration.hass.discovery_entities === 'summary') {
+        if (this.isSummary()) {
             await this.publishSummaryUpdates();
             await this.updateContainerSensors(container);
         }
@@ -421,8 +428,7 @@ class Hass {
             },
         };
 
-        const isSummary =
-            this.configuration.hass.discovery_entities === 'summary';
+        const isSummary = this.isSummary();
 
         // Publish discovery messages
         if (this.configuration.hass.discovery) {
@@ -566,7 +572,7 @@ class Hass {
             topic: `${this.configuration.topic}/${watcher.name}/running`,
         };
 
-        if (this.configuration.hass.discovery_entities === 'summary') {
+        if (this.isSummary()) {
             if (this.configuration.hass.discovery) {
                 await this.removeSensor({
                     discoveryTopic: this.getDiscoveryTopic(watcherStatusSensor),

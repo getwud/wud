@@ -1,6 +1,7 @@
 //@ts-nocheck
 import mqttClient from 'mqtt';
 import log from '../../../log';
+import { get } from '../../../configuration';
 import { flatten } from '../../../model/container';
 
 jest.mock('mqtt');
@@ -16,6 +17,7 @@ const configurationValid = {
     clientid: 'wud',
     hass: {
         discovery: false,
+        entities: 'all',
         discovery_entities: 'all',
         enabled: false,
         prefix: 'homeassistant',
@@ -366,14 +368,39 @@ test('triggerRollback should publish the rollback report on the rollback topic',
     );
 });
 
-test('validateConfiguration should accept discovery_entities = summary', () => {
+test('validateConfiguration should accept entities = summary', () => {
     const validated = mqtt.validateConfiguration({
         ...configurationValid,
         hass: {
             ...configurationValid.hass,
+            entities: 'summary',
+        },
+    });
+    expect(validated.hass.entities).toEqual('summary');
+});
+
+test('validateConfiguration should reject invalid entities', () => {
+    expect(() => {
+        mqtt.validateConfiguration({
+            ...configurationValid,
+            hass: {
+                ...configurationValid.hass,
+                entities: 'invalid',
+            },
+        });
+    }).toThrow();
+});
+
+test('validateConfiguration should accept discovery_entities = summary and map to entities = summary', () => {
+    const { entities: _, ...hassWithoutEntities } = configurationValid.hass;
+    const validated = mqtt.validateConfiguration({
+        ...configurationValid,
+        hass: {
+            ...hassWithoutEntities,
             discovery_entities: 'summary',
         },
     });
+    expect(validated.hass.entities).toEqual('summary');
     expect(validated.hass.discovery_entities).toEqual('summary');
 });
 
@@ -387,4 +414,19 @@ test('validateConfiguration should reject invalid discovery_entities', () => {
             },
         });
     }).toThrow();
+});
+
+test('configuration parsed from env vars with HASS_ENTITIES=summary should pass validation without collision', () => {
+    const env = {
+        WUD_TRIGGER_MQTT_TEST_URL: 'mqtt://host:1883',
+        WUD_TRIGGER_MQTT_TEST_HASS_ENABLED: 'true',
+        WUD_TRIGGER_MQTT_TEST_HASS_DISCOVERY: 'true',
+        WUD_TRIGGER_MQTT_TEST_HASS_ENTITIES: 'summary',
+    };
+    const triggerConfigs = get('wud.trigger', env) as any;
+    const testConfig = triggerConfigs.mqtt.test;
+    const validated = mqtt.validateConfiguration(testConfig);
+    expect(validated.hass.enabled).toBe(true);
+    expect(validated.hass.discovery).toBe(true);
+    expect(validated.hass.entities).toEqual('summary');
 });

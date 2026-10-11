@@ -33,7 +33,8 @@ export interface MqqtConfiguration extends TriggerConfiguration {
         enabled: boolean;
         prefix: string;
         discovery: boolean;
-        discovery_entities: 'all' | 'summary';
+        entities: 'all' | 'summary';
+        discovery_entities?: 'all' | 'summary';
         deviceid: string;
         devicename: string;
     };
@@ -75,10 +76,23 @@ class Mqtt extends Trigger {
                         is: true,
                         then: this.joi.boolean().default(true),
                     }),
-                    discovery_entities: this.joi
+                    entities: this.joi
                         .string()
                         .valid('all', 'summary')
-                        .default('all'),
+                        .when('discovery_entities', {
+                            is: this.joi.exist(),
+                            then: this.joi
+                                .string()
+                                .valid('all', 'summary')
+                                .default(this.joi.ref('discovery_entities')),
+                            otherwise: this.joi
+                                .string()
+                                .valid('all', 'summary')
+                                .default('all'),
+                        }),
+                    discovery_entities: this.joi
+                        .string()
+                        .valid('all', 'summary'),
                     deviceid: this.joi.string().default('wud'),
                     devicename: this.joi.string().default('wud'),
                 })
@@ -86,6 +100,7 @@ class Mqtt extends Trigger {
                     enabled: false,
                     prefix: hassDefaultPrefix,
                     discovery: false,
+                    entities: 'all',
                     discovery_entities: 'all',
                     deviceid: 'wud',
                     devicename: 'wud',
