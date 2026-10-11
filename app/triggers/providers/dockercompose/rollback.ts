@@ -27,6 +27,7 @@ interface TransactionService {
     verdict?: RollbackServiceVerdict;
     reason?: string;
     reverted?: boolean;
+    restoredContainerId?: string;
 }
 
 function serviceName(container: Container): string {
@@ -117,6 +118,15 @@ async function revertService(
             await archive.start();
         }
         service.reverted = true;
+        service.restoredContainerId = archive.id;
+        try {
+            const spec = await archive.inspect();
+            if (spec?.Id) {
+                service.restoredContainerId = spec.Id;
+            }
+        } catch {
+            // fallback to archive.id or service.container.id
+        }
         return true;
     } catch (e: unknown) {
         const message = getErrorMessage(e);
@@ -277,6 +287,23 @@ export async function performProjectTransaction(
         for (const service of services) {
             await removeArchive(trigger, service);
             await pruneService(trigger, service);
+            try {
+                const watcher = trigger.getWatcher(service.container);
+                if (watcher?.dockerApi && watcher?.reconcileContainer) {
+                    const newContainer = await watcher.dockerApi.getContainer(
+                        service.container.name,
+                    );
+                    const newContainerSpec = await newContainer.inspect();
+                    await watcher.reconcileContainer(newContainerSpec.Id, {
+                        oldContainerId: service.container.id,
+                        forceRefresh: true,
+                    });
+                }
+            } catch (reconcileErr: unknown) {
+                log.warn(
+                    `Post-commit reconcile failed for service ${service.serviceKey}: ${getErrorMessage(reconcileErr)}`,
+                );
+            }
         }
         log.info(`Project ${composeFile} committed on the new versions`);
         return true;
@@ -309,6 +336,21 @@ async function finalizeRevert(
                 : false;
         if (!restored) {
             allReverted = false;
+        } else {
+            try {
+                const watcher = trigger.getWatcher(service.container);
+                if (watcher?.reconcileContainer) {
+                    const restoredId =
+                        service.restoredContainerId || service.container.id;
+                    await watcher.reconcileContainer(restoredId, {
+                        forceRefresh: true,
+                    });
+                }
+            } catch (reconcileErr: unknown) {
+                log.warn(
+                    `Post-revert reconcile failed for service ${service.serviceKey}: ${getErrorMessage(reconcileErr)}`,
+                );
+            }
         }
     }
 

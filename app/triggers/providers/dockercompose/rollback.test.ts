@@ -14,12 +14,18 @@ const buildArchive = (name) => ({
     rename: jest.fn(() => Promise.resolve()),
     start: jest.fn(() => Promise.resolve()),
     remove: jest.fn(() => Promise.resolve()),
+    inspect: jest.fn(() =>
+        Promise.resolve({
+            Id: `${name}-archive-id`,
+        }),
+    ),
 });
 
 const buildNewContainer = (name, healthStatus) => ({
     id: `${name}-new-id`,
     inspect: jest.fn(() =>
         Promise.resolve({
+            Id: `${name}-new-id`,
             State: {
                 Running: true,
                 Health: { Status: healthStatus },
@@ -63,6 +69,11 @@ const buildTrigger = ({
         }),
     };
 
+    const mockWatcher = {
+        dockerApi,
+        reconcileContainer: jest.fn(() => Promise.resolve()),
+    };
+
     const trigger = {
         log,
         configuration: { prune: !pruneDisabled },
@@ -72,7 +83,7 @@ const buildTrigger = ({
             interval: 5,
             grace: 5,
         })),
-        getWatcher: jest.fn(() => ({ dockerApi })),
+        getWatcher: jest.fn(() => mockWatcher),
         getCurrentContainer: jest.fn((api, container) =>
             Promise.resolve(container.name === snapshotFailsFor ? null : {}),
         ),
@@ -171,7 +182,7 @@ const buildTrigger = ({
         );
     }
 
-    return { trigger, archives, newContainers, dockerApi };
+    return { trigger, archives, newContainers, dockerApi, mockWatcher };
 };
 
 const composeFile = '/tmp/docker-compose.yml';
@@ -181,14 +192,22 @@ beforeEach(() => {
 });
 
 test('should commit when all opted-in services are healthy', async () => {
-    const { trigger, archives } = buildTrigger({
+    const { trigger, archives, mockWatcher } = buildTrigger({
         services: [
             {
-                container: { name: 'web', rollbackEnabled: true },
+                container: {
+                    name: 'web',
+                    rollbackEnabled: true,
+                    id: 'web-old-id',
+                },
                 health: 'healthy',
             },
             {
-                container: { name: 'db', rollbackEnabled: false },
+                container: {
+                    name: 'db',
+                    rollbackEnabled: false,
+                    id: 'db-old-id',
+                },
                 health: 'healthy',
             },
         ],
@@ -198,7 +217,10 @@ test('should commit when all opted-in services are healthy', async () => {
     await performProjectTransaction(
         trigger,
         composeFile,
-        [{ name: 'web', rollbackEnabled: true }, { name: 'db' }],
+        [
+            { name: 'web', rollbackEnabled: true, id: 'web-old-id' },
+            { name: 'db', id: 'db-old-id' },
+        ],
         [{ current: 'app:1', update: 'app:2' }],
     );
 
@@ -208,20 +230,37 @@ test('should commit when all opted-in services are healthy', async () => {
     // Archives removed + prune executed.
     expect(archives.web.remove).toHaveBeenCalled();
     expect(trigger.pruneImages).toHaveBeenCalled();
+    // Reconciled containers
+    expect(mockWatcher.reconcileContainer).toHaveBeenCalledWith('web-new-id', {
+        oldContainerId: 'web-old-id',
+        forceRefresh: true,
+    });
+    expect(mockWatcher.reconcileContainer).toHaveBeenCalledWith('db-new-id', {
+        oldContainerId: 'db-old-id',
+        forceRefresh: true,
+    });
     // No revert.
     expect(trigger.restoreComposeFileFromBackup).not.toHaveBeenCalled();
     expect(emitSpy).not.toHaveBeenCalled();
 });
 
 test('should revert the whole project when an opted-in service fails', async () => {
-    const { trigger, archives, newContainers } = buildTrigger({
+    const { trigger, archives, newContainers, mockWatcher } = buildTrigger({
         services: [
             {
-                container: { name: 'web', rollbackEnabled: true },
+                container: {
+                    name: 'web',
+                    rollbackEnabled: true,
+                    id: 'web-old-id',
+                },
                 health: 'unhealthy',
             },
             {
-                container: { name: 'db', rollbackEnabled: false },
+                container: {
+                    name: 'db',
+                    rollbackEnabled: false,
+                    id: 'db-old-id',
+                },
                 health: 'healthy',
             },
         ],
@@ -231,7 +270,10 @@ test('should revert the whole project when an opted-in service fails', async () 
     await performProjectTransaction(
         trigger,
         composeFile,
-        [{ name: 'web', rollbackEnabled: true }, { name: 'db' }],
+        [
+            { name: 'web', rollbackEnabled: true, id: 'web-old-id' },
+            { name: 'db', id: 'db-old-id' },
+        ],
         [{ current: 'app:1', update: 'app:2' }],
     );
 
@@ -240,6 +282,19 @@ test('should revert the whole project when an opted-in service fails', async () 
     expect(newContainers.db.remove).toHaveBeenCalled();
     expect(archives.web.rename).toHaveBeenCalled();
     expect(archives.db.rename).toHaveBeenCalled();
+    // Reconciled containers on revert
+    expect(mockWatcher.reconcileContainer).toHaveBeenCalledWith(
+        'web-archive-id',
+        {
+            forceRefresh: true,
+        },
+    );
+    expect(mockWatcher.reconcileContainer).toHaveBeenCalledWith(
+        'db-archive-id',
+        {
+            forceRefresh: true,
+        },
+    );
     // .back copied back only after every service is restored.
     expect(trigger.restoreComposeFileFromBackup).toHaveBeenCalledWith(
         composeFile,

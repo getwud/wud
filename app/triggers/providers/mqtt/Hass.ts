@@ -743,7 +743,14 @@ class Hass {
             );
         } finally {
             const currentContainer =
-                containerStore.getContainer(container.id) || container;
+                (containerStore.getContainers() || []).find(
+                    (c) =>
+                        c.watcher === watcher &&
+                        (c.name === container.name ||
+                            c.name.replace(/\./g, '-') === containerName),
+                ) ||
+                containerStore.getContainer(container.id) ||
+                container;
             await this.client.publish(
                 stateTopic,
                 JSON.stringify({
@@ -752,6 +759,8 @@ class Hass {
                 }),
                 { retain: true },
             );
+            await this.publishSummaryUpdates();
+            await this.updateContainerSensors(currentContainer);
         }
     }
 

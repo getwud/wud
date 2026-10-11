@@ -49,9 +49,23 @@ import {
     isNonContainerArtifactError,
 } from '../../../registries/Registry';
 import { getWatchContainerGauge } from '../../../prometheus/watcher';
-import Watcher from '../../Watcher';
+import Watcher, { ReconcileOptions, ContainerReport } from '../../Watcher';
 import { ComponentConfiguration } from '../../../registry/Component';
 import { Logger } from 'pino';
+
+export interface DockerEventsRetryState {
+    reconnectTimer?: NodeJS.Timeout;
+    reconnectAttempts: number;
+    isConnecting: boolean;
+    isDeregistered: boolean;
+    activeStream?: NodeJS.ReadableStream;
+}
+
+// Config constants
+export const EVENTS_INITIAL_BACKOFF_MS = 1000;
+export const EVENTS_MAX_BACKOFF_MS = 60000;
+export const EVENTS_BACKOFF_FACTOR = 2;
+export const EVENTS_JITTER_MS = 1000;
 
 export interface DockerWatcherConfiguration extends ComponentConfiguration {
     socket: string;
@@ -562,6 +576,10 @@ export class Docker extends Watcher {
     public watchCronDebounced: any;
     public listenDockerEventsTimeout: any;
     public dockerEventsStream: any;
+    public eventsReconnectTimer?: NodeJS.Timeout;
+    public eventsReconnectAttempts = 0;
+    public isConnectingEvents = false;
+    public isDeregistered = false;
     private isWatching = false;
 
     getConfigurationSchema() {
@@ -662,6 +680,7 @@ export class Docker extends Watcher {
      * Deregister the component.
      */
     async deregisterComponent() {
+        this.isDeregistered = true;
         if (this.watchCron) {
             this.watchCron.stop();
             delete this.watchCron;
@@ -673,6 +692,21 @@ export class Docker extends Watcher {
             clearTimeout(this.listenDockerEventsTimeout);
             delete this.watchCronDebounced;
         }
+        if (this.eventsReconnectTimer) {
+            clearTimeout(this.eventsReconnectTimer);
+            this.eventsReconnectTimer = undefined;
+        }
+        if (this.dockerEventsStream) {
+            try {
+                this.dockerEventsStream.removeAllListeners();
+                if (typeof this.dockerEventsStream.destroy === 'function') {
+                    this.dockerEventsStream.destroy();
+                }
+            } catch {
+                // ignore
+            }
+            this.dockerEventsStream = undefined;
+        }
     }
 
     /**
@@ -682,6 +716,30 @@ export class Docker extends Watcher {
         if (!this.log || typeof this.log.info !== 'function') {
             return;
         }
+        if (this.isDeregistered) {
+            return;
+        }
+
+        // Clear any pending reconnect timer
+        if (this.eventsReconnectTimer) {
+            clearTimeout(this.eventsReconnectTimer);
+            this.eventsReconnectTimer = undefined;
+        }
+
+        // Clean up previous stream if still present
+        if (this.dockerEventsStream) {
+            try {
+                this.dockerEventsStream.removeAllListeners();
+                if (typeof this.dockerEventsStream.destroy === 'function') {
+                    this.dockerEventsStream.destroy();
+                }
+            } catch {
+                // ignore
+            }
+            this.dockerEventsStream = undefined;
+        }
+
+        this.isConnectingEvents = true;
         this.log.info('Listening to docker events');
         const options: Dockerode.GetEventsOptions = {
             filters: {
@@ -699,15 +757,39 @@ export class Docker extends Watcher {
                 ],
             },
         };
-        this.dockerApi.getEvents(options, (err, stream) => {
-            if (err) {
-                if (this.log && typeof this.log.warn === 'function') {
-                    this.log.warn(
-                        `Unable to listen to Docker events [${err.message}]`,
-                    );
-                    this.log.debug(err);
+
+        try {
+            this.dockerApi.getEvents(options, (err, stream) => {
+                this.isConnectingEvents = false;
+                if (this.isDeregistered) {
+                    if (
+                        stream &&
+                        typeof (stream as any).destroy === 'function'
+                    ) {
+                        (stream as any).destroy();
+                    }
+                    return;
                 }
-            } else {
+                if (err) {
+                    if (this.log && typeof this.log.warn === 'function') {
+                        this.log.warn(
+                            `Unable to listen to Docker events [${err.message}]`,
+                        );
+                        this.log.debug(err);
+                    }
+                    this.scheduleEventsReconnect();
+                    return;
+                }
+
+                if (!stream) {
+                    this.scheduleEventsReconnect();
+                    return;
+                }
+
+                // Successful connection: reset reconnect attempts
+                this.eventsReconnectAttempts = 0;
+                this.dockerEventsStream = stream;
+
                 let chunks: Buffer[] = [];
                 const collectChunks = (chunk: Buffer) => {
                     chunks.push(chunk);
@@ -717,9 +799,222 @@ export class Docker extends Watcher {
                         chunks = [];
                     }
                 };
+
                 stream.on('data', collectChunks);
+
+                const onTerminated = (reason: string, streamErr?: any) => {
+                    this.handleEventsStreamTerminated(reason, streamErr);
+                };
+
+                stream.once('error', (streamErr) =>
+                    onTerminated('error', streamErr),
+                );
+                stream.once('end', () => onTerminated('end'));
+                stream.once('close', () => onTerminated('close'));
+            });
+        } catch (e: any) {
+            this.isConnectingEvents = false;
+            if (this.log && typeof this.log.warn === 'function') {
+                this.log.warn(
+                    `Failed to initiate Docker events stream [${e.message}]`,
+                );
             }
-        });
+            this.scheduleEventsReconnect();
+        }
+    }
+
+    /**
+     * Handle Docker events stream termination and trigger reconnection backoff.
+     */
+    handleEventsStreamTerminated(reason: string, err?: any) {
+        if (this.isDeregistered) {
+            return;
+        }
+        if (this.log && typeof this.log.warn === 'function') {
+            const detail = err ? ` [${err.message || err}]` : '';
+            this.log.warn(
+                `Docker events stream terminated (${reason})${detail}`,
+            );
+            if (err && typeof this.log.debug === 'function') {
+                this.log.debug(err);
+            }
+        }
+        if (this.dockerEventsStream) {
+            try {
+                this.dockerEventsStream.removeAllListeners();
+                if (typeof this.dockerEventsStream.destroy === 'function') {
+                    this.dockerEventsStream.destroy();
+                }
+            } catch {
+                // ignore
+            }
+            this.dockerEventsStream = undefined;
+        }
+        this.scheduleEventsReconnect();
+    }
+
+    /**
+     * Schedule a reconnection attempt for Docker events stream using exponential backoff and jitter.
+     */
+    scheduleEventsReconnect() {
+        if (this.isDeregistered) {
+            return;
+        }
+        if (this.eventsReconnectTimer) {
+            return;
+        }
+        const delay =
+            Math.min(
+                EVENTS_INITIAL_BACKOFF_MS *
+                    Math.pow(
+                        EVENTS_BACKOFF_FACTOR,
+                        this.eventsReconnectAttempts,
+                    ),
+                EVENTS_MAX_BACKOFF_MS,
+            ) +
+            Math.random() * EVENTS_JITTER_MS;
+
+        this.eventsReconnectAttempts++;
+        if (this.log && typeof this.log.info === 'function') {
+            this.log.info(
+                `Scheduling Docker events reconnect attempt ${this.eventsReconnectAttempts} in ${Math.round(delay)}ms`,
+            );
+        }
+        this.eventsReconnectTimer = setTimeout(() => {
+            this.eventsReconnectTimer = undefined;
+            this.listenDockerEvents();
+        }, delay);
+    }
+
+    /**
+     * Remove a deleted or superseded container from the state store and emit removal events.
+     */
+    async pruneContainerFromStore(containerId: string): Promise<void> {
+        const found = storeContainer.getContainer(containerId);
+        if (found) {
+            storeContainer.deleteContainer(containerId);
+        }
+    }
+
+    /**
+     * Reconcile a single container by ID without triggering a full engine sweep.
+     * @param containerId The current/new container ID
+     * @param options Reconcile options including superseded oldContainerId
+     */
+    async reconcileContainer(
+        containerId: string,
+        options?: ReconcileOptions,
+    ): Promise<ContainerReport | undefined> {
+        const previous =
+            this.containerChecks.get(containerId) ?? Promise.resolve();
+
+        const runReconcile = async (): Promise<ContainerReport | undefined> => {
+            if (
+                options?.oldContainerId &&
+                options.oldContainerId !== containerId
+            ) {
+                await this.pruneContainerFromStore(options.oldContainerId);
+            }
+
+            let containerInspect: Dockerode.ContainerInspectInfo;
+            try {
+                containerInspect = await this.dockerApi
+                    .getContainer(containerId)
+                    .inspect();
+            } catch (e: any) {
+                this.log.debug(
+                    `Unable to inspect container id=[${containerId}] during reconcile: ${e.message}`,
+                );
+                await this.pruneContainerFromStore(containerId);
+                return undefined;
+            }
+
+            const containerLabels =
+                containerInspect.Config?.Labels ||
+                (containerInspect as any).Labels ||
+                {};
+            const containerName = getContainerName(containerInspect);
+
+            if (
+                containerName &&
+                (ROLLBACK_ARCHIVE_REGEX.test(containerName) ||
+                    containerName === 'wud-self-update')
+            ) {
+                await this.pruneContainerFromStore(containerId);
+                return undefined;
+            }
+
+            const toWatch = isContainerToWatch(
+                containerLabels[wudWatch] || containerLabels['wud.watch'],
+                this.configuration.watchbydefault,
+                containerName,
+                containerLabels,
+                this.configuration.exclude,
+                this.configuration.include,
+                this.log,
+            );
+
+            if (!toWatch) {
+                await this.pruneContainerFromStore(containerId);
+                return undefined;
+            }
+
+            let containerWithImage: Container | undefined;
+            try {
+                const imageDetail = await this.addImageDetailsToContainer(
+                    containerInspect,
+                    containerLabels[wudTagInclude],
+                    containerLabels[wudTagExclude],
+                    containerLabels[wudTagTransform],
+                    containerLabels[wudLinkTemplate],
+                    containerLabels[wudDisplayName],
+                    containerLabels[wudDisplayIcon],
+                    containerLabels[wudTriggerInclude],
+                    containerLabels[wudTriggerExclude],
+                    { forceRefresh: options?.forceRefresh ?? true },
+                );
+                containerWithImage = imageDetail || undefined;
+            } catch (e: any) {
+                const errorDetail = formatErrorMessage(e);
+                this.log.warn(
+                    `Failed to fetch image detail for container ${containerName} (${containerId}) during reconcile: ${errorDetail}`,
+                );
+                return undefined;
+            }
+
+            if (!containerWithImage) {
+                return undefined;
+            }
+
+            const containerReport =
+                await this.checkContainer(containerWithImage);
+
+            const containerGauge = getWatchContainerGauge();
+            if (containerGauge) {
+                const storeCount = storeContainer.getContainers({
+                    watcher: this.name,
+                }).length;
+                containerGauge.set(
+                    {
+                        type: this.type,
+                        name: this.name,
+                    },
+                    storeCount,
+                );
+            }
+
+            return containerReport;
+        };
+
+        const check = previous.catch(() => undefined).then(runReconcile);
+        this.containerChecks.set(containerId, check);
+        try {
+            return await check;
+        } finally {
+            if (this.containerChecks.get(containerId) === check) {
+                this.containerChecks.delete(containerId);
+            }
+        }
     }
 
     /**
@@ -759,11 +1054,11 @@ export class Docker extends Watcher {
             return;
         }
 
-        // If the container was created or destroyed => perform a watch
-        if (action === 'destroy' || action === 'create') {
-            if (typeof this.watchCronDebounced === 'function') {
-                await this.watchCronDebounced();
-            }
+        // Targeted single-container reactions
+        if (action === 'destroy') {
+            await this.pruneContainerFromStore(containerId);
+        } else if (action === 'start') {
+            await this.reconcileContainer(containerId);
         } else {
             // Update container state in db if so
             try {
@@ -1351,14 +1646,15 @@ export class Docker extends Watcher {
      */
     async addImageDetailsToContainer(
         container: any,
-        includeTags: string,
-        excludeTags: string,
-        transformTags: string,
-        linkTemplate: string,
-        displayName: string,
-        displayIcon: string,
-        triggerInclude: string,
-        triggerExclude: string,
+        includeTags?: string,
+        excludeTags?: string,
+        transformTags?: string,
+        linkTemplate?: string,
+        displayName?: string,
+        displayIcon?: string,
+        triggerInclude?: string,
+        triggerExclude?: string,
+        options?: { forceRefresh?: boolean },
     ) {
         const containerId = container.Id || container.id;
         const containerLabels = container.Labels || container.labels || {};
@@ -1381,6 +1677,7 @@ export class Docker extends Watcher {
             ? undefined
             : storeContainer.getContainer(containerId);
         if (
+            !options?.forceRefresh &&
             containerInStore !== undefined &&
             containerInStore.error === undefined
         ) {
@@ -1517,7 +1814,10 @@ export class Docker extends Watcher {
                 `Container ${containerName} uses deprecated icon prefix '${displayIcon}'. Please migrate to 'selfhst:' (e.g. 'selfhst:${displayIcon.replace(/^hl[:-]/, '')}') or any standard Iconify format.`,
             );
         }
-        const status = container.State;
+        const status =
+            typeof container.State === 'object' && container.State !== null
+                ? container.State.Status || 'unknown'
+                : container.State;
         const architecture = image.Architecture;
         const os = image.Os;
         const variant = image.Variant;
@@ -1525,7 +1825,7 @@ export class Docker extends Watcher {
         const imageId = image.Id;
 
         // Parse image to get registry, organization...
-        let imageNameToParse = container.Image;
+        let imageNameToParse = container.Config?.Image || container.Image;
         let pinnedDigest: string | undefined;
 
         const rawNameToParse = (imageNameToParse || '').replace(/^sha256:/, '');
@@ -1645,7 +1945,9 @@ export class Docker extends Watcher {
             labels: containerLabels,
             snoozedVersion: containerInStore?.snoozedVersion,
             snoozedUntil: containerInStore?.snoozedUntil,
-            result: containerInStore?.result ?? {
+            result: (options?.forceRefresh
+                ? undefined
+                : containerInStore?.result) ?? {
                 tag: tagName,
             },
             updateAvailable: false,

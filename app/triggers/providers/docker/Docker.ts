@@ -1445,6 +1445,17 @@ class Docker extends Trigger {
                             },
                         );
                     }
+                    const restoredContainerId =
+                        outcome.containerId || currentContainerSpec.Id;
+                    try {
+                        await watcher.reconcileContainer(restoredContainerId, {
+                            forceRefresh: true,
+                        });
+                    } catch (reconcileErr: any) {
+                        logContainer.warn(
+                            `Post-rollback reconcile failed for container ${restoredContainerId}: ${reconcileErr.message}`,
+                        );
+                    }
                 } else {
                     if (runHooks) {
                         await HookManager.runPostHooks(
@@ -1458,6 +1469,21 @@ class Docker extends Trigger {
                         );
                     }
                     event.emitContainerUpdateSuccess(container);
+
+                    const newContainerId = outcome.containerId;
+                    const oldContainerId = currentContainerSpec.Id;
+                    if (newContainerId) {
+                        try {
+                            await watcher.reconcileContainer(newContainerId, {
+                                oldContainerId,
+                                forceRefresh: true,
+                            });
+                        } catch (reconcileErr: any) {
+                            logContainer.warn(
+                                `Post-update reconcile failed for container ${newContainerId}: ${reconcileErr.message}`,
+                            );
+                        }
+                    }
                 }
                 return outcome;
             }
@@ -1507,6 +1533,20 @@ class Docker extends Trigger {
                     newContainer,
                     container.name,
                     logContainer,
+                );
+            }
+
+            // Post-update reconciliation
+            const newContainerId = newContainer.id;
+            const oldContainerId = currentContainerSpec.Id;
+            try {
+                await watcher.reconcileContainer(newContainerId, {
+                    oldContainerId,
+                    forceRefresh: true,
+                });
+            } catch (reconcileErr: any) {
+                logContainer.warn(
+                    `Post-update reconcile failed for container ${newContainerId}: ${reconcileErr.message}`,
                 );
             }
 

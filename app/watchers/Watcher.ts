@@ -2,6 +2,18 @@ import Component from '../registry/Component';
 import { Container } from '../model/container';
 import * as event from '../event';
 
+export interface ReconcileOptions {
+    /** Previous container ID that was superseded or replaced */
+    oldContainerId?: string;
+    /** Force image inspection even if record exists in store */
+    forceRefresh?: boolean;
+}
+
+export interface ContainerReport {
+    container: Container;
+    changed: boolean;
+}
+
 /**
  * Watcher abstract class.
  */
@@ -13,6 +25,29 @@ abstract class Watcher extends Component {
     abstract watch(): Promise<any[]>;
 
     abstract getContainers(): Promise<Container[]>;
+
+    /**
+     * Reconcile a single container by ID without triggering a full engine sweep.
+     * @param containerId The current/new container ID
+     * @param options Reconcile options including superseded oldContainerId
+     */
+    async reconcileContainer(
+        _containerId: string,
+        _options?: ReconcileOptions,
+    ): Promise<ContainerReport | undefined> {
+        void _containerId;
+        void _options;
+        return undefined;
+    }
+
+    /**
+     * Remove a deleted or superseded container from the state store and emit removal events.
+     * @param containerId The ID of the container that was destroyed
+     */
+    async pruneContainerFromStore(_containerId: string): Promise<void> {
+        void _containerId;
+        // Base watcher no-op, implemented by orchestrator watchers
+    }
 
     /**
      * Process a list of containers and emit progress.
@@ -56,7 +91,7 @@ abstract class Watcher extends Component {
      * @param container
      * @returns {Promise<any>}
      */
-    private readonly containerChecks = new Map<string, Promise<unknown>>();
+    protected readonly containerChecks = new Map<string, Promise<unknown>>();
 
     async watchContainer(container: Container) {
         const previous =
