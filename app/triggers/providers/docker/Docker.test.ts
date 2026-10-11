@@ -5,6 +5,7 @@ import Docker, {
     reconcileLabels,
     reconcileCmd,
     reconcileEntrypoint,
+    createPullProgressLogger,
 } from './Docker';
 import { HookManager } from '../../hooks/HookManager';
 import log from '../../../log';
@@ -437,6 +438,288 @@ test('pullImage should resolve when pull stream completes successfully without e
     await expect(
         docker.pullImage(mockDockerApi, undefined, 'test/test:1.2.3', log),
     ).resolves.toBeUndefined();
+});
+
+test('pullImage should pass onProgress callback to followProgress and log progress', async () => {
+    let capturedOnProgress;
+    const mockDockerApi = {
+        pull: jest.fn().mockResolvedValue({}),
+        modem: {
+            followProgress: jest.fn((_stream, onFinished, onProgress) => {
+                capturedOnProgress = onProgress;
+                if (onProgress) {
+                    onProgress({
+                        id: 'layer1',
+                        status: 'Downloading',
+                        progress: '[====> ] 20MB/50MB',
+                    });
+                    onProgress({
+                        id: 'layer1',
+                        status: 'Download complete',
+                    });
+                }
+                onFinished(null, [{ status: 'Download complete' }]);
+            }),
+        },
+    };
+
+    const mockLog = {
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        debug: jest.fn(),
+    };
+
+    await docker.pullImage(
+        mockDockerApi,
+        undefined,
+        'test/test:1.2.3',
+        mockLog,
+    );
+
+    expect(capturedOnProgress).toBeDefined();
+    expect(mockLog.info).toHaveBeenCalledWith('Pull image test/test:1.2.3');
+    expect(mockLog.info).toHaveBeenCalledWith(
+        'Layer layer1: Downloading [====> ] 20MB/50MB',
+    );
+    expect(mockLog.info).toHaveBeenCalledWith(
+        'Layer layer1: Download complete',
+    );
+    expect(mockLog.info).toHaveBeenCalledWith(
+        'Image test/test:1.2.3 pulled with success',
+    );
+});
+
+describe('createPullProgressLogger', () => {
+    let mockLogger;
+
+    beforeEach(() => {
+        mockLogger = {
+            info: jest.fn(),
+            warn: jest.fn(),
+            error: jest.fn(),
+            debug: jest.fn(),
+        };
+    });
+
+    test('should ignore empty, null, or undefined events', () => {
+        const logger = createPullProgressLogger(mockLogger);
+        logger(null);
+        logger(undefined);
+        logger({});
+        expect(mockLogger.info).not.toHaveBeenCalled();
+    });
+
+    test('should log layer status changes immediately', () => {
+        const logger = createPullProgressLogger(mockLogger);
+        logger({ id: 'layer1', status: 'Pulling fs layer' });
+        logger({
+            id: 'layer1',
+            status: 'Downloading',
+            progress: '[=> ] 10MB/50MB',
+        });
+        logger({ id: 'layer1', status: 'Download complete' });
+        logger({
+            id: 'layer1',
+            status: 'Extracting',
+            progress: '[==> ] 20MB/50MB',
+        });
+        logger({ id: 'layer1', status: 'Pull complete' });
+
+        expect(mockLogger.info).toHaveBeenCalledTimes(5);
+        expect(mockLogger.info).toHaveBeenNthCalledWith(
+            1,
+            'Layer layer1: Pulling fs layer',
+        );
+        expect(mockLogger.info).toHaveBeenNthCalledWith(
+            2,
+            'Layer layer1: Downloading [=> ] 10MB/50MB',
+        );
+        expect(mockLogger.info).toHaveBeenNthCalledWith(
+            3,
+            'Layer layer1: Download complete',
+        );
+        expect(mockLogger.info).toHaveBeenNthCalledWith(
+            4,
+            'Layer layer1: Extracting [==> ] 20MB/50MB',
+        );
+        expect(mockLogger.info).toHaveBeenNthCalledWith(
+            5,
+            'Layer layer1: Pull complete',
+        );
+    });
+
+    test('should calculate percentage when progressDetail is provided without progress string', () => {
+        const logger = createPullProgressLogger(mockLogger);
+        logger({
+            id: 'layer1',
+            status: 'Downloading',
+            progressDetail: { current: 250, total: 1000 },
+        });
+
+        expect(mockLogger.info).toHaveBeenCalledWith(
+            'Layer layer1: Downloading [25%]',
+        );
+    });
+
+    test('should handle layer event without status', () => {
+        const logger = createPullProgressLogger(mockLogger);
+        logger({ id: 'layer1', progress: '[===> ] 30MB/50MB' });
+
+        expect(mockLogger.info).toHaveBeenCalledWith(
+            'Layer layer1 [===> ] 30MB/50MB',
+        );
+    });
+
+    test('should throttle in-progress updates within throttleMs', () => {
+        const nowSpy = jest.spyOn(Date, 'now');
+        nowSpy.mockReturnValue(10000);
+
+        const logger = createPullProgressLogger(mockLogger, 2000);
+        logger({
+            id: 'layer1',
+            status: 'Downloading',
+            progress: '[> ] 10MB/50MB',
+        });
+        expect(mockLogger.info).toHaveBeenCalledTimes(1);
+
+        // 500ms later: same status, updated progress -> throttled
+        nowSpy.mockReturnValue(10500);
+        logger({
+            id: 'layer1',
+            status: 'Downloading',
+            progress: '[=> ] 15MB/50MB',
+        });
+        expect(mockLogger.info).toHaveBeenCalledTimes(1);
+
+        // 1900ms later: same status, updated progress -> throttled
+        nowSpy.mockReturnValue(11900);
+        logger({
+            id: 'layer1',
+            status: 'Downloading',
+            progress: '[==> ] 20MB/50MB',
+        });
+        expect(mockLogger.info).toHaveBeenCalledTimes(1);
+
+        // 2000ms later: >= throttleMs -> logged
+        nowSpy.mockReturnValue(12000);
+        logger({
+            id: 'layer1',
+            status: 'Downloading',
+            progress: '[===> ] 30MB/50MB',
+        });
+        expect(mockLogger.info).toHaveBeenCalledTimes(2);
+        expect(mockLogger.info).toHaveBeenLastCalledWith(
+            'Layer layer1: Downloading [===> ] 30MB/50MB',
+        );
+
+        nowSpy.mockRestore();
+    });
+
+    test('should not log duplicate events with same progress', () => {
+        const nowSpy = jest.spyOn(Date, 'now');
+        nowSpy.mockReturnValue(10000);
+
+        const logger = createPullProgressLogger(mockLogger, 2000);
+        logger({
+            id: 'layer1',
+            status: 'Downloading',
+            progress: '[> ] 10MB/50MB',
+        });
+        expect(mockLogger.info).toHaveBeenCalledTimes(1);
+
+        // 3000ms later, but exact same progress -> not logged
+        nowSpy.mockReturnValue(13000);
+        logger({
+            id: 'layer1',
+            status: 'Downloading',
+            progress: '[> ] 10MB/50MB',
+        });
+        expect(mockLogger.info).toHaveBeenCalledTimes(1);
+
+        nowSpy.mockRestore();
+    });
+
+    test('should not throttle when throttleMs is 0', () => {
+        const logger = createPullProgressLogger(mockLogger, 0);
+        logger({
+            id: 'layer1',
+            status: 'Downloading',
+            progress: '[> ] 10MB/50MB',
+        });
+        logger({
+            id: 'layer1',
+            status: 'Downloading',
+            progress: '[=> ] 15MB/50MB',
+        });
+        logger({
+            id: 'layer1',
+            status: 'Downloading',
+            progress: '[==> ] 20MB/50MB',
+        });
+
+        expect(mockLogger.info).toHaveBeenCalledTimes(3);
+    });
+
+    test('should track multiple layers independently', () => {
+        const logger = createPullProgressLogger(mockLogger, 2000);
+        logger({
+            id: 'layer1',
+            status: 'Downloading',
+            progress: '[> ] 10MB/50MB',
+        });
+        logger({
+            id: 'layer2',
+            status: 'Downloading',
+            progress: '[> ] 5MB/20MB',
+        });
+
+        expect(mockLogger.info).toHaveBeenCalledWith(
+            'Layer layer1: Downloading [> ] 10MB/50MB',
+        );
+        expect(mockLogger.info).toHaveBeenCalledWith(
+            'Layer layer2: Downloading [> ] 5MB/20MB',
+        );
+    });
+
+    test('should log global status events and handle Status: prefix', () => {
+        const logger = createPullProgressLogger(mockLogger);
+        logger({ status: 'Pulling from library/ubuntu' });
+        logger({ status: 'Digest: sha256:123456' });
+        logger({ status: 'Status: Downloaded newer image for ubuntu:latest' });
+
+        expect(mockLogger.info).toHaveBeenNthCalledWith(
+            1,
+            'Status: Pulling from library/ubuntu',
+        );
+        expect(mockLogger.info).toHaveBeenNthCalledWith(
+            2,
+            'Status: Digest: sha256:123456',
+        );
+        expect(mockLogger.info).toHaveBeenNthCalledWith(
+            3,
+            'Status: Downloaded newer image for ubuntu:latest',
+        );
+    });
+
+    test('should throttle repeated global status events', () => {
+        const nowSpy = jest.spyOn(Date, 'now');
+        nowSpy.mockReturnValue(10000);
+
+        const logger = createPullProgressLogger(mockLogger, 2000);
+        logger({ status: 'Downloading', progress: '10%' });
+        expect(mockLogger.info).toHaveBeenCalledTimes(1);
+
+        nowSpy.mockReturnValue(10500);
+        logger({ status: 'Downloading', progress: '15%' });
+        expect(mockLogger.info).toHaveBeenCalledTimes(1);
+
+        nowSpy.mockReturnValue(12500);
+        logger({ status: 'Downloading', progress: '25%' });
+        expect(mockLogger.info).toHaveBeenCalledTimes(2);
+
+        nowSpy.mockRestore();
+    });
 });
 
 test('removeImage should pull image from dockerApi', async () => {
