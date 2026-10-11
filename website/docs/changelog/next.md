@@ -7,6 +7,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 > Changes below are merged on `main` and will be included in the upcoming release.
 
+- 🚀 [TRIGGER] Add real-time pull progress logging for Docker images (fixes #777)
 - 🐛 [CORE] Fix graceful shutdown on SIGTERM (fixes #1397)
 - 🐛 [CORE] Resilient Docker event stream with exponential backoff and targeted single-container reconciliation on update (fixes #1393)
 - 🐛 [TRIGGER] Fix Home Assistant MQTT summary mode configuration collision (#1357)

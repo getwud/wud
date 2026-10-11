@@ -176,6 +176,117 @@ export function reconcileEntrypoint(
     return normalizeCommand(containerEntrypoint);
 }
 
+export interface DockerProgressDetail {
+    current?: number;
+    total?: number;
+    [key: string]: unknown;
+}
+
+export interface DockerProgressEvent {
+    id?: string;
+    status?: string;
+    progress?: string;
+    progressDetail?: DockerProgressDetail;
+    error?: string;
+    errorDetail?: {
+        message?: string;
+        code?: number;
+    };
+    [key: string]: unknown;
+}
+
+interface LayerProgressState {
+    lastStatus?: string;
+    lastProgress?: string;
+    lastLogTime: number;
+}
+
+/**
+ * Creates a rate-limited progress logger for Docker image pull streams.
+ * Status changes (e.g. Pulling fs layer -> Downloading -> Download complete -> Extracting -> Pull complete)
+ * are logged immediately. In-flight progress updates for the same status are throttled by throttleMs.
+ *
+ * @param logContainer - Logger instance
+ * @param throttleMs - Throttle interval in milliseconds for in-progress updates (default: 2000ms)
+ */
+export function createPullProgressLogger(
+    logContainer: Logger,
+    throttleMs = 2000,
+): (event: DockerProgressEvent) => void {
+    const layerStates = new Map<string, LayerProgressState>();
+    let lastGlobalStatus: string | undefined;
+    let lastGlobalProgress: string | undefined;
+    let lastGlobalLogTime = 0;
+
+    return (event: DockerProgressEvent): void => {
+        if (!event || (!event.status && !event.id)) {
+            return;
+        }
+
+        const now = Date.now();
+
+        let progressText = '';
+        if (event.progress) {
+            progressText = ` ${event.progress}`;
+        } else if (
+            typeof event.progressDetail?.current === 'number' &&
+            typeof event.progressDetail?.total === 'number' &&
+            event.progressDetail.total > 0
+        ) {
+            const pct = Math.round(
+                (event.progressDetail.current / event.progressDetail.total) *
+                    100,
+            );
+            progressText = ` [${pct}%]`;
+        }
+
+        if (event.id) {
+            const state = layerStates.get(event.id);
+            const statusChanged = !state || state.lastStatus !== event.status;
+
+            if (statusChanged) {
+                layerStates.set(event.id, {
+                    lastStatus: event.status,
+                    lastProgress: progressText,
+                    lastLogTime: now,
+                });
+            } else if (
+                progressText &&
+                progressText !== state.lastProgress &&
+                (throttleMs <= 0 || now - state.lastLogTime >= throttleMs)
+            ) {
+                state.lastProgress = progressText;
+                state.lastLogTime = now;
+            } else {
+                return;
+            }
+
+            const statusPart = event.status ? `: ${event.status}` : '';
+            logContainer.info(`Layer ${event.id}${statusPart}${progressText}`);
+        } else if (event.status) {
+            const statusChanged = lastGlobalStatus !== event.status;
+
+            if (statusChanged) {
+                lastGlobalStatus = event.status;
+                lastGlobalProgress = progressText;
+                lastGlobalLogTime = now;
+            } else if (
+                progressText &&
+                progressText !== lastGlobalProgress &&
+                (throttleMs <= 0 || now - lastGlobalLogTime >= throttleMs)
+            ) {
+                lastGlobalProgress = progressText;
+                lastGlobalLogTime = now;
+            } else {
+                return;
+            }
+
+            const prefix = event.status.startsWith('Status:') ? '' : 'Status: ';
+            logContainer.info(`${prefix}${event.status}${progressText}`);
+        }
+    };
+}
+
 export interface DockerConfiguration extends TriggerConfiguration {
     prune?: boolean;
     dryrun?: boolean;
@@ -426,6 +537,8 @@ class Docker extends Trigger {
                 authconfig: auth,
             });
 
+            const onProgress = createPullProgressLogger(logContainer);
+
             await new Promise<void>((resolve, reject) => {
                 dockerApi.modem.followProgress(
                     pullStream,
@@ -458,14 +571,16 @@ class Docker extends Trigger {
                         }
                         return resolve();
                     },
+                    onProgress,
                 );
             });
             logContainer.info(`Image ${newImage} pulled with success`);
-        } catch (e: any) {
+        } catch (e: unknown) {
+            const err = e instanceof Error ? e : new Error(String(e));
             logContainer.warn(
-                `Error when pulling image ${newImage} (${e.message})`,
+                `Error when pulling image ${newImage} (${err.message})`,
             );
-            throw e;
+            throw err;
         }
     }
 
