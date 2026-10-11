@@ -21,10 +21,25 @@ if [ "${WUD_RUN_MODE}" == "oneshot" ]; then
 fi
 
 if [ "$1" == "node" ] && [ "$2" == "dist/index" ] && [ "${WUD_LOG_FORMAT}" != "json" ]; then
-  exec "$@" | ./node_modules/.bin/pino-pretty \
+  "$@" | ./node_modules/.bin/pino-pretty \
     --translateTime "SYS:yyyy-mm-dd HH:MM:ss.l" \
     --ignore pid,hostname,name,component \
-    --messageFormat '{if component}[{component}] {end}{msg}'
+    --messageFormat '{if component}[{component}] {end}{msg}' &
+  PIPE_PID=$!
+  NODE_PID=$(jobs -p)
+
+  forward_signal() {
+    local sig="$1"
+    kill -s "$sig" $NODE_PID 2>/dev/null || true
+  }
+
+  trap 'forward_signal TERM' SIGTERM
+  trap 'forward_signal INT' SIGINT
+
+  wait "$PIPE_PID" 2>/dev/null || true
+  wait "$PIPE_PID" 2>/dev/null
+  STATUS=$?
+  exit $STATUS
 else
   exec "$@"
 fi
