@@ -126,6 +126,26 @@ export function isServiceImageChanged(
     );
 }
 
+/**
+ * Normalize node architecture string to standard container registry architectures.
+ */
+export function normalizeArchitecture(arch?: string): string {
+    if (!arch) {
+        return 'amd64';
+    }
+    const lower = arch.toLowerCase().trim();
+    if (lower === 'x86_64' || lower === 'amd64') {
+        return 'amd64';
+    }
+    if (lower === 'aarch64' || lower === 'arm64') {
+        return 'arm64';
+    }
+    if (lower.startsWith('arm')) {
+        return 'arm';
+    }
+    return lower;
+}
+
 function getRegistries() {
     return registry.getState().registry;
 }
@@ -242,7 +262,7 @@ export class Swarm extends Watcher {
             if (nodes && nodes.length > 0) {
                 const arch = nodes[0]?.Description?.Platform?.Architecture;
                 if (arch) {
-                    return arch === 'x86_64' ? 'amd64' : arch;
+                    return normalizeArchitecture(arch);
                 }
             }
         } catch (e: any) {
@@ -252,9 +272,7 @@ export class Swarm extends Watcher {
         try {
             const info = await this.docker.info();
             if (info?.Architecture) {
-                return info.Architecture === 'x86_64'
-                    ? 'amd64'
-                    : info.Architecture;
+                return normalizeArchitecture(info.Architecture);
             }
         } catch (e: any) {
             this.log.debug(`Unable to fetch Docker info: ${e.message}`);
