@@ -11,5 +11,6 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [CORE] Resilient Docker event stream with exponential backoff and targeted single-container reconciliation on update (fixes #1393)
 - 🐛 [TRIGGER] Fix Home Assistant MQTT summary mode configuration collision (#1357)
 - 🐛 [UI] Fix open redirect vulnerability on authenticated redirect (fixes #744)
+- 🐛 [WATCHER] Normalize aarch64 to arm64 in Swarm watcher (fixes #1401)
 
 ---

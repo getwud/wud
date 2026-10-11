@@ -6,6 +6,7 @@ import {
     buildContainerId,
     extractDigestFromImage,
     isServiceImageChanged,
+    normalizeArchitecture,
 } from './Swarm';
 import { getLabelValue } from './label';
 import * as event from '../../../event';
@@ -147,6 +148,42 @@ describe('Swarm Watcher - Pure Helpers', () => {
         });
     });
 
+    describe('normalizeArchitecture()', () => {
+        test('normalizes x86_64 and amd64 to amd64', () => {
+            expect(normalizeArchitecture('x86_64')).toBe('amd64');
+            expect(normalizeArchitecture('amd64')).toBe('amd64');
+            expect(normalizeArchitecture('X86_64')).toBe('amd64');
+            expect(normalizeArchitecture('AMD64')).toBe('amd64');
+        });
+
+        test('normalizes aarch64 and arm64 to arm64', () => {
+            expect(normalizeArchitecture('aarch64')).toBe('arm64');
+            expect(normalizeArchitecture('arm64')).toBe('arm64');
+            expect(normalizeArchitecture('AARCH64')).toBe('arm64');
+            expect(normalizeArchitecture('ARM64')).toBe('arm64');
+            expect(normalizeArchitecture('  aarch64  ')).toBe('arm64');
+        });
+
+        test('normalizes 32-bit ARM variants starting with arm to arm', () => {
+            expect(normalizeArchitecture('armv7l')).toBe('arm');
+            expect(normalizeArchitecture('armv6l')).toBe('arm');
+            expect(normalizeArchitecture('armhf')).toBe('arm');
+            expect(normalizeArchitecture('arm')).toBe('arm');
+            expect(normalizeArchitecture('ARMV7L')).toBe('arm');
+        });
+
+        test('preserves other architectures', () => {
+            expect(normalizeArchitecture('s390x')).toBe('s390x');
+            expect(normalizeArchitecture('ppc64le')).toBe('ppc64le');
+            expect(normalizeArchitecture('riscv64')).toBe('riscv64');
+        });
+
+        test('falls back to amd64 for empty or undefined architecture', () => {
+            expect(normalizeArchitecture(undefined)).toBe('amd64');
+            expect(normalizeArchitecture('')).toBe('amd64');
+        });
+    });
+
     test('getLabelValue should resolve canonical getwud.app/ and wud.* prefixes', () => {
         const labels = {
             'getwud.app/watch': 'true',
@@ -209,6 +246,98 @@ describe('Swarm Watcher - Configuration Schema', () => {
         const schema = watcher.getConfigurationSchema();
         const { error } = schema.validate({ cron: 'not-a-cron' });
         expect(error).toBeDefined();
+    });
+});
+
+describe('Swarm Watcher - Architecture Detection', () => {
+    let watcher: Swarm;
+    let mockDocker: any;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        watcher = new Swarm();
+        mockDocker = {
+            listNodes: jest.fn(),
+            info: jest.fn(),
+        };
+        watcher.docker = mockDocker;
+    });
+
+    test('resolves and normalizes architecture from nodes (aarch64 -> arm64)', async () => {
+        mockDocker.listNodes.mockResolvedValue([
+            {
+                Description: {
+                    Platform: {
+                        Architecture: 'aarch64',
+                        OS: 'linux',
+                    },
+                },
+            },
+        ]);
+        const arch = await watcher.getClusterArchitecture();
+        expect(arch).toBe('arm64');
+    });
+
+    test('resolves and normalizes architecture from nodes (x86_64 -> amd64)', async () => {
+        mockDocker.listNodes.mockResolvedValue([
+            {
+                Description: {
+                    Platform: {
+                        Architecture: 'x86_64',
+                        OS: 'linux',
+                    },
+                },
+            },
+        ]);
+        const arch = await watcher.getClusterArchitecture();
+        expect(arch).toBe('amd64');
+    });
+
+    test('resolves and normalizes 32-bit arm architecture from nodes (armv7l -> arm)', async () => {
+        mockDocker.listNodes.mockResolvedValue([
+            {
+                Description: {
+                    Platform: {
+                        Architecture: 'armv7l',
+                        OS: 'linux',
+                    },
+                },
+            },
+        ]);
+        const arch = await watcher.getClusterArchitecture();
+        expect(arch).toBe('arm');
+    });
+
+    test('falls back to docker info when listNodes returns empty array', async () => {
+        mockDocker.listNodes.mockResolvedValue([]);
+        mockDocker.info.mockResolvedValue({ Architecture: 'aarch64' });
+
+        const arch = await watcher.getClusterArchitecture();
+        expect(arch).toBe('arm64');
+    });
+
+    test('falls back to docker info when listNodes fails', async () => {
+        mockDocker.listNodes.mockRejectedValue(new Error('Permission denied'));
+        mockDocker.info.mockResolvedValue({ Architecture: 'x86_64' });
+
+        const arch = await watcher.getClusterArchitecture();
+        expect(arch).toBe('amd64');
+    });
+
+    test('falls back to amd64 when both listNodes and info fail', async () => {
+        mockDocker.listNodes.mockRejectedValue(new Error('Swarm error'));
+        mockDocker.info.mockRejectedValue(new Error('Info error'));
+
+        const arch = await watcher.getClusterArchitecture();
+        expect(arch).toBe('amd64');
+    });
+
+    test('falls back to amd64 when nodes and info provide no architecture', async () => {
+        mockDocker.listNodes.mockResolvedValue([{ Description: {} }]);
+        mockDocker.info.mockResolvedValue({});
+
+        const arch = await watcher.getClusterArchitecture();
+        expect(arch).toBe('amd64');
     });
 });
 
@@ -306,6 +435,36 @@ describe('Swarm Watcher - Service Discovery & Mapping', () => {
             'sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc',
         );
         expect(c.image.architecture).toBe('amd64');
+    });
+
+    test('should map service container with normalized arm64 architecture on aarch64 swarm node', async () => {
+        mockDocker.listNodes.mockResolvedValue([
+            {
+                Description: {
+                    Platform: {
+                        Architecture: 'aarch64',
+                        OS: 'linux',
+                    },
+                },
+            },
+        ]);
+        mockDocker.listServices.mockResolvedValue([
+            {
+                ID: 'service_arm64',
+                Spec: {
+                    Name: 'web-arm',
+                    TaskTemplate: {
+                        ContainerSpec: {
+                            Image: 'nginx:1.27.0',
+                        },
+                    },
+                },
+            },
+        ]);
+
+        const containers = await watcher.getContainers();
+        expect(containers).toHaveLength(1);
+        expect(containers[0].image.architecture).toBe('arm64');
     });
 
     test('should respect watch.digest=true for semver tags in getContainers', async () => {
