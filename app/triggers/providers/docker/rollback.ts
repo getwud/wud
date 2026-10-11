@@ -48,6 +48,7 @@ export interface SwapOutcome {
     archiveName?: string;
     status: 'succeeded' | 'failed';
     error?: RollbackError;
+    containerId?: string;
 }
 
 /**
@@ -243,6 +244,7 @@ async function rollbackToArchive({
         durationMs: durationMs(),
         status: 'succeeded',
         archiveName,
+        containerId: opts.currentContainer.id,
     };
 }
 
@@ -279,6 +281,7 @@ export async function replaceContainerWithHealthGate(
             rolledBack: false,
             durationMs: Date.now() - startTime,
             status: 'succeeded',
+            containerId: newContainer.id,
         };
     }
 
@@ -358,6 +361,7 @@ export async function replaceContainerWithHealthGate(
             durationMs: Date.now() - startTime,
             status: 'succeeded',
             archiveName: opts.keepArchive === true ? archiveName : undefined,
+            containerId: newContainer.id,
         };
     }
 

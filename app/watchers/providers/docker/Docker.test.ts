@@ -343,7 +343,7 @@ describe('Docker Watcher', () => {
 
     describe('Docker Events', () => {
         test('should listen to docker events', async () => {
-            const mockStream = { on: jest.fn() };
+            const mockStream = { on: jest.fn(), once: jest.fn() };
             mockDockerApi.getEvents.mockImplementation((options, callback) => {
                 callback(null, mockStream);
             });
@@ -401,14 +401,42 @@ describe('Docker Watcher', () => {
             );
         });
 
-        test('should process create/destroy events', async () => {
+        test('should process destroy events with targeted pruning and no full sweep', async () => {
+            docker.pruneContainerFromStore = jest.fn();
+            docker.watchCronDebounced = jest.fn();
+            const event = JSON.stringify({
+                Action: 'destroy',
+                id: 'container123',
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+            expect(docker.pruneContainerFromStore).toHaveBeenCalledWith(
+                'container123',
+            );
+            expect(docker.watchCronDebounced).not.toHaveBeenCalled();
+        });
+
+        test('should process start events with targeted reconcile and no full sweep', async () => {
+            docker.reconcileContainer = jest.fn();
+            docker.watchCronDebounced = jest.fn();
+            const event = JSON.stringify({
+                Action: 'start',
+                id: 'container123',
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+            expect(docker.reconcileContainer).toHaveBeenCalledWith(
+                'container123',
+            );
+            expect(docker.watchCronDebounced).not.toHaveBeenCalled();
+        });
+
+        test('should ignore create events without triggering full sweep', async () => {
             docker.watchCronDebounced = jest.fn();
             const event = JSON.stringify({
                 Action: 'create',
                 id: 'container123',
             });
             await docker.onDockerEvent(Buffer.from(event));
-            expect(docker.watchCronDebounced).toHaveBeenCalled();
+            expect(docker.watchCronDebounced).not.toHaveBeenCalled();
         });
 
         test('should ignore create/destroy events for wud-self-update helper container', async () => {
@@ -443,7 +471,7 @@ describe('Docker Watcher', () => {
         });
 
         test('should process chunked create/destroy events', async () => {
-            const mockStream = { on: jest.fn() };
+            const mockStream = { on: jest.fn(), once: jest.fn() };
             mockDockerApi.getEvents.mockImplementation((options, callback) => {
                 callback(null, mockStream);
             });
@@ -476,13 +504,13 @@ describe('Docker Watcher', () => {
             };
             docker.log = mockLog;
             mockContainer.inspect.mockResolvedValue({
-                State: { Status: 'running' },
+                State: { Status: 'stopped' },
             });
-            const existingContainer = { id: 'container123', status: 'stopped' };
+            const existingContainer = { id: 'container123', status: 'running' };
             storeContainer.getContainer.mockReturnValue(existingContainer);
 
             const event = JSON.stringify({
-                Action: 'start',
+                Action: 'stop',
                 id: 'container123',
             });
             await docker.onDockerEvent(Buffer.from(event));
@@ -499,13 +527,13 @@ describe('Docker Watcher', () => {
             };
             docker.log = mockLog;
             mockContainer.inspect.mockResolvedValue({
-                State: { Status: 'running' },
+                State: { Status: 'stopped' },
             });
-            const existingContainer = { id: 'container456', status: 'stopped' };
+            const existingContainer = { id: 'container456', status: 'running' };
             storeContainer.getContainer.mockReturnValue(existingContainer);
 
             const event = JSON.stringify({
-                Action: 'start',
+                Action: 'stop',
                 Actor: {
                     ID: 'container456',
                 },
@@ -762,7 +790,7 @@ describe('Docker Watcher', () => {
             storeContainer.getContainer.mockReturnValue(existingContainer);
 
             const event = JSON.stringify({
-                Action: 'start',
+                Action: 'update',
                 Actor: {
                     ID: 'container123',
                 },
@@ -788,27 +816,27 @@ describe('Docker Watcher', () => {
             docker.log = mockLog;
             mockContainer.inspect.mockResolvedValue({
                 Name: '/renamed-container',
-                State: { Status: 'running' },
+                State: { Status: 'stopped' },
             });
             const existingContainer = {
                 id: 'container789',
                 name: 'initial-container',
-                status: 'stopped',
+                status: 'running',
             };
             storeContainer.getContainer.mockReturnValue(existingContainer);
 
             const event = JSON.stringify({
-                Action: 'start',
+                Action: 'stop',
                 Actor: {
                     ID: 'container789',
                 },
             });
             await docker.onDockerEvent(Buffer.from(event));
 
-            expect(existingContainer.status).toBe('running');
+            expect(existingContainer.status).toBe('stopped');
             expect(existingContainer.name).toBe('renamed-container');
             expect(mockChildLog.info).toHaveBeenCalledWith(
-                'Status changed from stopped to running',
+                'Status changed from running to stopped',
             );
             expect(mockChildLog.info).toHaveBeenCalledWith(
                 'Name changed from initial-container to renamed-container',
@@ -816,7 +844,7 @@ describe('Docker Watcher', () => {
             expect(storeContainer.updateContainer).toHaveBeenCalledWith(
                 expect.objectContaining({
                     id: 'container789',
-                    status: 'running',
+                    status: 'stopped',
                     name: 'renamed-container',
                 }),
             );
@@ -860,7 +888,7 @@ describe('Docker Watcher', () => {
             });
 
             const event = JSON.stringify({
-                Action: 'start',
+                Action: 'stop',
                 id: 'nonexistent',
             });
             await docker.onDockerEvent(Buffer.from(event));
@@ -4966,6 +4994,264 @@ describe('Docker Watcher', () => {
                         container,
                     );
                 });
+            });
+        });
+    });
+
+    describe('Issue #1393 - Event Stream Resilience & Targeted Reconciliation', () => {
+        describe('Event Stream Resilience', () => {
+            test('should schedule reconnection with exponential backoff and jitter on getEvents error', async () => {
+                jest.useFakeTimers();
+                try {
+                    await docker.register('watcher', 'docker', 'test', {});
+                    mockDockerApi.getEvents.mockImplementation(
+                        (_opts, callback) => {
+                            callback(new Error('Connection reset by peer'));
+                        },
+                    );
+
+                    docker.scheduleEventsReconnect = jest.fn(
+                        docker.scheduleEventsReconnect.bind(docker),
+                    );
+
+                    await docker.listenDockerEvents();
+
+                    expect(docker.scheduleEventsReconnect).toHaveBeenCalled();
+                    expect(docker.eventsReconnectAttempts).toBe(1);
+                    expect(docker.eventsReconnectTimer).toBeDefined();
+
+                    // Advance timer to trigger reconnect
+                    mockDockerApi.getEvents.mockClear();
+                    jest.advanceTimersByTime(3000);
+                    expect(mockDockerApi.getEvents).toHaveBeenCalled();
+                } finally {
+                    jest.useRealTimers();
+                }
+            });
+
+            test('should handle stream error, end, and close events with handleEventsStreamTerminated', async () => {
+                await docker.register('watcher', 'docker', 'test', {});
+                let errorCb: (err: any) => void = () => {};
+                let endCb: () => void = () => {};
+                let closeCb: () => void = () => {};
+                const mockStream = {
+                    on: jest.fn(),
+                    once: jest.fn((event, cb) => {
+                        if (event === 'error') errorCb = cb;
+                        if (event === 'end') endCb = cb;
+                        if (event === 'close') closeCb = cb;
+                    }),
+                    removeAllListeners: jest.fn(),
+                    destroy: jest.fn(),
+                };
+                mockDockerApi.getEvents.mockImplementation(
+                    (_opts, callback) => {
+                        callback(null, mockStream);
+                    },
+                );
+
+                docker.handleEventsStreamTerminated = jest.fn();
+
+                await docker.listenDockerEvents();
+                expect(docker.eventsReconnectAttempts).toBe(0);
+                expect(docker.dockerEventsStream).toBe(mockStream);
+
+                errorCb(new Error('socket hang up'));
+                expect(
+                    docker.handleEventsStreamTerminated,
+                ).toHaveBeenCalledWith('error', expect.any(Error));
+
+                endCb();
+                expect(
+                    docker.handleEventsStreamTerminated,
+                ).toHaveBeenCalledWith('end', undefined);
+
+                closeCb();
+                expect(
+                    docker.handleEventsStreamTerminated,
+                ).toHaveBeenCalledWith('close', undefined);
+            });
+
+            test('handleEventsStreamTerminated should clean up stream and schedule reconnect', () => {
+                docker.scheduleEventsReconnect = jest.fn();
+                const mockStream = {
+                    removeAllListeners: jest.fn(),
+                    destroy: jest.fn(),
+                };
+                docker.dockerEventsStream = mockStream;
+
+                docker.handleEventsStreamTerminated('error', new Error('test'));
+
+                expect(mockStream.removeAllListeners).toHaveBeenCalled();
+                expect(mockStream.destroy).toHaveBeenCalled();
+                expect(docker.dockerEventsStream).toBeUndefined();
+                expect(docker.scheduleEventsReconnect).toHaveBeenCalled();
+            });
+
+            test('deregisterComponent should cancel reconnect timer and destroy active stream', async () => {
+                jest.useFakeTimers();
+                try {
+                    await docker.register('watcher', 'docker', 'test', {});
+                    const mockStream = {
+                        removeAllListeners: jest.fn(),
+                        destroy: jest.fn(),
+                    };
+                    docker.dockerEventsStream = mockStream;
+                    docker.scheduleEventsReconnect();
+                    expect(docker.eventsReconnectTimer).toBeDefined();
+
+                    await docker.deregisterComponent();
+
+                    expect(docker.isDeregistered).toBe(true);
+                    expect(docker.eventsReconnectTimer).toBeUndefined();
+                    expect(mockStream.removeAllListeners).toHaveBeenCalled();
+                    expect(mockStream.destroy).toHaveBeenCalled();
+                    expect(docker.dockerEventsStream).toBeUndefined();
+                } finally {
+                    jest.useRealTimers();
+                }
+            });
+
+            test('listenDockerEvents should do nothing if component is deregistered', async () => {
+                docker.isDeregistered = true;
+                await docker.listenDockerEvents();
+                expect(mockDockerApi.getEvents).not.toHaveBeenCalled();
+            });
+        });
+
+        describe('Targeted Single-Container Reconciliation', () => {
+            test('pruneContainerFromStore should delete container when present in store', async () => {
+                storeContainer.getContainer.mockReturnValue({
+                    id: 'container-to-delete',
+                } as any);
+                await docker.pruneContainerFromStore('container-to-delete');
+                expect(storeContainer.deleteContainer).toHaveBeenCalledWith(
+                    'container-to-delete',
+                );
+            });
+
+            test('pruneContainerFromStore should no-op when container is not in store', async () => {
+                storeContainer.getContainer.mockReturnValue(undefined);
+                await docker.pruneContainerFromStore('not-in-store');
+                expect(storeContainer.deleteContainer).not.toHaveBeenCalled();
+            });
+
+            test('reconcileContainer should prune oldContainerId when provided', async () => {
+                await docker.register('watcher', 'docker', 'test', {});
+                docker.pruneContainerFromStore = jest.fn();
+                mockContainer.inspect.mockResolvedValue({
+                    Id: 'new-id',
+                    Name: '/my-app',
+                    Image: 'sha256:123',
+                    State: { Status: 'running' },
+                    Config: { Labels: {} },
+                });
+                docker.addImageDetailsToContainer = jest
+                    .fn()
+                    .mockResolvedValue({ id: 'new-id' });
+                docker.checkContainer = jest.fn().mockResolvedValue({
+                    container: { id: 'new-id' },
+                    changed: true,
+                });
+
+                await docker.reconcileContainer('new-id', {
+                    oldContainerId: 'old-id',
+                });
+
+                expect(docker.pruneContainerFromStore).toHaveBeenCalledWith(
+                    'old-id',
+                );
+            });
+
+            test('reconcileContainer should prune and return undefined when container inspect fails', async () => {
+                await docker.register('watcher', 'docker', 'test', {});
+                docker.pruneContainerFromStore = jest.fn();
+                mockContainer.inspect.mockRejectedValue(
+                    new Error('No such container: bad-id'),
+                );
+
+                const result = await docker.reconcileContainer('bad-id');
+
+                expect(result).toBeUndefined();
+                expect(docker.pruneContainerFromStore).toHaveBeenCalledWith(
+                    'bad-id',
+                );
+            });
+
+            test('reconcileContainer should prune and return undefined for rollback archive containers', async () => {
+                await docker.register('watcher', 'docker', 'test', {});
+                docker.pruneContainerFromStore = jest.fn();
+                mockContainer.inspect.mockResolvedValue({
+                    Id: 'archive-id',
+                    Name: '/my-app-wud-old-12345',
+                    Config: { Labels: {} },
+                });
+
+                const result = await docker.reconcileContainer('archive-id');
+
+                expect(result).toBeUndefined();
+                expect(docker.pruneContainerFromStore).toHaveBeenCalledWith(
+                    'archive-id',
+                );
+            });
+
+            test('reconcileContainer should prune and return undefined when isContainerToWatch is false', async () => {
+                await docker.register('watcher', 'docker', 'test', {});
+                docker.pruneContainerFromStore = jest.fn();
+                mockContainer.inspect.mockResolvedValue({
+                    Id: 'unwatched-id',
+                    Name: '/unwatched-app',
+                    Config: { Labels: { 'wud.watch': 'false' } },
+                });
+
+                const result = await docker.reconcileContainer('unwatched-id');
+
+                expect(result).toBeUndefined();
+                expect(docker.pruneContainerFromStore).toHaveBeenCalledWith(
+                    'unwatched-id',
+                );
+            });
+
+            test('reconcileContainer should successfully check container and update prometheus gauge', async () => {
+                await docker.register('watcher', 'docker', 'test', {});
+                mockContainer.inspect.mockResolvedValue({
+                    Id: 'app-1',
+                    Name: '/my-app',
+                    Image: 'sha256:abc',
+                    State: { Status: 'running' },
+                    Config: { Labels: {} },
+                });
+                const mockContainerModel = {
+                    id: 'app-1',
+                    name: 'my-app',
+                } as any;
+                docker.addImageDetailsToContainer = jest
+                    .fn()
+                    .mockResolvedValue(mockContainerModel);
+                docker.checkContainer = jest.fn().mockResolvedValue({
+                    container: mockContainerModel,
+                    changed: false,
+                });
+                storeContainer.getContainers.mockReturnValue([
+                    mockContainerModel,
+                ]);
+
+                const report = await docker.reconcileContainer('app-1', {
+                    forceRefresh: true,
+                });
+
+                expect(report).toEqual({
+                    container: mockContainerModel,
+                    changed: false,
+                });
+                expect(docker.checkContainer).toHaveBeenCalledWith(
+                    mockContainerModel,
+                );
+                const gauge = mockPrometheus.getWatchContainerGauge();
+                expect(gauge.set).toHaveBeenCalledWith(
+                    { type: 'docker', name: 'test' },
+                    1,
+                );
             });
         });
     });

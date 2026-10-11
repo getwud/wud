@@ -524,11 +524,81 @@ describe('handleInstallCommand', () => {
         expect(otherTriggerMock.trigger).not.toHaveBeenCalled();
 
         // Should set in_progress: false in finally
-        expect(mqttClientMock.publish).toHaveBeenLastCalledWith(
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
             'topic/watcher-name/my-app',
             expect.stringContaining('"in_progress":false'),
             { retain: true },
         );
+    });
+
+    test('must publish updated container state, summary updates, and container sensors when update completes (#1393)', async () => {
+        const initialContainer = {
+            id: 'old-container-id',
+            name: 'my-app',
+            displayName: 'my-app',
+            watcher: 'watcher-name',
+            updateAvailable: true,
+            image: {
+                tag: { value: '1.0.0' },
+            },
+        };
+        const updatedContainer = {
+            id: 'new-container-id',
+            name: 'my-app',
+            displayName: 'my-app',
+            watcher: 'watcher-name',
+            updateAvailable: false,
+            image: {
+                tag: { value: '2.0.0' },
+            },
+        };
+
+        let currentContainers = [initialContainer];
+        jest.spyOn(containerStore, 'getContainers').mockImplementation(
+            () => currentContainers,
+        );
+        jest.spyOn(containerStore, 'getContainer').mockImplementation((id) =>
+            currentContainers.find((c) => c.id === id),
+        );
+
+        const publishSummarySpy = jest.spyOn(hass, 'publishSummaryUpdates');
+        const updateSensorsSpy = jest.spyOn(hass, 'updateContainerSensors');
+
+        const dockerTriggerMock = {
+            type: 'docker',
+            trigger: jest.fn().mockImplementation(async () => {
+                // Simulate trigger successfully updating container in store
+                currentContainers = [updatedContainer];
+            }),
+        };
+        registry.getState().trigger = {
+            docker: dockerTriggerMock,
+        };
+
+        await messageHandler(
+            'topic/watcher-name/my-app/install',
+            Buffer.from('INSTALL'),
+        );
+
+        expect(dockerTriggerMock.trigger).toHaveBeenCalledWith(
+            initialContainer,
+        );
+
+        // State topic should publish in_progress: false with updatedContainer metadata
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'topic/watcher-name/my-app',
+            expect.stringContaining('"id":"new-container-id"'),
+            { retain: true },
+        );
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'topic/watcher-name/my-app',
+            expect.stringContaining('"in_progress":false'),
+            { retain: true },
+        );
+
+        // Summary and sensors must be refreshed
+        expect(publishSummarySpy).toHaveBeenCalledTimes(1);
+        expect(updateSensorsSpy).toHaveBeenCalledWith(updatedContainer);
     });
 
     test('must match container with dots replaced by dashes', async () => {

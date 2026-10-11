@@ -1773,6 +1773,7 @@ describe('performUpdate rollback branch', () => {
             wait: jest.fn(() => Promise.resolve()),
         };
         const newContainer = {
+            id: 'new-container-id',
             inspect: () =>
                 Promise.resolve({
                     State: {
@@ -1913,6 +1914,98 @@ describe('performUpdate rollback branch', () => {
             'my-registry/test/test:1.2.3',
         );
         expect(currentContainer.remove).toHaveBeenCalled();
+    });
+
+    describe('Issue #1393 - Post-update reconciliation in trigger', () => {
+        test('should call watcher.reconcileContainer on plain update success', async () => {
+            const { dockerApi } = buildGatedMocks();
+            const reconcileContainerMock = jest.fn(() => Promise.resolve());
+            const watcherSpy = jest
+                .spyOn(docker, 'getWatcher')
+                .mockReturnValue({
+                    dockerApi,
+                    reconcileContainer: reconcileContainerMock,
+                });
+
+            await docker.performUpdate(gatedContainer());
+
+            expect(reconcileContainerMock).toHaveBeenCalledWith(
+                'new-container-id',
+                {
+                    oldContainerId: 'aaaaaaaaaaaa',
+                    forceRefresh: true,
+                },
+            );
+
+            watcherSpy.mockRestore();
+        });
+
+        test('should call watcher.reconcileContainer on gated update success', async () => {
+            const { dockerApi } = buildGatedMocks({ healthStatus: 'healthy' });
+            const reconcileContainerMock = jest.fn(() => Promise.resolve());
+            const watcherSpy = jest
+                .spyOn(docker, 'getWatcher')
+                .mockReturnValue({
+                    dockerApi,
+                    reconcileContainer: reconcileContainerMock,
+                });
+
+            await docker.performUpdate(
+                gatedContainer({ 'wud.rollback.enable': 'true' }),
+                {
+                    gate: {
+                        enabled: true,
+                        window: 100,
+                        interval: 10,
+                        grace: 10,
+                    },
+                },
+            );
+
+            expect(reconcileContainerMock).toHaveBeenCalledWith(
+                'new-container-id',
+                {
+                    oldContainerId: 'aaaaaaaaaaaa',
+                    forceRefresh: true,
+                },
+            );
+
+            watcherSpy.mockRestore();
+        });
+
+        test('should call watcher.reconcileContainer on rollback outcome', async () => {
+            const { dockerApi } = buildGatedMocks({
+                healthStatus: 'unhealthy',
+            });
+            const reconcileContainerMock = jest.fn(() => Promise.resolve());
+            const watcherSpy = jest
+                .spyOn(docker, 'getWatcher')
+                .mockReturnValue({
+                    dockerApi,
+                    reconcileContainer: reconcileContainerMock,
+                });
+
+            await docker.performUpdate(
+                gatedContainer({ 'wud.rollback.enable': 'true' }),
+                {
+                    gate: {
+                        enabled: true,
+                        window: 100,
+                        interval: 10,
+                        grace: 10,
+                    },
+                },
+            );
+
+            expect(reconcileContainerMock).toHaveBeenCalledWith(
+                'aaaaaaaaaaaa',
+                {
+                    forceRefresh: true,
+                },
+            );
+
+            watcherSpy.mockRestore();
+        });
     });
 });
 
