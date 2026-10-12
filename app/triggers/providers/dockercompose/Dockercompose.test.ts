@@ -660,6 +660,151 @@ describe('Dockercompose Trigger - file operations', () => {
         superTriggerSpy.mockRestore();
     });
 
+    describe('Digest-only updates for floating tags (#1404)', () => {
+        const currentDigest = `sha256:${'1'.repeat(64)}`;
+        const remoteDigest = `sha256:${'2'.repeat(64)}`;
+        const digestContainer = {
+            ...container,
+            labels: { 'com.docker.compose.service': 'test' },
+            image: {
+                ...container.image,
+                tag: { value: 'latest', semver: false },
+                digest: { value: currentDigest, watch: true },
+            },
+            updateKind: {
+                kind: 'digest',
+                localValue: currentDigest,
+                remoteValue: remoteDigest,
+            },
+            result: { digest: remoteDigest },
+        };
+        let digestTrigger: Dockercompose;
+        let composeYaml: string;
+        let superTriggerSpy: jest.SpyInstance;
+
+        beforeEach(() => {
+            digestTrigger = new Dockercompose();
+            digestTrigger.configuration = {
+                ...configurationValid,
+                auto: false,
+                dryrun: false,
+            };
+            composeYaml = [
+                '# Floating tags must remain unpinned',
+                'services:',
+                '  test:',
+                '    image: "test/test:latest"',
+                '  sibling:',
+                '    image: "test/test:latest"',
+                '',
+            ].join('\n');
+            (fs.access as jest.Mock).mockResolvedValue(undefined);
+            (fs.readFile as jest.Mock).mockImplementation(async () =>
+                Buffer.from(composeYaml),
+            );
+            (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
+            digestTrigger.getWatcher = jest.fn().mockReturnValue({
+                dockerApi: { modem: { socketPath: '/var/run/docker.sock' } },
+            });
+            superTriggerSpy = jest
+                .spyOn(
+                    Object.getPrototypeOf(Dockercompose.prototype),
+                    'trigger',
+                )
+                .mockResolvedValue(undefined);
+        });
+
+        afterEach(() => {
+            superTriggerSpy.mockRestore();
+        });
+
+        test.each(['latest', 'stable'])(
+            'should apply a manual digest update for :%s without pinning or updating sibling services',
+            async (tag) => {
+                composeYaml = composeYaml.replaceAll(':latest', `:${tag}`);
+                const testContainer = {
+                    ...digestContainer,
+                    image: {
+                        ...digestContainer.image,
+                        tag: { value: tag, semver: false },
+                    },
+                };
+                const sibling = {
+                    ...testContainer,
+                    labels: { 'com.docker.compose.service': 'sibling' },
+                    updateAvailable: false,
+                };
+
+                await digestTrigger.triggerBatch([testContainer, sibling]);
+
+                expect(superTriggerSpy).toHaveBeenCalledTimes(1);
+                expect(superTriggerSpy).toHaveBeenCalledWith(testContainer, {
+                    runHooks: false,
+                });
+                expect(fs.writeFile).toHaveBeenCalledTimes(1);
+                expect(fs.writeFile).toHaveBeenCalledWith(
+                    configurationValid.file,
+                    composeYaml,
+                );
+            },
+        );
+
+        test.each([
+            { kind: 'digest', remoteValue: currentDigest },
+            { kind: 'digest', remoteValue: undefined },
+            { kind: 'digest', remoteValue: '' },
+            { kind: 'tag', remoteValue: 'latest' },
+        ])(
+            'should skip an unchanged image with updateKind %j',
+            async (update) => {
+                const testContainer = {
+                    ...digestContainer,
+                    updateKind: {
+                        localValue:
+                            update.kind === 'tag' ? 'latest' : currentDigest,
+                        ...update,
+                    },
+                    result: {},
+                };
+
+                await digestTrigger.triggerBatch([testContainer]);
+
+                expect(superTriggerSpy).not.toHaveBeenCalled();
+                expect(fs.writeFile).not.toHaveBeenCalled();
+            },
+        );
+
+        test('should resolve a digest update from result.digest when remoteValue is missing', async () => {
+            const testContainer = {
+                ...digestContainer,
+                updateKind: {
+                    kind: 'digest',
+                    localValue: currentDigest,
+                },
+            };
+
+            await digestTrigger.triggerBatch([testContainer]);
+
+            expect(superTriggerSpy).toHaveBeenCalledWith(testContainer, {
+                runHooks: false,
+            });
+            expect(fs.writeFile).toHaveBeenCalled();
+        });
+
+        test('dry-run should not write or back up the compose file for a digest update', async () => {
+            digestTrigger.configuration.dryrun = true;
+            digestTrigger.configuration.backup = true;
+
+            await digestTrigger.triggerBatch([digestContainer]);
+
+            expect(superTriggerSpy).toHaveBeenCalledWith(digestContainer, {
+                runHooks: false,
+            });
+            expect(fs.writeFile).not.toHaveBeenCalled();
+            expect(fs.copyFile).not.toHaveBeenCalled();
+        });
+    });
+
     describe('Services sharing identical images (#1323)', () => {
         const sharedCompose = {
             services: {

@@ -457,18 +457,22 @@ class Dockercompose extends Docker {
             const processedServices = new Set();
 
             // [{ current: '1.0.0', update: '2.0.0' }, {...}]
-            const currentVersionToUpdateVersionArray = containersFiltered
-                .map((container) => {
+            const currentVersionToUpdateVersionArray =
+                containersFiltered.flatMap((container) => {
                     const mapping = this.mapCurrentVersionToUpdateVersion(
                         compose,
                         container,
                         processedServices,
                     );
-                    return mapping;
-                })
-                .filter(
-                    (map) => map !== undefined && map.current !== map.update,
-                );
+                    const hasDigestUpdate =
+                        container.updateKind?.kind === 'digest' &&
+                        this.hasResolvableUpdate(container);
+
+                    return mapping &&
+                        (mapping.current !== mapping.update || hasDigestUpdate)
+                        ? [mapping]
+                        : [];
+                });
 
             if (currentVersionToUpdateVersionArray.length === 0) {
                 this.log.info(

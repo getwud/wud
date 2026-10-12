@@ -86,6 +86,47 @@ describe('Dockercompose rollback branch', () => {
         );
     });
 
+    test('should run the rollback transaction for an unpinned digest-only update', async () => {
+        dockercompose.configuration = {
+            ...configurationValid,
+            auto: false,
+            rollback: true,
+        };
+        const digestContainer = {
+            ...container,
+            image: {
+                ...container.image,
+                tag: { value: 'stable', semver: false },
+            },
+            updateKind: {
+                kind: 'digest',
+                localValue: `sha256:${'1'.repeat(64)}`,
+                remoteValue: `sha256:${'2'.repeat(64)}`,
+            },
+        };
+        dockercompose.getComposeFileAsObject = jest.fn().mockResolvedValue({
+            services: { test: { image: 'test/test:stable' } },
+        });
+
+        await dockercompose.processComposeFile('/tmp/docker-compose.yml', [
+            digestContainer,
+        ]);
+
+        expect(performProjectTransaction).toHaveBeenCalledTimes(1);
+        expect(performProjectTransaction).toHaveBeenCalledWith(
+            dockercompose,
+            '/tmp/docker-compose.yml',
+            [digestContainer],
+            [
+                {
+                    current: 'test/test:stable',
+                    update: 'test/test:stable',
+                    service: 'test',
+                },
+            ],
+        );
+    });
+
     test('should keep the current path when rollback is disabled', async () => {
         dockercompose.performUpdate = jest.fn(() => Promise.resolve(undefined));
 
