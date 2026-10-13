@@ -1383,3 +1383,125 @@ describe('resolveCandidateTag', () => {
         });
     });
 });
+
+describe('registry pull throttling', () => {
+    const blockedPull = () => {
+        let release;
+        const done = new Promise((resolve) => {
+            release = resolve;
+        });
+        return { run: () => done, release };
+    };
+
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    test('should validate an optional pull concurrency', () => {
+        const registryMocked = new Registry();
+
+        expect(
+            registryMocked.validateConfiguration({ pullconcurrency: '2' }),
+        ).toEqual({ concurrency: 2, pullconcurrency: 2 });
+        expect(() =>
+            registryMocked.validateConfiguration({ pullconcurrency: 0 }),
+        ).toThrow();
+        expect(() =>
+            registryMocked.validateConfiguration({ pullconcurrency: 1.5 }),
+        ).toThrow();
+    });
+
+    test('should run one pull at a time by default, in FIFO order', async () => {
+        const registryMocked = new Registry();
+        await registryMocked.register('registry', 'test', 'test', {});
+        const started = [];
+        const pulls = { first: blockedPull(), second: blockedPull() };
+        const third = jest.fn().mockResolvedValue('third');
+
+        const running = [
+            registryMocked.withPullPermit(() => {
+                started.push('first');
+                return pulls.first.run();
+            }),
+            registryMocked.withPullPermit(() => {
+                started.push('second');
+                return pulls.second.run();
+            }),
+            registryMocked.withPullPermit(() => {
+                started.push('third');
+                return third();
+            }),
+        ];
+        await new Promise(setImmediate);
+        expect(started).toEqual(['first']);
+
+        pulls.first.release();
+        await new Promise(setImmediate);
+        expect(started).toEqual(['first', 'second']);
+
+        pulls.second.release();
+        await Promise.all(running);
+        expect(started).toEqual(['first', 'second', 'third']);
+    });
+
+    test('should honor a configured pull concurrency', async () => {
+        const registryMocked = new Registry();
+        await registryMocked.register('registry', 'test', 'test', {
+            pullconcurrency: 2,
+        });
+        const pull = blockedPull();
+        const started = jest.fn(() => pull.run());
+
+        const running = [1, 2, 3].map(() =>
+            registryMocked.withPullPermit(started),
+        );
+        await new Promise(setImmediate);
+        expect(started).toHaveBeenCalledTimes(2);
+
+        pull.release();
+        await Promise.all(running);
+        expect(started).toHaveBeenCalledTimes(3);
+    });
+
+    test('should hold back pulls while deferred, without shortening a deferral', async () => {
+        const registryMocked = new Registry();
+        await registryMocked.register('registry', 'test', 'test', {});
+        jest.spyOn(Date, 'now').mockReturnValue(1000);
+        const timeout = jest
+            .spyOn(global, 'setTimeout')
+            .mockImplementation((callback) => {
+                callback();
+                return 0;
+            });
+
+        registryMocked.deferPulls(5000);
+        registryMocked.deferPulls(2000);
+        await registryMocked.withPullPermit(async () => undefined);
+
+        expect(timeout).toHaveBeenCalledWith(expect.any(Function), 5000);
+    });
+
+    test('should not wait when pulls are not deferred', async () => {
+        const registryMocked = new Registry();
+        await registryMocked.register('registry', 'test', 'test', {});
+        const timeout = jest.spyOn(global, 'setTimeout');
+
+        await expect(
+            registryMocked.withPullPermit(async () => 'pulled'),
+        ).resolves.toBe('pulled');
+        expect(timeout).not.toHaveBeenCalled();
+    });
+
+    test('should release the pull slot when a pull fails', async () => {
+        const registryMocked = new Registry();
+        await registryMocked.register('registry', 'test', 'test', {});
+        const failure = new Error('pull failed');
+
+        await expect(
+            registryMocked.withPullPermit(() => Promise.reject(failure)),
+        ).rejects.toBe(failure);
+        await expect(
+            registryMocked.withPullPermit(async () => 'next'),
+        ).resolves.toBe('next');
+    });
+});
