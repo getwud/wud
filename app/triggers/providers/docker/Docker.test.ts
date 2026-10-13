@@ -6,6 +6,8 @@ import Docker, {
     reconcileCmd,
     reconcileEntrypoint,
     createPullProgressLogger,
+    isPullRateLimited,
+    getPullRetryAfterMs,
 } from './Docker';
 import { HookManager } from '../../hooks/HookManager';
 import log from '../../../log';
@@ -120,6 +122,8 @@ jest.mock('../../../registry', () => ({
             registry: {
                 hub: {
                     getAuthPull: async () => undefined,
+                    withPullPermit: (pull) => pull(),
+                    deferPulls: () => undefined,
                     getImageFullName: (image, tagOrDigest) =>
                         `${image.registry.url}/${image.name}:${tagOrDigest}`,
                 },
@@ -2517,5 +2521,139 @@ describe('Docker 29 containerd store & fully qualified image (#1081)', () => {
                 'docker.io/library/nginx:1.31.2',
             );
         });
+    });
+});
+
+describe('pull rate limiting', () => {
+    const ghcrRateLimit = () =>
+        new Error(
+            'toomanyrequests: retry-after: 267.922µs, allowed: 44000/minute',
+        );
+    const fakeRegistry = () => ({
+        withPullPermit: jest.fn((pull) => pull()),
+        deferPulls: jest.fn(),
+    });
+
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    test('isPullRateLimited should recognize 429s from the daemon and the pull stream', () => {
+        expect(isPullRateLimited({ statusCode: 429, message: 'x' })).toBe(true);
+        expect(isPullRateLimited(ghcrRateLimit())).toBe(true);
+        expect(
+            isPullRateLimited(
+                new Error('(HTTP code 429) unexpected - toomanyrequests'),
+            ),
+        ).toBe(true);
+        expect(isPullRateLimited(new Error('manifest unknown'))).toBe(false);
+        expect(
+            isPullRateLimited(
+                new Error('manifest for test/test:1.429 not found'),
+            ),
+        ).toBe(false);
+        expect(isPullRateLimited(undefined)).toBe(false);
+    });
+
+    test('getPullRetryAfterMs should read the retry-after in the message', () => {
+        expect(getPullRetryAfterMs(ghcrRateLimit())).toBeCloseTo(0.267922);
+        expect(
+            getPullRetryAfterMs(
+                new Error('toomanyrequests: retry-after: 250ms'),
+            ),
+        ).toBe(250);
+        expect(
+            getPullRetryAfterMs(new Error('toomanyrequests: retry-after: 3s')),
+        ).toBe(3000);
+        expect(
+            getPullRetryAfterMs(new Error('toomanyrequests: retry-after: 5')),
+        ).toBe(5000);
+        expect(getPullRetryAfterMs(new Error('toomanyrequests'))).toBe(
+            undefined,
+        );
+    });
+
+    test('pullImage should queue the pull with the registry', async () => {
+        const registry = fakeRegistry();
+        const pullImageOnce = jest
+            .spyOn(docker, 'pullImageOnce')
+            .mockResolvedValue(undefined);
+
+        await docker.pullImage({}, undefined, 'test/test:1.2.3', log, registry);
+
+        expect(registry.withPullPermit).toHaveBeenCalledTimes(1);
+        expect(pullImageOnce).toHaveBeenCalledWith(
+            {},
+            undefined,
+            'test/test:1.2.3',
+            log,
+        );
+        expect(registry.deferPulls).not.toHaveBeenCalled();
+    });
+
+    test('pullImage should defer the registry and retry a rate-limited pull', async () => {
+        const registry = fakeRegistry();
+        jest.spyOn(Math, 'random').mockReturnValue(0.5);
+        const pullImageOnce = jest
+            .spyOn(docker, 'pullImageOnce')
+            .mockRejectedValueOnce(ghcrRateLimit())
+            .mockRejectedValueOnce({ statusCode: 429, message: 'HTTP 429' })
+            .mockResolvedValueOnce(undefined);
+
+        await expect(
+            docker.pullImage({}, undefined, 'test/test:1.2.3', log, registry),
+        ).resolves.toBeUndefined();
+
+        expect(pullImageOnce).toHaveBeenCalledTimes(3);
+        // GHCR's microsecond retry-after is only a floor under the backoff.
+        expect(registry.deferPulls.mock.calls.map(([delay]) => delay)).toEqual([
+            1500, 3000,
+        ]);
+    });
+
+    test('pullImage should give up after three retries with the original error', async () => {
+        const registry = fakeRegistry();
+        const error = ghcrRateLimit();
+        const pullImageOnce = jest
+            .spyOn(docker, 'pullImageOnce')
+            .mockRejectedValue(error);
+
+        await expect(
+            docker.pullImage({}, undefined, 'test/test:1.2.3', log, registry),
+        ).rejects.toBe(error);
+
+        expect(pullImageOnce).toHaveBeenCalledTimes(4);
+        expect(registry.deferPulls).toHaveBeenCalledTimes(3);
+    });
+
+    test('pullImage should not retry other errors or a retry-after over one minute', async () => {
+        const registry = fakeRegistry();
+        const notFound = new Error('manifest unknown');
+        const pullImageOnce = jest
+            .spyOn(docker, 'pullImageOnce')
+            .mockRejectedValueOnce(notFound);
+
+        await expect(
+            docker.pullImage({}, undefined, 'test/test:1.2.3', log, registry),
+        ).rejects.toBe(notFound);
+
+        const longWait = new Error('toomanyrequests: retry-after: 120s');
+        pullImageOnce.mockRejectedValueOnce(longWait);
+        await expect(
+            docker.pullImage({}, undefined, 'test/test:1.2.3', log, registry),
+        ).rejects.toBe(longWait);
+
+        expect(pullImageOnce).toHaveBeenCalledTimes(2);
+        expect(registry.deferPulls).not.toHaveBeenCalled();
+    });
+
+    test('pullImage without a registry should pull directly', async () => {
+        const pullImageOnce = jest
+            .spyOn(docker, 'pullImageOnce')
+            .mockResolvedValue(undefined);
+
+        await docker.pullImage({}, undefined, 'test/test:1.2.3', log);
+
+        expect(pullImageOnce).toHaveBeenCalledTimes(1);
     });
 });

@@ -7,6 +7,7 @@ import { getVersion } from '../configuration';
 import { applyProxyConfig } from '../http/proxy';
 
 const DEFAULT_CONCURRENCY = 2;
+const DEFAULT_PULL_CONCURRENCY = 1;
 const MAX_RATE_LIMIT_RETRIES = 2;
 const RATE_LIMIT_BACKOFF_BASE_MS = 2000;
 const MAX_RETRY_AFTER_MS = 60000;
@@ -214,6 +215,10 @@ export class Registry extends Component {
     private activeRequests = 0;
     private readonly pendingRequests: (() => void)[] = [];
 
+    private activePulls = 0;
+    private readonly pendingPulls: (() => void)[] = [];
+    private pullsDeferredUntil = 0;
+
     validateConfiguration(
         configuration: ComponentConfiguration,
     ): ComponentConfiguration {
@@ -221,14 +226,20 @@ export class Registry extends Component {
             configuration !== null &&
             typeof configuration === 'object' &&
             !Array.isArray(configuration);
-        const { concurrency, proxy, webhook, ...providerConfiguration } =
-            isObjectConfiguration
-                ? configuration
-                : {
-                      concurrency: undefined,
-                      proxy: undefined,
-                      webhook: undefined,
-                  };
+        const {
+            concurrency,
+            pullconcurrency,
+            proxy,
+            webhook,
+            ...providerConfiguration
+        } = isObjectConfiguration
+            ? configuration
+            : {
+                  concurrency: undefined,
+                  pullconcurrency: undefined,
+                  proxy: undefined,
+                  webhook: undefined,
+              };
 
         const concurrencyValidated = this.joi
             .number()
@@ -238,6 +249,16 @@ export class Registry extends Component {
             .validate(concurrency);
         if (concurrencyValidated.error) {
             throw concurrencyValidated.error;
+        }
+
+        const pullConcurrencyValidated = this.joi
+            .number()
+            .integer()
+            .min(1)
+            .optional()
+            .validate(pullconcurrency);
+        if (pullConcurrencyValidated.error) {
+            throw pullConcurrencyValidated.error;
         }
 
         const proxyValidated = this.joi
@@ -264,6 +285,7 @@ export class Registry extends Component {
             providerConfigurationValidated.error &&
             isObjectConfiguration &&
             (Object.hasOwn(configuration, 'concurrency') ||
+                Object.hasOwn(configuration, 'pullconcurrency') ||
                 Object.hasOwn(configuration, 'proxy') ||
                 Object.hasOwn(configuration, 'webhook')) &&
             Object.keys(providerConfiguration).length === 0
@@ -284,6 +306,9 @@ export class Registry extends Component {
                 ? providerConfigurationValidated.value
                 : {}),
             concurrency: concurrencyValidated.value,
+            ...(pullConcurrencyValidated.value !== undefined
+                ? { pullconcurrency: pullConcurrencyValidated.value }
+                : {}),
             ...(webhookValidated.value !== undefined
                 ? { webhook: webhookValidated.value }
                 : {}),
@@ -767,6 +792,53 @@ export class Registry extends Component {
                 this.activeRequests -= 1;
             }
         }
+    }
+
+    /**
+     * Run an image pull (done by the Docker daemon, not through callRegistry) under this
+     * registry's pull limit: at most `pullconcurrency` pulls at once (default 1), started
+     * in FIFO order, and none started while pulls are deferred after a rate limit.
+     *
+     * Pulls have their own limit instead of sharing the request permits: a pull holds its
+     * slot for the whole download, which would starve the watcher's manifest checks.
+     */
+    async withPullPermit<T>(pull: () => Promise<T>): Promise<T> {
+        if (
+            this.activePulls >=
+            (this.configuration.pullconcurrency ?? DEFAULT_PULL_CONCURRENCY)
+        ) {
+            await new Promise<void>((resolve) =>
+                this.pendingPulls.push(resolve),
+            );
+        } else {
+            this.activePulls += 1;
+        }
+
+        try {
+            const wait = this.pullsDeferredUntil - Date.now();
+            if (wait > 0) {
+                await new Promise((resolve) => setTimeout(resolve, wait));
+            }
+            return await pull();
+        } finally {
+            const next = this.pendingPulls.shift();
+            if (next) {
+                next();
+            } else {
+                this.activePulls -= 1;
+            }
+        }
+    }
+
+    /**
+     * Hold back every pull from this registry for `delayMs` (a pull was rate limited:
+     * the next ones would only hit the same limit). Never shortens an existing deferral.
+     */
+    deferPulls(delayMs: number) {
+        this.pullsDeferredUntil = Math.max(
+            this.pullsDeferredUntil,
+            Date.now() + delayMs,
+        );
     }
 
     private getRetryAfterMs(error: any): number | undefined {

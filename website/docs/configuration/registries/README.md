@@ -31,9 +31,19 @@ WUD limits requests independently for each configured registry instance. Request
     supported="Any integer greater than or equal to 1">
     Maximum number of active requests for this registry instance. An invalid value prevents the registry from registering.
   </ConfigOption>
+  <ConfigOption
+    name="WUD_REGISTRY_{REGISTRY_TYPE}_{REGISTRY_NAME}_PULLCONCURRENCY"
+    required={false}
+    type="integer"
+    defaultValue="1"
+    supported="Any integer greater than or equal to 1">
+    Maximum number of image pulls the Docker trigger runs at once against this registry instance. Pulls are queued in FIFO order. An invalid value prevents the registry from registering.
+  </ConfigOption>
 </ConfigList>
 
 When a registry returns HTTP 429, WUD retries twice. It honors `Retry-After` values up to 60 seconds; otherwise it waits for a jittered 1–2 seconds before the first retry and 2–4 seconds before the second. Request slots are released during these delays. Longer retry windows are deferred to the next normal scan, and non-429 failures are not retried.
+
+Image pulls made by the Docker trigger go through the Docker daemon rather than these requests, so they have their own limit (`PULLCONCURRENCY`). When a pull is rate limited (HTTP 429 or `toomanyrequests`), WUD holds back every queued pull from that registry and retries up to three times, waiting a jittered 1–2, 2–4 and 4–8 seconds (or the registry's `retry-after`, when longer and no more than 60 seconds). The pull runs before the container is stopped, so a retry causes no downtime. Other pull failures are not retried.
 
 Retry timing is fixed and is not separately configurable.
 

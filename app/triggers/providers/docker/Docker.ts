@@ -22,6 +22,42 @@ import {
     resolveRollbackConfig,
 } from './rollback';
 
+const MAX_PULL_RATE_LIMIT_RETRIES = 3;
+const PULL_RATE_LIMIT_BACKOFF_BASE_MS = 2000;
+const MAX_PULL_RETRY_AFTER_MS = 60000;
+
+const RATE_LIMIT_MESSAGE = /toomanyrequests|too many requests|HTTP code 429/i;
+const RETRY_AFTER_MESSAGE = /retry-after:\s*([\d.]+)\s*(µs|us|ms|s)?/i;
+
+/**
+ * Whether a pull failed because the registry rate limited it. The daemon reports this
+ * either as the HTTP status of /images/create or as a message in the progress stream
+ * (GHCR: "toomanyrequests: retry-after: 267.922µs, allowed: 44000/minute").
+ */
+export function isPullRateLimited(error: unknown): boolean {
+    const e = error as { statusCode?: number; message?: string } | undefined;
+    return e?.statusCode === 429 || RATE_LIMIT_MESSAGE.test(e?.message ?? '');
+}
+
+/**
+ * The retry-after the registry put in a rate-limit message, in milliseconds, or
+ * undefined when there is none.
+ */
+export function getPullRetryAfterMs(error: unknown): number | undefined {
+    const match = RETRY_AFTER_MESSAGE.exec(
+        (error as { message?: string } | undefined)?.message ?? '',
+    );
+    if (!match) {
+        return undefined;
+    }
+    const value = Number(match[1]);
+    const unit = (match[2] ?? 's').toLowerCase();
+    if (unit === 'µs' || unit === 'us') {
+        return value / 1000;
+    }
+    return unit === 'ms' ? value : value * 1000;
+}
+
 /**
  * Check if two command / entrypoint definitions are equivalent.
  */
@@ -524,8 +560,65 @@ class Docker extends Trigger {
 
     /**
      * Pull new image.
+     *
+     * With a registry, the pull waits its turn in that registry's pull queue and a rate
+     * limited pull is retried (it runs before the container is touched, so a retry costs
+     * no downtime). A watch run fires the trigger for every updated container at once;
+     * left unqueued, those pulls burst the registry and GHCR answers with 429s.
      */
     async pullImage(
+        dockerApi: Dockerode,
+        auth: Dockerode.AuthConfig | undefined,
+        newImage: string,
+        logContainer: Logger,
+        registry?: Registry,
+    ): Promise<void> {
+        if (!registry) {
+            return this.pullImageOnce(dockerApi, auth, newImage, logContainer);
+        }
+        for (let retry = 0; ; retry += 1) {
+            try {
+                return await registry.withPullPermit(() =>
+                    this.pullImageOnce(dockerApi, auth, newImage, logContainer),
+                );
+            } catch (e: unknown) {
+                if (
+                    !isPullRateLimited(e) ||
+                    retry >= MAX_PULL_RATE_LIMIT_RETRIES
+                ) {
+                    throw e;
+                }
+                const retryAfter = getPullRetryAfterMs(e);
+                if (
+                    retryAfter !== undefined &&
+                    retryAfter > MAX_PULL_RETRY_AFTER_MS
+                ) {
+                    logContainer.warn(
+                        `Pull rate limited; Retry-After exceeds ${MAX_PULL_RETRY_AFTER_MS}ms, deferring until the next check`,
+                    );
+                    throw e;
+                }
+                // GHCR's retry-after is often microseconds: honor it only as a floor.
+                const delay = Math.max(
+                    retryAfter ?? 0,
+                    this.getPullBackoffMs(retry),
+                );
+                logContainer.warn(
+                    `Pull rate limited; retry ${retry + 1}/${MAX_PULL_RATE_LIMIT_RETRIES} in ${delay}ms`,
+                );
+                registry.deferPulls(delay);
+            }
+        }
+    }
+
+    private getPullBackoffMs(retry: number) {
+        const exponentialDelay = PULL_RATE_LIMIT_BACKOFF_BASE_MS * 2 ** retry;
+        return Math.round(
+            exponentialDelay / 2 + (Math.random() * exponentialDelay) / 2,
+        );
+    }
+
+    async pullImageOnce(
         dockerApi: Dockerode,
         auth: Dockerode.AuthConfig | undefined,
         newImage: string,
@@ -1455,7 +1548,7 @@ class Docker extends Trigger {
         }
 
         // Pull new image ahead of time
-        await this.pullImage(dockerApi, auth, newImage, logContainer);
+        await this.pullImage(dockerApi, auth, newImage, logContainer, registry);
 
         // Dry-run?
         if (this.configuration.dryrun) {
