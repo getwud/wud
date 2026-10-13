@@ -577,10 +577,36 @@ class Docker extends Trigger {
             return this.pullImageOnce(dockerApi, auth, newImage, logContainer);
         }
         for (let retry = 0; ; retry += 1) {
+            let delay: number | undefined;
             try {
-                return await registry.withPullPermit(() =>
-                    this.pullImageOnce(dockerApi, auth, newImage, logContainer),
-                );
+                return await registry.withPullPermit(async () => {
+                    try {
+                        return await this.pullImageOnce(
+                            dockerApi,
+                            auth,
+                            newImage,
+                            logContainer,
+                        );
+                    } catch (e: unknown) {
+                        if (
+                            isPullRateLimited(e) &&
+                            retry < MAX_PULL_RATE_LIMIT_RETRIES
+                        ) {
+                            const retryAfter = getPullRetryAfterMs(e);
+                            if (
+                                retryAfter === undefined ||
+                                retryAfter <= MAX_PULL_RETRY_AFTER_MS
+                            ) {
+                                delay = Math.max(
+                                    retryAfter ?? 0,
+                                    this.getPullBackoffMs(retry),
+                                );
+                                registry.deferPulls(delay);
+                            }
+                        }
+                        throw e;
+                    }
+                });
             } catch (e: unknown) {
                 if (
                     !isPullRateLimited(e) ||
@@ -599,14 +625,12 @@ class Docker extends Trigger {
                     throw e;
                 }
                 // GHCR's retry-after is often microseconds: honor it only as a floor.
-                const delay = Math.max(
-                    retryAfter ?? 0,
-                    this.getPullBackoffMs(retry),
-                );
+                const backoffDelay =
+                    delay ??
+                    Math.max(retryAfter ?? 0, this.getPullBackoffMs(retry));
                 logContainer.warn(
-                    `Pull rate limited; retry ${retry + 1}/${MAX_PULL_RATE_LIMIT_RETRIES} in ${delay}ms`,
+                    `Pull rate limited; retry ${retry + 1}/${MAX_PULL_RATE_LIMIT_RETRIES} in ${backoffDelay}ms`,
                 );
-                registry.deferPulls(delay);
             }
         }
     }
