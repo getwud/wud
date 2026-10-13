@@ -2656,4 +2656,83 @@ describe('pull rate limiting', () => {
 
         expect(pullImageOnce).toHaveBeenCalledTimes(1);
     });
+
+    test('pullImage should defer queued pulls before releasing the permit on rate limit', async () => {
+        const events = [];
+        const pending = [];
+        let active = 0;
+        let resolveQueueCheck;
+        const secondQueued = new Promise((resolve) => {
+            resolveQueueCheck = resolve;
+        });
+
+        const registry = {
+            withPullPermit: jest.fn(async (pull) => {
+                if (active >= 1) {
+                    await new Promise((resolve) => {
+                        pending.push(resolve);
+                        resolveQueueCheck();
+                    });
+                } else {
+                    active += 1;
+                }
+                try {
+                    return await pull();
+                } finally {
+                    const next = pending.shift();
+                    if (next) {
+                        next();
+                    } else {
+                        active -= 1;
+                    }
+                }
+            }),
+            deferPulls: jest.fn((delay) => {
+                events.push(`deferPulls:${delay}`);
+            }),
+        };
+
+        jest.spyOn(Math, 'random').mockReturnValue(0.5);
+        let pull1Attempts = 0;
+        const pullImageOnce = jest
+            .spyOn(docker, 'pullImageOnce')
+            .mockImplementation(async (_api, _auth, image) => {
+                if (image === 'image1') {
+                    pull1Attempts += 1;
+                    if (pull1Attempts === 1) {
+                        await secondQueued;
+                        throw ghcrRateLimit();
+                    }
+                    events.push('pull1Retried');
+                    return;
+                }
+                if (image === 'image2') {
+                    events.push('pull2Started');
+                    expect(registry.deferPulls).toHaveBeenCalledWith(1500);
+                    return;
+                }
+            });
+
+        const pull1Promise = docker.pullImage(
+            {},
+            undefined,
+            'image1',
+            log,
+            registry,
+        );
+        const pull2Promise = docker.pullImage(
+            {},
+            undefined,
+            'image2',
+            log,
+            registry,
+        );
+
+        await Promise.all([pull1Promise, pull2Promise]);
+
+        expect(pullImageOnce).toHaveBeenCalledTimes(3);
+        expect(events[0]).toBe('deferPulls:1500');
+        expect(events[1]).toBe('pull2Started');
+        expect(events[2]).toBe('pull1Retried');
+    });
 });
