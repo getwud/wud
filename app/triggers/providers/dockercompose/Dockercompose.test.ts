@@ -1410,5 +1410,197 @@ services:
                 expect(result).toContain('restart: always');
             });
         });
+
+        describe('preserve YAML formatting (#1409)', () => {
+            test('should preserve 0-indent lists, flow arrays, and comments exactly', () => {
+                const composeYaml = `# Global stack header
+version: "3.8"
+
+services:
+  # Web frontend
+  web:
+    image: nginx:1.20 # Main web server
+    ports:
+    - 80:80
+    - 443:443
+    environment: [ FOO=BAR, BAZ=QUX ]
+`;
+                const updates = [
+                    {
+                        service: 'web',
+                        current: 'nginx:1.20',
+                        update: 'nginx:1.21',
+                    },
+                ];
+
+                const expected = `# Global stack header
+version: "3.8"
+
+services:
+  # Web frontend
+  web:
+    image: nginx:1.21 # Main web server
+    ports:
+    - 80:80
+    - 443:443
+    environment: [ FOO=BAR, BAZ=QUX ]
+`;
+                const result = dockercompose.updateComposeYaml(
+                    composeYaml,
+                    updates,
+                );
+                expect(result).toBe(expected);
+            });
+
+            test('should preserve quoting styles (double, single, unquoted) across services', () => {
+                const composeYaml = `services:
+  web:
+    image: "nginx:1.20"
+  db:
+    image: 'postgres:14'
+  cache:
+    image: redis:6-alpine
+`;
+                const updates = [
+                    {
+                        service: 'web',
+                        current: 'nginx:1.20',
+                        update: 'nginx:1.21',
+                    },
+                    {
+                        service: 'db',
+                        current: 'postgres:14',
+                        update: 'postgres:15',
+                    },
+                    {
+                        service: 'cache',
+                        current: 'redis:6-alpine',
+                        update: 'redis:7-alpine',
+                    },
+                ];
+
+                const expected = `services:
+  web:
+    image: "nginx:1.21"
+  db:
+    image: 'postgres:15'
+  cache:
+    image: redis:7-alpine
+`;
+                const result = dockercompose.updateComposeYaml(
+                    composeYaml,
+                    updates,
+                );
+                expect(result).toBe(expected);
+            });
+
+            test('should not collide when one service image is a prefix of another', () => {
+                const composeYaml = `services:
+  api:
+    image: myrepo/app:1.0.0
+  worker:
+    image: myrepo/app:1.0.0-worker
+`;
+                const updates = [
+                    {
+                        service: 'api',
+                        current: 'myrepo/app:1.0.0',
+                        update: 'myrepo/app:2.0.0',
+                    },
+                ];
+
+                const expected = `services:
+  api:
+    image: myrepo/app:2.0.0
+  worker:
+    image: myrepo/app:1.0.0-worker
+`;
+                const result = dockercompose.updateComposeYaml(
+                    composeYaml,
+                    updates,
+                );
+                expect(result).toBe(expected);
+            });
+
+            test('should update compose file when service is omitted by matching current image', () => {
+                const composeYaml = `services:
+  web:
+    image: app:1.0.0
+    restart: always
+`;
+                const updates = [
+                    {
+                        current: 'app:1.0.0',
+                        update: 'app:2.0.0',
+                    },
+                ];
+
+                const expected = `services:
+  web:
+    image: app:2.0.0
+    restart: always
+`;
+                const result = dockercompose.updateComposeYaml(
+                    composeYaml,
+                    updates,
+                );
+                expect(result).toBe(expected);
+            });
+
+            test('should fallback to doc.setIn when service exists without an image scalar node', () => {
+                const composeYaml = `services:
+  web:
+    build: .
+    restart: always
+`;
+                const updates = [
+                    {
+                        service: 'web',
+                        update: 'web:1.0.0',
+                    },
+                ];
+
+                const result = dockercompose.updateComposeYaml(
+                    composeYaml,
+                    updates,
+                );
+                expect(result).toContain('image: web:1.0.0');
+                expect(result).toContain('build: .');
+            });
+
+            test('rewriteComposeFile should use updateComposeYaml and preserve file formatting', async () => {
+                const originalYaml = `# Compose file with custom formatting
+services:
+  web:
+    image: nginx:1.20 # web comment
+    ports:
+    - 80:80
+`;
+                (fs.readFile as jest.Mock).mockResolvedValue(
+                    Buffer.from(originalYaml),
+                );
+                (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
+
+                await dockercompose.rewriteComposeFile('docker-compose.yml', [
+                    {
+                        service: 'web',
+                        current: 'nginx:1.20',
+                        update: 'nginx:1.21',
+                    },
+                ]);
+
+                const expectedYaml = `# Compose file with custom formatting
+services:
+  web:
+    image: nginx:1.21 # web comment
+    ports:
+    - 80:80
+`;
+                expect(fs.writeFile).toHaveBeenCalledWith(
+                    'docker-compose.yml',
+                    expectedYaml,
+                );
+            });
+        });
     });
 });
