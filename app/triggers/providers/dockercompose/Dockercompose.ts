@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import yaml from 'yaml';
+import yaml, { isMap, isScalar, Scalar } from 'yaml';
 import Docker from '../docker/Docker';
 import { getState } from '../../../registry';
 import { fullName, Container } from '../../../model/container';
@@ -9,6 +9,113 @@ import { HookManager } from '../../hooks/HookManager';
 import * as event from '../../../event';
 import { performProjectTransaction } from './rollback';
 import { projectMutex } from './mutex';
+
+interface ComposeImageUpdate {
+    service?: string;
+    current?: string;
+    update: string;
+}
+
+interface ImageReplacement {
+    start: number;
+    end: number;
+    text: string;
+}
+
+/**
+ * Locate the Scalar node corresponding to the target image in the YAML AST.
+ */
+function findImageNode(
+    doc: yaml.Document,
+    service?: string,
+    current?: string,
+    matchedNodes?: Set<Scalar>,
+): Scalar | undefined {
+    if (service) {
+        const candidate = doc.getIn(['services', service, 'image'], true);
+        if (isScalar(candidate) && !matchedNodes?.has(candidate)) {
+            return candidate;
+        }
+        const v1Candidate = doc.getIn([service, 'image'], true);
+        if (isScalar(v1Candidate) && !matchedNodes?.has(v1Candidate)) {
+            return v1Candidate;
+        }
+    }
+
+    if (current) {
+        const services = doc.get('services', true);
+        if (isMap(services)) {
+            for (const item of services.items) {
+                if (isMap(item.value)) {
+                    const imgNode = item.value.get('image', true);
+                    if (
+                        isScalar(imgNode) &&
+                        String(imgNode.value) === current &&
+                        !matchedNodes?.has(imgNode)
+                    ) {
+                        return imgNode;
+                    }
+                }
+            }
+        }
+
+        if (isMap(doc.contents)) {
+            for (const item of doc.contents.items) {
+                if (isMap(item.value)) {
+                    const imgNode = item.value.get('image', true);
+                    if (
+                        isScalar(imgNode) &&
+                        String(imgNode.value) === current &&
+                        !matchedNodes?.has(imgNode)
+                    ) {
+                        return imgNode;
+                    }
+                }
+            }
+            const rootImgNode = doc.get('image', true);
+            if (
+                isScalar(rootImgNode) &&
+                String(rootImgNode.value) === current &&
+                !matchedNodes?.has(rootImgNode)
+            ) {
+                return rootImgNode;
+            }
+        }
+    }
+
+    return undefined;
+}
+
+/**
+ * Format image replacement text, preserving double or single quote style of the original token.
+ */
+function formatImageReplacement(
+    node: Scalar,
+    rawSlice: string,
+    newImage: string,
+): string {
+    const isDoubleQuoted =
+        node.type === 'QUOTE_DOUBLE' ||
+        (rawSlice.startsWith('"') && rawSlice.endsWith('"'));
+    const isSingleQuoted =
+        node.type === 'QUOTE_SINGLE' ||
+        (rawSlice.startsWith("'") && rawSlice.endsWith("'"));
+
+    const alreadyQuoted =
+        (newImage.startsWith('"') && newImage.endsWith('"')) ||
+        (newImage.startsWith("'") && newImage.endsWith("'"));
+
+    if (alreadyQuoted) {
+        return newImage;
+    }
+    if (isDoubleQuoted) {
+        return `"${newImage}"`;
+    }
+    if (isSingleQuoted) {
+        return `'${newImage}'`;
+    }
+    return newImage;
+}
 
 /**
  * Match a compose service image against a container image, supporting:
@@ -695,12 +802,16 @@ class Dockercompose extends Docker {
      * @param mappings [{ current, update }]
      * @returns {Promise<void>}
      */
-    async rewriteComposeFile(composeFile, mappings) {
-        let composeFileStr = (await fs.readFile(composeFile)).toString();
-        mappings.forEach(({ current, update }) => {
-            composeFileStr = composeFileStr.replaceAll(current, update);
-        });
-        await fs.writeFile(composeFile, composeFileStr);
+    async rewriteComposeFile(
+        composeFile: string,
+        mappings: ComposeImageUpdate[],
+    ): Promise<void> {
+        const composeFileStr = (await fs.readFile(composeFile)).toString();
+        const updatedComposeFileStr = this.updateComposeYaml(
+            composeFileStr,
+            mappings,
+        );
+        await fs.writeFile(composeFile, updatedComposeFileStr);
     }
 
     /**
@@ -872,12 +983,15 @@ class Dockercompose extends Docker {
 
     /**
      * Update compose file YAML string with target service image updates.
-     * Preserves comments, quotes, and document structure via AST.
+     * Preserves comments, quotes, indentation, flow sequences, and document structure via AST range replacement.
      * @param composeFileStr
-     * @param updates Array of { service, current, update }
+     * @param updates Array of { service?, current?, update }
      * @returns {string}
      */
-    updateComposeYaml(composeFileStr, updates) {
+    updateComposeYaml(
+        composeFileStr: string,
+        updates: ComposeImageUpdate[],
+    ): string {
         try {
             const doc = yaml.parseDocument(composeFileStr, {
                 maxAliasCount: 10000,
@@ -889,25 +1003,92 @@ class Dockercompose extends Docker {
                 return this.fallbackStringReplace(composeFileStr, updates);
             }
 
-            let modified = false;
-            for (const { service, update } of updates) {
-                if (service && doc.hasIn(['services', service, 'image'])) {
-                    doc.setIn(['services', service, 'image'], update);
-                    modified = true;
-                } else if (service && doc.hasIn(['services', service])) {
-                    doc.setIn(['services', service, 'image'], update);
-                    modified = true;
+            const replacements: ImageReplacement[] = [];
+            const matchedNodes = new Set<Scalar>();
+            const seenRanges = new Set<string>();
+            const unhandledUpdates: ComposeImageUpdate[] = [];
+
+            for (const updateItem of updates) {
+                if (!updateItem.update) {
+                    continue;
+                }
+                const node = findImageNode(
+                    doc,
+                    updateItem.service,
+                    updateItem.current,
+                    matchedNodes,
+                );
+                if (
+                    node &&
+                    node.range &&
+                    typeof node.range[0] === 'number' &&
+                    typeof node.range[1] === 'number'
+                ) {
+                    matchedNodes.add(node);
+                    const [start, valueEnd] = node.range;
+                    const rangeKey = `${start}:${valueEnd}`;
+                    if (seenRanges.has(rangeKey)) {
+                        continue;
+                    }
+                    seenRanges.add(rangeKey);
+                    const rawSlice = composeFileStr.slice(start, valueEnd);
+                    const text = formatImageReplacement(
+                        node,
+                        rawSlice,
+                        updateItem.update,
+                    );
+                    replacements.push({ start, end: valueEnd, text });
+                } else if (
+                    updateItem.service &&
+                    doc.hasIn(['services', updateItem.service])
+                ) {
+                    // Service exists in YAML but lacks an image Scalar node
+                    unhandledUpdates.push(updateItem);
                 }
             }
 
-            if (modified) {
+            if (replacements.length === 0 && unhandledUpdates.length === 0) {
+                return this.fallbackStringReplace(composeFileStr, updates);
+            }
+
+            // If a service existed without an image node, we must mutate AST and serialize
+            if (unhandledUpdates.length > 0) {
+                for (const { service, update } of updates) {
+                    if (service && doc.hasIn(['services', service])) {
+                        doc.setIn(['services', service, 'image'], update);
+                    }
+                }
                 return doc.toString({ lineWidth: 0 });
             }
 
-            return this.fallbackStringReplace(composeFileStr, updates);
-        } catch (e) {
+            // Apply replacements in descending offset order so earlier indices remain untouched
+            replacements.sort((a, b) => b.start - a.start);
+            let result = composeFileStr;
+            for (const { start, end, text } of replacements) {
+                result = result.slice(0, start) + text + result.slice(end);
+            }
+
+            // Check if any updates with `current` were not matched via AST
+            const unmatchedUpdates = updates.filter(
+                (u) =>
+                    u.current &&
+                    u.update &&
+                    !replacements.some(
+                        (r) =>
+                            r.text === u.update ||
+                            r.text === `"${u.update}"` ||
+                            r.text === `'${u.update}'`,
+                    ),
+            );
+            if (unmatchedUpdates.length > 0) {
+                result = this.fallbackStringReplace(result, unmatchedUpdates);
+            }
+
+            return result;
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
             this.log.warn(
-                `Failed to update compose YAML via AST (${e.message}), falling back to string replacement`,
+                `Failed to update compose YAML via AST (${message}), falling back to string replacement`,
             );
             return this.fallbackStringReplace(composeFileStr, updates);
         }
@@ -919,7 +1100,10 @@ class Dockercompose extends Docker {
      * @param updates
      * @returns {string}
      */
-    fallbackStringReplace(composeFileStr, updates) {
+    fallbackStringReplace(
+        composeFileStr: string,
+        updates: { current?: string; update: string }[],
+    ): string {
         let result = composeFileStr;
         updates.forEach(({ current, update }) => {
             if (current && update) {
@@ -986,4 +1170,6 @@ export {
     doesContainerBelongToCompose,
     findServiceKeyForContainer,
     isMatchingServiceImage,
+    findImageNode,
+    formatImageReplacement,
 };
