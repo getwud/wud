@@ -1727,13 +1727,34 @@ test('trigger should refuse to replace the container WUD runs in by default', as
         .mockResolvedValue('123456798');
 
     await expect(docker.trigger(selfContainer)).rejects.toThrow(
-        /Refusing to update the container WUD runs in/,
+        'Refusing to update the container WUD runs in: stopping it would abort the update and leave the container down. Enable it with WUD_TRIGGER_DOCKER_{trigger_name}_SELFUPDATE=true, or exclude WUD from this trigger with the wud.trigger.exclude label and update it externally.',
     );
 
     // The whole point: the container must not be touched.
     expect(stop).not.toHaveBeenCalled();
     expect(remove).not.toHaveBeenCalled();
 
+    watcherSpy.mockRestore();
+    selfSpy.mockRestore();
+});
+
+test('trigger should format error message with trigger type when selfupdate is disabled', async () => {
+    const { dockerApi } = buildSelfUpdateDockerApi();
+    const watcherSpy = jest.spyOn(docker, 'getWatcher').mockReturnValue({
+        dockerApi,
+        configuration: { socket: '/var/run/docker.sock' },
+    });
+    const selfSpy = jest
+        .spyOn(docker, 'resolveSelfContainerId')
+        .mockResolvedValue('123456798');
+    const originalType = docker.type;
+    docker.type = 'custom';
+
+    await expect(docker.trigger(selfContainer)).rejects.toThrow(
+        'Refusing to update the container WUD runs in: stopping it would abort the update and leave the container down. Enable it with WUD_TRIGGER_CUSTOM_{trigger_name}_SELFUPDATE=true, or exclude WUD from this trigger with the wud.trigger.exclude label and update it externally.',
+    );
+
+    docker.type = originalType;
     watcherSpy.mockRestore();
     selfSpy.mockRestore();
 });

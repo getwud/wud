@@ -361,6 +361,11 @@ export interface PerformUpdateOptions {
 class Docker extends Trigger {
     declare public configuration: DockerConfiguration;
 
+    constructor() {
+        super();
+        this.type = 'docker';
+    }
+
     /**
      * Get the Trigger configuration schema.
      */
@@ -1614,10 +1619,11 @@ class Docker extends Trigger {
         const selfContainerId = await this.resolveSelfContainerId(dockerApi);
         if (isSelfContainer(currentContainerSpec.Id, selfContainerId)) {
             if (!this.configuration.selfupdate) {
+                const triggerType = (this.type || 'docker').toUpperCase();
                 throw new Error(
                     'Refusing to update the container WUD runs in: stopping it would abort the update ' +
                         'and leave the container down. Enable it with ' +
-                        'WUD_TRIGGER_DOCKER_{trigger_name}_SELFUPDATE=true, or exclude WUD from this ' +
+                        `WUD_TRIGGER_${triggerType}_{trigger_name}_SELFUPDATE=true, or exclude WUD from this ` +
                         'trigger with the wud.trigger.exclude label and update it externally.',
                 );
             }

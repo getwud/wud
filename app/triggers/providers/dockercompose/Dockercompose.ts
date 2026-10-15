@@ -322,6 +322,10 @@ function doesContainerBelongToCompose(compose, container) {
  * Update a Docker compose stack with an updated one.
  */
 class Dockercompose extends Docker {
+    constructor() {
+        super();
+        this.type = 'dockercompose';
+    }
     /**
      * Get the Trigger configuration schema.
      * @returns {*}
