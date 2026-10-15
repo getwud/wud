@@ -116,6 +116,7 @@ docker run \
 
 The following environment variables are exported to the child process:
 
+- `compose_project`: Docker Compose project name if the container belongs to a Compose stack (also exported as `WUD_CONTAINER_COMPOSE_PROJECT`)
 - `display_icon`: Container display icon (e.g. `mdi:docker`)
 - `display_name`: Container display name (e.g. `web-app`)
 - `id`: Docker container ID

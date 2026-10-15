@@ -1,19 +1,28 @@
-// @ts-nocheck
 import util from 'node:util';
-import child_process from 'node:child_process';
-const exec = util.promisify(child_process.exec);
-import Trigger from '../Trigger';
+import child_process, { ExecException } from 'node:child_process';
+import { ObjectSchema } from 'joi';
+import Trigger, { TriggerConfiguration } from '../Trigger';
+import { Container, flatten } from '../../../model/container';
 
-import { flatten } from '../../../model/container';
+const exec = util.promisify(child_process.exec);
+
+export interface CommandTriggerConfiguration extends TriggerConfiguration {
+    cmd?: string;
+    shell?: string;
+    timeout?: number;
+}
+
 /**
  * Command Trigger implementation
  */
 class Command extends Trigger {
+    declare public configuration: CommandTriggerConfiguration;
+
     /**
      * Get the Trigger configuration schema.
      * @returns {*}
      */
-    getConfigurationSchema() {
+    getConfigurationSchema(): ObjectSchema {
         return this.joi.object().keys({
             cmd: this.joi.string().required(),
             shell: this.joi.string().default('/bin/sh'),
@@ -27,10 +36,19 @@ class Command extends Trigger {
      * @param container the container
      * @returns {Promise<void>}
      */
-    async trigger(container) {
+    async trigger(container: Container) {
+        const composeProject =
+            container.stack || container.labels?.['com.docker.compose.project'];
+        const composeEnvVars: Record<string, string> = composeProject
+            ? {
+                  compose_project: composeProject,
+                  WUD_CONTAINER_COMPOSE_PROJECT: composeProject,
+              }
+            : {};
         return this.runCommand({
             container_json: JSON.stringify(container),
             ...flatten(container),
+            ...composeEnvVars,
         });
     }
 
@@ -39,7 +57,7 @@ class Command extends Trigger {
      * @param containers
      * @returns {Promise<*>}
      */
-    async triggerBatch(containers) {
+    async triggerBatch(containers: Container[]) {
         return this.runCommand({
             containers_json: JSON.stringify(containers),
         });
@@ -49,7 +67,7 @@ class Command extends Trigger {
      * Run the command.
      * @param {*} extraEnvVars
      */
-    async runCommand(extraEnvVars) {
+    async runCommand(extraEnvVars: Record<string, string>) {
         const commandOptions = {
             env: {
                 ...process.env,
@@ -60,7 +78,7 @@ class Command extends Trigger {
         };
         try {
             const { stdout, stderr } = await exec(
-                this.configuration.cmd,
+                this.configuration.cmd!,
                 commandOptions,
             );
             if (stdout) {
@@ -73,10 +91,24 @@ class Command extends Trigger {
                     `Command ${this.configuration.cmd} \nstderr ${stderr}`,
                 );
             }
-        } catch (err) {
+        } catch (err: unknown) {
+            const execError = err as ExecException & {
+                stdout?: string | Buffer;
+                stderr?: string | Buffer;
+            };
             this.log.warn(
-                `Command ${this.configuration.cmd} \nexecution error (${err.message})`,
+                `Command ${this.configuration.cmd} \nexecution error (${execError.message})`,
             );
+            if (execError.stdout) {
+                this.log.info(
+                    `Command ${this.configuration.cmd} \nstdout ${execError.stdout.toString()}`,
+                );
+            }
+            if (execError.stderr) {
+                this.log.warn(
+                    `Command ${this.configuration.cmd} \nstderr ${execError.stderr.toString()}`,
+                );
+            }
         }
     }
 }
