@@ -14,6 +14,9 @@ jest.mock('../../../registry', () => ({
         return {
             registry: {
                 hub: {
+                    getAuthPull: async () => undefined,
+                    withPullPermit: (pull: any) => pull(),
+                    deferPulls: () => undefined,
                     getImageFullName: (
                         image: { name: string },
                         tagOrDigest: string,
@@ -1601,6 +1604,70 @@ services:
                     expectedYaml,
                 );
             });
+        });
+    });
+
+    describe('selfupdate', () => {
+        test('should refuse to update the container WUD runs in when selfupdate is disabled', async () => {
+            const stop = jest.fn();
+            const remove = jest.fn();
+            const createContainer = jest.fn();
+            const dockerApi = {
+                createContainer,
+                pull: () => Promise.resolve(),
+                modem: {
+                    followProgress: (_pullStream: any, res: any) => res(),
+                },
+                getContainer: () =>
+                    Promise.resolve({
+                        inspect: () =>
+                            Promise.resolve({
+                                Name: '/wud',
+                                Id: '123456798',
+                                Image: 'sha256:currentimage',
+                                State: { Running: true },
+                                Config: { Hostname: '123456798' },
+                                HostConfig: {},
+                                NetworkSettings: { Networks: {} },
+                            }),
+                        stop,
+                        remove,
+                        start: () => Promise.resolve(),
+                    }),
+            };
+            const watcherSpy = jest
+                .spyOn(dockercompose, 'getWatcher')
+                .mockReturnValue({
+                    dockerApi,
+                    configuration: { socket: '/var/run/docker.sock' },
+                } as any);
+            const selfSpy = jest
+                .spyOn(dockercompose, 'resolveSelfContainerId')
+                .mockResolvedValue('123456798');
+
+            const selfContainer = {
+                updateAvailable: true,
+                watcher: 'test',
+                id: '123456789',
+                name: 'wud',
+                image: {
+                    name: 'getwud/wud',
+                    registry: { name: 'hub', url: 'my-registry' },
+                },
+                updateKind: { kind: 'tag', remoteValue: '9.0.3' },
+            };
+
+            await expect(
+                dockercompose.performUpdate(selfContainer as any),
+            ).rejects.toThrow(
+                'Refusing to update the container WUD runs in: stopping it would abort the update and leave the container down. Enable it with WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_SELFUPDATE=true, or exclude WUD from this trigger with the wud.trigger.exclude label and update it externally.',
+            );
+
+            expect(stop).not.toHaveBeenCalled();
+            expect(remove).not.toHaveBeenCalled();
+
+            watcherSpy.mockRestore();
+            selfSpy.mockRestore();
         });
     });
 });
