@@ -93,14 +93,15 @@ class Trigger extends Component {
      */
     static isThresholdReached(containerResult: Container, threshold: string) {
         let thresholdPassing = true;
+        const normalizedThreshold = threshold.toLowerCase();
         if (
-            threshold.toLowerCase() !== 'all' &&
+            normalizedThreshold !== 'all' &&
             containerResult.updateKind &&
             containerResult.updateKind.kind === 'tag' &&
             containerResult.updateKind.semverDiff &&
             containerResult.updateKind.semverDiff !== 'unknown'
         ) {
-            switch (threshold) {
+            switch (normalizedThreshold) {
                 case 'major-only':
                     thresholdPassing =
                         containerResult.updateKind.semverDiff == 'major';
@@ -108,6 +109,13 @@ class Trigger extends Component {
                 case 'minor-only':
                     thresholdPassing =
                         containerResult.updateKind.semverDiff == 'minor';
+                    break;
+                case 'patch-only':
+                    thresholdPassing =
+                        containerResult.updateKind.semverDiff == 'patch';
+                    break;
+                case 'major':
+                    thresholdPassing = true;
                     break;
                 case 'minor':
                     thresholdPassing =
@@ -126,6 +134,46 @@ class Trigger extends Component {
     }
 
     /**
+     * Return true if update reaches trigger exclusion threshold.
+     * @param containerResult
+     * @param threshold
+     * @returns {boolean}
+     */
+    static isExcludeThresholdReached(
+        containerResult: Partial<Container>,
+        threshold: string,
+    ): boolean {
+        const normalizedThreshold = threshold.toLowerCase();
+        if (normalizedThreshold === 'all') {
+            return true;
+        }
+        if (
+            !containerResult.updateKind ||
+            containerResult.updateKind.kind !== 'tag' ||
+            !containerResult.updateKind.semverDiff ||
+            containerResult.updateKind.semverDiff === 'unknown'
+        ) {
+            return false;
+        }
+        const diff = containerResult.updateKind.semverDiff;
+        switch (normalizedThreshold) {
+            case 'major':
+            case 'major-only':
+                return diff === 'major';
+            case 'minor-only':
+                return diff === 'minor';
+            case 'minor':
+                return diff === 'major' || diff === 'minor';
+            case 'patch':
+                return diff === 'major' || diff === 'minor' || diff === 'patch';
+            case 'patch-only':
+                return diff === 'patch';
+            default:
+                return true;
+        }
+    }
+
+    /**
      * Parse $name:$threshold string.
      * @param {*} includeOrExcludeTriggerString
      * @returns
@@ -140,12 +188,15 @@ class Trigger extends Component {
             threshold: 'all',
         };
         if (includeOrExcludeTriggerSplit.length === 2) {
-            switch (includeOrExcludeTriggerSplit[1]) {
+            switch (includeOrExcludeTriggerSplit[1].toLowerCase()) {
                 case 'major-only':
                     includeOrExcludeTrigger.threshold = 'major-only';
                     break;
                 case 'minor-only':
                     includeOrExcludeTrigger.threshold = 'minor-only';
+                    break;
+                case 'patch-only':
+                    includeOrExcludeTrigger.threshold = 'patch-only';
                     break;
                 case 'major':
                     includeOrExcludeTrigger.threshold = 'major';
@@ -390,9 +441,21 @@ class Trigger extends Component {
         if (!triggerExclude) {
             return false;
         }
-        return this.isTriggerIncludedOrExcluded(
+        const triggers = triggerExclude
+            .split(/\s*,\s*/)
+            .map((triggerToMatch) =>
+                Trigger.parseIncludeOrIncludeTriggerString(triggerToMatch),
+            );
+        const triggerMatched = triggers.find(
+            (triggerToMatch) =>
+                triggerToMatch.id.toLowerCase() === this.getId(),
+        );
+        if (!triggerMatched) {
+            return false;
+        }
+        return Trigger.isExcludeThresholdReached(
             containerResult,
-            triggerExclude,
+            triggerMatched.threshold.toLowerCase(),
         );
     }
 
