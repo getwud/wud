@@ -34,7 +34,8 @@ export const UPDATE_TRIGGER_TYPES = [
  * associated with the container.
  */
 export function getAssociatedTriggerIds(
-    container: Pick<Container, 'triggerInclude' | 'triggerExclude' | 'labels'>,
+    container: Pick<Container, 'triggerInclude' | 'triggerExclude' | 'labels'> &
+        Partial<Pick<Container, 'updateKind'>>,
 ): Map<string, string | undefined> {
     const labels = container.labels as Record<string, unknown> | undefined;
     const triggerInclude =
@@ -55,14 +56,11 @@ export function getAssociatedTriggerIds(
                   Trigger.parseIncludeOrIncludeTriggerString(includedTrigger),
               )
         : undefined;
-    const excludedTriggerIds = triggerExclude
+    const excludedTriggers = triggerExclude
         ? triggerExclude
               .split(/\s*,\s*/)
-              .map(
-                  (excludedTrigger) =>
-                      Trigger.parseIncludeOrIncludeTriggerString(
-                          excludedTrigger,
-                      ).id,
+              .map((excludedTrigger) =>
+                  Trigger.parseIncludeOrIncludeTriggerString(excludedTrigger),
               )
         : undefined;
 
@@ -110,8 +108,19 @@ export function getAssociatedTriggerIds(
                 isAssociated = !!includedTrigger;
                 threshold = includedTrigger?.threshold;
             }
-            if (excludedTriggerIds && excludedTriggerIds.includes(id)) {
-                isAssociated = false;
+            if (excludedTriggers) {
+                const excludedTrigger = excludedTriggers.find(
+                    (tr) => tr.id === id,
+                );
+                if (
+                    excludedTrigger &&
+                    Trigger.isExcludeThresholdReached(
+                        container,
+                        excludedTrigger.threshold,
+                    )
+                ) {
+                    isAssociated = false;
+                }
             }
         }
 

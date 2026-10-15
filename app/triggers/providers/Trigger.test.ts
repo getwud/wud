@@ -400,6 +400,69 @@ test('isThresholdReached should return true when there is no semverDiff regardle
     ).toBeTruthy();
 });
 
+const isExcludeThresholdReachedTestCases = [
+    // threshold: all
+    { threshold: 'all', kind: 'tag', change: 'major', expected: true },
+    { threshold: 'all', kind: 'tag', change: 'minor', expected: true },
+    { threshold: 'all', kind: 'tag', change: 'patch', expected: true },
+    { threshold: 'all', kind: 'digest', change: 'unknown', expected: true },
+    { threshold: 'all', kind: undefined, change: undefined, expected: true },
+
+    // threshold: major
+    { threshold: 'major', kind: 'tag', change: 'major', expected: true },
+    { threshold: 'major', kind: 'tag', change: 'minor', expected: false },
+    { threshold: 'major', kind: 'tag', change: 'patch', expected: false },
+    { threshold: 'major', kind: 'digest', change: 'unknown', expected: false },
+    { threshold: 'major', kind: undefined, change: undefined, expected: false },
+
+    // threshold: major-only
+    { threshold: 'major-only', kind: 'tag', change: 'major', expected: true },
+    { threshold: 'major-only', kind: 'tag', change: 'minor', expected: false },
+    { threshold: 'major-only', kind: 'tag', change: 'patch', expected: false },
+
+    // threshold: minor
+    { threshold: 'minor', kind: 'tag', change: 'major', expected: true },
+    { threshold: 'minor', kind: 'tag', change: 'minor', expected: true },
+    { threshold: 'minor', kind: 'tag', change: 'patch', expected: false },
+    { threshold: 'minor', kind: 'digest', change: 'unknown', expected: false },
+
+    // threshold: minor-only
+    { threshold: 'minor-only', kind: 'tag', change: 'major', expected: false },
+    { threshold: 'minor-only', kind: 'tag', change: 'minor', expected: true },
+    { threshold: 'minor-only', kind: 'tag', change: 'patch', expected: false },
+
+    // threshold: patch
+    { threshold: 'patch', kind: 'tag', change: 'major', expected: true },
+    { threshold: 'patch', kind: 'tag', change: 'minor', expected: true },
+    { threshold: 'patch', kind: 'tag', change: 'patch', expected: true },
+    { threshold: 'patch', kind: 'digest', change: 'unknown', expected: false },
+
+    // threshold: patch-only
+    { threshold: 'patch-only', kind: 'tag', change: 'major', expected: false },
+    { threshold: 'patch-only', kind: 'tag', change: 'minor', expected: false },
+    { threshold: 'patch-only', kind: 'tag', change: 'patch', expected: true },
+];
+
+test.each(isExcludeThresholdReachedTestCases)(
+    'isExcludeThresholdReached should return $expected when threshold=$threshold, kind=$kind, change=$change',
+    ({ threshold, kind, change, expected }) => {
+        const container = kind
+            ? {
+                  updateKind: {
+                      kind,
+                      semverDiff: change,
+                  },
+              }
+            : {};
+        expect(
+            Trigger.isExcludeThresholdReached(
+                container as Partial<Container>,
+                threshold,
+            ),
+        ).toBe(expected);
+    },
+);
+
 test('mustTrigger should include containers without trigger include label by default', async () => {
     trigger.type = 'smtp';
     trigger.name = 'gmail';
@@ -1207,6 +1270,100 @@ describe('granular per-trigger labels (fixes #691)', () => {
 
             expect(tr.isTriggerEnabled(containerPatch)).toBe(false);
             expect(tr.isTriggerEnabled(containerMatch)).toBe(true);
+        });
+
+        test('honors threshold on triggerExclude (fixes #652)', () => {
+            const tr = new Trigger();
+            tr.type = 'dockercompose';
+            tr.name = 'local';
+            tr.configuration = { includebydefault: true };
+
+            // exclude=major should NOT exclude patch or minor updates, but should exclude major updates
+            const containerExcludeMajorPatch = {
+                triggerExclude: 'dockercompose.local:major',
+                updateKind: { kind: 'tag', semverDiff: 'patch' },
+            };
+            const containerExcludeMajorMinor = {
+                triggerExclude: 'dockercompose.local:major',
+                updateKind: { kind: 'tag', semverDiff: 'minor' },
+            };
+            const containerExcludeMajor = {
+                triggerExclude: 'dockercompose.local:major',
+                updateKind: { kind: 'tag', semverDiff: 'major' },
+            };
+            expect(tr.isTriggerEnabled(containerExcludeMajorPatch)).toBe(true);
+            expect(tr.isTriggerEnabled(containerExcludeMajorMinor)).toBe(true);
+            expect(tr.isTriggerEnabled(containerExcludeMajor)).toBe(false);
+
+            // exclude=minor should NOT exclude patch updates, but should exclude minor and major updates
+            const containerExcludeMinorPatch = {
+                triggerExclude: 'dockercompose.local:minor',
+                updateKind: { kind: 'tag', semverDiff: 'patch' },
+            };
+            const containerExcludeMinor = {
+                triggerExclude: 'dockercompose.local:minor',
+                updateKind: { kind: 'tag', semverDiff: 'minor' },
+            };
+            const containerExcludeMinorMajor = {
+                triggerExclude: 'dockercompose.local:minor',
+                updateKind: { kind: 'tag', semverDiff: 'major' },
+            };
+            expect(tr.isTriggerEnabled(containerExcludeMinorPatch)).toBe(true);
+            expect(tr.isTriggerEnabled(containerExcludeMinor)).toBe(false);
+            expect(tr.isTriggerEnabled(containerExcludeMinorMajor)).toBe(false);
+
+            // exclude=patch should exclude patch, minor, and major updates
+            const containerExcludePatch = {
+                triggerExclude: 'dockercompose.local:patch',
+                updateKind: { kind: 'tag', semverDiff: 'patch' },
+            };
+            expect(tr.isTriggerEnabled(containerExcludePatch)).toBe(false);
+
+            // exclude=major-only should only exclude major updates
+            const containerExcludeMajorOnlyMinor = {
+                triggerExclude: 'dockercompose.local:major-only',
+                updateKind: { kind: 'tag', semverDiff: 'minor' },
+            };
+            const containerExcludeMajorOnlyMajor = {
+                triggerExclude: 'dockercompose.local:major-only',
+                updateKind: { kind: 'tag', semverDiff: 'major' },
+            };
+            expect(tr.isTriggerEnabled(containerExcludeMajorOnlyMinor)).toBe(
+                true,
+            );
+            expect(tr.isTriggerEnabled(containerExcludeMajorOnlyMajor)).toBe(
+                false,
+            );
+
+            // exclude=minor-only should only exclude minor updates
+            const containerExcludeMinorOnlyMajor = {
+                triggerExclude: 'dockercompose.local:minor-only',
+                updateKind: { kind: 'tag', semverDiff: 'major' },
+            };
+            const containerExcludeMinorOnlyMinor = {
+                triggerExclude: 'dockercompose.local:minor-only',
+                updateKind: { kind: 'tag', semverDiff: 'minor' },
+            };
+            expect(tr.isTriggerEnabled(containerExcludeMinorOnlyMajor)).toBe(
+                true,
+            );
+            expect(tr.isTriggerEnabled(containerExcludeMinorOnlyMinor)).toBe(
+                false,
+            );
+
+            // semver exclusion rules do not exclude digest updates
+            const containerExcludeDigest = {
+                triggerExclude: 'dockercompose.local:major',
+                updateKind: { kind: 'digest' },
+            };
+            expect(tr.isTriggerEnabled(containerExcludeDigest)).toBe(true);
+
+            // exclude=all excludes all updates including digest
+            const containerExcludeAllDigest = {
+                triggerExclude: 'dockercompose.local:all',
+                updateKind: { kind: 'digest' },
+            };
+            expect(tr.isTriggerEnabled(containerExcludeAllDigest)).toBe(false);
         });
     });
 

@@ -72,6 +72,94 @@ describe('getAssociatedTriggerIds', () => {
         expect(associated.has('command.deploy')).toBe(true);
     });
 
+    test('honors threshold on wud.trigger.exclude (fixes #652)', () => {
+        mockTriggers({
+            'docker.default': {},
+            'command.deploy': {},
+        });
+
+        // exclude=major does NOT exclude patch or minor, but DOES exclude major
+        const patchResult = getAssociatedTriggerIds({
+            triggerExclude: 'docker.default:major',
+            updateKind: { kind: 'tag', semverDiff: 'patch' },
+        });
+        expect(patchResult.has('docker.default')).toBe(true);
+        expect(patchResult.has('command.deploy')).toBe(true);
+
+        const minorResult = getAssociatedTriggerIds({
+            triggerExclude: 'docker.default:major',
+            updateKind: { kind: 'tag', semverDiff: 'minor' },
+        });
+        expect(minorResult.has('docker.default')).toBe(true);
+        expect(minorResult.has('command.deploy')).toBe(true);
+
+        const majorResult = getAssociatedTriggerIds({
+            triggerExclude: 'docker.default:major',
+            updateKind: { kind: 'tag', semverDiff: 'major' },
+        });
+        expect(majorResult.has('docker.default')).toBe(false);
+        expect(majorResult.has('command.deploy')).toBe(true);
+
+        // exclude=minor does NOT exclude patch, but DOES exclude minor and major
+        const minorExcludePatchResult = getAssociatedTriggerIds({
+            triggerExclude: 'docker.default:minor',
+            updateKind: { kind: 'tag', semverDiff: 'patch' },
+        });
+        expect(minorExcludePatchResult.has('docker.default')).toBe(true);
+
+        const minorExcludeMinorResult = getAssociatedTriggerIds({
+            triggerExclude: 'docker.default:minor',
+            updateKind: { kind: 'tag', semverDiff: 'minor' },
+        });
+        expect(minorExcludeMinorResult.has('docker.default')).toBe(false);
+
+        const minorExcludeMajorResult = getAssociatedTriggerIds({
+            triggerExclude: 'docker.default:minor',
+            updateKind: { kind: 'tag', semverDiff: 'major' },
+        });
+        expect(minorExcludeMajorResult.has('docker.default')).toBe(false);
+
+        // exclude=patch excludes patch, minor, and major
+        const patchExcludeResult = getAssociatedTriggerIds({
+            triggerExclude: 'docker.default:patch',
+            updateKind: { kind: 'tag', semverDiff: 'patch' },
+        });
+        expect(patchExcludeResult.has('docker.default')).toBe(false);
+
+        // exclude=major-only only excludes major
+        const majorOnlyMinorResult = getAssociatedTriggerIds({
+            triggerExclude: 'docker.default:major-only',
+            updateKind: { kind: 'tag', semverDiff: 'minor' },
+        });
+        expect(majorOnlyMinorResult.has('docker.default')).toBe(true);
+
+        const majorOnlyMajorResult = getAssociatedTriggerIds({
+            triggerExclude: 'docker.default:major-only',
+            updateKind: { kind: 'tag', semverDiff: 'major' },
+        });
+        expect(majorOnlyMajorResult.has('docker.default')).toBe(false);
+
+        // semver threshold on exclude does not exclude digest update
+        const digestResult = getAssociatedTriggerIds({
+            triggerExclude: 'docker.default:major',
+            updateKind: { kind: 'digest' },
+        });
+        expect(digestResult.has('docker.default')).toBe(true);
+
+        // exclude=all excludes digest update
+        const allDigestResult = getAssociatedTriggerIds({
+            triggerExclude: 'docker.default:all',
+            updateKind: { kind: 'digest' },
+        });
+        expect(allDigestResult.has('docker.default')).toBe(false);
+
+        // container without updateKind does not reach semver threshold
+        const noUpdateResult = getAssociatedTriggerIds({
+            triggerExclude: 'docker.default:major',
+        });
+        expect(noUpdateResult.has('docker.default')).toBe(true);
+    });
+
     test('captures a threshold override specified on wud.trigger.include', () => {
         mockTriggers({
             'command.deploy': { includebydefault: false },
