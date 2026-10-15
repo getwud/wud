@@ -1,3 +1,4 @@
+import os from 'os';
 import Component, { ComponentConfiguration } from '../../registry/Component';
 import * as event from '../../event';
 import { getTriggerCounter } from '../../prometheus/trigger';
@@ -61,10 +62,29 @@ export interface RollbackReport {
     archiveName?: string;
 }
 
-function renderBatch(template: string, containers: Container[]) {
+function renderBatch(template: string, containers: Container[]): string {
     // Set deprecated vars for backward compatibility
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const count = containers ? containers.length : 0;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const hostname = process.env.WUD_LOG_HOSTNAME || os.hostname();
+    const watchers = containers
+        ? Array.from(
+              new Set(
+                  containers
+                      .map((c) => c.watcher)
+                      .filter(
+                          (w): w is string =>
+                              typeof w === 'string' && w.length > 0,
+                      ),
+              ),
+          )
+        : [];
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const watcher =
+        watchers.length === 1
+            ? watchers[0]
+            : (containers && containers[0]?.watcher) || '';
 
     return eval('`' + template + '`');
 }
@@ -701,6 +721,8 @@ class Trigger extends Component {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const watcher = container.watcher;
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const hostname = process.env.WUD_LOG_HOSTNAME || os.hostname();
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const kind =
             container.updateKind && container.updateKind.kind
                 ? container.updateKind.kind
@@ -722,9 +744,7 @@ class Trigger extends Component {
                 : '';
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const link =
-            container.result && container.result.link
-                ? container.result.link
-                : '';
+            (container.result && container.result.link) || container.link || '';
 
         return eval('`' + template + '`');
     }
@@ -748,12 +768,22 @@ class Trigger extends Component {
     }
 
     /**
+     * Render trigger batch template.
+     * @param template
+     * @param containers
+     * @returns {*}
+     */
+    renderBatch(template: string, containers: Container[]): string {
+        return renderBatch(template, containers);
+    }
+
+    /**
      * Render trigger title batch.
      * @param containers
      * @returns {*}
      */
     renderBatchTitle(containers: Container[]) {
-        return renderBatch(this.configuration.batchtitle!, containers);
+        return this.renderBatch(this.configuration.batchtitle!, containers);
     }
 
     /**

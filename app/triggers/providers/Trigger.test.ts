@@ -523,6 +523,94 @@ test('renderBatchTitle should replace placeholders when called', async () => {
     ).toEqual('1 updates available');
 });
 
+test('renderBatchTitle should expose count, hostname and watcher', async () => {
+    trigger.configuration.batchtitle =
+        '[${hostname}] ${count} updates on ${watcher}';
+    const containers = [
+        {
+            name: 'c1',
+            watcher: 'host1',
+            updateKind: { kind: 'tag' },
+        },
+        {
+            name: 'c2',
+            watcher: 'host1',
+            updateKind: { kind: 'tag' },
+        },
+    ];
+    const prevEnv = process.env.WUD_LOG_HOSTNAME;
+    try {
+        process.env.WUD_LOG_HOSTNAME = 'custom-host';
+        expect(trigger.renderBatchTitle(containers)).toEqual(
+            '[custom-host] 2 updates on host1',
+        );
+    } finally {
+        if (prevEnv === undefined) {
+            delete process.env.WUD_LOG_HOSTNAME;
+        } else {
+            process.env.WUD_LOG_HOSTNAME = prevEnv;
+        }
+    }
+});
+
+test('renderBatchTitle should fall back to os.hostname when WUD_LOG_HOSTNAME is unset', async () => {
+    trigger.configuration.batchtitle = '[${hostname}] ${count} updates';
+    const prevEnv = process.env.WUD_LOG_HOSTNAME;
+    try {
+        delete process.env.WUD_LOG_HOSTNAME;
+        const result = trigger.renderBatchTitle([
+            { name: 'c1', updateKind: { kind: 'tag' } },
+        ]);
+        expect(result).toMatch(/^\[.+\] 1 updates$/);
+    } finally {
+        if (prevEnv !== undefined) {
+            process.env.WUD_LOG_HOSTNAME = prevEnv;
+        }
+    }
+});
+
+test('renderBatchTitle should use first watcher when containers have multiple distinct watchers', async () => {
+    trigger.configuration.batchtitle = '${count} updates (first: ${watcher})';
+    const containers = [
+        { name: 'c1', watcher: 'serverA', updateKind: { kind: 'tag' } },
+        { name: 'c2', watcher: 'serverB', updateKind: { kind: 'tag' } },
+    ];
+    expect(trigger.renderBatchTitle(containers)).toEqual(
+        '2 updates (first: serverA)',
+    );
+});
+
+test('renderBatchTitle should handle empty containers and missing watcher gracefully', async () => {
+    trigger.configuration.batchtitle =
+        'count=${count}, watcher=${watcher || "none"}';
+    expect(trigger.renderBatchTitle([])).toEqual('count=0, watcher=none');
+
+    const containersWithoutWatcher = [
+        { name: 'c1', updateKind: { kind: 'tag' } },
+    ];
+    expect(trigger.renderBatchTitle(containersWithoutWatcher)).toEqual(
+        'count=1, watcher=none',
+    );
+});
+
+test('renderTemplate should expose hostname and support container.link fallback', () => {
+    const prevEnv = process.env.WUD_LOG_HOSTNAME;
+    try {
+        process.env.WUD_LOG_HOSTNAME = 'my-node';
+        const res = trigger.renderTemplate('${hostname} - ${link}', {
+            name: 'app',
+            link: 'https://example.com/from-label',
+        });
+        expect(res).toEqual('my-node - https://example.com/from-label');
+    } finally {
+        if (prevEnv === undefined) {
+            delete process.env.WUD_LOG_HOSTNAME;
+        } else {
+            process.env.WUD_LOG_HOSTNAME = prevEnv;
+        }
+    }
+});
+
 test('renderBatchBody should replace placeholders when called', async () => {
     expect(
         trigger.renderBatchBody([
