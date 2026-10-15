@@ -9,6 +9,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 - 🚀 [TRIGGER] Add real-time pull progress logging for Docker images (fixes #777)
 - 🚀 [TRIGGER] Log stdout/stderr on error and expose compose_project in command trigger (fixes #594, fixes #595)
+- 🚀 [TRIGGER] Support click URL in Ntfy trigger and expose hostname in batch templates (fixes #660, fixes #725)
 - 🐛 [CORE] Fix graceful shutdown on SIGTERM (fixes #1397)
 - 🐛 [CORE] Resilient Docker event stream with exponential backoff and targeted single-container reconciliation on update (fixes #1393)
 - 🐛 [TRIGGER] Apply Docker Compose digest-only updates for floating tags without changing the image reference (fixes #1404)

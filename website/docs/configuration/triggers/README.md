@@ -51,7 +51,7 @@ In addition to provider-specific settings, all triggers support the following co
     required={false}
     type="string"
     defaultValue="${containers.length} updates available"
-    supported="String template with `${count}` placeholder">
+    supported="String template with `${count}`, `${hostname}`, `${watcher}` placeholders">
     Template used to render the notification title in batch mode
   </ConfigOption>
 
@@ -219,6 +219,9 @@ In batch mode (`MODE=batch`), multiple container updates are grouped into a sing
 | :--- | :--- | :--- |
 | `containers` | Array of updated `container` objects | `[ { name: 'web', ... }, ... ]` |
 | `containers.length` | Total number of containers with available updates | `3` |
+| `count` | Shorthand alias for `containers.length` | `3` |
+| `hostname` | Host name from `WUD_LOG_HOSTNAME` or system hostname | `server1` |
+| `watcher` | Common watcher name across containers (or first watcher) | `local`, `host1` |
 
 ---
 

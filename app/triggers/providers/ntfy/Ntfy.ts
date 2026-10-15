@@ -1,11 +1,39 @@
-// @ts-nocheck
-import axios from 'axios';
-import Trigger from '../Trigger';
+import axios, { AxiosRequestConfig } from 'axios';
+import Trigger, { TriggerConfiguration, RollbackReport } from '../Trigger';
+import { Container } from '../../../model/container';
+
+export interface NtfyAuthConfiguration {
+    user?: string;
+    password?: string;
+    token?: string;
+}
+
+export interface NtfyConfiguration extends TriggerConfiguration {
+    url?: string;
+    topic?: string;
+    priority?: number;
+    tags?: string[];
+    icon?: string;
+    click?: string;
+    auth?: NtfyAuthConfiguration;
+}
+
+export interface NtfyMessageBody {
+    topic?: string;
+    title?: string;
+    message?: string;
+    priority?: number;
+    tags?: string[];
+    icon?: string;
+    click?: string;
+}
 
 /**
  * Ntfy Trigger implementation
  */
 class Ntfy extends Trigger {
+    public configuration: NtfyConfiguration = {};
+
     /**
      * Get the Trigger configuration schema.
      * @returns {*}
@@ -26,7 +54,7 @@ class Ntfy extends Trigger {
                     this.joi
                         .string()
                         .empty('')
-                        .custom((value) =>
+                        .custom((value: string) =>
                             value.split(',').map((t) => t.trim()),
                         ),
                 ])
@@ -38,6 +66,7 @@ class Ntfy extends Trigger {
                 })
                 .allow('')
                 .default(''),
+            click: this.joi.string().allow(''),
             auth: this.joi.object({
                 user: this.joi.string(),
                 password: this.joi.string(),
@@ -50,7 +79,7 @@ class Ntfy extends Trigger {
      * Sanitize sensitive data
      * @returns {*}
      */
-    maskConfiguration() {
+    maskConfiguration(): NtfyConfiguration {
         return {
             ...this.configuration,
             auth: this.configuration.auth
@@ -66,10 +95,10 @@ class Ntfy extends Trigger {
     /**
      * Send an HTTP Request to Ntfy.
      * @param container the container
-     * @returns {Promise<void>}
+     * @returns {Promise<unknown>}
      */
-    async trigger(container) {
-        const body = {
+    async trigger(container: Container): Promise<void> {
+        const body: NtfyMessageBody = {
             topic: this.configuration.topic,
             title: this.renderSimpleTitle(container),
             message: this.renderSimpleBody(container),
@@ -81,16 +110,25 @@ class Ntfy extends Trigger {
         if (this.configuration.icon) {
             body.icon = this.configuration.icon;
         }
-        return this.sendHttpRequest(body);
+        if (this.configuration.click) {
+            const click = this.renderTemplate(
+                this.configuration.click,
+                container,
+            );
+            if (click) {
+                body.click = click;
+            }
+        }
+        await this.sendHttpRequest(body);
     }
 
     /**
      * Send an HTTP Request to Ntfy.
      * @param containers
-     * @returns {Promise<*>}
+     * @returns {Promise<void>}
      */
-    async triggerBatch(containers) {
-        const body = {
+    async triggerBatch(containers: Container[]): Promise<void> {
+        const body: NtfyMessageBody = {
             topic: this.configuration.topic,
             title: this.renderBatchTitle(containers),
             message: this.renderBatchBody(containers),
@@ -102,7 +140,16 @@ class Ntfy extends Trigger {
         if (this.configuration.icon) {
             body.icon = this.configuration.icon;
         }
-        return this.sendHttpRequest(body);
+        if (this.configuration.click) {
+            const click = this.renderBatch(
+                this.configuration.click,
+                containers,
+            );
+            if (click) {
+                body.click = click;
+            }
+        }
+        await this.sendHttpRequest(body);
     }
 
     /**
@@ -115,10 +162,10 @@ class Ntfy extends Trigger {
     /**
      * Send a rollback notification to Ntfy.
      * @param rollbackReport the rollback report
-     * @returns {Promise<*>}
+     * @returns {Promise<void>}
      */
-    async triggerRollback(rollbackReport) {
-        const body = {
+    async triggerRollback(rollbackReport: RollbackReport): Promise<void> {
+        const body: NtfyMessageBody = {
             topic: this.configuration.topic,
             title: this.renderRollbackTitle(rollbackReport),
             message: this.renderRollbackBody(rollbackReport),
@@ -130,16 +177,27 @@ class Ntfy extends Trigger {
         if (this.configuration.icon) {
             body.icon = this.configuration.icon;
         }
-        return this.sendHttpRequest(body);
+        if (this.configuration.click) {
+            const click = rollbackReport.container
+                ? this.renderTemplate(
+                      this.configuration.click,
+                      rollbackReport.container,
+                  )
+                : this.configuration.click;
+            if (click) {
+                body.click = click;
+            }
+        }
+        await this.sendHttpRequest(body);
     }
 
     /**
      * Send http request to Ntfy.
      * @param body
-     * @returns {Promise<*>}
+     * @returns {Promise<unknown>}
      */
-    async sendHttpRequest(body) {
-        const options = {
+    async sendHttpRequest(body: NtfyMessageBody): Promise<unknown> {
+        const options: AxiosRequestConfig = {
             method: 'POST',
             url: this.configuration.url,
             headers: {
@@ -158,7 +216,10 @@ class Ntfy extends Trigger {
             };
         }
         if (this.configuration.auth && this.configuration.auth.token) {
-            options.headers.Authorization = `Bearer ${this.configuration.auth.token}`;
+            options.headers = {
+                ...options.headers,
+                Authorization: `Bearer ${this.configuration.auth.token}`,
+            };
         }
         const response = await axios(options);
         return response.data;

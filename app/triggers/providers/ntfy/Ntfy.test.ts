@@ -306,3 +306,186 @@ test('triggerBatch should call http client with tags and icon when configured', 
         url: 'http://xxx.com',
     });
 });
+
+test('validateConfiguration should accept click option as string or uri', async () => {
+    const validatedWithUrl = ntfy.validateConfiguration({
+        ...configurationValid,
+        click: 'https://example.com/app',
+    });
+    expect(validatedWithUrl.click).toEqual('https://example.com/app');
+
+    const validatedWithTemplate = ntfy.validateConfiguration({
+        ...configurationValid,
+        click: '${link}',
+    });
+    expect(validatedWithTemplate.click).toEqual('${link}');
+
+    const validatedWithEmpty = ntfy.validateConfiguration({
+        ...configurationValid,
+        click: '',
+    });
+    expect(validatedWithEmpty.click).toEqual('');
+});
+
+test('validateConfiguration should throw error when click is not a string', async () => {
+    expect(() => {
+        ntfy.validateConfiguration({
+            ...configurationValid,
+            click: 12345,
+        });
+    }).toThrowError(ValidationError);
+});
+
+test('trigger should include evaluated click in payload when configured with template', async () => {
+    ntfy.configuration = {
+        ...configurationValid,
+        click: '${link}',
+    };
+    const container = {
+        name: 'container1',
+        updateKind: {
+            kind: 'tag',
+            localValue: '1.0.0',
+            remoteValue: '2.0.0',
+        },
+        result: {
+            link: 'https://github.com/my/repo/releases/v2.0.0',
+        },
+    };
+    axios.mockResolvedValue({ data: {} });
+    await ntfy.trigger(container);
+    expect(axios).toHaveBeenCalledWith(
+        expect.objectContaining({
+            data: expect.objectContaining({
+                click: 'https://github.com/my/repo/releases/v2.0.0',
+            }),
+        }),
+    );
+});
+
+test('trigger should include static click url in payload when configured', async () => {
+    ntfy.configuration = {
+        ...configurationValid,
+        click: 'https://dashboard.example.com',
+    };
+    const container = {
+        name: 'container1',
+        updateKind: {
+            kind: 'tag',
+            localValue: '1.0.0',
+            remoteValue: '2.0.0',
+        },
+    };
+    axios.mockResolvedValue({ data: {} });
+    await ntfy.trigger(container);
+    expect(axios).toHaveBeenCalledWith(
+        expect.objectContaining({
+            data: expect.objectContaining({
+                click: 'https://dashboard.example.com',
+            }),
+        }),
+    );
+});
+
+test('trigger should omit click when template evaluates to empty string', async () => {
+    ntfy.configuration = {
+        ...configurationValid,
+        click: '${link}',
+    };
+    const container = {
+        name: 'container1',
+        updateKind: {
+            kind: 'tag',
+            localValue: '1.0.0',
+            remoteValue: '2.0.0',
+        },
+    };
+    axios.mockResolvedValue({ data: {} });
+    await ntfy.trigger(container);
+    const sentData = axios.mock.calls[0][0].data;
+    expect(sentData.click).toBeUndefined();
+});
+
+test('triggerBatch should include evaluated click in payload when configured', async () => {
+    ntfy.configuration = {
+        ...configurationValid,
+        click: 'https://${hostname}.local/updates',
+    };
+    const containers = [
+        {
+            name: 'container1',
+            updateKind: {
+                kind: 'tag',
+                localValue: '1.0.0',
+                remoteValue: '2.0.0',
+            },
+        },
+    ];
+    const prevEnv = process.env.WUD_LOG_HOSTNAME;
+    try {
+        process.env.WUD_LOG_HOSTNAME = 'docker-host';
+        axios.mockResolvedValue({ data: {} });
+        await ntfy.triggerBatch(containers);
+        expect(axios).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    click: 'https://docker-host.local/updates',
+                }),
+            }),
+        );
+    } finally {
+        if (prevEnv === undefined) {
+            delete process.env.WUD_LOG_HOSTNAME;
+        } else {
+            process.env.WUD_LOG_HOSTNAME = prevEnv;
+        }
+    }
+});
+
+test('triggerRollback should include click in payload when configured', async () => {
+    ntfy.configuration = {
+        ...configurationValid,
+        click: '${link}',
+    };
+    const rollbackReport = {
+        scope: 'container',
+        container: {
+            name: 'my-container',
+            link: 'https://rollback-link.example.com',
+        },
+        status: 'succeeded',
+        reason: 'healthcheck failed',
+        oldImageRef: 'repo:1.0.0',
+        newImageRef: 'repo:2.0.0',
+    };
+    axios.mockResolvedValue({ data: {} });
+    await ntfy.triggerRollback(rollbackReport);
+    expect(axios).toHaveBeenCalledWith(
+        expect.objectContaining({
+            data: expect.objectContaining({
+                click: 'https://rollback-link.example.com',
+            }),
+        }),
+    );
+});
+
+test('triggerRollback should support static click url without container', async () => {
+    ntfy.configuration = {
+        ...configurationValid,
+        click: 'https://status.example.com',
+    };
+    const rollbackReport = {
+        scope: 'project',
+        composeFile: 'docker-compose.yml',
+        status: 'failed',
+    };
+    axios.mockResolvedValue({ data: {} });
+    await ntfy.triggerRollback(rollbackReport);
+    expect(axios).toHaveBeenCalledWith(
+        expect.objectContaining({
+            data: expect.objectContaining({
+                click: 'https://status.example.com',
+            }),
+        }),
+    );
+});
