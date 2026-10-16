@@ -1178,6 +1178,17 @@ class Docker extends Trigger {
             }
         }
 
+        if (
+            containerClone.Labels &&
+            newImageSpec?.Id &&
+            Object.prototype.hasOwnProperty.call(
+                containerClone.Labels,
+                'com.docker.compose.image',
+            )
+        ) {
+            containerClone.Labels['com.docker.compose.image'] = newImageSpec.Id;
+        }
+
         if (containerClone.NetworkingConfig?.EndpointsConfig) {
             Object.values(
                 containerClone.NetworkingConfig.EndpointsConfig,
