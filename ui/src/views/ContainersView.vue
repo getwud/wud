@@ -33,11 +33,13 @@
       <v-divider />
 
       <v-data-table
+        :key="groupByLabel || 'flat'"
         v-model:items-per-page="itemsPerPage"
         :headers="headers"
         :items="containersFiltered"
         item-value="id"
         :group-by="groupBy"
+        page-by="auto"
         hover
         class="bg-surface"
         @click:row="onRowClick"
