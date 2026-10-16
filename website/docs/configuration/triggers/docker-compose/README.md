@@ -283,6 +283,14 @@ services:
 
 ---
 
+### 🔄 Docker Compose Convergence & Metadata
+
+- WUD updates the Compose YAML on disk and recreates the container via the Docker Engine API.
+- WUD synchronizes `com.docker.compose.image` with the newly pulled image ID.
+- `com.docker.compose.config-hash` is an internal Docker Compose hash computed exclusively by the Docker Compose Go CLI; subsequent manual or automated `docker compose up` calls will smoothly converge the hash, or users can pass `docker compose up -d --no-recreate` if they wish to keep the existing running container instance.
+
+---
+
 ## 🚀 Examples
 
 ### Auto-Update Compose Services with Mounted Compose File

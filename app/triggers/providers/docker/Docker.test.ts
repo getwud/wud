@@ -1156,6 +1156,130 @@ describe('cloneContainer with image reconciliation', () => {
         expect(clone.Cmd).toEqual(baseContainer.Config.Cmd);
         expect(clone.Entrypoint).toEqual(baseContainer.Config.Entrypoint);
     });
+
+    describe('Docker Compose label synchronization (#1422)', () => {
+        test('should update com.docker.compose.image to newImageSpec.Id when present', () => {
+            const composeContainer = {
+                ...baseContainer,
+                Config: {
+                    ...baseContainer.Config,
+                    Labels: {
+                        'com.docker.compose.project': 'my-project',
+                        'com.docker.compose.service': 'web',
+                        'com.docker.compose.image': 'sha256:oldimageid123456',
+                        'com.docker.compose.config-hash': 'abcde12345hash',
+                    },
+                },
+            };
+            const oldImageSpec = {
+                Id: 'sha256:oldimageid123456',
+                Config: {
+                    Labels: {},
+                },
+            };
+            const newImageSpec = {
+                Id: 'sha256:newimageid789012',
+                Config: {
+                    Labels: {},
+                },
+            };
+
+            const clone = docker.cloneContainer(
+                composeContainer as any,
+                'my-app:2.0.0',
+                oldImageSpec as any,
+                newImageSpec as any,
+            );
+
+            expect(clone.Labels).toBeDefined();
+            expect(clone.Labels?.['com.docker.compose.image']).toEqual(
+                'sha256:newimageid789012',
+            );
+            expect(clone.Labels?.['com.docker.compose.config-hash']).toEqual(
+                'abcde12345hash',
+            );
+            expect(clone.Labels?.['com.docker.compose.project']).toEqual(
+                'my-project',
+            );
+            expect(clone.Labels?.['com.docker.compose.service']).toEqual('web');
+        });
+
+        test('should preserve other compose labels such as config-hash and service name', () => {
+            const composeContainer = {
+                ...baseContainer,
+                Config: {
+                    ...baseContainer.Config,
+                    Labels: {
+                        'com.docker.compose.config-hash': 'cfghash98765',
+                        'com.docker.compose.container-number': '1',
+                        'com.docker.compose.oneoff': 'False',
+                        'com.docker.compose.project': 'stack',
+                        'com.docker.compose.service': 'app',
+                        'com.docker.compose.version': '2.24.0',
+                        'com.docker.compose.image': 'sha256:old111',
+                    },
+                },
+            };
+            const newImageSpec = {
+                Id: 'sha256:new222',
+                Config: {
+                    Labels: {},
+                },
+            };
+
+            const clone = docker.cloneContainer(
+                composeContainer as any,
+                'my-app:2.0.0',
+                undefined,
+                newImageSpec as any,
+            );
+
+            expect(clone.Labels?.['com.docker.compose.image']).toEqual(
+                'sha256:new222',
+            );
+            expect(clone.Labels?.['com.docker.compose.config-hash']).toEqual(
+                'cfghash98765',
+            );
+            expect(clone.Labels?.['com.docker.compose.project']).toEqual(
+                'stack',
+            );
+            expect(clone.Labels?.['com.docker.compose.service']).toEqual('app');
+        });
+
+        test('should leave normal containers without compose labels unaffected', () => {
+            const normalContainer = {
+                ...baseContainer,
+                Config: {
+                    ...baseContainer.Config,
+                    Labels: {
+                        'app.version': '1.0.0',
+                        maintainer: 'dev@example.com',
+                    },
+                },
+            };
+            const newImageSpec = {
+                Id: 'sha256:newimageid789012',
+                Config: {
+                    Labels: {
+                        'app.version': '2.0.0',
+                    },
+                },
+            };
+
+            const clone = docker.cloneContainer(
+                normalContainer as any,
+                'my-app:2.0.0',
+                undefined,
+                newImageSpec as any,
+            );
+
+            expect(clone.Labels).toEqual({
+                'app.version': '1.0.0',
+                maintainer: 'dev@example.com',
+            });
+            expect(clone.Labels?.['com.docker.compose.image']).toBeUndefined();
+        });
+    });
 });
 
 test('trigger should not throw when all is ok', async () => {
