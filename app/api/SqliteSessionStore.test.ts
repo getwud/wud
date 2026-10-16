@@ -108,4 +108,61 @@ describe('SqliteSessionStore', () => {
             });
         });
     });
+
+    test('should destroy all sessions belonging to a specific user id', (done) => {
+        interface TestSessionData extends session.SessionData {
+            passport?: {
+                user?: unknown;
+            };
+        }
+
+        const store = new SqliteSessionStore();
+        const user1SessionStringified: TestSessionData = {
+            cookie: {} as session.Cookie,
+            passport: {
+                user: JSON.stringify({ id: 'user-1', username: 'alice' }),
+            },
+        };
+
+        const user1SessionObject: TestSessionData = {
+            cookie: {} as session.Cookie,
+            passport: {
+                user: { id: 'user-1', username: 'alice' },
+            },
+        };
+
+        const user2Session: TestSessionData = {
+            cookie: {} as session.Cookie,
+            passport: {
+                user: JSON.stringify({ id: 'user-2', username: 'bob' }),
+            },
+        };
+
+        store.set('sid-u1-a', user1SessionStringified, () => {
+            store.set('sid-u1-b', user1SessionObject, () => {
+                store.set('sid-u2', user2Session, () => {
+                    store.destroyByUserId('user-1', (destroyErr) => {
+                        expect(destroyErr).toBeNull();
+
+                        store.get('sid-u1-a', (_err1, s1) => {
+                            expect(s1).toBeNull();
+
+                            store.get('sid-u1-b', (_err2, s2) => {
+                                expect(s2).toBeNull();
+
+                                store.get('sid-u2', (_err3, s3) => {
+                                    expect(s3).not.toBeNull();
+                                    const parsedS3 = s3 as TestSessionData;
+                                    expect(parsedS3.passport?.user).toEqual(
+                                        user2Session.passport?.user,
+                                    );
+                                    done();
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
 });

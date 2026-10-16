@@ -113,6 +113,26 @@ class SqliteSessionStore extends session.Store {
         }
     }
 
+    destroyByUserId(userId: string, callback?: (err?: unknown) => void) {
+        try {
+            const db = this.getDb();
+            db.delete(schema.sessions)
+                .where(
+                    sql`json_valid(content) = 1 AND (
+                        json_extract(content, '$.passport.user.id') = ${userId}
+                        OR (
+                            json_valid(json_extract(content, '$.passport.user')) = 1
+                            AND json_extract(json_extract(content, '$.passport.user'), '$.id') = ${userId}
+                        )
+                    )`,
+                )
+                .run();
+            callback?.(null);
+        } catch (e) {
+            callback?.(e);
+        }
+    }
+
     clear(callback?: (err?: unknown) => void) {
         try {
             const db = this.getDb();

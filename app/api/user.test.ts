@@ -8,6 +8,7 @@ jest.mock('../store/user', () => ({
     createUser: jest.fn(),
     updateUser: jest.fn(),
     deleteUser: jest.fn(),
+    deleteSessionsByUserId: jest.fn(),
     getUserById: jest.fn(),
     getUserByUsername: jest.fn(),
     countAdminUsers: jest.fn(),
@@ -108,7 +109,7 @@ describe('User API Router', () => {
         expect(res.body.error).toMatch(/last remaining administrator/);
     });
 
-    test('DELETE /users/:id should delete user', async () => {
+    test('DELETE /users/:id should delete user and purge sessions', async () => {
         (userStore.getUserById as jest.Mock).mockResolvedValue({
             id: 'u2',
             username: 'other',
@@ -118,6 +119,7 @@ describe('User API Router', () => {
         const res = await request(app).delete('/users/u2');
         expect(res.status).toBe(204);
         expect(userStore.deleteUser).toHaveBeenCalledWith('u2');
+        expect(userStore.deleteSessionsByUserId).toHaveBeenCalledWith('u2');
     });
 
     test('DELETE /users/:id should prevent deleting own account', async () => {

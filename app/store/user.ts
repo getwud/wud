@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import passJs from 'pass';
 import { getDb } from './db';
-import { users } from './db/schema';
+import { users, sessions } from './db/schema';
 import logger from '../log';
 
 const log = logger.child({ component: 'store-user' });
@@ -199,10 +199,29 @@ export async function updateUser(
 }
 
 /**
+ * Delete all active sessions belonging to a user id.
+ */
+export async function deleteSessionsByUserId(userId: string): Promise<void> {
+    const db = getDb();
+    db.delete(sessions)
+        .where(
+            sql`json_valid(content) = 1 AND (
+                json_extract(content, '$.passport.user.id') = ${userId}
+                OR (
+                    json_valid(json_extract(content, '$.passport.user')) = 1
+                    AND json_extract(json_extract(content, '$.passport.user'), '$.id') = ${userId}
+                )
+            )`,
+        )
+        .run();
+}
+
+/**
  * Delete a user by id.
  */
 export async function deleteUser(id: string): Promise<void> {
     const db = getDb();
+    await deleteSessionsByUserId(id);
     db.delete(users).where(eq(users.id, id)).run();
     log.info(`Deleted user ${id}`);
 }
