@@ -4,6 +4,7 @@ import {
     createUser,
     updateUser,
     deleteUser,
+    deleteSessionsByUserId,
     getUserById,
     getUserByUsername,
     countAdminUsers,
@@ -130,6 +131,7 @@ export function init() {
             }
 
             await deleteUser(id);
+            await deleteSessionsByUserId(id);
             res.sendStatus(204);
         } catch (e: any) {
             res.status(500).json({ error: e.message });

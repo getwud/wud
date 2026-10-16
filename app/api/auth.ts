@@ -210,11 +210,21 @@ export function init(app) {
         done(null, JSON.stringify(user));
     });
 
-    passport.deserializeUser(async (serialized: string, done) => {
+    passport.deserializeUser(async (serialized: unknown, done) => {
         try {
-            const parsed = JSON.parse(serialized);
-            if (parsed.id) {
-                const dbUser = await getUserById(parsed.id);
+            const parsed =
+                typeof serialized === 'string'
+                    ? JSON.parse(serialized)
+                    : serialized;
+            if (
+                parsed &&
+                typeof parsed === 'object' &&
+                'id' in parsed &&
+                (parsed as { id?: unknown }).id
+            ) {
+                const dbUser = await getUserById(
+                    String((parsed as { id: unknown }).id),
+                );
                 if (dbUser) {
                     return done(null, {
                         id: dbUser.id,
@@ -225,7 +235,7 @@ export function init(app) {
                     });
                 }
             }
-            return done(null, parsed);
+            return done(null, false);
         } catch (e) {
             return done(e);
         }

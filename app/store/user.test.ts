@@ -1,4 +1,6 @@
-import { initDatabase, closeDatabase } from './db';
+import { initDatabase, closeDatabase, getDb } from './db';
+import { sessions } from './db/schema';
+import { eq } from 'drizzle-orm';
 import {
     createUser,
     getUserById,
@@ -6,6 +8,7 @@ import {
     listUsers,
     updateUser,
     deleteUser,
+    deleteSessionsByUserId,
     countUsers,
     countAdminUsers,
     countLocalUsers,
@@ -131,15 +134,82 @@ describe('User Store', () => {
         expect(await countLocalUsers()).toBe(initialLocal);
     });
 
-    test('should delete a user', async () => {
+    test('should delete a user and purge their active sessions', async () => {
         const user = await createUser({
             username: 'charlie',
             password: 'charliepassword',
             role: 'ro',
         });
 
+        // Seed active sessions in database
+        const db = getDb();
+        db.insert(sessions)
+            .values({
+                sid: 'sess-charlie',
+                content: {
+                    passport: {
+                        user: JSON.stringify({
+                            id: user.id,
+                            username: 'charlie',
+                        }),
+                    },
+                },
+                updatedAt: new Date(),
+            })
+            .run();
+
+        db.insert(sessions)
+            .values({
+                sid: 'sess-other',
+                content: {
+                    passport: {
+                        user: JSON.stringify({
+                            id: 'other-user',
+                            username: 'other',
+                        }),
+                    },
+                },
+                updatedAt: new Date(),
+            })
+            .run();
+
         expect(await getUserByUsername('charlie')).toBeDefined();
         await deleteUser(user.id);
         expect(await getUserByUsername('charlie')).toBeUndefined();
+
+        // Charlie's session should be deleted, other session should remain
+        const charlieSession = db
+            .select()
+            .from(sessions)
+            .where(eq(sessions.sid, 'sess-charlie'))
+            .get();
+        const otherSession = db
+            .select()
+            .from(sessions)
+            .where(eq(sessions.sid, 'sess-other'))
+            .get();
+
+        expect(charlieSession).toBeUndefined();
+        expect(otherSession).toBeDefined();
+    });
+
+    test('deleteSessionsByUserId should safely handle malformed session contents', async () => {
+        const db = getDb();
+        db.insert(sessions)
+            .values({
+                sid: 'sess-corrupt',
+                content: 'not-valid-json' as unknown as Record<string, unknown>,
+                updatedAt: new Date(),
+            })
+            .run();
+
+        await expect(deleteSessionsByUserId('any-id')).resolves.not.toThrow();
+
+        const corruptSession = db
+            .select()
+            .from(sessions)
+            .where(eq(sessions.sid, 'sess-corrupt'))
+            .get();
+        expect(corruptSession).toBeDefined();
     });
 });

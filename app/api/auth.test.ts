@@ -2,7 +2,7 @@ import express from 'express';
 import request from 'supertest';
 import * as auth from './auth';
 import * as registry from '../registry';
-import { countLocalUsers } from '../store/user';
+import { countLocalUsers, getUserById } from '../store/user';
 
 jest.mock('./SqliteSessionStore', () => {
     const session = require('express-session');
@@ -51,6 +51,14 @@ jest.mock('../configuration', () => ({
 
 describe('API Auth', () => {
     let app: express.Express;
+    let serializeUserFn: (
+        user: unknown,
+        done: (err: unknown, serialized?: unknown) => void,
+    ) => void;
+    let deserializeUserFn: (
+        serialized: unknown,
+        done: (err: unknown, user?: unknown) => void,
+    ) => Promise<void>;
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -92,6 +100,22 @@ describe('API Auth', () => {
         );
         jest.spyOn(passport, 'session').mockImplementation(
             () => (req: any, res: any, next: any) => next(),
+        );
+        jest.spyOn(passport, 'serializeUser').mockImplementation(
+            (fn: unknown) => {
+                serializeUserFn = fn as (
+                    user: unknown,
+                    done: (err: unknown, serialized?: unknown) => void,
+                ) => void;
+            },
+        );
+        jest.spyOn(passport, 'deserializeUser').mockImplementation(
+            (fn: unknown) => {
+                deserializeUserFn = fn as (
+                    serialized: unknown,
+                    done: (err: unknown, user?: unknown) => void,
+                ) => Promise<void>;
+            },
         );
 
         auth.init(app);
@@ -215,5 +239,125 @@ describe('API Auth', () => {
     test('getAllIds should return registered strategy ids', () => {
         const ids = auth.getAllIds();
         expect(ids).toContain('mockAuth');
+    });
+
+    describe('passport serializeUser and deserializeUser', () => {
+        test('serializeUser should serialize user to JSON string', () => {
+            const done = jest.fn();
+            serializeUserFn({ id: 'u1', username: 'alice' }, done);
+            expect(done).toHaveBeenCalledWith(
+                null,
+                JSON.stringify({ id: 'u1', username: 'alice' }),
+            );
+        });
+
+        test('deserializeUser should return user when found in database', async () => {
+            (getUserById as jest.Mock).mockResolvedValue({
+                id: 'u1',
+                username: 'alice',
+                role: 'admin',
+                provider: 'local',
+                preferences: { theme: 'dark' },
+            });
+
+            const done = jest.fn();
+            await deserializeUserFn(
+                JSON.stringify({ id: 'u1', username: 'stale-name' }),
+                done,
+            );
+
+            expect(getUserById).toHaveBeenCalledWith('u1');
+            expect(done).toHaveBeenCalledWith(null, {
+                id: 'u1',
+                username: 'alice',
+                role: 'admin',
+                provider: 'local',
+                preferences: { theme: 'dark' },
+            });
+        });
+
+        test('deserializeUser should reject with false when user was deleted (GHSA-gwmj-qqhx-pr5c)', async () => {
+            (getUserById as jest.Mock).mockResolvedValue(undefined);
+
+            const done = jest.fn();
+            await deserializeUserFn(
+                JSON.stringify({
+                    id: 'u-deleted',
+                    username: 'deleted',
+                    role: 'admin',
+                }),
+                done,
+            );
+
+            expect(getUserById).toHaveBeenCalledWith('u-deleted');
+            expect(done).toHaveBeenCalledWith(null, false);
+        });
+
+        test('deserializeUser should reject with false when id is missing', async () => {
+            const done = jest.fn();
+            await deserializeUserFn(
+                JSON.stringify({ username: 'missing-id', role: 'admin' }),
+                done,
+            );
+
+            expect(getUserById).not.toHaveBeenCalled();
+            expect(done).toHaveBeenCalledWith(null, false);
+        });
+
+        test('deserializeUser should reject with false when serialized object is empty', async () => {
+            const done = jest.fn();
+            await deserializeUserFn(JSON.stringify({}), done);
+
+            expect(getUserById).not.toHaveBeenCalled();
+            expect(done).toHaveBeenCalledWith(null, false);
+        });
+
+        test('deserializeUser should reject with false when serialized value is null', async () => {
+            const done = jest.fn();
+            await deserializeUserFn(JSON.stringify(null), done);
+
+            expect(getUserById).not.toHaveBeenCalled();
+            expect(done).toHaveBeenCalledWith(null, false);
+        });
+
+        test('deserializeUser should accept object input if not stringified', async () => {
+            (getUserById as jest.Mock).mockResolvedValue({
+                id: 'u2',
+                username: 'bob',
+                role: 'ro',
+                provider: 'oidc',
+                preferences: null,
+            });
+
+            const done = jest.fn();
+            await deserializeUserFn({ id: 'u2' }, done);
+
+            expect(getUserById).toHaveBeenCalledWith('u2');
+            expect(done).toHaveBeenCalledWith(null, {
+                id: 'u2',
+                username: 'bob',
+                role: 'ro',
+                provider: 'oidc',
+                preferences: null,
+            });
+        });
+
+        test('deserializeUser should pass syntax error when JSON is invalid', async () => {
+            const done = jest.fn();
+            await deserializeUserFn('not-valid-json-{', done);
+
+            expect(done).toHaveBeenCalledWith(expect.any(SyntaxError));
+        });
+
+        test('deserializeUser should pass error when getUserById throws', async () => {
+            (getUserById as jest.Mock).mockRejectedValue(
+                new Error('DB failure'),
+            );
+
+            const done = jest.fn();
+            await deserializeUserFn(JSON.stringify({ id: 'u1' }), done);
+
+            expect(done).toHaveBeenCalledWith(expect.any(Error));
+        });
     });
 });
