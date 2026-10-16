@@ -1,11 +1,24 @@
 import { url } from "./base";
 import { isDemoMode, mockService } from "./mock";
 
-function getLogIcon() {
+export interface LogConfig {
+  level: string;
+}
+
+export interface LogMessage {
+  time: number;
+  level: number;
+  msg: string;
+  component?: string;
+  container?: string;
+  [key: string]: unknown;
+}
+
+function getLogIcon(): string {
   return "mdi-bug";
 }
 
-async function getLog() {
+async function getLog(): Promise<LogConfig> {
   if (isDemoMode()) {
     return mockService.getLog();
   }
@@ -13,7 +26,7 @@ async function getLog() {
   return response.json();
 }
 
-function streamLogs(onMessage: (log: any) => void) {
+function streamLogs(onMessage: (log: LogMessage) => void) {
   if (isDemoMode()) {
     // In demo mode, just push a fake log every few seconds
     const interval = setInterval(() => {
@@ -35,7 +48,7 @@ function streamLogs(onMessage: (log: any) => void) {
   
   eventSource.onmessage = (event) => {
     try {
-      const data = JSON.parse(event.data);
+      const data = JSON.parse(event.data) as LogMessage;
       onMessage(data);
     } catch (e) {
       // eslint-disable-next-line no-console

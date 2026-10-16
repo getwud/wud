@@ -91,8 +91,19 @@
           >
             {{ getLevelName(logLine.level) }}
           </span>
-          <span class="text-cyan-lighten-2 mr-3 flex-shrink-0 text-truncate" style="width: 130px;">
+          <span
+            class="text-cyan-lighten-2 mr-3 flex-shrink-0 text-truncate"
+            style="width: 130px;"
+            :title="logLine.component || 'core'"
+          >
             [{{ logLine.component || 'core' }}]
+          </span>
+          <span
+            v-if="logLine.container"
+            class="container-badge mr-2 flex-shrink-0 text-truncate font-weight-medium"
+            :title="String(logLine.container)"
+          >
+            [{{ logLine.container }}]
           </span>
           <span class="text-white flex-grow-1" style="word-break: break-word; white-space: pre-wrap;">{{ logLine.msg }}</span>
         </div>
@@ -102,16 +113,34 @@
 </template>
 
 <script lang="ts">
-import { getLog, getLogIcon, streamLogs } from "@/services/log";
+import {
+  getLog,
+  getLogIcon,
+  streamLogs,
+  LogConfig,
+  LogMessage,
+} from "@/services/log";
 import { defineComponent } from "vue";
+import type { RouteLocationNormalized, NavigationGuardNext } from "vue-router";
+
+interface EventSourceLike {
+  close: () => void;
+}
+
+interface ComponentWithLog {
+  log?: LogConfig;
+  $eventBus?: {
+    emit: (event: string, ...args: unknown[]) => void;
+  };
+}
 
 export default defineComponent({
   name: "LogsView",
   data() {
     return {
-      log: {} as any,
-      logLines: [] as any[],
-      eventSource: null as any,
+      log: {} as Partial<LogConfig>,
+      logLines: [] as LogMessage[],
+      eventSource: null as EventSourceLike | null,
       search: "",
       autoScroll: true,
     };
@@ -121,13 +150,16 @@ export default defineComponent({
     logIcon(): string {
       return getLogIcon();
     },
-    filteredLogs(): any[] {
+    filteredLogs(): LogMessage[] {
       if (!this.search) return this.logLines;
       const q = this.search.toLowerCase();
-      return this.logLines.filter((l: any) => {
+      return this.logLines.filter((l: LogMessage) => {
         return (
           (l.msg && String(l.msg).toLowerCase().includes(q)) ||
           (l.component && String(l.component).toLowerCase().includes(q)) ||
+          (l.container &&
+            (String(l.container).toLowerCase().includes(q) ||
+              `[${l.container}]`.toLowerCase().includes(q))) ||
           (l.level && this.getLevelName(l.level).toLowerCase().includes(q))
         );
       });
@@ -135,12 +167,12 @@ export default defineComponent({
   },
 
   mounted() {
-    this.eventSource = streamLogs((logData) => {
+    this.eventSource = streamLogs((logData: LogMessage) => {
       this.logLines.push(logData);
 
       if (this.autoScroll) {
         this.$nextTick(() => {
-          const container = this.$refs.logContainer as HTMLElement;
+          const container = this.$refs.logContainer as HTMLElement | undefined;
           if (container) {
             container.scrollTop = container.scrollHeight;
           }
@@ -195,16 +227,27 @@ export default defineComponent({
     },
   },
 
-  async beforeRouteEnter(to, from, next) {
+  async beforeRouteEnter(
+    _to: RouteLocationNormalized,
+    _from: RouteLocationNormalized,
+    next: NavigationGuardNext
+  ) {
     try {
       const log = await getLog();
-      next((vm: any) => (vm.log = log));
-    } catch (e: any) {
-      next((vm: any) => {
-        vm.$eventBus?.emit(
+      next((vm: unknown) => {
+        const component = vm as ComponentWithLog;
+        if (component) {
+          component.log = log;
+        }
+      });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      next((vm: unknown) => {
+        const component = vm as ComponentWithLog;
+        component?.$eventBus?.emit(
           "notify",
-          `Error when trying to load the log configuration (${e.message})`,
-          "error",
+          `Error when trying to load the log configuration (${message})`,
+          "error"
         );
       });
     }
@@ -222,5 +265,14 @@ export default defineComponent({
 }
 .log-entry:hover {
   background-color: rgba(255, 255, 255, 0.05);
+}
+.container-badge {
+  color: #ffb74d;
+  background-color: rgba(255, 183, 77, 0.12);
+  border: 1px solid rgba(255, 183, 77, 0.28);
+  border-radius: 4px;
+  padding: 0 4px;
+  max-width: 200px;
+  line-height: 1.3;
 }
 </style>
