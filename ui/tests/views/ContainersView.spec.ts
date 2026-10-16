@@ -232,6 +232,24 @@ describe('ContainersView', () => {
     expect(wrapper.vm.groupBy).toEqual([{ key: 'containerGroup', order: 'asc' }]);
   });
 
+  it('configures v-data-table with page-by="auto" and dynamic key based on groupByLabel', async () => {
+    let dataTable = wrapper.findComponent({ name: 'VDataTable' });
+    if (!dataTable.exists()) {
+      dataTable = wrapper.findComponent('v-data-table');
+    }
+    expect(dataTable.exists()).toBe(true);
+    expect(dataTable.props('pageBy') || dataTable.attributes('page-by')).toBe('auto');
+
+    expect(wrapper.vm.groupByLabel).toBe('');
+    wrapper.vm.groupByLabel = 'app';
+    await wrapper.vm.$nextTick();
+
+    const updatedDataTable = wrapper.findComponent({ name: 'VDataTable' }).exists()
+      ? wrapper.findComponent({ name: 'VDataTable' })
+      : wrapper.findComponent('v-data-table');
+    expect(updatedDataTable.props('pageBy') || updatedDataTable.attributes('page-by')).toBe('auto');
+  });
+
   it('correctly sets containerGroup and sorts items with dotted labels (e.g. com.docker.compose.project)', async () => {
     wrapper.vm.containers = [
       {
