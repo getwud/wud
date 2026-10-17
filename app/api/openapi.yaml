@@ -694,6 +694,71 @@ paths:
                                 type: string
                 '401':
                     description: Unauthorized
+    /api/hub/status:
+        get:
+            tags:
+                - Hub
+            summary: WUD Hub connection status
+            operationId: getHubStatus
+            security:
+                - cookieAuth: []
+                - bearerAuth: []
+                - basicAuth: []
+            responses:
+                '200':
+                    description: Hub connection and cache status
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    enabled:
+                                        type: boolean
+                                    status:
+                                        type: string
+                                        enum:
+                                            [
+                                                connected,
+                                                degraded,
+                                                error,
+                                                standalone,
+                                            ]
+                                    endpoint:
+                                        type: string
+                                    hasKey:
+                                        type: boolean
+                                    lastCheck:
+                                        type: string
+                                    errorMessage:
+                                        type: string
+                                    cacheStats:
+                                        type: object
+                                        properties:
+                                            size:
+                                                type: integer
+                                            hits:
+                                                type: integer
+                                            misses:
+                                                type: integer
+                '401':
+                    description: Unauthorized
+    /api/hub/cache/clear:
+        post:
+            tags:
+                - Hub
+            summary: Clear WUD Hub cache
+            operationId: clearHubCache
+            security:
+                - cookieAuth: []
+                - bearerAuth: []
+                - basicAuth: []
+            responses:
+                '204':
+                    description: Cache cleared successfully
+                '401':
+                    description: Unauthorized
+                '403':
+                    description: Forbidden
 components:
     schemas:
         User:
