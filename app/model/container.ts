@@ -2,6 +2,7 @@ import joi from 'joi';
 import flat from 'flat';
 import { snakeCase } from 'snake-case';
 import * as tag from '../tag';
+import { ContainerHubMetadata } from '../metadata/types';
 const { parse: parseSemver, diff: diffSemver, transform: transformTag } = tag;
 
 export interface ContainerImage {
@@ -80,6 +81,7 @@ export interface Container {
     snoozedVersion?: string;
     snoozedUntil?: number;
     isSnoozed?: boolean;
+    hub?: ContainerHubMetadata;
 }
 
 /**
@@ -229,6 +231,7 @@ const schema = joi.object({
         .default({ kind: 'unknown' }),
     resultChanged: joi.function(),
     labels: joi.object(),
+    hub: joi.object().optional(),
 });
 
 const CHANGELOG_LABEL_KEYS = [
