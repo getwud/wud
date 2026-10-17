@@ -52,6 +52,10 @@ import { getWatchContainerGauge } from '../../../prometheus/watcher';
 import Watcher, { ReconcileOptions, ContainerReport } from '../../Watcher';
 import { ComponentConfiguration } from '../../../registry/Component';
 import { Logger } from 'pino';
+import {
+    getRemoteMetadataProvider,
+    applyContainerPrecedence,
+} from '../../../metadata';
 
 export interface DockerEventsRetryState {
     reconnectTimer?: NodeJS.Timeout;
@@ -1245,9 +1249,25 @@ export class Docker extends Watcher {
             logContainer.debug('Start watching');
         }
 
+        // Enrich container via RemoteMetadataProvider before looking for new version
+        try {
+            const metadataProvider = getRemoteMetadataProvider();
+            const hubSettings = await metadataProvider.resolveSettings({
+                image: container.image.name,
+                tag: container.image.tag.value,
+                labels: container.labels,
+            });
+            applyContainerPrecedence(containerWithResult, hubSettings);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            if (logContainer && typeof logContainer.debug === 'function') {
+                logContainer.debug(`Fallback local metadata: ${message}`);
+            }
+        }
+
         try {
             containerWithResult.result = await this.findNewVersion(
-                container,
+                containerWithResult,
                 logContainer,
             );
         } catch (e: any) {

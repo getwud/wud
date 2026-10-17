@@ -4302,6 +4302,92 @@ describe('Docker Watcher', () => {
                         expect.stringContaining('Database disk full'),
                     );
                 });
+
+                test('should enrich container with Hub metadata when Hub settings resolved', async () => {
+                    const watcher = new Docker();
+                    const mockLogContainer = {
+                        debug: jest.fn(),
+                        warn: jest.fn(),
+                    };
+                    watcher.log = {
+                        child: jest.fn().mockReturnValue(mockLogContainer),
+                    };
+                    jest.spyOn(watcher, 'findNewVersion').mockResolvedValue({
+                        tag: '1.2.0',
+                    });
+                    const container = {
+                        id: 'c-hub',
+                        name: 'hub-app',
+                        watcher: 'docker',
+                        image: {
+                            name: 'library/postgres',
+                            tag: { value: '16.1', semver: true },
+                        },
+                    };
+
+                    const {
+                        getRemoteMetadataProvider,
+                    } = require('../../../metadata');
+                    const provider = getRemoteMetadataProvider();
+                    jest.spyOn(
+                        provider,
+                        'resolveSettings',
+                    ).mockResolvedValueOnce({
+                        image: 'library/postgres',
+                        tagFilterRegex: '^16\\.\\d+$',
+                        isOfficial: true,
+                        iconUrl: 'si:postgresql',
+                    });
+
+                    const report = await watcher.checkContainer(
+                        container as any,
+                    );
+                    expect(report).toBeDefined();
+                    expect(report.container.includeTags).toBe('^16\\.\\d+$');
+                    expect(report.container.displayIcon).toBe('si:postgresql');
+                    expect(report.container.hub?.enriched).toBe(true);
+                    expect(report.container.hub?.isOfficial).toBe(true);
+                });
+
+                test('should fallback gracefully when Hub resolution fails without crashing', async () => {
+                    const watcher = new Docker();
+                    const mockLogContainer = {
+                        debug: jest.fn(),
+                        warn: jest.fn(),
+                    };
+                    watcher.log = {
+                        child: jest.fn().mockReturnValue(mockLogContainer),
+                    };
+                    jest.spyOn(watcher, 'findNewVersion').mockResolvedValue({
+                        tag: '1.0.0',
+                    });
+                    const container = {
+                        id: 'c-fallback',
+                        name: 'fallback-app',
+                        watcher: 'docker',
+                        displayIcon: 'mdi:docker',
+                        image: {
+                            name: 'custom/app',
+                            tag: { value: 'latest', semver: false },
+                        },
+                    };
+
+                    const {
+                        getRemoteMetadataProvider,
+                    } = require('../../../metadata');
+                    const provider = getRemoteMetadataProvider();
+                    jest.spyOn(
+                        provider,
+                        'resolveSettings',
+                    ).mockRejectedValueOnce(new Error('Network offline'));
+
+                    const report = await watcher.checkContainer(
+                        container as any,
+                    );
+                    expect(report).toBeDefined();
+                    expect(report.container.displayIcon).toBe('mdi:docker');
+                    expect(report.container.error).toBeUndefined();
+                });
             });
 
             describe('findNewVersion error handling and fallbacks', () => {
