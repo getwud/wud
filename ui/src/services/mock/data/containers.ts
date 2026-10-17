@@ -43,6 +43,23 @@ export const mockContainers = [
       "com.docker.compose.project": "networking",
       "com.docker.compose.service": "traefik",
     },
+    hub: {
+      enriched: true,
+      resolvedAt: "2024-12-18T10:15:00.000Z",
+      isOfficial: true,
+      sources: {
+        includeTags: "hub",
+        displayIcon: "hub",
+        link: "hub",
+      },
+      hubDetails: {
+        recommendedStrategy: "semver",
+        upstreamUrl: "https://github.com/traefik/traefik",
+        documentationUrl: "https://doc.traefik.io/traefik/",
+        changelogUrl: "https://github.com/traefik/traefik/releases",
+        originalHubRegex: "^v?\\d+\\.\\d+\\.\\d+$",
+      },
+    },
   },
   {
     id: "pihole-dns",

@@ -8,6 +8,7 @@
         {{ viewName }}
       </v-toolbar-title>
       <v-spacer />
+      <HubStatusPill class="mr-4" />
       <ConnectionStatusPill class="mr-4" />
     </div>
   </v-app-bar>
@@ -17,10 +18,12 @@
 import { computed, defineComponent } from "vue";
 import { useRoute } from "vue-router";
 import ConnectionStatusPill from "./ConnectionStatusPill.vue";
+import HubStatusPill from "./HubStatusPill.vue";
 
 export default defineComponent({
   components: {
-    ConnectionStatusPill
+    ConnectionStatusPill,
+    HubStatusPill,
   },
   props: {
     user: {

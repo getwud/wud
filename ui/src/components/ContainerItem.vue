@@ -60,12 +60,32 @@
               {{ container.displayName }}
             </span>
           </v-chip>
+          <v-tooltip bottom v-if="container.hub?.isOfficial">
+            <template v-slot:activator="{ props }">
+              <v-icon v-bind="props" color="primary" size="small" class="ml-1">
+                mdi-shield-check
+              </v-icon>
+            </template>
+            <span>Image officielle vérifiée par WUD Hub</span>
+          </v-tooltip>
           <span>
             :
             <v-chip label variant="outlined" color="info" disabled>
               {{ container.image.tag.value }}
             </v-chip>
           </span>
+          <v-chip
+            v-if="container.hub?.enriched"
+            label
+            size="x-small"
+            color="primary"
+            variant="tonal"
+            class="ml-1"
+            title="Paramètres résolus par WUD Hub"
+          >
+            <v-icon start size="x-small">mdi-cloud-check-outline</v-icon>
+            HUB
+          </v-chip>
           <span v-if="smAndUp && container.updateAvailable" class="d-flex align-center" style="gap: 4px">
             <v-icon>mdi-arrow-right</v-icon>
             <v-tooltip bottom>
