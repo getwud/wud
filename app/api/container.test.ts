@@ -22,6 +22,24 @@ jest.mock('../configuration', () => ({
     getServerConfiguration: jest.fn(() => ({
         feature: { delete: true },
     })),
+    getHubConfiguration: jest.fn(() => ({
+        enabled: false,
+        key: undefined,
+        endpoint: 'https://hub.getwud.com',
+        cacheTtl: 3600,
+        timeout: 5000,
+        concurrency: 5,
+    })),
+}));
+
+const mockMetadataProvider = {
+    getContainerMetadata: jest.fn(),
+    setContainerMetadata: jest.fn(),
+    deleteContainerMetadata: jest.fn(),
+};
+
+jest.mock('../metadata', () => ({
+    getRemoteMetadataProvider: jest.fn(() => mockMetadataProvider),
 }));
 
 function createTrigger(type, name, configuration) {
@@ -82,6 +100,62 @@ describe('API Container', () => {
         const res = await request(app).get('/container1');
         expect(res.status).toBe(200);
         expect(res.body).toEqual({ id: 'container1' });
+    });
+
+    test('should attach hub metadata when getting all containers', async () => {
+        mockMetadataProvider.getContainerMetadata.mockImplementation(
+            (id: string) => {
+                if (id === 'container1') {
+                    return {
+                        enriched: true,
+                        sources: {
+                            includeTags: 'hub',
+                            displayIcon: 'default',
+                            link: 'default',
+                        },
+                    };
+                }
+                return undefined;
+            },
+        );
+
+        (storeContainer.getContainers as jest.Mock).mockReturnValue([
+            { id: 'container1' },
+            { id: 'container2' },
+        ]);
+
+        const res = await request(app).get('/');
+        expect(res.status).toBe(200);
+        expect(res.body[0].hub).toBeDefined();
+        expect(res.body[0].hub.enriched).toBe(true);
+        expect(res.body[1].hub).toBeUndefined();
+    });
+
+    test('should attach hub metadata when getting container by id', async () => {
+        mockMetadataProvider.getContainerMetadata.mockImplementation(
+            (id: string) => {
+                if (id === 'container1') {
+                    return {
+                        enriched: true,
+                        sources: {
+                            includeTags: 'label',
+                            displayIcon: 'hub',
+                            link: 'default',
+                        },
+                    };
+                }
+                return undefined;
+            },
+        );
+
+        (storeContainer.getContainer as jest.Mock).mockReturnValue({
+            id: 'container1',
+        });
+
+        const res = await request(app).get('/container1');
+        expect(res.status).toBe(200);
+        expect(res.body.hub).toBeDefined();
+        expect(res.body.hub.sources.displayIcon).toBe('hub');
     });
 
     test('should return 404 for unknown container', async () => {

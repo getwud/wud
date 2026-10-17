@@ -7,6 +7,7 @@ import { getServerConfiguration } from '../configuration';
 import { mapComponentsToList } from './component';
 import { getAssociatedTriggerIds } from '../triggers/associatedTriggers';
 import { requireRole } from './rbac';
+import { getRemoteMetadataProvider } from '../metadata';
 import logger from '../log';
 const log = logger.child({ component: 'container' });
 
@@ -30,13 +31,39 @@ function getTriggers() {
     return registry.getState().trigger;
 }
 
+function attachHubMetadata(container) {
+    if (!container) return container;
+    try {
+        const metadataProvider = getRemoteMetadataProvider();
+        const hub = metadataProvider.getContainerMetadata(container.id);
+        if (hub) {
+            container.hub = hub;
+        }
+    } catch {
+        // Ignore if metadata provider not available
+    }
+    return container;
+}
+
 /**
  * Get containers from store.
  * @param query
  * @returns {*}
  */
 export function getContainersFromStore(query) {
-    return storeContainer.getContainers(query);
+    const containers = storeContainer.getContainers(query);
+    try {
+        const metadataProvider = getRemoteMetadataProvider();
+        return containers.map((c) => {
+            const hub = metadataProvider.getContainerMetadata(c.id);
+            if (hub) {
+                c.hub = hub;
+            }
+            return c;
+        });
+    } catch {
+        return containers;
+    }
 }
 
 /**
@@ -58,6 +85,7 @@ export function getContainer(req, res) {
     const { id } = req.params;
     const container = storeContainer.getContainer(id);
     if (container) {
+        attachHubMetadata(container);
         res.status(200).json(container);
     } else {
         res.sendStatus(404);
@@ -77,6 +105,11 @@ export function deleteContainer(req, res) {
         const container = storeContainer.getContainer(id);
         if (container) {
             storeContainer.deleteContainer(id);
+            try {
+                getRemoteMetadataProvider().deleteContainerMetadata(id);
+            } catch {
+                // Ignore
+            }
             res.sendStatus(204);
         } else {
             res.sendStatus(404);
@@ -275,6 +308,7 @@ export function snoozeContainer(req, res) {
             targetVersion,
             until,
         );
+        attachHubMetadata(updated);
         return res.status(200).json(updated);
     } catch (e) {
         return res.status(500).json({
@@ -297,6 +331,7 @@ export function unsnoozeContainer(req, res) {
     }
     try {
         const updated = storeContainer.unsnoozeContainer(id);
+        attachHubMetadata(updated);
         return res.status(200).json(updated);
     } catch (e) {
         return res.status(500).json({

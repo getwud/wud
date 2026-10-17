@@ -1262,6 +1262,12 @@ export class Docker extends Watcher {
                 labels: container.labels,
             });
             applyContainerPrecedence(containerWithResult, hubSettings);
+            if (containerWithResult.hub) {
+                metadataProvider.setContainerMetadata(
+                    containerWithResult.id,
+                    containerWithResult.hub,
+                );
+            }
         } catch (e: unknown) {
             const message = e instanceof Error ? e.message : String(e);
             if (logContainer && typeof logContainer.debug === 'function') {
