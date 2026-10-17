@@ -203,3 +203,62 @@ test('getAuthenticationConfigurations should return auth providers and exclude a
     delete configuration.wudEnvVars.WUD_AUTH_ADMIN_PASSWORD;
     delete configuration.wudEnvVars.WUD_AUTH_OIDC_DISCOVERY;
 });
+
+describe('getHubConfiguration', () => {
+    afterEach(() => {
+        delete configuration.wudEnvVars.WUD_HUB_API_KEY;
+        delete configuration.wudEnvVars.WUD_HUB_KEY;
+        delete configuration.wudEnvVars.WUD_HUB_ENDPOINT;
+        delete configuration.wudEnvVars._WUD_HUB_URL;
+        delete configuration.wudEnvVars.WUD_HUB_CACHE_TTL;
+        delete configuration.wudEnvVars.WUD_HUB_CONCURRENCY;
+        delete configuration.wudEnvVars.WUD_HUB_TIMEOUT;
+    });
+
+    test('should return default hub configuration when no env vars set', () => {
+        const config = configuration.getHubConfiguration();
+        expect(config).toEqual({
+            enabled: false,
+            key: undefined,
+            endpoint: 'https://hub.getwud.com',
+            cacheTtl: 86400,
+            concurrency: 5,
+            timeout: 4000,
+        });
+    });
+
+    test('should enable hub when WUD_HUB_API_KEY is defined', () => {
+        configuration.wudEnvVars.WUD_HUB_API_KEY = 'wud_live_12345';
+        const config = configuration.getHubConfiguration();
+        expect(config.enabled).toBe(true);
+        expect(config.key).toBe('wud_live_12345');
+    });
+
+    test('should allow overriding endpoint, ttl, concurrency, and timeout', () => {
+        configuration.wudEnvVars.WUD_HUB_API_KEY = 'wud_live_12345';
+        configuration.wudEnvVars.WUD_HUB_ENDPOINT =
+            'https://custom-hub.example.com/';
+        configuration.wudEnvVars.WUD_HUB_CACHE_TTL = '3600';
+        configuration.wudEnvVars.WUD_HUB_CONCURRENCY = '10';
+        configuration.wudEnvVars.WUD_HUB_TIMEOUT = '2500';
+
+        const config = configuration.getHubConfiguration();
+        expect(config.endpoint).toBe('https://custom-hub.example.com');
+        expect(config.cacheTtl).toBe(3600);
+        expect(config.concurrency).toBe(10);
+        expect(config.timeout).toBe(2500);
+    });
+
+    test('should support _WUD_HUB_URL override', () => {
+        configuration.wudEnvVars._WUD_HUB_URL = 'http://localhost:3000';
+        const config = configuration.getHubConfiguration();
+        expect(config.endpoint).toBe('http://localhost:3000');
+    });
+
+    test('should throw error when endpoint is invalid', () => {
+        configuration.wudEnvVars.WUD_HUB_ENDPOINT = 'not-a-url';
+        expect(() => configuration.getHubConfiguration()).toThrow(
+            /Configuration WUD Hub invalide/,
+        );
+    });
+});

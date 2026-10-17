@@ -51,7 +51,11 @@ export function replaceSecrets(wudEnvVars) {
 // 1. Get a copy of all wud related env vars
 export const wudEnvVars = {};
 Object.keys(process.env)
-    .filter((envVar) => envVar.toUpperCase().startsWith('WUD'))
+    .filter(
+        (envVar) =>
+            envVar.toUpperCase().startsWith('WUD') ||
+            envVar.toUpperCase().startsWith('_WUD'),
+    )
     .forEach((wudEnvVar) => {
         wudEnvVars[wudEnvVar] = process.env[wudEnvVar];
     });
@@ -201,4 +205,79 @@ export function getPublicUrl(req: Request) {
         return origin.replace(/\/$/, '');
     }
     return `${origin.replace(/\/$/, '')}${basepath}`;
+}
+
+export interface HubConfiguration {
+    enabled: boolean;
+    key?: string;
+    endpoint: string;
+    cacheTtl: number;
+    concurrency: number;
+    timeout: number;
+}
+
+/**
+ * Get WUD Hub configuration.
+ */
+export function getHubConfiguration(): HubConfiguration {
+    const rawKey =
+        wudEnvVars.WUD_HUB_API_KEY ||
+        wudEnvVars.WUD_HUB_KEY ||
+        (get('wud.hub', wudEnvVars) as any)?.api?.key ||
+        (get('wud.hub', wudEnvVars) as any)?.key;
+
+    const rawEndpoint =
+        wudEnvVars.WUD_HUB_ENDPOINT ||
+        wudEnvVars._WUD_HUB_URL ||
+        process.env._WUD_HUB_URL ||
+        (get('wud.hub', wudEnvVars) as any)?.endpoint ||
+        'https://hub.getwud.com';
+
+    const rawCacheTtl =
+        wudEnvVars.WUD_HUB_CACHE_TTL ||
+        (get('wud.hub', wudEnvVars) as any)?.cache?.ttl ||
+        86400;
+
+    const rawConcurrency =
+        wudEnvVars.WUD_HUB_CONCURRENCY ||
+        (get('wud.hub', wudEnvVars) as any)?.concurrency ||
+        5;
+
+    const rawTimeout =
+        wudEnvVars.WUD_HUB_TIMEOUT ||
+        (get('wud.hub', wudEnvVars) as any)?.timeout ||
+        4000;
+
+    const schema = joi.object({
+        enabled: joi
+            .boolean()
+            .default(Boolean(rawKey && String(rawKey).trim() !== '')),
+        key: joi.string().allow('', null).optional(),
+        endpoint: joi
+            .string()
+            .uri({ scheme: ['http', 'https'] })
+            .default('https://hub.getwud.com'),
+        cacheTtl: joi.number().integer().min(60).default(86400),
+        concurrency: joi.number().integer().min(1).max(20).default(5),
+        timeout: joi.number().integer().min(500).max(30000).default(4000),
+    });
+
+    const validation = schema.validate({
+        key: rawKey ? String(rawKey).trim() : undefined,
+        endpoint: rawEndpoint
+            ? String(rawEndpoint).trim().replace(/\/+$/, '')
+            : undefined,
+        cacheTtl: rawCacheTtl !== undefined ? Number(rawCacheTtl) : undefined,
+        concurrency:
+            rawConcurrency !== undefined ? Number(rawConcurrency) : undefined,
+        timeout: rawTimeout !== undefined ? Number(rawTimeout) : undefined,
+    });
+
+    if (validation.error) {
+        throw new Error(
+            `Configuration WUD Hub invalide : ${validation.error.message}`,
+        );
+    }
+
+    return validation.value;
 }
