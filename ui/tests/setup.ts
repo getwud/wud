@@ -134,7 +134,7 @@ config.global.stubs = {
   'v-dialog': { template: '<div class="v-dialog"><slot /></div>' },
   'v-divider': { template: '<div class="v-divider"></div>' },
   'v-spacer': { template: '<div class="v-spacer"></div>' },
-  'v-tooltip': { template: '<div class="v-tooltip"><slot /></div>' },
+  'v-tooltip': { template: '<div class="v-tooltip"><slot name="activator" :props="{}" /><slot /></div>' },
   'v-form': { template: '<form class="v-form" @keyup.enter="() => {}"><slot /></form>' },
   'v-list': { template: '<div class="v-list"><slot /></div>' },
   'v-list-item': { template: '<div class="v-list-item"><slot /></div>' },
