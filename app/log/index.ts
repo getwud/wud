@@ -54,6 +54,22 @@ const logger = pino(
     {
         name: 'wud',
         level: logLevel,
+        redact: {
+            paths: [
+                'key',
+                '*.key',
+                '*.*.key',
+                'apiKey',
+                '*.apiKey',
+                'WUD_HUB_API_KEY',
+                '*.WUD_HUB_API_KEY',
+                'headers.authorization',
+                'headers.Authorization',
+                'req.headers.authorization',
+                'req.headers.Authorization',
+            ],
+            censor: '[REDACTED]',
+        },
     },
     pino.multistream(streams),
 );
