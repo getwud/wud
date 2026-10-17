@@ -190,4 +190,24 @@ describe('RemoteMetadataProvider', () => {
         const instance2 = getRemoteMetadataProvider();
         expect(instance1).toBe(instance2);
     });
+
+    test('stores, retrieves, and deletes container metadata in-memory', () => {
+        const provider = new RemoteMetadataProvider();
+        expect(provider.getContainerMetadata('c-123')).toBeUndefined();
+
+        const mockMeta = {
+            enriched: true,
+            sources: {
+                includeTags: 'hub' as const,
+                displayIcon: 'label' as const,
+                link: 'default' as const,
+            },
+        };
+
+        provider.setContainerMetadata('c-123', mockMeta);
+        expect(provider.getContainerMetadata('c-123')).toEqual(mockMeta);
+
+        provider.deleteContainerMetadata('c-123');
+        expect(provider.getContainerMetadata('c-123')).toBeUndefined();
+    });
 });

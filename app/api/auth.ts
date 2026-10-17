@@ -33,7 +33,7 @@ export function getAllIds() {
  * Express middleware to protect routes.
  */
 export function requireAuthentication(req, res, next): any {
-    if (req.isAuthenticated()) {
+    if (typeof req.isAuthenticated === 'function' && req.isAuthenticated()) {
         return next();
     }
     const authHeader = req.headers?.authorization;

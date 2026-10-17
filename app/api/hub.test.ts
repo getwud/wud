@@ -19,6 +19,15 @@ jest.mock('../metadata', () => {
     };
 });
 
+jest.mock('./auth', () => ({
+    requireAuthentication: (req: any, res: any, next: any) => {
+        if (!req.user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+        next();
+    },
+}));
+
 describe('Hub API Router', () => {
     let app: express.Express;
     let currentUser: any;
@@ -50,10 +59,21 @@ describe('Hub API Router', () => {
         expect(provider.getStatus).toHaveBeenCalled();
     });
 
-    test('GET /hub/status should return 401 when unauthenticated', async () => {
+    test('GET /hub/status should return 200 without authentication', async () => {
         currentUser = null;
         const res = await request(app).get('/hub/status');
+        expect(res.status).toBe(200);
+        expect(res.body.status).toBe('connected');
+        expect(res.body.enabled).toBe(true);
+    });
+
+    test('POST /hub/cache/clear should return 401 when unauthenticated', async () => {
+        currentUser = null;
+        const res = await request(app).post('/hub/cache/clear');
         expect(res.status).toBe(401);
+
+        const provider = getRemoteMetadataProvider();
+        expect(provider.clearCache).not.toHaveBeenCalled();
     });
 
     test('POST /hub/cache/clear should return 204 for admin user', async () => {

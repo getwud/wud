@@ -7,6 +7,7 @@ import {
     RemoteSettingsResponse,
     ProviderConnectionStatus,
     HubStatusSummary,
+    ContainerHubMetadata,
 } from './types';
 
 const log = logger.child({ component: 'remote-metadata-provider' });
@@ -21,6 +22,7 @@ export class RemoteMetadataProvider {
     private readonly client: AxiosInstance;
     private readonly pool: ConcurrencyPool;
     private readonly cache = new Map<string, CacheEntry>();
+    private readonly containerMetadata = new Map<string, ContainerHubMetadata>();
 
     private status: ProviderConnectionStatus = 'standalone';
     private consecutiveErrors = 0;
@@ -200,6 +202,23 @@ export class RemoteMetadataProvider {
         if (this.config.enabled && this.config.key && this.status !== 'error') {
             this.status = 'connected';
         }
+    }
+
+    setContainerMetadata(
+        containerId: string,
+        metadata: ContainerHubMetadata,
+    ): void {
+        this.containerMetadata.set(containerId, metadata);
+    }
+
+    getContainerMetadata(
+        containerId: string,
+    ): ContainerHubMetadata | undefined {
+        return this.containerMetadata.get(containerId);
+    }
+
+    deleteContainerMetadata(containerId: string): void {
+        this.containerMetadata.delete(containerId);
     }
 }
 

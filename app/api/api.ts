@@ -44,6 +44,9 @@ export function init() {
     // Mount app router
     router.use('/app', appRouter.init());
 
+    // Mount hub router (public status, admin-only cache clear)
+    router.use('/hub', hubRouter.init());
+
     // Registry notifications authenticate independently with their receiver secret.
     router.use('/registries', registryRouter.initEvents());
 
@@ -82,9 +85,6 @@ export function init() {
 
     // Mount auth
     router.use('/authentications', authenticationRouter.init());
-
-    // Mount hub
-    router.use('/hub', hubRouter.init());
 
     // All other API routes => 404
     router.use('/*', (req, res) => res.sendStatus(404));

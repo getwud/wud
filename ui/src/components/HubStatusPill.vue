@@ -1,19 +1,16 @@
 <template>
-  <v-tooltip location="bottom">
-    <template v-slot:activator="{ props }">
-      <div
-        v-bind="props"
-        class="hub-status-pill d-flex align-center px-2 py-1 rounded-pill"
-        :class="statusClass"
-      >
-        <span class="status-dot mr-1"></span>
-        <span class="text-caption font-weight-bold d-none d-sm-inline">
-          {{ labelText }}
-        </span>
-      </div>
-    </template>
-    <span>{{ tooltipText }}</span>
-  </v-tooltip>
+  <div
+    class="hub-status-pill d-flex align-center px-2 py-1 rounded-pill"
+    :class="statusClass"
+  >
+    <span class="status-dot mr-1"></span>
+    <span class="text-caption font-weight-bold">
+      {{ labelText }}
+    </span>
+    <v-tooltip activator="parent" location="bottom">
+      <span>{{ tooltipText }}</span>
+    </v-tooltip>
+  </div>
 </template>
 
 <script setup lang="ts">

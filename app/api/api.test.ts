@@ -126,6 +126,19 @@ describe('API Router', () => {
         expect(eventIndex).toBeGreaterThan(authIndex);
     });
 
+    test('should mount /hub router before requireAuthentication', async () => {
+        router = api.init();
+        const calls = router.use.mock.calls;
+        const authIndex = calls.findIndex(
+            (call) => call[0] === auth.requireAuthentication,
+        );
+        const hubIndex = calls.findIndex((call) => call[0] === '/hub');
+
+        expect(authIndex).toBeGreaterThanOrEqual(0);
+        expect(hubIndex).toBeGreaterThanOrEqual(0);
+        expect(hubIndex).toBeLessThan(authIndex);
+    });
+
     test('should serve OpenAPI spec and Swagger UI', async () => {
         router = api.init();
         expect(YAML.load).toHaveBeenCalled();
