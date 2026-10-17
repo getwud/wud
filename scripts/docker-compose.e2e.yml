@@ -121,7 +121,7 @@ services:
     pull_policy: never
     labels:
       - 'wud.watch=true'
-      - 'wud.tag.include=^\d+\.\d+.\d+$$'
+      - 'wud.tag.include=^(2021\.6\.1|2026\.10\.1)$$'
       - 'wud.link.template=https://github.com/home-assistant/core/releases/tag/$${major}.$${minor}.$${patch}'
       - 'wud.display.icon=mdi:home-assistant'
 
