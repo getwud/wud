@@ -15,6 +15,7 @@ import * as serverRouter from './server';
 import * as userRouter from './user';
 import * as profileRouter from './profile';
 import * as eventRouter from './event';
+import * as hubRouter from './hub';
 import { requireAuthentication } from './auth';
 
 /**
@@ -81,6 +82,9 @@ export function init() {
 
     // Mount auth
     router.use('/authentications', authenticationRouter.init());
+
+    // Mount hub
+    router.use('/hub', hubRouter.init());
 
     // All other API routes => 404
     router.use('/*', (req, res) => res.sendStatus(404));
