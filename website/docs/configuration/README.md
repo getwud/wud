@@ -20,7 +20,7 @@ Understanding where each setting is applied is essential:
 | Configuration Mechanism | Where to Configure | Scope | Typical Use Cases |
 | :--- | :--- | :--- | :--- |
 | **Environment Variables** (`WUD_*`) | **WUD container** | Global | Server port, log level, authentication, registry credentials, notification triggers, watcher intervals |
-| **Docker Labels** (`wud.*`) | **Monitored containers** | Per-container | Tag filtering regex, release link templates, digest watching, display names, trigger overrides |
+| **Docker Labels** (`wud.*`) | **Monitored containers** | Per-container | Tag filtering regex, documentation/changelog links, digest watching, display names, trigger overrides |
 
 :::tip[Rule of Thumb]
 
@@ -117,7 +117,9 @@ services:
     container_name: bitwarden
     labels:
       - 'wud.tag.include=^\d+\.\d+\.\d+-alpine$$'
-      - "wud.link.template=https://github.com/dani-garcia/vaultwarden/releases/tag/$${major}.$${minor}.$${patch}"
+      - "wud.link.changelog=https://github.com/dani-garcia/vaultwarden/releases/tag/$${major}.$${minor}.$${patch}"
+      - "wud.link.doc=https://github.com/dani-garcia/vaultwarden/wiki"
+      - "wud.link.upstream=https://github.com/dani-garcia/vaultwarden"
 
   # Monitored Service 2: Valid semver followed by a build number (LinuxServer style)
   duplicati:
@@ -132,7 +134,8 @@ services:
     container_name: homeassistant
     labels:
       - 'wud.tag.include=^\d+\.\d+\.\d+$$'
-      - "wud.link.template=https://github.com/home-assistant/core/releases/tag/$${major}.$${minor}.$${patch}"
+      - "wud.link.changelog=https://github.com/home-assistant/core/releases/tag/$${major}.$${minor}.$${patch}"
+      - "wud.link.doc=https://www.home-assistant.io/docs/"
 
   # Monitored Service 4: Valid semver with a leading 'v'
   pihole:
@@ -140,7 +143,8 @@ services:
     container_name: pihole
     labels:
       - 'wud.tag.include=^v\d+\.\d+\.\d+$$'
-      - "wud.link.template=https://github.com/pi-hole/FTL/releases/tag/v$${major}.$${minor}.$${patch}"
+      - "wud.link.changelog=https://github.com/pi-hole/pi-hole/releases/tag/v$${major}.$${minor}.$${patch}"
+      - "wud.link.doc=https://docs.pi-hole.net/"
 
   # Monitored Service 5: Mutable tag (latest) with digest tracking
   pyload:
@@ -169,7 +173,9 @@ services:
     labels:
       # WUD can also monitor itself!
       - 'wud.tag.include=^\d+\.\d+\.\d+$$'
-      - "wud.link.template=https://github.com/getwud/wud/releases/tag/$${major}.$${minor}.$${patch}"
+      - "wud.link.changelog=https://github.com/getwud/wud/releases/tag/$${major}.$${minor}.$${patch}"
+      - "wud.link.doc=https://getwud.github.io/wud/"
+      - "wud.link.upstream=https://github.com/getwud/wud"
 ```
 
 </TabItem>

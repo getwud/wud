@@ -81,7 +81,26 @@ describe('ContainerDetail', () => {
     expect(wrapper.text()).toContain('https://github.com/example/app');
   });
 
-  it('renders standalone link when distinct from documentationUrl and upstreamUrl', () => {
+  it('renders Release notes with candidate changelogUrl when updateAvailable is true', () => {
+    wrapper = mount(ContainerDetail, {
+      props: {
+        container: {
+          ...baseContainer,
+          updateAvailable: true,
+          changelogUrl: 'https://github.com/example/app/releases',
+          result: {
+            tag: '2.0.0',
+            changelogUrl: 'https://github.com/example/app/releases/tag/v2.0.0',
+          },
+        },
+      },
+    });
+
+    expect(wrapper.text()).toContain('Release notes');
+    expect(wrapper.text()).toContain('https://github.com/example/app/releases/tag/v2.0.0');
+  });
+
+  it('does not render legacy link or linkTemplate', () => {
     wrapper = mount(ContainerDetail, {
       props: {
         container: {
@@ -89,29 +108,16 @@ describe('ContainerDetail', () => {
           documentationUrl: 'https://docs.example.com',
           upstreamUrl: 'https://github.com/example/app',
           link: 'https://custom-portal.example.com',
+          linkTemplate: 'https://example.com/${tag}',
         },
       },
     });
 
-    expect(wrapper.text()).toContain('Link');
-    expect(wrapper.text()).toContain('https://custom-portal.example.com');
-  });
-
-  it('hides duplicate standalone link when it matches documentationUrl or upstreamUrl', () => {
-    wrapper = mount(ContainerDetail, {
-      props: {
-        container: {
-          ...baseContainer,
-          documentationUrl: 'https://docs.example.com',
-          link: 'https://docs.example.com',
-        },
-      },
-    });
-
-    // Link label should not be rendered because it matches documentationUrl
     const listTitles = wrapper.findAll('.v-list-item-title').map((el: any) => el.text());
     expect(listTitles).toContain('Documentation');
+    expect(listTitles).toContain('Source Code');
     expect(listTitles).not.toContain('Link');
+    expect(listTitles).not.toContain('Link template');
   });
 
   it('calls copyToClipboard when copy button is clicked', async () => {

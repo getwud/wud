@@ -809,7 +809,10 @@ class Trigger extends Component {
         const link =
             (container.result && container.result.link) || container.link || '';
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const changelogUrl = container.changelogUrl || '';
+        const changelogUrl =
+            (container.result && container.result.changelogUrl) ||
+            container.changelogUrl ||
+            '';
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const upstreamUrl = container.upstreamUrl || '';
         // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -32,6 +32,7 @@ export interface ContainerResult {
     created?: string;
     version?: string;
     link?: string;
+    changelogUrl?: string;
     hook?: {
         phase: string;
         parentTrigger: string;
@@ -206,6 +207,7 @@ const schema = joi.object({
         created: joi.string().isoDate(),
         version: joi.string(),
         link: joi.string(),
+        changelogUrl: joi.string().uri().optional().allow(''),
         hook: joi.object({
             phase: joi.string().valid('pre', 'post'),
             parentTrigger: joi.string(),
@@ -391,6 +393,17 @@ export function resolveContainerMetadata(container: Container): Container {
         container.changelogUrl || getFirstLabel(labels, CHANGELOG_LABEL_KEYS);
     const resolvedChangelog = renderLinkTemplate(rawChangelog, container);
     container.changelogUrl = resolvedChangelog || undefined;
+
+    if (container.result && container.result.tag && rawChangelog) {
+        const candidateChangelog = renderLinkTemplate(
+            rawChangelog,
+            container,
+            container.result.tag,
+        );
+        if (candidateChangelog) {
+            container.result.changelogUrl = candidateChangelog;
+        }
+    }
 
     // 3. upstreamUrl resolution
     const rawUpstream =

@@ -795,4 +795,118 @@ describe('ContainersView', () => {
       expect(wrapper.vm.containers).toEqual(refreshed);
     });
   });
+
+  describe('rich metadata & direct actions in container list', () => {
+    function mountWithSlotStubs() {
+      return mount(ContainersView, {
+        global: {
+          stubs: {
+            'container-filter': true,
+            'container-item': true,
+            'v-data-table': {
+              template: `
+                <div class="v-data-table">
+                  <div v-for="item in items" :key="item.id" class="table-row">
+                    <slot name="item.displayName" :item="item" />
+                    <slot name="item.update" :item="item" />
+                    <slot name="item.actions" :item="item" />
+                  </div>
+                </div>
+              `,
+              props: ['items'],
+            },
+            'v-list-item': {
+              template: '<div class="v-list-item" :data-title="title" :data-href="href">{{ title }}<slot /></div>',
+              props: ['title', 'href'],
+            },
+            'v-tooltip': {
+              template: '<div class="v-tooltip"><slot name="activator" :props="{}" /><slot /></div>',
+            },
+            'v-btn': {
+              template: '<a class="v-btn" :href="href"><slot /></a>',
+              props: ['href'],
+            },
+          },
+        },
+      });
+    }
+
+    it('renders official badge icon for official images', async () => {
+      const testWrapper = mountWithSlotStubs();
+      testWrapper.vm.onRefreshAllContainers([
+        {
+          id: 'official-1',
+          displayName: 'Official App',
+          watcher: 'local',
+          image: { tag: { value: '1.0.0' }, registry: { name: 'hub' } },
+          isOfficial: true,
+          updateAvailable: false,
+        },
+        {
+          id: 'unofficial-2',
+          displayName: 'Unofficial App',
+          watcher: 'local',
+          image: { tag: { value: '1.0.0' }, registry: { name: 'hub' } },
+          isOfficial: false,
+          updateAvailable: false,
+        },
+      ]);
+      await testWrapper.vm.$nextTick();
+
+      const html = testWrapper.html();
+      expect(html).toContain('Official App');
+      expect(html).toContain('Unofficial App');
+      expect(html).toContain('mdi-check-decagram');
+      expect(html).toContain('Official Docker Image');
+      testWrapper.unmount();
+    });
+
+    it('renders 1-click changelog button when updateAvailable is true and changelogUrl is present', async () => {
+      const testWrapper = mountWithSlotStubs();
+      testWrapper.vm.onRefreshAllContainers([
+        {
+          id: 'updatable-with-changelog',
+          displayName: 'Changelog App',
+          watcher: 'local',
+          image: { tag: { value: '1.0.0' }, registry: { name: 'hub' } },
+          result: { tag: '2.0.0', changelogUrl: 'https://example.com/release-notes/2.0.0' },
+          updateAvailable: true,
+          changelogUrl: 'https://example.com/release-notes',
+        },
+      ]);
+      await testWrapper.vm.$nextTick();
+
+      const html = testWrapper.html();
+      expect(html).toContain('https://example.com/release-notes/2.0.0');
+      expect(html).toContain('View release notes for 2.0.0');
+      expect(html).toContain('Release notes (2.0.0)');
+      testWrapper.unmount();
+    });
+
+    it('renders context menu metadata links (docs, changelog, source)', async () => {
+      const testWrapper = mountWithSlotStubs();
+      testWrapper.vm.onRefreshAllContainers([
+        {
+          id: 'rich-meta-app',
+          displayName: 'Rich Meta App',
+          watcher: 'local',
+          image: { tag: { value: '1.0.0' }, registry: { name: 'hub' } },
+          documentationUrl: 'https://example.com/docs',
+          changelogUrl: 'https://example.com/changelog',
+          upstreamUrl: 'https://example.com/source',
+          updateAvailable: false,
+        },
+      ]);
+      await testWrapper.vm.$nextTick();
+
+      const html = testWrapper.html();
+      expect(html).toContain('Documentation');
+      expect(html).toContain('https://example.com/docs');
+      expect(html).toContain('Changelog');
+      expect(html).toContain('https://example.com/changelog');
+      expect(html).toContain('Source code');
+      expect(html).toContain('https://example.com/source');
+      testWrapper.unmount();
+    });
+  });
 });

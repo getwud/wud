@@ -209,16 +209,16 @@
                 </v-btn>
 
                 <v-btn
-                  v-if="container.changelogUrl"
+                  v-if="container.updateAvailable ? (container.result?.changelogUrl || container.changelogUrl) : container.changelogUrl"
                   small
                   color="secondary"
                   variant="outlined"
                   class="mr-2"
-                  title="Changelog"
-                  :href="container.changelogUrl"
+                  :title="container.updateAvailable ? ('Release notes' + (container.result?.tag ? ' (' + container.result.tag + ')' : '')) : 'Changelog'"
+                  :href="container.updateAvailable ? (container.result?.changelogUrl || container.changelogUrl) : container.changelogUrl"
                   target="_blank"
                 >
-                  Changelog
+                  {{ container.updateAvailable ? 'Release notes' : 'Changelog' }}
                   <v-icon right>mdi-history</v-icon>
                 </v-btn>
 
