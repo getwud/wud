@@ -38,12 +38,11 @@ describe('RemoteMetadataProvider', () => {
         expect(mockClient.post).not.toHaveBeenCalled();
     });
 
-    test('Connected mode: resolves settings from Hub and caches response', async () => {
+    test('Connected mode: resolves settings from Hub', async () => {
         const provider = new RemoteMetadataProvider({
             enabled: true,
             key: 'wud_live_test123',
             endpoint: 'https://hub.getwud.com',
-            cacheTtl: 86400,
         });
 
         const mockResponseData: RemoteSettingsResponse = {
@@ -58,7 +57,6 @@ describe('RemoteMetadataProvider', () => {
             data: mockResponseData,
         });
 
-        // First call: cache miss
         const res1 = await provider.resolveSettings({
             image: 'postgres',
             tag: '16.1',
@@ -74,18 +72,8 @@ describe('RemoteMetadataProvider', () => {
             },
         );
 
-        // Second call: cache hit
-        const res2 = await provider.resolveSettings({
-            image: 'postgres',
-            tag: '16.1',
-        });
-        expect(res2).toEqual(mockResponseData);
-        expect(mockClient.post).toHaveBeenCalledTimes(1); // Not called again!
-
         const status = provider.getStatus();
         expect(status.status).toBe('connected');
-        expect(status.cacheStats.hits).toBe(1);
-        expect(status.cacheStats.misses).toBe(1);
     });
 
     test('Circuit breaker on 401 Unauthorized: moves to error status and disables calls', async () => {
@@ -161,28 +149,6 @@ describe('RemoteMetadataProvider', () => {
 
         await provider.resolveSettings({ image: 'img3' });
         expect(provider.getStatus().status).toBe('degraded');
-    });
-
-    test('clearCache resets cache and restores connected status if not in error', async () => {
-        const provider = new RemoteMetadataProvider({
-            enabled: true,
-            key: 'wud_live_reset',
-        });
-
-        mockClient.post.mockResolvedValueOnce({
-            status: 200,
-            data: { image: 'test' },
-        });
-
-        await provider.resolveSettings({ image: 'test' });
-        expect(provider.getStatus().cacheStats.size).toBe(1);
-
-        provider.clearCache();
-        const status = provider.getStatus();
-        expect(status.cacheStats.size).toBe(0);
-        expect(status.cacheStats.hits).toBe(0);
-        expect(status.cacheStats.misses).toBe(0);
-        expect(status.status).toBe('connected');
     });
 
     test('Singleton helper getRemoteMetadataProvider works as expected', () => {

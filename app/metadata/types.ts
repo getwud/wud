@@ -47,9 +47,4 @@ export interface HubStatusSummary {
     hasKey: boolean;
     lastCheck?: string;
     errorMessage?: string;
-    cacheStats: {
-        size: number;
-        hits: number;
-        misses: number;
-    };
 }

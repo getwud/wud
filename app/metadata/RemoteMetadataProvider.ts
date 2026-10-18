@@ -12,16 +12,10 @@ import {
 
 const log = logger.child({ component: 'remote-metadata-provider' });
 
-interface CacheEntry {
-    data: RemoteSettingsResponse | null;
-    expiresAt: number;
-}
-
 export class RemoteMetadataProvider {
     private readonly config: HubConfiguration;
     private readonly client: AxiosInstance;
     private readonly pool: ConcurrencyPool;
-    private readonly cache = new Map<string, CacheEntry>();
     private readonly containerMetadata = new Map<string, ContainerHubMetadata>();
 
     private status: ProviderConnectionStatus = 'standalone';
@@ -29,8 +23,6 @@ export class RemoteMetadataProvider {
     private backoffUntil = 0;
     private lastErrorMessage?: string;
     private lastCheckTimestamp?: string;
-    private hits = 0;
-    private misses = 0;
 
     constructor(customConfig?: Partial<HubConfiguration>) {
         this.config = { ...getHubConfiguration(), ...customConfig };
@@ -55,10 +47,6 @@ export class RemoteMetadataProvider {
         });
     }
 
-    private buildCacheKey(request: RemoteSettingsRequest): string {
-        return `${request.image.trim().toLowerCase()}:${request.tag?.trim() || 'latest'}`;
-    }
-
     async resolveSettings(
         request: RemoteSettingsRequest,
     ): Promise<RemoteSettingsResponse | null> {
@@ -70,31 +58,17 @@ export class RemoteMetadataProvider {
             return null;
         }
 
-        const cacheKey = this.buildCacheKey(request);
-        const cached = this.cache.get(cacheKey);
-
-        if (cached && Date.now() < cached.expiresAt) {
-            this.hits++;
-            return cached.data;
-        }
+        const target = `${request.image.trim().toLowerCase()}:${request.tag?.trim() || 'latest'}`;
 
         // Backoff active check
         if (Date.now() < this.backoffUntil) {
             log.debug(
-                `[Hub] Request skipped during backoff window (${cacheKey})`,
+                `[Hub] Request skipped during backoff window (${target})`,
             );
             return null;
         }
 
-        this.misses++;
-
         return this.pool.run(async () => {
-            // Re-check cache in case a concurrent request already populated it
-            const recheck = this.cache.get(cacheKey);
-            if (recheck && Date.now() < recheck.expiresAt) {
-                return recheck.data;
-            }
-
             try {
                 this.lastCheckTimestamp = new Date().toISOString();
                 const response = await this.client.post<RemoteSettingsResponse>(
@@ -110,24 +84,17 @@ export class RemoteMetadataProvider {
                     this.status = 'connected';
                     this.consecutiveErrors = 0;
                     this.lastErrorMessage = undefined;
-
-                    // Cache success with TTL
-                    this.cache.set(cacheKey, {
-                        data: response.data,
-                        expiresAt: Date.now() + this.config.cacheTtl * 1000,
-                    });
-
                     return response.data;
                 }
                 return null;
             } catch (err: unknown) {
-                this.handleHttpError(err, cacheKey);
+                this.handleHttpError(err, target);
                 return null;
             }
         });
     }
 
-    private handleHttpError(err: unknown, cacheKey: string): void {
+    private handleHttpError(err: unknown, target: string): void {
         const error = err as {
             response?: {
                 status?: number;
@@ -167,14 +134,8 @@ export class RemoteMetadataProvider {
         }
 
         log.debug(
-            `[RemoteMetadataProvider] Resolution failed for ${cacheKey}: ${errMsg} (preserving local mode)`,
+            `[RemoteMetadataProvider] Resolution failed for ${target}: ${errMsg} (preserving local mode)`,
         );
-
-        // Short negative cache (5 minutes) to avoid repeated failing calls
-        this.cache.set(cacheKey, {
-            data: null,
-            expiresAt: Date.now() + 300000,
-        });
     }
 
     getStatus(): HubStatusSummary {
@@ -185,23 +146,7 @@ export class RemoteMetadataProvider {
             hasKey: Boolean(this.config.key && this.config.key.trim() !== ''),
             lastCheck: this.lastCheckTimestamp,
             errorMessage: this.lastErrorMessage,
-            cacheStats: {
-                size: this.cache.size,
-                hits: this.hits,
-                misses: this.misses,
-            },
         };
-    }
-
-    clearCache(): void {
-        this.cache.clear();
-        this.hits = 0;
-        this.misses = 0;
-        this.consecutiveErrors = 0;
-        this.backoffUntil = 0;
-        if (this.config.enabled && this.config.key && this.status !== 'error') {
-            this.status = 'connected';
-        }
     }
 
     setContainerMetadata(

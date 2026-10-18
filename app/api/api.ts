@@ -44,7 +44,7 @@ export function init() {
     // Mount app router
     router.use('/app', appRouter.init());
 
-    // Mount hub router (public status, admin-only cache clear)
+    // Mount hub router (public status)
     router.use('/hub', hubRouter.init());
 
     // Registry notifications authenticate independently with their receiver secret.

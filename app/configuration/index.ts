@@ -211,7 +211,6 @@ export interface HubConfiguration {
     enabled: boolean;
     key?: string;
     endpoint: string;
-    cacheTtl: number;
     concurrency: number;
     timeout: number;
 }
@@ -233,11 +232,6 @@ export function getHubConfiguration(): HubConfiguration {
         (get('wud.hub', wudEnvVars) as any)?.endpoint ||
         'https://hub.getwud.com';
 
-    const rawCacheTtl =
-        wudEnvVars.WUD_HUB_CACHE_TTL ||
-        (get('wud.hub', wudEnvVars) as any)?.cache?.ttl ||
-        86400;
-
     const rawConcurrency =
         wudEnvVars.WUD_HUB_CONCURRENCY ||
         (get('wud.hub', wudEnvVars) as any)?.concurrency ||
@@ -257,7 +251,6 @@ export function getHubConfiguration(): HubConfiguration {
             .string()
             .uri({ scheme: ['http', 'https'] })
             .default('https://hub.getwud.com'),
-        cacheTtl: joi.number().integer().min(60).default(86400),
         concurrency: joi.number().integer().min(1).max(20).default(5),
         timeout: joi.number().integer().min(500).max(30000).default(4000),
     });
@@ -267,7 +260,6 @@ export function getHubConfiguration(): HubConfiguration {
         endpoint: rawEndpoint
             ? String(rawEndpoint).trim().replace(/\/+$/, '')
             : undefined,
-        cacheTtl: rawCacheTtl !== undefined ? Number(rawCacheTtl) : undefined,
         concurrency:
             rawConcurrency !== undefined ? Number(rawConcurrency) : undefined,
         timeout: rawTimeout !== undefined ? Number(rawTimeout) : undefined,

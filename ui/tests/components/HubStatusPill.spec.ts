@@ -19,7 +19,6 @@ describe('HubStatusPill', () => {
       status: 'standalone',
       endpoint: '',
       hasKey: false,
-      cacheStats: { size: 0, hits: 0, misses: 0 },
     });
 
     const wrapper = mount(HubStatusPill);
@@ -35,7 +34,6 @@ describe('HubStatusPill', () => {
       status: 'connected',
       endpoint: 'https://hub.getwud.com',
       hasKey: true,
-      cacheStats: { size: 5, hits: 10, misses: 2 },
     });
 
     const wrapper = mount(HubStatusPill);
@@ -52,7 +50,6 @@ describe('HubStatusPill', () => {
       endpoint: 'https://hub.getwud.com',
       hasKey: true,
       errorMessage: 'Rate limit exceeded',
-      cacheStats: { size: 0, hits: 0, misses: 0 },
     });
 
     const wrapper = mount(HubStatusPill);

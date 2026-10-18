@@ -26,7 +26,6 @@ jest.mock('../configuration', () => ({
         enabled: false,
         key: undefined,
         endpoint: 'https://hub.getwud.com',
-        cacheTtl: 3600,
         timeout: 5000,
         concurrency: 5,
     })),

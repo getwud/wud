@@ -22,7 +22,6 @@ const statusData = ref<HubStatus>({
   status: "standalone",
   endpoint: "",
   hasKey: false,
-  cacheStats: { size: 0, hits: 0, misses: 0 },
 });
 
 let timer: ReturnType<typeof setInterval> | null = null;

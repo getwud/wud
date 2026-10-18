@@ -210,7 +210,6 @@ describe('getHubConfiguration', () => {
         delete configuration.wudEnvVars.WUD_HUB_KEY;
         delete configuration.wudEnvVars.WUD_HUB_ENDPOINT;
         delete configuration.wudEnvVars._WUD_HUB_URL;
-        delete configuration.wudEnvVars.WUD_HUB_CACHE_TTL;
         delete configuration.wudEnvVars.WUD_HUB_CONCURRENCY;
         delete configuration.wudEnvVars.WUD_HUB_TIMEOUT;
     });
@@ -221,7 +220,6 @@ describe('getHubConfiguration', () => {
             enabled: false,
             key: undefined,
             endpoint: 'https://hub.getwud.com',
-            cacheTtl: 86400,
             concurrency: 5,
             timeout: 4000,
         });
@@ -234,17 +232,15 @@ describe('getHubConfiguration', () => {
         expect(config.key).toBe('wud_live_12345');
     });
 
-    test('should allow overriding endpoint, ttl, concurrency, and timeout', () => {
+    test('should allow overriding endpoint, concurrency, and timeout', () => {
         configuration.wudEnvVars.WUD_HUB_API_KEY = 'wud_live_12345';
         configuration.wudEnvVars.WUD_HUB_ENDPOINT =
             'https://custom-hub.example.com/';
-        configuration.wudEnvVars.WUD_HUB_CACHE_TTL = '3600';
         configuration.wudEnvVars.WUD_HUB_CONCURRENCY = '10';
         configuration.wudEnvVars.WUD_HUB_TIMEOUT = '2500';
 
         const config = configuration.getHubConfiguration();
         expect(config.endpoint).toBe('https://custom-hub.example.com');
-        expect(config.cacheTtl).toBe(3600);
         expect(config.concurrency).toBe(10);
         expect(config.timeout).toBe(2500);
     });
