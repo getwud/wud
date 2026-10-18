@@ -242,11 +242,12 @@
                   variant="outlined"
                   class="mr-2"
                   :title="container.updateAvailable ? ('Release notes' + (container.result?.tag ? ' (' + container.result.tag + ')' : '')) : 'Changelog'"
+                  :aria-label="container.updateAvailable ? ('Release notes' + (container.result?.tag ? ' (' + container.result.tag + ')' : '')) : 'Changelog'"
                   :href="container.updateAvailable ? (container.result?.changelogUrl || container.changelogUrl) : container.changelogUrl"
                   target="_blank"
                 >
                   {{ container.updateAvailable ? 'Release notes' : 'Changelog' }}
-                  <v-icon right>mdi-history</v-icon>
+                  <v-icon right>mdi-tag-text-outline</v-icon>
                 </v-btn>
 
                 <v-btn

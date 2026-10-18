@@ -1,9 +1,162 @@
 <template>
   <div>
+    <!-- Hero Block: Version Transition -->
+    <v-card
+      v-if="updateAvailable || isCoolingDown || isSnoozed || snoozedVersion"
+      class="version-transition-hero mb-4 border"
+      elevation="0"
+      rounded="lg"
+    >
+      <div class="pa-4">
+        <!-- Transition & Bump Badges -->
+        <div class="d-flex align-center justify-space-between flex-wrap ga-3">
+          <div class="d-flex align-center flex-wrap ga-2">
+            <!-- Current version -->
+            <div class="version-badge px-3 py-1 rounded border d-flex flex-column">
+              <span class="text-caption text-medium-emphasis font-weight-medium">CURRENT</span>
+              <span class="font-mono text-body-1 font-weight-bold">{{ currentVersionDisplay }}</span>
+            </div>
+
+            <!-- Transition Arrow -->
+            <v-icon color="primary" size="22" class="mx-1">mdi-arrow-right-bold</v-icon>
+
+            <!-- Target version -->
+            <div class="version-badge px-3 py-1 rounded border d-flex flex-column">
+              <div class="d-flex align-center">
+                <span class="text-caption text-medium-emphasis font-weight-medium">TARGET</span>
+                <v-tooltip text="Copy target tag" location="bottom">
+                  <template #activator="{ props }">
+                    <v-btn
+                      v-bind="props"
+                      icon="mdi-content-copy"
+                      variant="text"
+                      size="x-small"
+                      class="ml-1"
+                      @click="copyToClipboard('update tag', targetVersionDisplay)"
+                      aria-label="Copy target tag"
+                    ></v-btn>
+                  </template>
+                </v-tooltip>
+              </div>
+              <span class="font-mono text-body-1 font-weight-bold text-primary">{{ targetVersionDisplay }}</span>
+            </div>
+
+            <!-- Semantic Bump Badge & Semver Chip -->
+            <div class="d-flex align-center ga-1 ml-sm-2">
+              <v-chip
+                v-if="bumpBadgeText"
+                :color="bumpBadgeColor"
+                size="small"
+                variant="flat"
+                class="font-weight-black text-uppercase"
+              >
+                {{ bumpBadgeText }}
+              </v-chip>
+              <v-chip
+                v-if="semver"
+                size="x-small"
+                variant="outlined"
+                color="success"
+                label
+                class="font-weight-bold"
+              >
+                semver
+              </v-chip>
+            </div>
+          </div>
+        </div>
+
+        <!-- Integrated Status: Cool-down -->
+        <v-alert
+          v-if="isCoolingDown"
+          color="info"
+          variant="tonal"
+          density="compact"
+          icon="mdi-timer-sand"
+          class="mt-3 mb-0"
+          rounded="md"
+        >
+          <div class="font-weight-medium text-body-2">Update in cool-down</div>
+          <div class="text-caption">
+            A new version is available but currently held in cool-down period{{ coolingDownUntil ? ` until ${new Date(coolingDownUntil).toLocaleString()}` : '' }}.
+          </div>
+        </v-alert>
+
+        <!-- Integrated Status: Snoozed -->
+        <v-alert
+          v-if="isSnoozed || snoozedVersion"
+          color="warning"
+          variant="tonal"
+          density="compact"
+          icon="mdi-bell-sleep"
+          class="mt-3 mb-0"
+          rounded="md"
+        >
+          <div class="font-weight-medium text-body-2">Update snoozed</div>
+          <div class="text-caption">
+            Version {{ snoozedVersion }} is snoozed{{ snoozedUntil ? ` until ${new Date(snoozedUntil).toLocaleString()}` : ' indefinitely' }}.
+          </div>
+        </v-alert>
+      </div>
+
+      <!-- Key Metadata Row -->
+      <v-divider v-if="hasMetadata"></v-divider>
+      <div v-if="hasMetadata" class="px-4 py-2 bg-surface-variant d-flex align-center flex-wrap ga-4 text-caption">
+        <!-- Version -->
+        <div v-if="result?.version" class="d-flex align-center">
+          <v-icon size="16" class="mr-1 text-medium-emphasis">mdi-package-variant</v-icon>
+          <span class="text-medium-emphasis mr-1">Version:</span>
+          <span class="font-weight-bold font-mono">{{ result.version }}</span>
+        </div>
+
+        <!-- Built Date -->
+        <div v-if="result?.created" class="d-flex align-center">
+          <v-icon size="16" class="mr-1 text-medium-emphasis">mdi-calendar-clock</v-icon>
+          <span class="text-medium-emphasis mr-1">Built:</span>
+          <span class="font-weight-bold">{{ $filters.dateTime(result.created) }}</span>
+        </div>
+
+        <!-- Digest -->
+        <div v-if="result?.digest" class="d-flex align-center">
+          <v-icon size="16" class="mr-1 text-medium-emphasis">mdi-function-variant</v-icon>
+          <span class="text-medium-emphasis mr-1">Digest:</span>
+          <span class="font-mono mr-1" :title="result.digest">{{ shortDigest }}</span>
+          <v-tooltip text="Copy digest" location="bottom">
+            <template #activator="{ props }">
+              <v-btn
+                v-bind="props"
+                icon="mdi-content-copy"
+                variant="text"
+                size="x-small"
+                @click="copyToClipboard('update digest', result.digest)"
+                aria-label="Copy digest"
+              ></v-btn>
+            </template>
+          </v-tooltip>
+        </div>
+
+        <!-- External Link -->
+        <div v-if="result?.link" class="d-flex align-center ml-auto">
+          <v-btn
+            :href="result.link"
+            target="_blank"
+            variant="text"
+            size="x-small"
+            color="primary"
+            prepend-icon="mdi-open-in-new"
+            class="px-1"
+          >
+            Release Link
+          </v-btn>
+        </div>
+      </div>
+    </v-card>
+
+    <!-- Risk Analysis Card (positioned below Hero) -->
     <upgrade-risk-card
       v-if="updateAvailable || isCoolingDown || isSnoozed || snoozedVersion"
       :key="container?.id || containerId || result?.tag || 'risk-card'"
-      :container="container || { result, id: containerId }"
+      :container="container || { result, id: containerId, updateKind }"
       :risk-analysis="effectiveRiskAnalysis"
       :is-unpaired="isUnpaired"
       :loading="riskLoading"
@@ -11,129 +164,6 @@
       @open-review="$emit('open-review', $event)"
     />
 
-    <v-alert
-      v-if="isCoolingDown"
-      color="info"
-      variant="tonal"
-      density="compact"
-      icon="mdi-timer-sand"
-      class="mb-3"
-    >
-      <div class="font-weight-medium">Update in cool-down</div>
-      <div class="text-caption">
-        A new version is available but currently held in cool-down period{{ coolingDownUntil ? ` until ${new Date(coolingDownUntil).toLocaleString()}` : '' }}.
-      </div>
-    </v-alert>
-
-    <v-alert
-      v-if="isSnoozed || snoozedVersion"
-      color="warning"
-      variant="tonal"
-      density="compact"
-      icon="mdi-bell-sleep"
-      class="mb-3"
-    >
-      <div class="font-weight-medium">Update snoozed</div>
-      <div class="text-caption">
-        Version {{ snoozedVersion }} is snoozed{{ snoozedUntil ? ` until ${new Date(snoozedUntil).toLocaleString()}` : ' indefinitely' }}.
-      </div>
-    </v-alert>
-
-    <v-list density="compact" v-if="updateAvailable || isCoolingDown || isSnoozed || snoozedVersion">
-      <v-list-item v-if="result.tag">
-        <template v-slot:prepend>
-          <v-icon color="secondary">mdi-tag</v-icon>
-        </template>
-        <v-list-item-title>
-          Tag
-          <v-chip v-if="semver" size="x-small" variant="outlined" color="success" label
-            >semver</v-chip
-          >
-        </v-list-item-title>
-        <v-list-item-subtitle>
-          {{ result.tag }}
-          <v-tooltip bottom>
-            <template v-slot:activator="{ props }">
-              <v-btn
-                variant="text"
-                size="small"
-                icon
-                v-bind="props"
-                @click="copyToClipboard('update tag', result.tag)"
-              >
-                <v-icon size="small">mdi-clipboard</v-icon>
-              </v-btn>
-            </template>
-            <span class="text-caption">Copy to clipboard</span>
-          </v-tooltip>
-        </v-list-item-subtitle>
-      </v-list-item>
-      <v-list-item v-if="result.version">
-        <template v-slot:prepend>
-          <v-icon color="secondary">mdi-package-variant</v-icon>
-        </template>
-        <v-list-item-title>Version</v-list-item-title>
-        <v-list-item-subtitle>
-          {{ result.version }}
-        </v-list-item-subtitle>
-      </v-list-item>
-      <v-list-item v-if="result.created">
-        <template v-slot:prepend>
-          <v-icon color="secondary">mdi-calendar-clock</v-icon>
-        </template>
-        <v-list-item-title>Built</v-list-item-title>
-        <v-list-item-subtitle>
-          {{ $filters.dateTime(result.created) }}
-        </v-list-item-subtitle>
-      </v-list-item>
-      <v-list-item v-if="result.link">
-        <template v-slot:prepend>
-          <v-icon color="secondary">mdi-link</v-icon>
-        </template>
-        <v-list-item-title>Link</v-list-item-title>
-        <v-list-item-subtitle
-          ><a :href="result.link" target="_blank">{{ result.link }}</a>
-        </v-list-item-subtitle>
-      </v-list-item>
-      <v-list-item v-if="result.digest">
-        <template v-slot:prepend>
-          <v-icon color="secondary">mdi-function-variant</v-icon>
-        </template>
-        <v-list-item-title> Digest </v-list-item-title>
-        <v-list-item-subtitle>
-          {{ result.digest }}
-          <v-tooltip bottom>
-            <template v-slot:activator="{ props }">
-              <v-btn
-                variant="text"
-                size="small"
-                icon
-                v-bind="props"
-                @click="copyToClipboard('update digest', result.digest)"
-              >
-                <v-icon size="small">mdi-clipboard</v-icon>
-              </v-btn>
-            </template>
-            <span class="text-caption">Copy to clipboard</span>
-          </v-tooltip>
-        </v-list-item-subtitle>
-      </v-list-item>
-      <v-list-item v-if="updateKind && updateKind.kind && updateKind.kind !== 'unknown'">
-        <template v-slot:prepend>
-          <v-icon v-if="updateKind.semverDiff === 'patch'" color="success"
-            >mdi-information</v-icon
-          >
-          <v-icon v-else-if="updateKind.semverDiff === 'major'" color="error"
-            >mdi-alert-decagram</v-icon
-          >
-          <v-icon v-else color="warning">mdi-alert</v-icon>
-        </template>
-        <v-list-item-title>Update kind</v-list-item-title>
-        <v-list-item-subtitle>
-          {{ updateKindFormatted }}
-        </v-list-item-subtitle>
-      </v-list-item>
-    </v-list>
     <v-card-text v-else>No update available</v-card-text>
   </div>
 </template>
@@ -210,7 +240,87 @@ export default defineComponent({
         null
       );
     },
-    updateKindFormatted() {
+    currentVersionDisplay(): string {
+      if (this.updateKind?.localValue) {
+        return this.updateKind.localValue;
+      }
+      const imgTag = this.container?.image?.tag;
+      if (imgTag && typeof imgTag === "object" && "value" in imgTag) {
+        return String((imgTag as any).value || "");
+      }
+      if (typeof imgTag === "string") {
+        return imgTag;
+      }
+      return this.container?.tag || "current";
+    },
+    targetVersionDisplay(): string {
+      if (this.result?.tag) {
+        return this.result.tag;
+      }
+      if (this.updateKind?.remoteValue) {
+        return this.updateKind.remoteValue;
+      }
+      const resTag = this.container?.result?.tag;
+      if (resTag && typeof resTag === "object" && "value" in resTag) {
+        return String((resTag as any).value || "");
+      }
+      if (typeof resTag === "string") {
+        return resTag;
+      }
+      if (this.result?.version) {
+        return String(this.result.version);
+      }
+      return "target";
+    },
+    bumpType(): string {
+      if (this.updateKind?.kind === "digest") {
+        return "digest";
+      }
+      if (this.updateKind?.semverDiff) {
+        return this.updateKind.semverDiff;
+      }
+      if (this.updateKind?.kind === "tag" && this.updateKind?.semverDiff) {
+        return this.updateKind.semverDiff;
+      }
+      return "";
+    },
+    bumpBadgeColor(): string {
+      switch (this.bumpType) {
+        case "major":
+          return "error";
+        case "minor":
+          return "warning";
+        case "patch":
+          return "success";
+        case "digest":
+          return "info";
+        default:
+          return "secondary";
+      }
+    },
+    bumpBadgeText(): string {
+      if (this.bumpType) {
+        return this.bumpType.toUpperCase();
+      }
+      if (this.updateKindFormatted && this.updateKindFormatted !== "Unknown") {
+        return this.updateKindFormatted.toUpperCase();
+      }
+      return "";
+    },
+    shortDigest(): string {
+      const digest = this.result?.digest;
+      if (!digest) return "";
+      return digest.length > 19 ? `${digest.substring(0, 19)}...` : digest;
+    },
+    hasMetadata(): boolean {
+      return Boolean(
+        this.result?.version ||
+        this.result?.created ||
+        this.result?.digest ||
+        this.result?.link
+      );
+    },
+    updateKindFormatted(): string {
       let kind = "Unknown";
       if (this.updateKind) {
         kind = this.updateKind.kind;
@@ -278,3 +388,16 @@ export default defineComponent({
   },
 });
 </script>
+
+<style scoped>
+.font-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.version-transition-hero {
+  border-radius: 8px;
+  overflow: hidden;
+}
+.version-badge {
+  background-color: rgba(var(--v-theme-surface-variant), 0.15);
+}
+</style>

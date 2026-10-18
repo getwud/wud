@@ -300,7 +300,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, computed, ref, PropType } from "vue";
+import { defineComponent, computed, ref, watch, PropType } from "vue";
 import RiskPill from "./RiskPill.vue";
 import UpgradeTimeline from "./UpgradeTimeline.vue";
 import { RiskAnalysisResult, IntermediateReleaseItem, EnvVarChange } from "@/services/hub";
@@ -333,12 +333,30 @@ export default defineComponent({
   },
   emits: ["update:modelValue", "update-now"],
   setup(props, { emit }) {
-    const activeTab = ref<"summary" | "journey" | "checklist">("summary");
-    const eventBus = useEventBus();
-
     const analysis = computed<RiskAnalysisResult | undefined>(() => {
       return props.riskAnalysis || props.container?.result?.riskAnalysis;
     });
+
+    const intermediateReleases = computed<IntermediateReleaseItem[]>(() => {
+      return analysis.value?.intermediateReleases || [];
+    });
+
+    const activeTab = ref<"summary" | "journey" | "checklist">(
+      (props.riskAnalysis?.intermediateReleases?.length || props.container?.result?.riskAnalysis?.intermediateReleases?.length)
+        ? "journey"
+        : "checklist"
+    );
+
+    watch(
+      () => props.modelValue,
+      (open) => {
+        if (open) {
+          activeTab.value = intermediateReleases.value.length > 0 ? "journey" : "checklist";
+        }
+      }
+    );
+
+    const eventBus = useEventBus();
 
     const containerName = computed(() => props.container?.name || "Container");
     const containerImage = computed(() => {
@@ -389,10 +407,6 @@ export default defineComponent({
 
     const envVarChanges = computed<EnvVarChange[]>(() => {
       return analysis.value?.envVarChanges || [];
-    });
-
-    const intermediateReleases = computed<IntermediateReleaseItem[]>(() => {
-      return analysis.value?.intermediateReleases || [];
     });
 
     const checklistItems = [

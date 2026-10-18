@@ -4,8 +4,8 @@
     <v-card class="border mb-4" elevation="0" rounded="lg">
       <v-toolbar color="surface" density="compact" class="px-3 py-1">
         <v-icon icon="mdi-cloud-outline" class="mr-2 text-primary" size="24"></v-icon>
-        <div class="d-flex align-center">
-          <span class="text-subtitle-1 font-weight-bold mr-2">WUD Hub</span>
+        <div class="d-flex align-center flex-wrap ga-2">
+          <span class="text-subtitle-1 font-weight-bold mr-1">WUD Hub</span>
           <template v-if="!initialLoading">
             <v-chip
               v-if="statusData.status === 'connected'"
@@ -46,23 +46,36 @@
 
             <span
               v-if="statusData.remote?.organization?.name"
-              class="text-caption text-medium-emphasis ml-2"
+              class="text-caption text-medium-emphasis"
             >
               {{ statusData.remote.organization.name }}
+            </span>
+
+            <span
+              v-if="statusData.lastCheck && statusData.status !== 'standalone'"
+              class="text-caption text-medium-emphasis d-flex align-center ml-1"
+            >
+              <v-icon icon="mdi-clock-outline" size="14" class="mr-1"></v-icon>
+              Last synced: {{ formattedLastCheck }}
             </span>
           </template>
         </div>
 
         <v-spacer></v-spacer>
 
-        <v-btn
-          icon="mdi-refresh"
-          variant="text"
-          size="small"
-          @click="refreshStatus"
-          :loading="loading"
-          title="Refresh status"
-        ></v-btn>
+        <v-tooltip text="Sync status &amp; quotas" location="bottom">
+          <template #activator="{ props }">
+            <v-btn
+              v-bind="props"
+              icon="mdi-cloud-sync-outline"
+              variant="text"
+              size="small"
+              @click="refreshStatus"
+              :loading="loading"
+              aria-label="Sync status &amp; quotas"
+            ></v-btn>
+          </template>
+        </v-tooltip>
       </v-toolbar>
     </v-card>
 
@@ -99,7 +112,7 @@
             :loading="isTesting"
             @click="testConnection"
           >
-            Test Connection
+            Retry Connection
           </v-btn>
           <v-btn
             color="error"
@@ -173,18 +186,6 @@
                   <div class="text-body-2">{{ formattedLastCheck }}</div>
                 </div>
               </v-card-text>
-
-              <v-card-actions class="pa-3 border-t">
-                <v-btn
-                  color="primary"
-                  variant="tonal"
-                  prepend-icon="mdi-refresh"
-                  :loading="isTesting"
-                  @click="testConnection"
-                >
-                  Test Connection
-                </v-btn>
-              </v-card-actions>
             </v-card>
           </v-col>
 

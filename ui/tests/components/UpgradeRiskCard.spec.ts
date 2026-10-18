@@ -82,6 +82,31 @@ describe("UpgradeRiskCard.vue", () => {
     expect(wrapper.text()).toContain("Re-evaluate Risk");
   });
 
+  it("renders expandable timeline panel when intermediate releases are present", () => {
+    const analysisWithReleases: RiskAnalysisResult = {
+      ...mockAnalysis,
+      intermediateReleases: [
+        {
+          tag: "7.1.0",
+          name: "Redis 7.1.0",
+          publishedAt: "2023-01-01T00:00:00.000Z",
+          summary: "Feature release",
+        },
+      ],
+    };
+
+    const wrapper = mount(UpgradeRiskCard, {
+      props: {
+        container: mockContainer,
+        riskAnalysis: analysisWithReleases,
+        isUnpaired: false,
+      },
+    });
+
+    expect(wrapper.text()).toContain("Intermediate Releases Timeline (1)");
+    expect(wrapper.text()).toContain("7.1.0");
+  });
+
   it("renders freemium gated banner when freemiumGated is true", () => {
     const gatedAnalysis: RiskAnalysisResult = {
       ...mockAnalysis,

@@ -131,7 +131,7 @@
       </v-list-item>
       <v-list-item v-if="container.updateAvailable ? (container.result?.changelogUrl || container.changelogUrl) : container.changelogUrl">
         <template v-slot:prepend>
-          <v-icon color="secondary">mdi-history</v-icon>
+          <v-icon color="secondary">mdi-tag-text-outline</v-icon>
         </template>
         <v-list-item-title>{{ container.updateAvailable ? 'Release notes' : 'Changelog' }}</v-list-item-title>
         <v-list-item-subtitle>
@@ -197,7 +197,7 @@
             target="_blank"
             size="small"
             variant="outlined"
-            prepend-icon="mdi-history"
+            prepend-icon="mdi-tag-text-outline"
             class="mr-2 mb-1"
           >
             Release Notes

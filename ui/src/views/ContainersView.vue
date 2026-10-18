@@ -186,7 +186,7 @@
                   <v-tooltip bottom v-if="(item.raw ? item.raw.result?.changelogUrl : item.result?.changelogUrl) || (item.raw ? item.raw.changelogUrl : item.changelogUrl)">
                     <template v-slot:activator="{ props }">
                       <v-btn
-                        icon="mdi-history"
+                        icon="mdi-tag-text-outline"
                         variant="text"
                         color="secondary"
                         size="small"
@@ -287,7 +287,7 @@
                   />
                   <v-list-item
                     v-if="(item.raw ? item.raw.updateAvailable : item.updateAvailable) && ((item.raw ? item.raw.result?.changelogUrl : item.result?.changelogUrl) || (item.raw ? item.raw.changelogUrl : item.changelogUrl))"
-                    prepend-icon="mdi-history"
+                    prepend-icon="mdi-tag-text-outline"
                     :title="'Release notes (' + getNewVersion(item.raw || item) + ')'"
                     :href="(item.raw ? item.raw.result?.changelogUrl : item.result?.changelogUrl) || (item.raw ? item.raw.changelogUrl : item.changelogUrl)"
                     target="_blank"
@@ -295,7 +295,7 @@
                   />
                   <v-list-item
                     v-else-if="item.raw ? item.raw.changelogUrl : item.changelogUrl"
-                    prepend-icon="mdi-history"
+                    prepend-icon="mdi-tag-text-outline"
                     title="Changelog"
                     :href="item.raw ? item.raw.changelogUrl : item.changelogUrl"
                     target="_blank"

@@ -260,4 +260,61 @@ describe('ContainerUpdate', () => {
       expect(wrapper.vm.localRiskAnalysis).toBeNull();
     });
   });
+
+  describe('Hero Version Transition block', () => {
+    it('displays version transition from current to target with bump badge', () => {
+      const heroWrapper = mount(ContainerUpdate, {
+        props: {
+          updateKind: mockUpdateKind,
+          updateAvailable: true,
+          result: mockResult,
+          semver: true,
+        },
+      });
+
+      expect(heroWrapper.text()).toContain('CURRENT');
+      expect(heroWrapper.text()).toContain('1.0.0');
+      expect(heroWrapper.text()).toContain('TARGET');
+      expect(heroWrapper.text()).toContain('2.0.0');
+      expect(heroWrapper.text()).toContain('MAJOR');
+      expect(heroWrapper.text()).toContain('semver');
+      heroWrapper.unmount();
+    });
+
+    it('displays snoozed status cleanly inside the hero block', () => {
+      const heroWrapper = mount(ContainerUpdate, {
+        props: {
+          updateKind: mockUpdateKind,
+          updateAvailable: false,
+          isSnoozed: true,
+          snoozedVersion: '2.0.0',
+          result: mockResult,
+        },
+      });
+
+      expect(heroWrapper.text()).toContain('Update snoozed');
+      expect(heroWrapper.text()).toContain('Version 2.0.0 is snoozed indefinitely.');
+      heroWrapper.unmount();
+    });
+
+    it('renders DIGEST bump badge for digest update kind', () => {
+      const heroWrapper = mount(ContainerUpdate, {
+        props: {
+          updateKind: {
+            kind: 'digest',
+            localValue: 'sha256:111111',
+            remoteValue: 'sha256:222222',
+          },
+          updateAvailable: true,
+          result: {
+            digest: 'sha256:222222333333444444555555',
+          },
+        },
+      });
+
+      expect(heroWrapper.text()).toContain('DIGEST');
+      expect((heroWrapper.vm as any).bumpBadgeColor).toBe('info');
+      heroWrapper.unmount();
+    });
+  });
 });

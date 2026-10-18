@@ -230,6 +230,30 @@
             </div>
           </div>
 
+          <!-- Expandable Intermediate Releases Timeline -->
+          <div
+            v-if="intermediateReleases.length > 0"
+            class="mb-3"
+          >
+            <v-expansion-panels variant="accordion">
+              <v-expansion-panel elevation="0" class="border rounded">
+                <v-expansion-panel-title class="py-2 px-3 text-body-2 font-weight-medium">
+                  <div class="d-flex align-center">
+                    <v-icon size="small" color="secondary" class="mr-2">mdi-timeline-text-outline</v-icon>
+                    <span>Intermediate Releases Timeline ({{ intermediateReleases.length }})</span>
+                  </div>
+                </v-expansion-panel-title>
+                <v-expansion-panel-text class="pt-2">
+                  <UpgradeTimeline
+                    :releases="intermediateReleases"
+                    :current-tag="currentTag"
+                    :target-tag="targetTag"
+                  />
+                </v-expansion-panel-text>
+              </v-expansion-panel>
+            </v-expansion-panels>
+          </div>
+
           <!-- Fallback when no risk data available -->
           <div
             v-if="!analysis && !loading"
@@ -286,14 +310,16 @@
 <script lang="ts">
 import { defineComponent, computed, ref, PropType } from "vue";
 import RiskPill from "./RiskPill.vue";
-import { RiskAnalysisResult, EnvVarChange, RiskScore } from "@/services/hub";
+import UpgradeTimeline from "./UpgradeTimeline.vue";
+import { RiskAnalysisResult, EnvVarChange, RiskScore, IntermediateReleaseItem } from "@/services/hub";
 
-export type { RiskAnalysisResult, EnvVarChange, RiskScore };
+export type { RiskAnalysisResult, EnvVarChange, RiskScore, IntermediateReleaseItem };
 
 export default defineComponent({
   name: "UpgradeRiskCard",
   components: {
     RiskPill,
+    UpgradeTimeline,
   },
   props: {
     container: {
@@ -355,6 +381,39 @@ export default defineComponent({
       }
     });
 
+    const currentTag = computed(() => {
+      const imgTag = props.container?.image?.tag;
+      if (imgTag && typeof imgTag === "object" && "value" in imgTag) {
+        return String((imgTag as any).value || "");
+      }
+      if (typeof imgTag === "string") {
+        return imgTag;
+      }
+      return analysis.value?.currentTag || "";
+    });
+
+    const targetTag = computed(() => {
+      const resTag = props.container?.result?.tag;
+      if (resTag && typeof resTag === "object" && "value" in resTag) {
+        return String((resTag as any).value || "");
+      }
+      if (typeof resTag === "string") {
+        return resTag;
+      }
+      if (analysis.value?.targetTag) {
+        return String(analysis.value.targetTag);
+      }
+      const resVer = props.container?.result?.version;
+      if (typeof resVer === "string") {
+        return resVer;
+      }
+      return "";
+    });
+
+    const intermediateReleases = computed<IntermediateReleaseItem[]>(() => {
+      return analysis.value?.intermediateReleases || [];
+    });
+
     function getEnvVarChipColor(type: string): string {
       switch (type) {
         case "removed":
@@ -397,6 +456,9 @@ export default defineComponent({
       isGated,
       changelogUrl,
       formattedEvaluatedAt,
+      currentTag,
+      targetTag,
+      intermediateReleases,
       reEvaluating,
       getEnvVarChipColor,
       onReEvaluate,

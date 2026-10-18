@@ -22,6 +22,36 @@ describe('HubView.vue', () => {
   const mockedGetHubStatus = hubService.getHubStatus as jest.Mock;
   const mockedCopyToClipboard = clipboardService.copyToClipboard as jest.Mock;
 
+  const connectedData = {
+    enabled: true,
+    status: 'connected',
+    endpoint: 'https://hub.getwud.app',
+    hasKey: true,
+    lastCheck: '2026-10-18T10:00:00.000Z',
+    remote: {
+      organization: {
+        id: 'org_123',
+        name: 'Cyberdyne Systems',
+        slug: 'cyberdyne',
+      },
+      apiKey: {
+        preview: 'wud_...8899',
+        valid: true,
+        scopes: ['metadata:read'],
+      },
+      subscription: {
+        planTier: 'smart_updates',
+        status: 'trialing',
+        trialDaysRemaining: 7,
+        portalUrl: 'https://polar.sh/purchases/subscriptions/sub_123',
+      },
+      quota: {
+        monitoredContainers: 18,
+        limit: 25,
+      },
+    },
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -90,35 +120,6 @@ describe('HubView.vue', () => {
   });
 
   describe('Connected mode', () => {
-    const connectedData = {
-      enabled: true,
-      status: 'connected',
-      endpoint: 'https://hub.getwud.app',
-      hasKey: true,
-      lastCheck: '2026-10-18T10:00:00.000Z',
-      remote: {
-        organization: {
-          id: 'org_123',
-          name: 'Cyberdyne Systems',
-          slug: 'cyberdyne',
-        },
-        apiKey: {
-          preview: 'wud_...8899',
-          valid: true,
-          scopes: ['metadata:read'],
-        },
-        subscription: {
-          planTier: 'smart_updates',
-          status: 'trialing',
-          trialDaysRemaining: 7,
-          portalUrl: 'https://polar.sh/purchases/subscriptions/sub_123',
-        },
-        quota: {
-          monitoredContainers: 18,
-          limit: 25,
-        },
-      },
-    };
 
     it('renders connected cards, cloud key, and fleet quota in English', async () => {
       mockedGetHubStatus.mockResolvedValueOnce(connectedData);
@@ -143,7 +144,7 @@ describe('HubView.vue', () => {
       expect(emitMock).toHaveBeenCalledWith('notify', 'API key copied to clipboard');
     });
 
-    it('tests connection when clicking Test Connection', async () => {
+    it('refreshes status and quotas when clicking sync button in toolbar', async () => {
       mockedGetHubStatus
         .mockResolvedValueOnce(connectedData)
         .mockResolvedValueOnce(connectedData);
@@ -151,15 +152,25 @@ describe('HubView.vue', () => {
       const wrapper = mount(HubView);
       await flushPromises();
 
-      const testBtn = wrapper
-        .findAll('button')
-        .find((b) => b.text().includes('Test Connection'));
-      expect(testBtn).toBeDefined();
-      await testBtn!.trigger('click');
+      const syncBtn = wrapper.find('button[aria-label="Sync status & quotas"]');
+      expect(syncBtn.exists()).toBe(true);
+      await syncBtn.trigger('click');
       await flushPromises();
 
       expect(mockedGetHubStatus).toHaveBeenCalledWith({ refresh: true });
-      expect(emitMock).toHaveBeenCalledWith('notify', 'Connected to WUD Hub successfully');
+      expect(emitMock).toHaveBeenCalledWith('notify', 'Hub status refreshed');
+    });
+
+    it('does not display redundant Test Connection button in card when connected', async () => {
+      mockedGetHubStatus.mockResolvedValueOnce(connectedData);
+
+      const wrapper = mount(HubView);
+      await flushPromises();
+
+      const testBtn = wrapper
+        .findAll('button')
+        .find((b) => b.text().includes('Test Connection'));
+      expect(testBtn).toBeUndefined();
     });
   });
 
@@ -179,8 +190,33 @@ describe('HubView.vue', () => {
       expect(wrapper.text()).toContain('Error');
       expect(wrapper.text()).toContain('Invalid or Revoked API Key');
       expect(wrapper.text()).toContain('(401) Invalid API Key');
-      expect(wrapper.text()).toContain('Test Connection');
+      expect(wrapper.text()).toContain('Retry Connection');
       expect(wrapper.text()).toContain('Get a new key');
+    });
+
+    it('tests connection when clicking Retry Connection in error banner', async () => {
+      mockedGetHubStatus
+        .mockResolvedValueOnce({
+          enabled: true,
+          status: 'error',
+          endpoint: 'https://hub.getwud.app',
+          hasKey: true,
+          errorMessage: '(401) Invalid API Key',
+        })
+        .mockResolvedValueOnce(connectedData);
+
+      const wrapper = mount(HubView);
+      await flushPromises();
+
+      const retryBtn = wrapper
+        .findAll('button')
+        .find((b) => b.text().includes('Retry Connection'));
+      expect(retryBtn).toBeDefined();
+      await retryBtn!.trigger('click');
+      await flushPromises();
+
+      expect(mockedGetHubStatus).toHaveBeenCalledWith({ refresh: true });
+      expect(emitMock).toHaveBeenCalledWith('notify', 'Connected to WUD Hub successfully');
     });
 
     it('handles unexpected failure when loading status', async () => {

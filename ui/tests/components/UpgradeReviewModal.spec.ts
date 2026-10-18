@@ -86,13 +86,50 @@ describe("UpgradeReviewModal.vue", () => {
     expect(wrapper.text()).not.toContain("[object Object]");
   });
 
-  it("renders pre-flight summary with executive summary, breaking changes, and database impact", () => {
+  it("defaults active tab to journey when intermediate releases are present", () => {
     const wrapper = mount(UpgradeReviewModal, {
       props: {
         modelValue: true,
         container: mockContainer,
       },
     });
+
+    expect((wrapper.vm as any).activeTab).toBe("journey");
+    expect(wrapper.text()).toContain("INTERMEDIATE RELEASE TIMELINE");
+  });
+
+  it("defaults active tab to checklist when no intermediate releases exist", () => {
+    const containerNoReleases = {
+      ...mockContainer,
+      result: {
+        ...mockContainer.result,
+        riskAnalysis: {
+          ...mockContainer.result.riskAnalysis,
+          intermediateReleases: [],
+        },
+      },
+    };
+    const wrapper = mount(UpgradeReviewModal, {
+      props: {
+        modelValue: true,
+        container: containerNoReleases,
+      },
+    });
+
+    expect((wrapper.vm as any).activeTab).toBe("checklist");
+    expect(wrapper.text()).toContain("PRE-FLIGHT VERIFICATIONS");
+  });
+
+  it("renders pre-flight summary with executive summary, breaking changes, and database impact when summary tab is selected", async () => {
+    const wrapper = mount(UpgradeReviewModal, {
+      props: {
+        modelValue: true,
+        container: mockContainer,
+      },
+    });
+
+    (wrapper.vm as any).activeTab = "summary";
+    await wrapper.vm.$nextTick();
 
     expect(wrapper.text()).toContain("EXECUTIVE SUMMARY");
     expect(wrapper.text()).toContain("Major jump across versions with protocol changes.");

@@ -20,6 +20,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [UI] Add official image badge and direct metadata actions (changelog, docs, source) to container list and remove deprecated link template from details view
 - 🚀 [UI] Add `RiskPill` risk badge and `UpgradeRiskCard` with changelog summaries, breaking changes, and env variable diffs
 - 🚀 [UI] Display and search container metadata in log view (fixes #1419)
+- 🚀 [UI] Refactor container update tab with version transition hero block and integrated changelog timeline
 - 🚀 [WATCHER] Integrate Hub risk analysis into container update inspection
 - 🐛 [AUTH] Invalidate active sessions when user is deleted
 - 🐛 [CORE] Fix graceful shutdown on SIGTERM (fixes #1397)
