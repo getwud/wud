@@ -110,15 +110,6 @@
         container.transformTags
       }}</v-list-item-subtitle>
     </v-list-item>
-    <v-list-item v-if="container.linkTemplate">
-      <template v-slot:prepend>
-        <v-icon color="secondary">mdi-file-replace</v-icon>
-      </template>
-      <v-list-item-title>Link template</v-list-item-title>
-      <v-list-item-subtitle>{{
-        container.linkTemplate
-      }}</v-list-item-subtitle>
-    </v-list-item>
     <v-list-item v-if="container.isOfficial">
       <template v-slot:prepend>
         <v-icon color="primary">mdi-check-decagram</v-icon>
@@ -157,21 +148,6 @@
         <a :href="container.upstreamUrl" target="_blank">{{
           container.upstreamUrl
         }}</a>
-      </v-list-item-subtitle>
-    </v-list-item>
-    <v-list-item
-      v-if="
-        container.link &&
-        container.link !== container.documentationUrl &&
-        container.link !== container.upstreamUrl
-      "
-    >
-      <template v-slot:prepend>
-        <v-icon color="secondary">mdi-link</v-icon>
-      </template>
-      <v-list-item-title>Link</v-list-item-title>
-      <v-list-item-subtitle>
-        <a :href="container.link" target="_blank">{{ container.link }}</a>
       </v-list-item-subtitle>
     </v-list-item>
   </v-list>
