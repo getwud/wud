@@ -1110,4 +1110,140 @@ describe('rich container metadata', () => {
             );
         });
     });
+
+    describe('risk analysis validation', () => {
+        const createBase = () => ({
+            id: 'c-risk-1',
+            name: 'risk-app',
+            watcher: 'w',
+            image: {
+                id: 'img-1',
+                name: 'library/redis',
+                registry: { name: 'hub', url: 'https://hub' },
+                tag: { value: '7.0.15', semver: true },
+                digest: { watch: false },
+                architecture: 'amd64',
+                os: 'linux',
+            },
+        });
+
+        test('should validate container with complete valid riskAnalysis', () => {
+            const raw = {
+                ...createBase(),
+                result: {
+                    tag: '7.2.4',
+                    riskAnalysis: {
+                        imageRef: 'redis',
+                        currentTag: '7.0.15',
+                        targetTag: '7.2.4',
+                        riskScore: 'high',
+                        breakingChanges: ['Breaking persistence change'],
+                        envVarChanges: [
+                            {
+                                name: 'REDIS_PASSWORD',
+                                changeType: 'modified',
+                                description: 'Requires explicit ACL',
+                            },
+                        ],
+                        databaseImpact: 'Format migration on first start',
+                        summary: 'Major upgrade with breaking changes',
+                        cached: true,
+                        evaluatedAt: '2026-10-18T10:00:00.000Z',
+                    },
+                },
+            };
+
+            const validated = container.validate(raw);
+            expect(validated.result?.riskAnalysis).toBeDefined();
+            expect(validated.result?.riskAnalysis?.riskScore).toBe('high');
+            expect(
+                validated.result?.riskAnalysis?.breakingChanges,
+            ).toHaveLength(1);
+            expect(validated.result?.riskAnalysis?.envVarChanges[0].name).toBe(
+                'REDIS_PASSWORD',
+            );
+            expect(validated.result?.riskAnalysis?.databaseImpact).toBe(
+                'Format migration on first start',
+            );
+        });
+
+        test('should validate container with minimal valid riskAnalysis', () => {
+            const raw = {
+                ...createBase(),
+                result: {
+                    tag: '1.25.4',
+                    riskAnalysis: {
+                        imageRef: 'nginx',
+                        currentTag: '1.25.3',
+                        targetTag: '1.25.4',
+                        riskScore: 'low',
+                    },
+                },
+            };
+
+            const validated = container.validate(raw);
+            expect(validated.result?.riskAnalysis?.riskScore).toBe('low');
+            expect(validated.result?.riskAnalysis?.breakingChanges).toEqual([]);
+            expect(validated.result?.riskAnalysis?.envVarChanges).toEqual([]);
+            expect(validated.result?.riskAnalysis?.databaseImpact).toBeNull();
+            expect(validated.result?.riskAnalysis?.cached).toBe(false);
+        });
+
+        test('should reject container when riskScore is invalid', () => {
+            const raw = {
+                ...createBase(),
+                result: {
+                    tag: '2.0.0',
+                    riskAnalysis: {
+                        imageRef: 'app',
+                        currentTag: '1.0.0',
+                        targetTag: '2.0.0',
+                        riskScore: 'catastrophic',
+                    },
+                },
+            };
+
+            expect(() => container.validate(raw)).toThrow(
+                /Error when validating container properties/,
+            );
+        });
+
+        test('should reject container when envVarChanges changeType is invalid', () => {
+            const raw = {
+                ...createBase(),
+                result: {
+                    tag: '2.0.0',
+                    riskAnalysis: {
+                        imageRef: 'app',
+                        currentTag: '1.0.0',
+                        targetTag: '2.0.0',
+                        riskScore: 'medium',
+                        envVarChanges: [
+                            {
+                                name: 'FOO',
+                                changeType: 'invalid_type',
+                                description: 'test',
+                            },
+                        ],
+                    },
+                },
+            };
+
+            expect(() => container.validate(raw)).toThrow(
+                /Error when validating container properties/,
+            );
+        });
+
+        test('should accept container without riskAnalysis', () => {
+            const raw = {
+                ...createBase(),
+                result: {
+                    tag: '2.0.0',
+                },
+            };
+
+            const validated = container.validate(raw);
+            expect(validated.result?.riskAnalysis).toBeUndefined();
+        });
+    });
 });

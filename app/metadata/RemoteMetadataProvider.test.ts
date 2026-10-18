@@ -284,4 +284,181 @@ describe('RemoteMetadataProvider', () => {
         expect(s3.remote).toEqual(mockDetails);
         expect(mockClient.get).toHaveBeenCalledTimes(2);
     });
+
+    describe('getRiskAnalysis', () => {
+        const mockRiskResponse = {
+            imageRef: 'redis',
+            currentTag: '7.0.15',
+            targetTag: '7.2.4',
+            riskScore: 'high',
+            breakingChanges: ['Persistence format changes'],
+            envVarChanges: [
+                {
+                    name: 'REDIS_PASSWORD',
+                    changeType: 'modified',
+                    description: 'Requires explicit ACL',
+                },
+            ],
+            databaseImpact: 'Format migration on first start',
+            summary: 'Upgrade includes breaking changes',
+            cached: false,
+        };
+
+        test('returns null when Hub is disabled or in standalone mode', async () => {
+            const provider = new RemoteMetadataProvider({
+                enabled: false,
+                key: undefined,
+            });
+
+            const result = await provider.getRiskAnalysis(
+                'redis',
+                '7.0.15',
+                '7.2.4',
+            );
+            expect(result).toBeNull();
+            expect(mockClient.post).not.toHaveBeenCalled();
+        });
+
+        test('fetches risk analysis from Hub and caches it', async () => {
+            const provider = new RemoteMetadataProvider({
+                enabled: true,
+                key: 'wud_live_valid',
+            });
+
+            mockClient.post.mockResolvedValueOnce({
+                status: 200,
+                data: mockRiskResponse,
+            });
+
+            const res1 = await provider.getRiskAnalysis(
+                'redis',
+                '7.0.15',
+                '7.2.4',
+            );
+            expect(res1).toBeDefined();
+            expect(res1?.riskScore).toBe('high');
+            expect(res1?.breakingChanges).toHaveLength(1);
+            expect(mockClient.post).toHaveBeenCalledTimes(1);
+            expect(mockClient.post).toHaveBeenCalledWith(
+                '/api/v1/changelogs/risk-analysis',
+                {
+                    imageRef: 'redis',
+                    currentTag: '7.0.15',
+                    targetTag: '7.2.4',
+                },
+                { timeout: 4000 },
+            );
+
+            // Synchronous cached lookup
+            const cachedSync = provider.getCachedRiskAnalysis(
+                'redis',
+                '7.0.15',
+                '7.2.4',
+            );
+            expect(cachedSync).toBeDefined();
+            expect(cachedSync?.cached).toBe(true);
+
+            // Second call reuses in-memory cache without HTTP query
+            const res2 = await provider.getRiskAnalysis(
+                'redis',
+                '7.0.15',
+                '7.2.4',
+            );
+            expect(res2?.cached).toBe(true);
+            expect(mockClient.post).toHaveBeenCalledTimes(1);
+        });
+
+        test('forceRefresh bypasses cache and queries Hub again', async () => {
+            const provider = new RemoteMetadataProvider({
+                enabled: true,
+                key: 'wud_live_valid',
+            });
+
+            mockClient.post.mockResolvedValue({
+                status: 200,
+                data: mockRiskResponse,
+            });
+
+            await provider.getRiskAnalysis('redis', '7.0.15', '7.2.4');
+            expect(mockClient.post).toHaveBeenCalledTimes(1);
+
+            // Force refresh call
+            await provider.getRiskAnalysis('redis', '7.0.15', '7.2.4', true);
+            expect(mockClient.post).toHaveBeenCalledTimes(2);
+
+            // Also test with object option { forceRefresh: true }
+            await provider.getRiskAnalysis('redis', '7.0.15', '7.2.4', {
+                forceRefresh: true,
+            });
+            expect(mockClient.post).toHaveBeenCalledTimes(3);
+        });
+
+        test('invalidateRiskCache removes cache entry', async () => {
+            const provider = new RemoteMetadataProvider({
+                enabled: true,
+                key: 'wud_live_valid',
+            });
+
+            mockClient.post.mockResolvedValue({
+                status: 200,
+                data: mockRiskResponse,
+            });
+
+            await provider.getRiskAnalysis('redis', '7.0.15', '7.2.4');
+            expect(
+                provider.getCachedRiskAnalysis('redis', '7.0.15', '7.2.4'),
+            ).toBeDefined();
+
+            provider.invalidateRiskCache('redis', '7.0.15', '7.2.4');
+            expect(
+                provider.getCachedRiskAnalysis('redis', '7.0.15', '7.2.4'),
+            ).toBeUndefined();
+        });
+
+        test('handles HTTP 429 quota exceeded with 1h backoff and returns null', async () => {
+            const provider = new RemoteMetadataProvider({
+                enabled: true,
+                key: 'wud_live_valid',
+            });
+
+            mockClient.post.mockRejectedValueOnce({
+                response: {
+                    status: 429,
+                    data: { message: 'Plan quota exceeded' },
+                },
+                message: 'Request failed with status code 429',
+            });
+
+            const res = await provider.getRiskAnalysis(
+                'redis',
+                '7.0.15',
+                '7.2.4',
+            );
+            expect(res).toBeNull();
+            expect(provider.getStatus().status).toBe('degraded');
+
+            // Next call within backoff window is skipped
+            const res2 = await provider.getRiskAnalysis('postgres', '15', '16');
+            expect(res2).toBeNull();
+            expect(mockClient.post).toHaveBeenCalledTimes(1);
+        });
+
+        test('handles network error or timeout gracefully without throwing', async () => {
+            const provider = new RemoteMetadataProvider({
+                enabled: true,
+                key: 'wud_live_valid',
+            });
+
+            mockClient.post.mockRejectedValueOnce(
+                new Error('timeout of 4000ms exceeded'),
+            );
+
+            const res = await provider.getRiskAnalysis(
+                'redis',
+                '7.0.15',
+                '7.2.4',
+            );
+            expect(res).toBeNull();
+        });
+    });
 });

@@ -8,11 +8,15 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 > Changes below are merged on `main` and will be included in the upcoming release.
 
 - 🚀 [CONTAINER] Add rich metadata (isOfficial, documentationUrl, changelogUrl, upstreamUrl) and standalone link labels
+- 🚀 [HUB] Integrate automated changelog risk analysis and breaking change detection with WUD Hub
 - 🚀 [METADATA] Add WUD Hub remote metadata provider and precedence engine
+- 🚀 [TRIGGER] Add `riskthreshold` filtering and expose risk variables in notification templates (`riskScore`, `riskSummary`, `hasBreakingChanges`, `databaseImpact`)
+- 🚀 [TRIGGER] Dynamic risk severity styling and structured release insights for Discord and Slack notifications
 - 🚀 [TRIGGER] Add real-time pull progress logging for Docker images (fixes #777)
 - 🚀 [TRIGGER] Log stdout/stderr on error and expose compose_project in command trigger (fixes #594, fixes #595)
 - 🚀 [TRIGGER] Support click URL in Ntfy trigger and expose hostname in batch templates (fixes #660, fixes #725)
 - 🚀 [UI] Add official image badge and direct metadata actions (changelog, docs, source) to container list and remove deprecated link template from details view
+- 🚀 [UI] Add `RiskPill` risk badge and `UpgradeRiskCard` with changelog summaries, breaking changes, and env variable diffs
 - 🚀 [UI] Display and search container metadata in log view (fixes #1419)
 - 🐛 [AUTH] Invalidate active sessions when user is deleted
 - 🐛 [CORE] Fix graceful shutdown on SIGTERM (fixes #1397)
@@ -28,4 +32,5 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [UI] Fix open redirect vulnerability on authenticated redirect (fixes #744)
 - 🐛 [WATCHER] Normalize aarch64 to arm64 in Swarm watcher (fixes #1401)
 - 📚 [TRIGGER] Document self-update configuration options for Docker Compose trigger (fixes #1414)
+
 ---

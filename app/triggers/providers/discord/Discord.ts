@@ -47,10 +47,67 @@ class Discord extends Trigger {
      * @returns {Promise<void>}
      */
     async trigger(container) {
-        return this.sendMessage(
-            this.renderSimpleTitle(container),
-            this.renderSimpleBody(container),
-        );
+        const title = this.renderSimpleTitle(container);
+        const bodyText = this.renderSimpleBody(container);
+
+        const risk = container.result?.riskAnalysis;
+        if (!risk) {
+            return this.sendMessage(title, bodyText);
+        }
+
+        const RISK_COLORS = {
+            low: 2278750, // 0x22c55e
+            medium: 15381256, // 0xeab308
+            high: 16347926, // 0xf97316
+            critical: 15680580, // 0xef4444
+        };
+        const color =
+            RISK_COLORS[risk.riskScore] ?? this.configuration.cardcolor;
+
+        const extraFields = [];
+        const riskEmojis = {
+            low: '🛡️',
+            medium: '⚠️',
+            high: '⚡',
+            critical: '🚨',
+        };
+        const emoji = riskEmojis[risk.riskScore] || 'ℹ️';
+        extraFields.push({
+            name: 'Risk Level',
+            value: `${emoji} ${risk.riskScore.toUpperCase()}`,
+        });
+
+        if (risk.summary) {
+            extraFields.push({
+                name: 'Summary',
+                value: risk.summary,
+            });
+        }
+
+        if (risk.breakingChanges && risk.breakingChanges.length > 0) {
+            extraFields.push({
+                name: `Breaking Changes (${risk.breakingChanges.length})`,
+                value: risk.breakingChanges.map((b) => `• ${b}`).join('\n'),
+            });
+        }
+
+        if (risk.databaseImpact) {
+            extraFields.push({
+                name: 'Database Impact',
+                value: risk.databaseImpact,
+            });
+        }
+
+        const changelog =
+            container.result?.changelogUrl || container.changelogUrl;
+        if (changelog) {
+            extraFields.push({
+                name: 'Release Notes',
+                value: changelog,
+            });
+        }
+
+        return this.sendMessage(title, bodyText, { color, extraFields });
     }
 
     /**
@@ -88,33 +145,38 @@ class Discord extends Trigger {
      * Post a message to discord webhook.
      * @param title the message title
      * @param bodyText the text to post
+     * @param options optional styling options (color, extraFields)
      * @returns {Promise<>}
      */
-    async sendMessage(title, bodyText) {
+    async sendMessage(title, bodyText, options = {}) {
         const uri = this.configuration.url;
+        const color = options.color ?? this.configuration.cardcolor;
+        const fields = [
+            {
+                name: this.configuration.cardlabel,
+                value: bodyText,
+            },
+            ...(options.extraFields || []),
+        ];
+
         const body = {
             username: this.configuration.botusername,
             avatar_url: this.configuration.avatarurl,
             embeds: [
                 {
                     title,
-                    color: this.configuration.cardcolor,
-                    fields: [
-                        {
-                            name: this.configuration.cardlabel,
-                            value: bodyText,
-                        },
-                    ],
+                    color,
+                    fields,
                 },
             ],
         };
 
-        const options = {
+        const reqOptions = {
             method: 'POST',
             url: uri,
             data: body,
         };
-        const response = await axios(options);
+        const response = await axios(reqOptions);
         return response.data;
     }
 }

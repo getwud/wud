@@ -39,6 +39,21 @@ function attachHubMetadata(container) {
         if (hub) {
             container.hub = hub;
         }
+        if (
+            container.result &&
+            container.result.tag &&
+            container.image?.name &&
+            container.image?.tag?.value
+        ) {
+            const cachedRisk = metadataProvider.getCachedRiskAnalysis(
+                container.image.name,
+                container.image.tag.value,
+                container.result.tag,
+            );
+            if (cachedRisk) {
+                container.result.riskAnalysis = cachedRisk;
+            }
+        }
     } catch {
         // Ignore if metadata provider not available
     }
@@ -58,6 +73,21 @@ export function getContainersFromStore(query) {
             const hub = metadataProvider.getContainerMetadata(c.id);
             if (hub) {
                 c.hub = hub;
+            }
+            if (
+                c.result &&
+                c.result.tag &&
+                c.image?.name &&
+                c.image?.tag?.value
+            ) {
+                const cachedRisk = metadataProvider.getCachedRiskAnalysis(
+                    c.image.name,
+                    c.image.tag.value,
+                    c.result.tag,
+                );
+                if (cachedRisk) {
+                    c.result.riskAnalysis = cachedRisk;
+                }
             }
             return c;
         });
@@ -342,6 +372,58 @@ export function unsnoozeContainer(req, res) {
 }
 
 /**
+ * Evaluate risk analysis for a container update candidate.
+ * @param req
+ * @param res
+ */
+export async function evaluateContainerRisk(req, res) {
+    const { id } = req.params;
+    const forceRefresh =
+        req.query.forceRefresh === 'true' || req.body?.forceRefresh === true;
+
+    const container = storeContainer.getContainer(id);
+    if (!container) {
+        return res.sendStatus(404);
+    }
+
+    if (!container.updateAvailable || !container.result?.tag) {
+        return res.status(400).json({
+            message: 'Container has no active update candidate to analyze',
+        });
+    }
+
+    try {
+        const metadataProvider = getRemoteMetadataProvider();
+        const risk = await metadataProvider.getRiskAnalysis(
+            container.image.name,
+            container.image.tag.value,
+            container.result.tag,
+            forceRefresh,
+        );
+
+        if (!risk) {
+            return res.status(503).json({
+                message:
+                    'Risk analysis unavailable (Hub offline, disabled, or rate-limited)',
+            });
+        }
+
+        container.result.riskAnalysis = risk;
+        try {
+            storeContainer.updateContainer(container);
+        } catch {
+            // Ignore store update failure
+        }
+        return res.status(200).json(risk);
+    } catch (err) {
+        log.error(
+            `Failed to evaluate risk for container ${id}: ${err.message}`,
+        );
+        return res.status(500).json({ message: err.message });
+    }
+}
+
+/**
  * Init Router.
  * @returns {*}
  */
@@ -372,6 +454,11 @@ export function init() {
         '/:id/snooze',
         requireRole(['admin', 'rw'], 'write'),
         unsnoozeContainer,
+    );
+    router.post(
+        '/:id/risk-analysis',
+        requireRole(['admin', 'rw'], 'write'),
+        evaluateContainerRisk,
     );
     router.get(
         '/:id/triggers',

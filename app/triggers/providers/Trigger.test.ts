@@ -53,6 +53,14 @@ test('validateConfiguration should return validated configuration when valid', a
     });
 });
 
+test('validateConfiguration should accept valid riskthreshold', async () => {
+    const validated = trigger.validateConfiguration({
+        ...configurationValid,
+        riskthreshold: 'high',
+    });
+    expect(validated.riskthreshold).toBe('high');
+});
+
 test('validateConfiguration should throw error when invalid', async () => {
     const configuration = {
         url: 'git://xxx.com',
@@ -1476,6 +1484,233 @@ describe('granular per-trigger labels (fixes #691)', () => {
             expect(Trigger.parseBooleanLabel(undefined)).toBeUndefined();
             expect(Trigger.parseBooleanLabel(null)).toBeUndefined();
             expect(Trigger.parseBooleanLabel('invalid')).toBeUndefined();
+        });
+    });
+
+    describe('risk analysis template variables & threshold filtering', () => {
+        test('renderTemplate should interpolate risk variables when present', () => {
+            const tr = new Trigger();
+            const container = {
+                id: 'c1',
+                name: 'redis-prod',
+                watcher: 'docker',
+                result: {
+                    tag: '7.2.4',
+                    riskAnalysis: {
+                        imageRef: 'redis',
+                        currentTag: '7.0.15',
+                        targetTag: '7.2.4',
+                        riskScore: 'critical',
+                        summary:
+                            'DB migration required and breaking config changes',
+                        breakingChanges: [
+                            'Persistence format upgrade',
+                            'Deprecated ACL syntax removed',
+                        ],
+                        databaseImpact: 'Format migration on first boot',
+                    },
+                },
+            };
+
+            const template =
+                'Risk: ${riskScore} | Breaking: ${hasBreakingChanges} (${breakingChangesCount}) | DB: ${hasDatabaseImpact} - ${databaseImpact} | Summary: ${riskSummary}\n${breakingChangesText}';
+            const rendered = tr.renderTemplate(template, container as any);
+
+            expect(rendered).toContain('Risk: critical');
+            expect(rendered).toContain('Breaking: true (2)');
+            expect(rendered).toContain(
+                'DB: true - Format migration on first boot',
+            );
+            expect(rendered).toContain(
+                'Summary: DB migration required and breaking config changes',
+            );
+            expect(rendered).toContain(
+                '- Persistence format upgrade\n- Deprecated ACL syntax removed',
+            );
+        });
+
+        test('renderTemplate should use safe defaults when riskAnalysis is absent', () => {
+            const tr = new Trigger();
+            const container = {
+                id: 'c2',
+                name: 'nginx-prod',
+                watcher: 'docker',
+                result: { tag: '1.25.4' },
+            };
+
+            const template =
+                'Score: ${riskScore}, Breaking: ${hasBreakingChanges}, Count: ${breakingChangesCount}, DB: ${hasDatabaseImpact}, Text: "${breakingChangesText}", Summary: "${riskSummary}"';
+            const rendered = tr.renderTemplate(template, container as any);
+
+            expect(rendered).toBe(
+                'Score: unknown, Breaking: false, Count: 0, DB: false, Text: "", Summary: ""',
+            );
+        });
+
+        test('isRiskThresholdReached logic across different threshold and risk levels', () => {
+            const makeContainer = (score?: string) =>
+                ({
+                    id: 'c',
+                    result: score ? { riskAnalysis: { riskScore: score } } : {},
+                }) as any;
+
+            // 'all' threshold always passes
+            expect(
+                Trigger.isRiskThresholdReached(makeContainer('low'), 'all'),
+            ).toBe(true);
+            expect(
+                Trigger.isRiskThresholdReached(
+                    makeContainer('critical'),
+                    'all',
+                ),
+            ).toBe(true);
+            expect(
+                Trigger.isRiskThresholdReached(makeContainer(undefined), 'all'),
+            ).toBe(true);
+
+            // 'low' threshold
+            expect(
+                Trigger.isRiskThresholdReached(makeContainer('low'), 'low'),
+            ).toBe(true);
+            expect(
+                Trigger.isRiskThresholdReached(makeContainer('medium'), 'low'),
+            ).toBe(true);
+            expect(
+                Trigger.isRiskThresholdReached(makeContainer(undefined), 'low'),
+            ).toBe(true);
+
+            // 'medium' threshold
+            expect(
+                Trigger.isRiskThresholdReached(makeContainer('low'), 'medium'),
+            ).toBe(false);
+            expect(
+                Trigger.isRiskThresholdReached(
+                    makeContainer('medium'),
+                    'medium',
+                ),
+            ).toBe(true);
+            expect(
+                Trigger.isRiskThresholdReached(makeContainer('high'), 'medium'),
+            ).toBe(true);
+            expect(
+                Trigger.isRiskThresholdReached(
+                    makeContainer(undefined),
+                    'medium',
+                ),
+            ).toBe(false);
+
+            // 'high' threshold
+            expect(
+                Trigger.isRiskThresholdReached(makeContainer('low'), 'high'),
+            ).toBe(false);
+            expect(
+                Trigger.isRiskThresholdReached(makeContainer('medium'), 'high'),
+            ).toBe(false);
+            expect(
+                Trigger.isRiskThresholdReached(makeContainer('high'), 'high'),
+            ).toBe(true);
+            expect(
+                Trigger.isRiskThresholdReached(
+                    makeContainer('critical'),
+                    'high',
+                ),
+            ).toBe(true);
+
+            // 'critical' threshold
+            expect(
+                Trigger.isRiskThresholdReached(
+                    makeContainer('high'),
+                    'critical',
+                ),
+            ).toBe(false);
+            expect(
+                Trigger.isRiskThresholdReached(
+                    makeContainer('critical'),
+                    'critical',
+                ),
+            ).toBe(true);
+        });
+
+        test('handleContainerReport should filter out container below riskthreshold', async () => {
+            const tr = new Trigger();
+            tr.log = log;
+            tr.configuration = {
+                ...configurationValid,
+                riskthreshold: 'high',
+            };
+            const triggerSpy = jest.spyOn(tr, 'trigger').mockResolvedValue();
+
+            // Medium risk container
+            const reportMedium = {
+                changed: true,
+                container: {
+                    id: 'c1',
+                    name: 'app-medium',
+                    watcher: 'docker',
+                    updateAvailable: true,
+                    updateKind: { kind: 'tag', semverDiff: 'minor' },
+                    result: { riskAnalysis: { riskScore: 'medium' } },
+                },
+            };
+            await tr.handleContainerReport(reportMedium as any);
+            expect(triggerSpy).not.toHaveBeenCalled();
+
+            // High risk container
+            const reportHigh = {
+                changed: true,
+                container: {
+                    id: 'c2',
+                    name: 'app-high',
+                    watcher: 'docker',
+                    updateAvailable: true,
+                    updateKind: { kind: 'tag', semverDiff: 'major' },
+                    result: { riskAnalysis: { riskScore: 'high' } },
+                },
+            };
+            await tr.handleContainerReport(reportHigh as any);
+            expect(triggerSpy).toHaveBeenCalledWith(reportHigh.container);
+        });
+
+        test('handleContainerReports (batch) should filter out containers below riskthreshold', async () => {
+            const tr = new Trigger();
+            tr.log = log;
+            tr.configuration = {
+                ...configurationValid,
+                mode: 'batch',
+                riskthreshold: 'high',
+            };
+            const triggerBatchSpy = jest
+                .spyOn(tr, 'triggerBatch')
+                .mockResolvedValue();
+
+            const reports = [
+                {
+                    changed: true,
+                    container: {
+                        id: 'c1',
+                        name: 'app-low',
+                        watcher: 'docker',
+                        updateAvailable: true,
+                        result: { riskAnalysis: { riskScore: 'low' } },
+                    },
+                },
+                {
+                    changed: true,
+                    container: {
+                        id: 'c2',
+                        name: 'app-critical',
+                        watcher: 'docker',
+                        updateAvailable: true,
+                        result: { riskAnalysis: { riskScore: 'critical' } },
+                    },
+                },
+            ];
+
+            await tr.handleContainerReports(reports as any);
+            expect(triggerBatchSpy).toHaveBeenCalledTimes(1);
+            expect(triggerBatchSpy).toHaveBeenCalledWith([
+                reports[1].container,
+            ]);
         });
     });
 });

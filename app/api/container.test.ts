@@ -11,6 +11,7 @@ jest.mock('../store/container', () => ({
     deleteContainer: jest.fn(),
     snoozeContainer: jest.fn(),
     unsnoozeContainer: jest.fn(),
+    updateContainer: jest.fn(),
 }));
 
 jest.mock('../registry', () => ({
@@ -35,6 +36,8 @@ const mockMetadataProvider = {
     getContainerMetadata: jest.fn(),
     setContainerMetadata: jest.fn(),
     deleteContainerMetadata: jest.fn(),
+    getRiskAnalysis: jest.fn(),
+    getCachedRiskAnalysis: jest.fn(),
 };
 
 jest.mock('../metadata', () => ({
@@ -73,6 +76,10 @@ describe('API Container', () => {
         app.delete('/:id', containerRouterLocal.deleteContainer);
         app.post('/:id/snooze', containerRouterLocal.snoozeContainer);
         app.delete('/:id/snooze', containerRouterLocal.unsnoozeContainer);
+        app.post(
+            '/:id/risk-analysis',
+            containerRouterLocal.evaluateContainerRisk,
+        );
         app.get('/:id/triggers', containerRouterLocal.getContainerTriggers);
         app.post(
             '/:id/triggers/:triggerType/:triggerName',
@@ -638,6 +645,85 @@ describe('API Container', () => {
             const res = await request(app).delete('/container1/snooze');
             expect(res.status).toBe(500);
             expect(res.body.message).toBe('store error');
+        });
+    });
+
+    describe('evaluateContainerRisk', () => {
+        test('should return 404 when container does not exist', async () => {
+            (storeContainer.getContainer as jest.Mock).mockReturnValue(
+                undefined,
+            );
+
+            const res = await request(app).post('/missing/risk-analysis');
+            expect(res.status).toBe(404);
+        });
+
+        test('should return 400 when container has no update available', async () => {
+            (storeContainer.getContainer as jest.Mock).mockReturnValue({
+                id: 'c1',
+                updateAvailable: false,
+                image: { name: 'redis', tag: { value: '7.0.0' } },
+            });
+
+            const res = await request(app).post('/c1/risk-analysis');
+            expect(res.status).toBe(400);
+            expect(res.body.message).toContain('no active update candidate');
+        });
+
+        test('should return 503 when Hub risk analysis returns null', async () => {
+            (storeContainer.getContainer as jest.Mock).mockReturnValue({
+                id: 'c1',
+                updateAvailable: true,
+                image: { name: 'redis', tag: { value: '7.0.0' } },
+                result: { tag: '7.2.0' },
+            });
+            mockMetadataProvider.getRiskAnalysis.mockResolvedValueOnce(null);
+
+            const res = await request(app).post('/c1/risk-analysis');
+            expect(res.status).toBe(503);
+            expect(res.body.message).toContain('Risk analysis unavailable');
+        });
+
+        test('should evaluate and return risk analysis successfully', async () => {
+            const mockContainer: any = {
+                id: 'c1',
+                updateAvailable: true,
+                image: { name: 'redis', tag: { value: '7.0.15' } },
+                result: { tag: '7.2.4' },
+            };
+            const mockRisk = {
+                imageRef: 'redis',
+                currentTag: '7.0.15',
+                targetTag: '7.2.4',
+                riskScore: 'medium',
+                breakingChanges: [],
+                envVarChanges: [],
+                databaseImpact: null,
+                summary: 'Standard update',
+            };
+            (storeContainer.getContainer as jest.Mock).mockReturnValue(
+                mockContainer,
+            );
+            mockMetadataProvider.getRiskAnalysis.mockResolvedValueOnce(
+                mockRisk,
+            );
+
+            const res = await request(app).post(
+                '/c1/risk-analysis?forceRefresh=true',
+            );
+
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual(mockRisk);
+            expect(mockMetadataProvider.getRiskAnalysis).toHaveBeenCalledWith(
+                'redis',
+                '7.0.15',
+                '7.2.4',
+                true,
+            );
+            expect(mockContainer.result.riskAnalysis).toEqual(mockRisk);
+            expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+                mockContainer,
+            );
         });
     });
 });

@@ -2,7 +2,13 @@ import joi from 'joi';
 import flat from 'flat';
 import { snakeCase } from 'snake-case';
 import * as tag from '../tag';
-import { ContainerHubMetadata } from '../metadata/types';
+import { ContainerHubMetadata, RiskAnalysisResult } from '../metadata/types';
+export type {
+    RiskAnalysisResult,
+    RiskScore,
+    EnvVarChange,
+    EnvVarChangeType,
+} from '../metadata/types';
 const { parse: parseSemver, diff: diffSemver, transform: transformTag } = tag;
 
 export interface ContainerImage {
@@ -34,6 +40,7 @@ export interface ContainerResult {
     version?: string;
     link?: string;
     changelogUrl?: string;
+    riskAnalysis?: RiskAnalysisResult;
     hook?: {
         phase: string;
         parentTrigger: string;
@@ -148,6 +155,41 @@ export function parseDurationMs(
     }
 }
 
+// Environment variable change schema
+const envVarChangeSchema = joi.object({
+    name: joi.string().required(),
+    changeType: joi
+        .string()
+        .valid('added', 'removed', 'modified', 'deprecated')
+        .required(),
+    description: joi.string().allow('', null).default(''),
+});
+
+// Risk analysis schema
+const riskAnalysisSchema = joi.object({
+    imageRef: joi.string().required(),
+    currentTag: joi.string().required(),
+    targetTag: joi.string().required(),
+    riskScore: joi
+        .string()
+        .valid(
+            'low',
+            'medium',
+            'high',
+            'critical',
+            'unknown',
+            'pending',
+            'unsupported',
+        )
+        .required(),
+    breakingChanges: joi.array().items(joi.string()).default([]),
+    envVarChanges: joi.array().items(envVarChangeSchema).default([]),
+    databaseImpact: joi.string().allow('', null).default(null),
+    summary: joi.string().allow('', null).default(''),
+    cached: joi.boolean().default(false),
+    evaluatedAt: joi.string().isoDate().optional(),
+});
+
 // Container data schema
 const schema = joi.object({
     id: joi.string().min(1).required(),
@@ -210,6 +252,7 @@ const schema = joi.object({
         version: joi.string(),
         link: joi.string(),
         changelogUrl: joi.string().uri().optional().allow(''),
+        riskAnalysis: riskAnalysisSchema.optional(),
         hook: joi.object({
             phase: joi.string().valid('pre', 'post'),
             parentTrigger: joi.string(),

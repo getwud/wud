@@ -172,6 +172,15 @@
                     </template>
                     <span class="text-caption">Copy to clipboard</span>
                   </v-tooltip>
+                  <RiskPill
+                    v-if="(item.raw ? item.raw.result?.riskAnalysis : item.result?.riskAnalysis) || isHubUnpaired"
+                    :risk-score="(item.raw ? item.raw.result?.riskAnalysis?.riskScore : item.result?.riskAnalysis?.riskScore)"
+                    :is-unpaired="isHubUnpaired"
+                    size="small"
+                    class="ml-1"
+                    clickable
+                    @click.stop="openContainerDrawer(item.raw || item)"
+                  />
                   <v-tooltip bottom v-if="(item.raw ? item.raw.result?.changelogUrl : item.result?.changelogUrl) || (item.raw ? item.raw.changelogUrl : item.changelogUrl)">
                     <template v-slot:activator="{ props }">
                       <v-btn
@@ -416,6 +425,8 @@
           <v-window v-model="drawerTab">
             <v-window-item value="update" v-if="selectedContainer.result">
               <container-update
+                :container="selectedContainer"
+                :is-unpaired="isHubUnpaired"
                 :result="selectedContainer.result"
                 :semver="selectedContainer.image?.tag?.semver"
                 :update-kind="selectedContainer.updateKind"
@@ -425,6 +436,7 @@
                 :is-snoozed="selectedContainer.isSnoozed"
                 :snoozed-version="selectedContainer.snoozedVersion"
                 :snoozed-until="selectedContainer.snoozedUntil"
+                @risk-updated="onContainerRiskUpdated"
               />
             </v-window-item>
             <v-window-item value="triggers">
@@ -511,6 +523,7 @@ import ContainerTriggers from "@/components/ContainerTriggers.vue";
 import ContainerUpdate from "@/components/ContainerUpdate.vue";
 import ContainerUpdateDialog from "@/components/ContainerUpdateDialog.vue";
 import IconRenderer from "@/components/IconRenderer.vue";
+import RiskPill from "@/components/RiskPill.vue";
 import {
   deleteContainer,
   getAllContainers,
@@ -519,6 +532,7 @@ import {
 } from "@/services/container";
 import { getRegistryProviderIcon } from "@/services/registry";
 import { getUser } from "@/services/auth";
+import { getHubStatus } from "@/services/hub";
 import { eventService } from "@/services/event";
 import { copyToClipboard } from "@/services/clipboard";
 import { defineComponent } from "vue";
@@ -533,6 +547,7 @@ export default defineComponent({
     ContainerUpdate,
     ContainerUpdateDialog,
     IconRenderer,
+    RiskPill,
   },
 
   data() {
@@ -578,6 +593,7 @@ export default defineComponent({
       dialogUpdate: false,
       containerToUpdate: null as any,
       animatedRows: new Set<string>(),
+      isHubUnpaired: false,
     };
   },
 
@@ -610,6 +626,12 @@ export default defineComponent({
       this.currentUser = await getUser();
     } catch {
       // ignore
+    }
+    try {
+      const hubStatus = await getHubStatus();
+      this.isHubUnpaired = hubStatus.status === "standalone" || !hubStatus.hasKey;
+    } catch {
+      this.isHubUnpaired = false;
     }
   },
 
@@ -923,6 +945,18 @@ export default defineComponent({
 
     async onContainerUpdated() {
       await this.refreshContainers();
+    },
+
+    onContainerRiskUpdated({ containerId, riskAnalysis }: any) {
+      if (this.selectedContainer && this.selectedContainer.id === containerId) {
+        if (this.selectedContainer.result) {
+          this.selectedContainer.result.riskAnalysis = riskAnalysis;
+        }
+      }
+      const found = this.containers.find((c: any) => c.id === containerId);
+      if (found && found.result) {
+        found.result.riskAnalysis = riskAnalysis;
+      }
     },
 
     openSnoozeDialog(container: any) {

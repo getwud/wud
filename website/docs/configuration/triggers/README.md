@@ -175,6 +175,14 @@ In addition to provider-specific settings, all triggers support the following co
     supported="`all`, `major`, `major-only`, `minor`, `minor-only`, `patch`">
     Minimum semver version bump required to fire the trigger
   </ConfigOption>
+
+  <ConfigOption name="WUD_TRIGGER_{trigger_type}_{trigger_name}_RISKTHRESHOLD"
+    type="enum"
+    required={false}
+    defaultValue="all"
+    supported="`all`, `low`, `medium`, `high`, `critical`">
+    Minimum changelog risk score required to fire the trigger (evaluated by WUD Hub)
+  </ConfigOption>
 </ConfigList>
 
 ### Threshold Values
@@ -185,6 +193,16 @@ In addition to provider-specific settings, all triggers support the following co
 - **`minor`**: Executes the trigger for `minor` or `patch` semver updates.
 - **`minor-only`**: Executes the trigger only for `minor` semver updates.
 - **`patch`**: Executes the trigger only for `patch` semver updates.
+
+### Risk Threshold Values
+
+When integrated with WUD Hub, changelog risk analysis evaluates updates into risk levels:
+
+- **`all`**: Executes the trigger for all updates regardless of risk score (default).
+- **`low`**: Executes the trigger for `low`, `medium`, `high`, and `critical` risk updates.
+- **`medium`**: Executes the trigger for `medium`, `high`, and `critical` risk updates (filters out routine low-risk updates).
+- **`high`**: Executes the trigger only for `high` and `critical` risk updates (requiring manual attention or breaking changes).
+- **`critical`**: Executes the trigger only for `critical` risk updates (such as breaking database migrations or mandatory environment variable changes).
 
 ---
 
@@ -211,6 +229,13 @@ In simple mode (`MODE=simple`), all container properties are accessible via the 
 | `container.upstreamUrl` | Upstream source code repository URL (from label) | `https://github.com/postgres/postgres` |
 | `container.link` | Preserved link fallback (pointing to `documentationUrl` or `upstreamUrl`) | `https://...` |
 | `container.result.link` | Changelog or registry link (if available) | `https://...` |
+| `riskScore` | Changelog risk score (`low`, `medium`, `high`, `critical`, `unknown`, `unsupported`) | `low`, `high` |
+| `riskSummary` | Executive summary of release changes from changelog | `Maintenance release with minor security fixes.` |
+| `hasBreakingChanges` | Boolean indicating whether breaking changes are present (`true` or `false`) | `false` |
+| `breakingChangesCount` | Number of detected breaking changes | `2` |
+| `breakingChangesText` | Bulleted markdown list of breaking changes | `- Deprecated configuration removed` |
+| `databaseImpact` | Text description of database or storage format impact | `Schema migration runs on startup.` |
+| `hasDatabaseImpact` | Boolean indicating whether database impact is present (`true` or `false`) | `true` |
 
 :::tip[Multi-Host Notifications]
 When monitoring multiple Docker daemons or remote hosts using distinct watchers (e.g. `WUD_WATCHER_HOST1_...`, `WUD_WATCHER_HOST2_...`), include `$${container.watcher}` in your `SIMPLEBODY` or `SIMPLETITLE` to identify which host discovered the update.

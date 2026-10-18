@@ -121,6 +121,12 @@
               </template>
               <span class="text-caption">Copy to clipboard</span>
             </v-tooltip>
+            <RiskPill
+              v-if="container.result?.riskAnalysis"
+              :risk-score="container.result?.riskAnalysis?.riskScore"
+              size="small"
+              class="ml-1"
+            />
           </span>
         </div>
         
@@ -176,6 +182,7 @@
           <v-window v-model="tab">
             <v-window-item v-if="container.result">
               <container-update
+                :container="container"
                 :result="container.result"
                 :semver="container.image.tag.semver"
                 :update-kind="container.updateKind"
@@ -342,6 +349,7 @@ import ContainerTriggers from "@/components/ContainerTriggers.vue";
 import ContainerUpdate from "@/components/ContainerUpdate.vue";
 import ContainerUpdateDialog from "@/components/ContainerUpdateDialog.vue";
 import IconRenderer from "@/components/IconRenderer.vue";
+import RiskPill from "@/components/RiskPill.vue";
 import { defineComponent } from "vue";
 
 export default defineComponent({
@@ -357,6 +365,7 @@ export default defineComponent({
     ContainerUpdate,
     ContainerUpdateDialog,
     IconRenderer,
+    RiskPill,
   },
 
   props: {

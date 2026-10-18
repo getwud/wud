@@ -193,6 +193,28 @@ export const mockService = {
     return JSON.parse(JSON.stringify(found));
   },
 
+  async evaluateContainerRisk(containerId: string, _forceRefresh = false) {
+    await delay(300);
+    const found = containersState.find((c: any) => c.id === containerId);
+    if (!found) throw new Error("Container not found");
+    if (found.result?.riskAnalysis) {
+      return JSON.parse(JSON.stringify(found.result.riskAnalysis));
+    }
+    const fallback = {
+      riskScore: "low",
+      summary: "No breaking changes identified between versions.",
+      breakingChanges: [],
+      envVarChanges: [],
+      databaseImpact: null,
+      evaluatedAt: new Date().toISOString(),
+      cached: false,
+    };
+    if (found.result) {
+      found.result.riskAnalysis = fallback;
+    }
+    return fallback;
+  },
+
   async getContainerTriggers(_containerId?: string) {
     /* eslint-enable @typescript-eslint/no-unused-vars */
     await delay(150);

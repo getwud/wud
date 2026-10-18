@@ -31,6 +31,15 @@ export const mockContainers = [
       digest: "sha256:9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c",
       created: "2024-12-18T10:15:00.000Z",
       link: "https://github.com/traefik/traefik/releases/tag/v3.3.1",
+      riskAnalysis: {
+        riskScore: "low",
+        summary: "Routine maintenance release. No breaking changes or environment variable changes detected.",
+        breakingChanges: [],
+        envVarChanges: [],
+        databaseImpact: null,
+        evaluatedAt: "2024-12-18T10:15:00.000Z",
+        cached: true,
+      },
     },
     updateAvailable: true,
     updateKind: {
@@ -148,6 +157,24 @@ export const mockContainers = [
       digest: "sha256:7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f",
       created: "2024-12-04T18:30:00.000Z",
       link: "https://github.com/home-assistant/core/releases/tag/2024.12.0",
+      riskAnalysis: {
+        riskScore: "high",
+        summary: "Multiple integration deprecations and breaking changes to Bluetooth and Z-Wave configuration.",
+        breakingChanges: [
+          "Legacy Bluetooth scanner integration removed; replace with modern bluetooth adapter driver",
+          "Z-Wave JS schema version 4 migration required before restart",
+        ],
+        envVarChanges: [
+          {
+            name: "DISABLE_JEMALLOC",
+            type: "optional",
+            description: "Allows disabling jemalloc if memory profiling is required",
+          },
+        ],
+        databaseImpact: "Recorder schema v43 upgrade runs automatically on startup. May delay startup by 2-5 minutes depending on DB size.",
+        evaluatedAt: "2024-12-04T18:30:00.000Z",
+        cached: true,
+      },
     },
     updateAvailable: true,
     updateKind: {
@@ -298,6 +325,23 @@ export const mockContainers = [
       digest: "sha256:6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a",
       created: "2024-12-10T12:00:00.000Z",
       link: "https://github.com/portainer/portainer/releases/tag/2.27.0",
+      riskAnalysis: {
+        riskScore: "medium",
+        summary: "Deprecated internal telemetry endpoints and updated TLS certificate requirements for remote Edge Agents.",
+        breakingChanges: [
+          "Docker standalone edge agent connectivity requires TLS 1.3",
+        ],
+        envVarChanges: [
+          {
+            name: "EDGE_KEY",
+            type: "required",
+            description: "Mandatory secret key for registering new edge agents",
+          },
+        ],
+        databaseImpact: "Portainer BoltDB schema migration occurs automatically on start.",
+        evaluatedAt: "2024-12-10T12:00:00.000Z",
+        cached: true,
+      },
     },
     updateAvailable: true,
     updateKind: {

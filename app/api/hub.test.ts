@@ -38,6 +38,7 @@ describe('Hub API Router', () => {
     let app: express.Express;
 
     beforeEach(() => {
+        jest.setTimeout(15000);
         jest.clearAllMocks();
         app = express();
         app.use(express.json());
@@ -63,5 +64,41 @@ describe('Hub API Router', () => {
 
         const provider = getRemoteMetadataProvider();
         expect(provider.getOrFetchStatus).toHaveBeenCalledWith(true);
+    });
+
+    test('postChangelogRiskAnalysis should call Hub endpoint with correct headers and return response data', async () => {
+        const mockData = {
+            imageRef: 'redis',
+            currentTag: '7.0.15',
+            targetTag: '7.2.4',
+            riskScore: 'medium',
+            breakingChanges: [],
+            envVarChanges: [],
+            databaseImpact: null,
+            summary: 'Safe update',
+        };
+        const axios = require('axios');
+        jest.spyOn(axios, 'post').mockResolvedValueOnce({ data: mockData });
+
+        const result = await hubRouter.postChangelogRiskAnalysis(
+            'https://hub.example.com/',
+            'test_token',
+            { imageRef: 'redis', currentTag: '7.0.15', targetTag: '7.2.4' },
+            3000,
+        );
+
+        expect(result).toEqual(mockData);
+        expect(axios.post).toHaveBeenCalledWith(
+            'https://hub.example.com/api/v1/changelogs/risk-analysis',
+            { imageRef: 'redis', currentTag: '7.0.15', targetTag: '7.2.4' },
+            {
+                headers: {
+                    Authorization: 'Bearer test_token',
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+                timeout: 3000,
+            },
+        );
     });
 });

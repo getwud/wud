@@ -115,6 +115,24 @@ async function unsnoozeContainer(containerId: string) {
   return response.json();
 }
 
+async function evaluateContainerRisk(containerId: string, forceRefresh = false) {
+  if (isDemoMode()) {
+    return mockService.evaluateContainerRisk(containerId, forceRefresh);
+  }
+  const endpointUrl = forceRefresh
+    ? url(`api/containers/${containerId}/risk-analysis?forceRefresh=true`)
+    : url(`api/containers/${containerId}/risk-analysis`);
+  const response = await fetch(endpointUrl, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || response.statusText);
+  }
+  return response.json();
+}
+
 export {
   getContainerIcon,
   getAllContainers,
@@ -125,4 +143,5 @@ export {
   unsnoozeContainer,
   getContainerTriggers,
   runTrigger,
+  evaluateContainerRisk,
 };

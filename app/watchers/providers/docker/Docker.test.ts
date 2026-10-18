@@ -4433,6 +4433,107 @@ describe('Docker Watcher', () => {
                     expect(report.container.displayIcon).toBe('mdi:docker');
                     expect(report.container.error).toBeUndefined();
                 });
+
+                test('should enrich container update candidate with risk analysis when update is available', async () => {
+                    const watcher = new Docker();
+                    const mockLogContainer = {
+                        debug: jest.fn(),
+                        warn: jest.fn(),
+                    };
+                    watcher.log = {
+                        child: jest.fn().mockReturnValue(mockLogContainer),
+                    };
+                    jest.spyOn(watcher, 'findNewVersion').mockResolvedValue({
+                        tag: '7.2.4',
+                    });
+                    const container = {
+                        id: 'c-redis',
+                        name: 'redis-app',
+                        watcher: 'docker',
+                        image: {
+                            name: 'library/redis',
+                            tag: { value: '7.0.15', semver: true },
+                        },
+                    };
+
+                    const {
+                        getRemoteMetadataProvider,
+                    } = require('../../../metadata');
+                    const provider = getRemoteMetadataProvider();
+                    const mockRisk = {
+                        imageRef: 'library/redis',
+                        currentTag: '7.0.15',
+                        targetTag: '7.2.4',
+                        riskScore: 'high',
+                        breakingChanges: ['Persistence format changes'],
+                        envVarChanges: [],
+                        databaseImpact: 'Format migration',
+                        summary: 'High risk update',
+                    };
+                    jest.spyOn(
+                        provider,
+                        'getRiskAnalysis',
+                    ).mockResolvedValueOnce(mockRisk);
+
+                    const report = await watcher.checkContainer(
+                        container as any,
+                    );
+                    expect(report).toBeDefined();
+                    expect(report.container.result?.riskAnalysis).toEqual(
+                        mockRisk,
+                    );
+                    expect(provider.getRiskAnalysis).toHaveBeenCalledWith(
+                        'library/redis',
+                        '7.0.15',
+                        '7.2.4',
+                    );
+                });
+
+                test('should silently fallback when getRiskAnalysis fails during container check', async () => {
+                    const watcher = new Docker();
+                    const mockLogContainer = {
+                        debug: jest.fn(),
+                        warn: jest.fn(),
+                    };
+                    watcher.log = {
+                        child: jest.fn().mockReturnValue(mockLogContainer),
+                    };
+                    jest.spyOn(watcher, 'findNewVersion').mockResolvedValue({
+                        tag: '7.2.4',
+                    });
+                    const container = {
+                        id: 'c-redis-fail',
+                        name: 'redis-fail',
+                        watcher: 'docker',
+                        image: {
+                            name: 'library/redis',
+                            tag: { value: '7.0.15', semver: true },
+                        },
+                    };
+
+                    const {
+                        getRemoteMetadataProvider,
+                    } = require('../../../metadata');
+                    const provider = getRemoteMetadataProvider();
+                    jest.spyOn(
+                        provider,
+                        'getRiskAnalysis',
+                    ).mockRejectedValueOnce(new Error('Hub timeout'));
+
+                    const report = await watcher.checkContainer(
+                        container as any,
+                    );
+                    expect(report).toBeDefined();
+                    expect(
+                        report.container.result?.riskAnalysis,
+                    ).toBeUndefined();
+                    expect(report.container.error).toBeUndefined();
+                    expect(mockLogContainer.debug).toHaveBeenCalledWith(
+                        expect.stringContaining(
+                            'Failed to retrieve risk analysis',
+                        ),
+                    );
+                });
             });
 
             describe('findNewVersion error handling and fallbacks', () => {

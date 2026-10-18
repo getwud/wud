@@ -40,11 +40,58 @@ class Slack extends Trigger {
     /*
      * Post a message with new image version details.
      *
-     * @param image the image
+     * @param container the container
      * @returns {Promise<void>}
      */
     async trigger(container) {
         const body = this.renderSimpleBody(container);
+        const risk = container.result?.riskAnalysis;
+
+        if (risk) {
+            const riskEmojis = {
+                low: '🟢',
+                medium: '⚠️',
+                high: '⚡',
+                critical: '🚨',
+            };
+            const emoji = riskEmojis[risk.riskScore] || 'ℹ️';
+            const parts: string[] = [];
+
+            if (!this.configuration.disabletitle) {
+                const title = this.renderSimpleTitle(container);
+                parts.push(`*${title}*`);
+            }
+
+            parts.push(body);
+            parts.push(
+                `*Risk Level:* ${emoji} ${risk.riskScore.toUpperCase()}`,
+            );
+
+            if (risk.summary) {
+                parts.push(`> ${risk.summary}`);
+            }
+
+            if (risk.breakingChanges && risk.breakingChanges.length > 0) {
+                const bullets = risk.breakingChanges
+                    .map((b) => `• ${b}`)
+                    .join('\n');
+                parts.push(
+                    `*Breaking Changes (${risk.breakingChanges.length}):*\n${bullets}`,
+                );
+            }
+
+            if (risk.databaseImpact) {
+                parts.push(`*Database Impact:* ${risk.databaseImpact}`);
+            }
+
+            const changelog =
+                container.result?.changelogUrl || container.changelogUrl;
+            if (changelog) {
+                parts.push(`<${changelog}|Official Release Notes>`);
+            }
+
+            return this.sendMessage(parts.join('\n\n'));
+        }
 
         if (this.configuration.disabletitle) {
             return this.sendMessage(body);

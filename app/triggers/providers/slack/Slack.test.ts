@@ -160,3 +160,46 @@ test('triggerRollback should post the rollback report to the channel', async () 
     expect(slack.sendMessage).toHaveBeenCalled();
     expect(slack.sendMessage.mock.calls[0][0]).toContain('web');
 });
+
+test('trigger should format risk analysis sections when riskAnalysis is present', async () => {
+    slack.configuration = configurationValid;
+    slack.sendMessage = jest.fn().mockResolvedValue({});
+
+    const container = {
+        name: 'redis-cache',
+        updateKind: {
+            kind: 'tag',
+            localValue: '7.0.15',
+            remoteValue: '7.2.4',
+        },
+        changelogUrl: 'https://github.com/redis/redis/releases/tag/7.2.4',
+        result: {
+            tag: '7.2.4',
+            riskAnalysis: {
+                imageRef: 'redis',
+                currentTag: '7.0.15',
+                targetTag: '7.2.4',
+                riskScore: 'medium',
+                summary: 'Configuration and ACL syntax updates',
+                breakingChanges: ['Deprecated sentinel commands removed'],
+                databaseImpact: 'Snapshot format migration',
+            },
+        },
+    };
+
+    await slack.trigger(container);
+
+    expect(slack.sendMessage).toHaveBeenCalled();
+    const sentMessage = slack.sendMessage.mock.calls[0][0];
+    expect(sentMessage).toContain('*Risk Level:* ⚠️ MEDIUM');
+    expect(sentMessage).toContain('> Configuration and ACL syntax updates');
+    expect(sentMessage).toContain(
+        '*Breaking Changes (1):*\n• Deprecated sentinel commands removed',
+    );
+    expect(sentMessage).toContain(
+        '*Database Impact:* Snapshot format migration',
+    );
+    expect(sentMessage).toContain(
+        '<https://github.com/redis/redis/releases/tag/7.2.4|Official Release Notes>',
+    );
+});

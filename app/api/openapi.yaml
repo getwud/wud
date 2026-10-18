@@ -415,6 +415,46 @@ paths:
                 '404':
                     description: Not Found
             x-eov-operation-handler: app
+    '/api/containers/{id}/risk-analysis':
+        post:
+            tags:
+                - Containers
+            summary: Evaluate risk analysis for a container update candidate
+            operationId: evaluateContainerRisk
+            parameters:
+                - in: path
+                  name: id
+                  required: true
+                  schema:
+                      type: string
+                - in: query
+                  name: forceRefresh
+                  required: false
+                  schema:
+                      type: boolean
+                  description: Force bypass of in-memory cache to re-evaluate with WUD Hub
+            responses:
+                '200':
+                    description: Risk analysis result
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/RiskAnalysisResult'
+                '400':
+                    description: Bad Request - Container has no active update candidate
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                '404':
+                    description: Container Not Found
+                '503':
+                    description: Service Unavailable - WUD Hub unreachable or offline
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+            x-eov-operation-handler: app
     '/api/containers/{id}/triggers':
         get:
             tags:
@@ -896,6 +936,8 @@ components:
                         link:
                             type: string
                             description: Link to the image on the registry, when a link template is available.
+                        riskAnalysis:
+                            $ref: '#/components/schemas/RiskAnalysisResult'
                 created:
                     type: string
                 architecture:
@@ -914,6 +956,66 @@ components:
                 - name
                 - watcher
                 - image
+        EnvVarChange:
+            type: object
+            properties:
+                name:
+                    type: string
+                changeType:
+                    type: string
+                    enum: [added, removed, modified, deprecated]
+                description:
+                    type: string
+            required:
+                - name
+                - changeType
+        RiskAnalysisResult:
+            type: object
+            properties:
+                imageRef:
+                    type: string
+                currentTag:
+                    type: string
+                targetTag:
+                    type: string
+                riskScore:
+                    type: string
+                    enum:
+                        [
+                            low,
+                            medium,
+                            high,
+                            critical,
+                            unknown,
+                            pending,
+                            unsupported,
+                        ]
+                breakingChanges:
+                    type: array
+                    items:
+                        type: string
+                envVarChanges:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/EnvVarChange'
+                databaseImpact:
+                    type: string
+                    nullable: true
+                summary:
+                    type: string
+                cached:
+                    type: boolean
+                evaluatedAt:
+                    type: string
+                    format: date-time
+            required:
+                - imageRef
+                - currentTag
+                - targetTag
+                - riskScore
+                - breakingChanges
+                - envVarChanges
+                - summary
         ErrorResponse:
             type: object
             properties:

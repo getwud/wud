@@ -1291,6 +1291,36 @@ export class Docker extends Watcher {
             };
         }
 
+        const isUpdateAvailable =
+            containerWithResult.updateAvailable ||
+            Boolean(
+                containerWithResult.result?.tag &&
+                    containerWithResult.image?.tag?.value &&
+                    containerWithResult.result.tag !==
+                        containerWithResult.image.tag.value,
+            );
+
+        if (isUpdateAvailable && containerWithResult.result?.tag) {
+            try {
+                const metadataProvider = getRemoteMetadataProvider();
+                const risk = await metadataProvider.getRiskAnalysis(
+                    containerWithResult.image.name,
+                    containerWithResult.image.tag.value,
+                    containerWithResult.result.tag,
+                );
+                if (risk) {
+                    containerWithResult.result.riskAnalysis = risk;
+                }
+            } catch (e: unknown) {
+                const message = e instanceof Error ? e.message : String(e);
+                if (logContainer && typeof logContainer.debug === 'function') {
+                    logContainer.debug(
+                        `Failed to retrieve risk analysis for ${containerWithResult.name}: ${message}`,
+                    );
+                }
+            }
+        }
+
         try {
             const containerReport =
                 this.mapContainerToContainerReport(containerWithResult);

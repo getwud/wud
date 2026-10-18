@@ -186,4 +186,74 @@ describe('Discord Trigger', () => {
             },
         });
     });
+
+    test('trigger should enrich embed with risk score color and extra fields when riskAnalysis is present', async () => {
+        const { default: axios } = await import('axios');
+        discord.configuration = {
+            url: 'https://discord.com/api/webhooks/123/abc',
+            botusername: 'WUD',
+            cardcolor: 65280,
+            cardlabel: 'Update Available',
+            simpletitle: 'Update for ${container.name}',
+            simplebody:
+                'From ${container.updateKind.localValue} to ${container.updateKind.remoteValue}',
+        };
+
+        const container = {
+            name: 'redis-server',
+            updateKind: { localValue: '7.0.15', remoteValue: '7.2.4' },
+            changelogUrl: 'https://github.com/redis/redis/releases/tag/7.2.4',
+            result: {
+                tag: '7.2.4',
+                riskAnalysis: {
+                    imageRef: 'redis',
+                    currentTag: '7.0.15',
+                    targetTag: '7.2.4',
+                    riskScore: 'critical',
+                    summary: 'Persistence changes & DB format migration',
+                    breakingChanges: ['Breaking snapshot layout'],
+                    databaseImpact: 'Automatic DB format conversion on startup',
+                },
+            },
+        };
+
+        await discord.trigger(container);
+
+        expect(axios).toHaveBeenCalledWith({
+            method: 'POST',
+            url: 'https://discord.com/api/webhooks/123/abc',
+            data: {
+                username: 'WUD',
+                embeds: [
+                    {
+                        title: 'Update for redis-server',
+                        color: 15680580, // 0xef4444 (critical)
+                        fields: [
+                            {
+                                name: 'Update Available',
+                                value: 'From 7.0.15 to 7.2.4',
+                            },
+                            { name: 'Risk Level', value: '🚨 CRITICAL' },
+                            {
+                                name: 'Summary',
+                                value: 'Persistence changes & DB format migration',
+                            },
+                            {
+                                name: 'Breaking Changes (1)',
+                                value: '• Breaking snapshot layout',
+                            },
+                            {
+                                name: 'Database Impact',
+                                value: 'Automatic DB format conversion on startup',
+                            },
+                            {
+                                name: 'Release Notes',
+                                value: 'https://github.com/redis/redis/releases/tag/7.2.4',
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
+    });
 });

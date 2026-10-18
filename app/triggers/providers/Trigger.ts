@@ -9,6 +9,7 @@ export interface TriggerConfiguration extends ComponentConfiguration {
     auto?: boolean;
     events?: string | string[];
     threshold?: string;
+    riskthreshold?: string;
     mode?: string;
     once?: boolean;
     simpletitle?: string;
@@ -151,6 +152,47 @@ class Trigger extends Component {
             }
         }
         return thresholdPassing;
+    }
+
+    /**
+     * Return true if container update reaches configured risk threshold.
+     * @param containerResult
+     * @param riskThreshold
+     * @returns {boolean}
+     */
+    static isRiskThresholdReached(
+        containerResult: Container,
+        riskThreshold?: string,
+    ): boolean {
+        if (!riskThreshold || riskThreshold.toLowerCase() === 'all') {
+            return true;
+        }
+        const score = containerResult.result?.riskAnalysis?.riskScore;
+        if (
+            !score ||
+            score === 'unknown' ||
+            score === 'unsupported' ||
+            score === 'pending'
+        ) {
+            // Safe default: If risk cannot be determined, do not block notifications
+            // unless operator explicitly filtered for high/critical.
+            return (
+                riskThreshold.toLowerCase() === 'all' ||
+                riskThreshold.toLowerCase() === 'low'
+            );
+        }
+
+        const rank: Record<string, number> = {
+            low: 1,
+            medium: 2,
+            high: 3,
+            critical: 4,
+        };
+
+        const currentRank = rank[score.toLowerCase()] || 0;
+        const targetRank = rank[riskThreshold.toLowerCase()] || 1;
+
+        return currentRank >= targetRank;
     }
 
     /**
@@ -298,6 +340,13 @@ class Trigger extends Component {
                     )
                 ) {
                     logContainer.debug('Threshold not reached => ignore');
+                } else if (
+                    !Trigger.isRiskThresholdReached(
+                        containerReport.container,
+                        this.configuration.riskthreshold,
+                    )
+                ) {
+                    logContainer.debug('Risk threshold not reached => ignore');
                 } else if (!this.isDigestAllowed(containerReport.container)) {
                     logContainer.debug(
                         'Digest update ignored because ondigest is disabled',
@@ -356,6 +405,12 @@ class Trigger extends Component {
                     Trigger.isThresholdReached(
                         containerReport.container,
                         (this.configuration.threshold || 'all').toLowerCase(),
+                    ),
+                )
+                .filter((containerReport) =>
+                    Trigger.isRiskThresholdReached(
+                        containerReport.container,
+                        this.configuration.riskthreshold,
                     ),
                 );
             const containersFiltered = containerReportsFiltered.map(
@@ -689,6 +744,10 @@ class Trigger extends Component {
                     'minor-only',
                 )
                 .default('all'),
+            riskthreshold: this.joi
+                .string()
+                .insensitive()
+                .valid('all', 'low', 'medium', 'high', 'critical'),
             mode: this.joi
                 .string()
                 .insensitive()
@@ -819,6 +878,29 @@ class Trigger extends Component {
         const documentationUrl = container.documentationUrl || '';
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const isOfficial = container.isOfficial ?? false;
+
+        const riskAnalysis = container.result?.riskAnalysis;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const riskScore = riskAnalysis?.riskScore || 'unknown';
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const riskSummary = riskAnalysis?.summary || '';
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const hasBreakingChanges = Boolean(
+            riskAnalysis?.breakingChanges &&
+                riskAnalysis.breakingChanges.length > 0,
+        );
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const breakingChangesCount = riskAnalysis?.breakingChanges?.length || 0;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const breakingChangesText = (riskAnalysis?.breakingChanges || [])
+            .map((item) => `- ${item}`)
+            .join('\n');
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const databaseImpact = riskAnalysis?.databaseImpact || '';
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const hasDatabaseImpact = Boolean(
+            databaseImpact && databaseImpact.trim() !== '',
+        );
 
         return eval('`' + template + '`');
     }

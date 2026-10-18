@@ -1,5 +1,14 @@
 <template>
   <div>
+    <upgrade-risk-card
+      v-if="updateAvailable || isCoolingDown || isSnoozed || snoozedVersion"
+      :container="container || { result, id: containerId }"
+      :risk-analysis="effectiveRiskAnalysis"
+      :is-unpaired="isUnpaired"
+      :loading="riskLoading"
+      @re-evaluate="reEvaluateRisk"
+    />
+
     <v-alert
       v-if="isCoolingDown"
       color="info"
@@ -130,9 +139,26 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import { copyToClipboard } from "@/services/clipboard";
+import UpgradeRiskCard from "@/components/UpgradeRiskCard.vue";
+import { evaluateContainerRisk } from "@/services/container";
 
 export default defineComponent({
+  components: {
+    UpgradeRiskCard,
+  },
   props: {
+    container: {
+      type: Object,
+      default: null,
+    },
+    containerId: {
+      type: String,
+      default: "",
+    },
+    isUnpaired: {
+      type: Boolean,
+      default: false,
+    },
     semver: {
       type: Boolean,
     },
@@ -166,7 +192,22 @@ export default defineComponent({
       default: null,
     },
   },
+  emits: ["risk-updated"],
+  data() {
+    return {
+      riskLoading: false,
+      localRiskAnalysis: null as any,
+    };
+  },
   computed: {
+    effectiveRiskAnalysis() {
+      return (
+        this.localRiskAnalysis ||
+        this.result?.riskAnalysis ||
+        this.container?.result?.riskAnalysis ||
+        null
+      );
+    },
     updateKindFormatted() {
       let kind = "Unknown";
       if (this.updateKind) {
@@ -189,6 +230,25 @@ export default defineComponent({
           `Unable to copy ${kind} to clipboard`,
           "warning"
         );
+      }
+    },
+    async reEvaluateRisk() {
+      const id = this.container?.id || this.containerId;
+      if (!id) return;
+      this.riskLoading = true;
+      try {
+        const analysis = await evaluateContainerRisk(id, true);
+        this.localRiskAnalysis = analysis;
+        (this as any).$eventBus?.emit("notify", "Changelog risk analysis refreshed");
+        this.$emit("risk-updated", { containerId: id, riskAnalysis: analysis });
+      } catch (err: any) {
+        (this as any).$eventBus?.emit(
+          "notify",
+          `Failed to refresh risk analysis: ${err.message}`,
+          "error"
+        );
+      } finally {
+        this.riskLoading = false;
       }
     },
   },

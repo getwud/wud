@@ -9,6 +9,7 @@ import {
     HubStatusSummary,
     ContainerHubMetadata,
     RemoteHubDetails,
+    RiskAnalysisResult,
 } from './types';
 
 const log = logger.child({ component: 'remote-metadata-provider' });
@@ -21,6 +22,7 @@ export class RemoteMetadataProvider {
         string,
         ContainerHubMetadata
     >();
+    private readonly riskCache = new Map<string, RiskAnalysisResult>();
 
     private status: ProviderConnectionStatus = 'standalone';
     private consecutiveErrors = 0;
@@ -98,6 +100,133 @@ export class RemoteMetadataProvider {
                 return null;
             }
         });
+    }
+
+    /**
+     * Compute composite cache key for risk analysis.
+     */
+    private getRiskCacheKey(
+        imageRef: string,
+        currentTag: string,
+        targetTag: string,
+    ): string {
+        return `${imageRef.trim().toLowerCase()}:${currentTag.trim()}:${targetTag.trim()}`;
+    }
+
+    /**
+     * Resolve risk analysis for a candidate container update.
+     */
+    async getRiskAnalysis(
+        imageRef: string,
+        currentTag: string,
+        targetTag: string,
+        forceRefreshOrOptions: boolean | { forceRefresh?: boolean } = false,
+    ): Promise<RiskAnalysisResult | null> {
+        if (
+            !this.config.enabled ||
+            !this.config.key ||
+            this.status === 'error'
+        ) {
+            return null;
+        }
+
+        const forceRefresh =
+            typeof forceRefreshOrOptions === 'boolean'
+                ? forceRefreshOrOptions
+                : Boolean(forceRefreshOrOptions?.forceRefresh);
+
+        const cacheKey = this.getRiskCacheKey(imageRef, currentTag, targetTag);
+
+        // Check local in-memory cache
+        if (!forceRefresh && this.riskCache.has(cacheKey)) {
+            const cachedResult = this.riskCache.get(cacheKey)!;
+            return {
+                ...cachedResult,
+                cached: true,
+            };
+        }
+
+        // Backoff active check (e.g. 429 cooldown)
+        if (Date.now() < this.backoffUntil) {
+            log.debug(
+                `[Hub] Risk query skipped during backoff window (${cacheKey})`,
+            );
+            return null;
+        }
+
+        return this.pool.run(async () => {
+            try {
+                this.lastCheckTimestamp = new Date().toISOString();
+                const response = await this.client.post<RiskAnalysisResult>(
+                    '/api/v1/changelogs/risk-analysis',
+                    {
+                        imageRef,
+                        currentTag,
+                        targetTag,
+                    },
+                    {
+                        timeout: 4000,
+                    },
+                );
+
+                if (response.status === 200 && response.data) {
+                    this.status = 'connected';
+                    this.consecutiveErrors = 0;
+                    this.lastErrorMessage = undefined;
+
+                    const enrichedResult: RiskAnalysisResult = {
+                        ...response.data,
+                        evaluatedAt:
+                            response.data.evaluatedAt ||
+                            new Date().toISOString(),
+                    };
+                    this.riskCache.set(cacheKey, enrichedResult);
+                    return enrichedResult;
+                }
+                return null;
+            } catch (err: unknown) {
+                this.handleHttpError(err, cacheKey);
+                return null;
+            }
+        });
+    }
+
+    /**
+     * Invalidate cached risk entry.
+     */
+    invalidateRiskCache(
+        imageRef: string,
+        currentTag: string,
+        targetTag: string,
+    ): void {
+        const cacheKey = this.getRiskCacheKey(imageRef, currentTag, targetTag);
+        this.riskCache.delete(cacheKey);
+    }
+
+    /**
+     * Retrieve cached risk analysis synchronously if available.
+     */
+    getCachedRiskAnalysis(
+        imageRef: string,
+        currentTag: string,
+        targetTag: string,
+    ): RiskAnalysisResult | undefined {
+        const cacheKey = this.getRiskCacheKey(imageRef, currentTag, targetTag);
+        const cached = this.riskCache.get(cacheKey);
+        if (cached) {
+            return {
+                ...cached,
+                cached: true,
+            };
+        }
+        return undefined;
+    }
+
+    /**
+     * Clear all cached risk entries.
+     */
+    clearRiskCache(): void {
+        this.riskCache.clear();
     }
 
     private handleHttpError(err: unknown, target: string): void {

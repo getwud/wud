@@ -81,3 +81,39 @@ export interface HubStatusSummary {
     remote?: RemoteHubDetails;
     errorMessage?: string;
 }
+
+export type RiskScore =
+    | 'low'
+    | 'medium'
+    | 'high'
+    | 'critical'
+    | 'unknown'
+    | 'pending'
+    | 'unsupported';
+
+export type EnvVarChangeType = 'added' | 'removed' | 'modified' | 'deprecated';
+
+export interface EnvVarChange {
+    name: string;
+    changeType: EnvVarChangeType;
+    description: string;
+}
+
+export interface RiskAnalysisResult {
+    imageRef: string;
+    currentTag: string;
+    targetTag: string;
+    riskScore: RiskScore;
+    breakingChanges: string[];
+    envVarChanges: EnvVarChange[];
+    databaseImpact: string | null;
+    summary: string;
+    cached?: boolean;
+    evaluatedAt?: string;
+}
+
+export interface RemoteRiskAnalysisRequest {
+    imageRef: string;
+    currentTag: string;
+    targetTag: string;
+}
