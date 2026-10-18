@@ -70,4 +70,105 @@ describe('Mattermost Trigger', () => {
             },
         );
     });
+
+    test('trigger without riskAnalysis should preserve legacy payload without attachments', async () => {
+        const { default: axios } = await import('axios');
+        mattermost.configuration = {
+            url: 'https://mattermost.example.com/hooks/xyz123',
+            simpletitle: 'New version for ${container.name}',
+            simplebody:
+                'Update from ${container.image.tag.value} to ${container.result.tag}',
+        };
+
+        const container = {
+            id: 'c1',
+            name: 'redis-server',
+            image: { tag: { value: '7.0.0' } },
+            result: { tag: '7.2.0' },
+        };
+
+        await mattermost.trigger(container);
+        expect(axios.post).toHaveBeenCalledWith(
+            'https://mattermost.example.com/hooks/xyz123',
+            {
+                text: '### New version for redis-server\nUpdate from 7.0.0 to 7.2.0',
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            },
+        );
+    });
+
+    test('trigger with riskAnalysis should include color-coded attachment and fields', async () => {
+        const { default: axios } = await import('axios');
+        mattermost.configuration = {
+            url: 'https://mattermost.example.com/hooks/xyz123',
+            simpletitle: 'New version for ${container.name}',
+            simplebody:
+                'Update from ${container.image.tag.value} to ${container.result.tag}',
+        };
+
+        const container = {
+            id: 'c1',
+            name: 'redis-server',
+            image: { tag: { value: '7.0.0' } },
+            result: {
+                tag: '7.2.0',
+                changelogUrl: 'https://github.com/redis/redis/releases/v7.2.0',
+                riskAnalysis: {
+                    riskScore: 'high',
+                    skippedVersionsCount: 2,
+                    breakingChanges: ['Deprecated sentinel commands removed'],
+                    databaseImpact: 'RDB persistence format upgrade',
+                },
+            },
+        };
+
+        await mattermost.trigger(container);
+        expect(axios.post).toHaveBeenCalledWith(
+            'https://mattermost.example.com/hooks/xyz123',
+            {
+                text: '### New version for redis-server\nUpdate from 7.0.0 to 7.2.0',
+                attachments: [
+                    {
+                        color: '#e74c3c',
+                        fields: [
+                            {
+                                title: 'Risk Level',
+                                value: '⚡ HIGH',
+                                short: true,
+                            },
+                            {
+                                title: 'Skipped Releases',
+                                value: '+2 versions',
+                                short: true,
+                            },
+                            {
+                                title: 'Breaking Changes',
+                                value: '• Deprecated sentinel commands removed',
+                                short: false,
+                            },
+                            {
+                                title: 'Database Impact',
+                                value: 'RDB persistence format upgrade',
+                                short: false,
+                            },
+                            {
+                                title: 'Review',
+                                value: '[Review Update in WUD](https://github.com/redis/redis/releases/v7.2.0)',
+                                short: false,
+                            },
+                        ],
+                    },
+                ],
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            },
+        );
+    });
 });

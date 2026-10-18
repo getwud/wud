@@ -225,7 +225,85 @@ class Gotify extends Trigger {
      * @returns {Promise<void>}
      */
     async trigger(container: Container): Promise<void> {
-        const extras = this.getExtras(container);
+        const risk = container.result?.riskAnalysis;
+        if (!risk) {
+            const extras = this.getExtras(container);
+            const payload: {
+                title: string;
+                message: string;
+                priority?: number;
+                extras?: Record<string, unknown>;
+            } = {
+                title: this.renderSimpleTitle(container),
+                message: this.renderSimpleBody(container),
+                priority: this.configuration.priority as number | undefined,
+            };
+            if (extras) {
+                payload.extras = extras;
+            }
+            await this.client.message.createMessage(payload);
+            return;
+        }
+
+        const RISK_PRIORITIES: Record<string, number> = {
+            low: 2,
+            medium: 5,
+            high: 7,
+            critical: 9,
+            locked: 5,
+        };
+        const priority =
+            RISK_PRIORITIES[risk.riskScore] ??
+            (this.configuration.priority as number | undefined) ??
+            5;
+
+        const body = this.renderSimpleBody(container);
+        const reviewUrl = this.getUpgradeReviewUrl(container);
+        const skipped = this.getSkippedVersionsCount(risk);
+        const riskEmojis: Record<string, string> = {
+            low: '🟢',
+            medium: '⚠️',
+            high: '⚡',
+            critical: '🚨',
+            locked: '🔒',
+        };
+        const emoji = riskEmojis[risk.riskScore] || 'ℹ️';
+
+        const parts: string[] = [body];
+        parts.push(`**Risk Level:** ${emoji} ${risk.riskScore.toUpperCase()}`);
+        if (skipped > 0) {
+            parts.push(`**Skipped Releases:** +${skipped}`);
+        }
+        if (risk.summary) {
+            parts.push(`> ${risk.summary}`);
+        }
+        if (risk.breakingChanges && risk.breakingChanges.length > 0) {
+            parts.push(
+                `**Breaking Changes:**\n${risk.breakingChanges.map((b: string) => `* ${b}`).join('\n')}`,
+            );
+        }
+        if (risk.databaseImpact) {
+            parts.push(`**Database Impact:** ${risk.databaseImpact}`);
+        }
+        if (reviewUrl) {
+            parts.push(`[🔍 Review Update in WUD](${reviewUrl})`);
+        }
+
+        let extras = this.getExtras(container);
+        const riskExtras: Record<string, unknown> = {
+            'client::display': {
+                contentType: 'text/markdown',
+            },
+        };
+        if (reviewUrl) {
+            riskExtras['client::notification'] = {
+                click: {
+                    url: reviewUrl,
+                },
+            };
+        }
+        extras = extras ? deepMerge(extras, riskExtras) : riskExtras;
+
         const payload: {
             title: string;
             message: string;
@@ -233,12 +311,10 @@ class Gotify extends Trigger {
             extras?: Record<string, unknown>;
         } = {
             title: this.renderSimpleTitle(container),
-            message: this.renderSimpleBody(container),
-            priority: this.configuration.priority as number | undefined,
+            message: parts.join('\n\n'),
+            priority,
+            extras,
         };
-        if (extras) {
-            payload.extras = extras;
-        }
         await this.client.message.createMessage(payload);
     }
 

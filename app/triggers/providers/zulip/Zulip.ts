@@ -43,8 +43,49 @@ class Zulip extends Trigger {
      * @returns {Promise<*>}
      */
     async trigger(container) {
-        const message = this.composeMessage(container);
-        return this.sendMessage(message);
+        const risk = container.result?.riskAnalysis;
+        if (!risk) {
+            const message = this.composeMessage(container);
+            return this.sendMessage(message);
+        }
+
+        const riskEmojis = {
+            low: '🟢',
+            medium: '⚠️',
+            high: '⚡',
+            critical: '🚨',
+            locked: '🔒',
+        };
+        const emoji = riskEmojis[risk.riskScore] || 'ℹ️';
+        const skipped = this.getSkippedVersionsCount(risk);
+        const reviewUrl = this.getUpgradeReviewUrl(container);
+
+        const parts = [];
+        if (!this.configuration.disabletitle) {
+            const title = this.renderSimpleTitle(container);
+            parts.push(`**${title}**`);
+        }
+        parts.push(this.renderSimpleBody(container));
+        parts.push(`**Risk Level:** ${emoji} ${risk.riskScore.toUpperCase()}`);
+        if (skipped > 0) {
+            parts.push(`**Skipped Releases:** +${skipped}`);
+        }
+        if (risk.summary) {
+            parts.push(`> ${risk.summary}`);
+        }
+        if (risk.breakingChanges && risk.breakingChanges.length > 0) {
+            parts.push(
+                `**Breaking Changes:**\n${risk.breakingChanges.map((b) => `* ${b}`).join('\n')}`,
+            );
+        }
+        if (risk.databaseImpact) {
+            parts.push(`**Database Impact:** ${risk.databaseImpact}`);
+        }
+        if (reviewUrl) {
+            parts.push(`[🔍 Review Update in WUD](${reviewUrl})`);
+        }
+
+        return this.sendMessage(parts.join('\n\n'));
     }
 
     composeMessage(container) {

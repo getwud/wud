@@ -223,3 +223,80 @@ test('triggerRollback should post the rollback report to Apprise', async () => {
         }),
     );
 });
+
+test('trigger without riskAnalysis should preserve legacy type info and text format', async () => {
+    apprise.configuration = configurationValid;
+    axios.mockResolvedValue({ data: {} });
+
+    const container = {
+        name: 'app1',
+        updateKind: { kind: 'tag', localValue: '1.0', remoteValue: '1.1' },
+        result: {},
+    };
+
+    await apprise.trigger(container);
+    expect(axios).toHaveBeenCalledWith({
+        method: 'POST',
+        url: 'http://xxx.com/notify',
+        data: {
+            urls: 'maito://user:pass@gmail.com',
+            title: 'New tag found for container app1',
+            body: 'Container app1 running with tag 1.0 can be updated to tag 1.1',
+            format: 'text',
+            type: 'info',
+        },
+    });
+});
+
+test.each([
+    { riskScore: 'low', expectedType: 'info' },
+    { riskScore: 'medium', expectedType: 'info' },
+    { riskScore: 'high', expectedType: 'warning' },
+    { riskScore: 'critical', expectedType: 'failure' },
+])(
+    'trigger with riskAnalysis should adapt message type to $expectedType for $riskScore risk',
+    async ({ riskScore, expectedType }) => {
+        apprise.configuration = configurationValid;
+        axios.mockResolvedValue({ data: {} });
+
+        const container = {
+            name: 'app1',
+            updateKind: { kind: 'tag', localValue: '1.0', remoteValue: '2.0' },
+            result: {
+                changelogUrl: 'https://example.com/changelog',
+                riskAnalysis: {
+                    riskScore,
+                    summary: 'Major protocol upgrade',
+                    skippedVersionsCount: 2,
+                    breakingChanges: ['API v1 removed'],
+                    databaseImpact: 'Migration required',
+                },
+            },
+        };
+
+        await apprise.trigger(container);
+        expect(axios).toHaveBeenCalledWith(
+            expect.objectContaining({
+                method: 'POST',
+                url: 'http://xxx.com/notify',
+                data: expect.objectContaining({
+                    type: expectedType,
+                    format: 'markdown',
+                    body: expect.stringContaining(`Risk Level:`),
+                }),
+            }),
+        );
+        const sentData = axios.mock.calls[0][0].data;
+        expect(sentData.body).toContain('**Skipped Releases:** +2');
+        expect(sentData.body).toContain('> Major protocol upgrade');
+        expect(sentData.body).toContain(
+            '**Breaking Changes:**\n• API v1 removed',
+        );
+        expect(sentData.body).toContain(
+            '**Database Impact:** Migration required',
+        );
+        expect(sentData.body).toContain(
+            '[🔍 Review Update in WUD](https://example.com/changelog)',
+        );
+    },
+);

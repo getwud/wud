@@ -489,3 +489,86 @@ test('triggerRollback should support static click url without container', async 
         }),
     );
 });
+
+test('trigger without riskAnalysis should preserve legacy payload without actions or risk tags', async () => {
+    ntfy.configuration = {
+        ...configurationValid,
+        priority: 2,
+        tags: ['docker'],
+    };
+
+    const container = {
+        name: 'legacy-app',
+        updateKind: { kind: 'tag', localValue: '1.0.0', remoteValue: '1.1.0' },
+        result: {},
+    };
+
+    axios.mockResolvedValue({ data: {} });
+    await ntfy.trigger(container);
+
+    expect(axios).toHaveBeenCalledWith(
+        expect.objectContaining({
+            data: {
+                topic: 'xxx',
+                title: 'New tag found for container legacy-app',
+                message:
+                    'Container legacy-app running with tag 1.0.0 can be updated to tag 1.1.0',
+                priority: 2,
+                tags: ['docker'],
+            },
+        }),
+    );
+});
+
+test('trigger with riskAnalysis should adjust priority, add tags, action button, and breaking changes', async () => {
+    ntfy.configuration = {
+        ...configurationValid,
+        priority: 2,
+        tags: ['docker'],
+    };
+
+    const container = {
+        id: 'c123',
+        name: 'critical-app',
+        updateKind: { kind: 'tag', localValue: '1.0.0', remoteValue: '2.0.0' },
+        result: {
+            changelogUrl: 'https://example.com/releases/v2.0.0',
+            riskAnalysis: {
+                riskScore: 'critical',
+                skippedVersionsCount: 2,
+                breakingChanges: ['Removed deprecated config key'],
+                databaseImpact: 'Re-indexing required',
+            },
+        },
+    };
+
+    axios.mockResolvedValue({ data: {} });
+    await ntfy.trigger(container);
+
+    expect(axios).toHaveBeenCalledWith(
+        expect.objectContaining({
+            data: expect.objectContaining({
+                priority: 5, // critical -> 5
+                tags: expect.arrayContaining([
+                    'docker',
+                    'rotating_light',
+                    'critical',
+                ]),
+                click: 'https://example.com/releases/v2.0.0',
+                actions: [
+                    {
+                        action: 'view',
+                        label: 'Review Update',
+                        url: 'https://example.com/releases/v2.0.0',
+                    },
+                ],
+                message: expect.stringContaining(
+                    'Breaking Changes:\n• Removed deprecated config key',
+                ),
+            }),
+        }),
+    );
+    const sentData = axios.mock.calls[0][0].data;
+    expect(sentData.message).toContain('Skipped Releases: +2');
+    expect(sentData.message).toContain('Database Impact: Re-indexing required');
+});

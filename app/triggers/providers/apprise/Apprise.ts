@@ -44,11 +44,62 @@ class Apprise extends Trigger {
      */
     async trigger(container) {
         let uri = `${this.configuration.url}/notify`;
+        const risk = container.result?.riskAnalysis;
+        let type = 'info';
+        let bodyText = this.renderSimpleBody(container);
+        let format = 'text';
+
+        if (risk) {
+            format = 'markdown';
+            const TYPE_MAP = {
+                low: 'info',
+                medium: 'info',
+                high: 'warning',
+                critical: 'failure',
+                locked: 'warning',
+            };
+            type = TYPE_MAP[risk.riskScore] || 'info';
+
+            const riskEmojis = {
+                low: '🟢',
+                medium: '⚠️',
+                high: '⚡',
+                critical: '🚨',
+                locked: '🔒',
+            };
+            const emoji = riskEmojis[risk.riskScore] || 'ℹ️';
+            const skipped = this.getSkippedVersionsCount(risk);
+            const reviewUrl = this.getUpgradeReviewUrl(container);
+
+            const parts = [bodyText];
+            parts.push(
+                `**Risk Level:** ${emoji} ${risk.riskScore.toUpperCase()}`,
+            );
+            if (skipped > 0) {
+                parts.push(`**Skipped Releases:** +${skipped}`);
+            }
+            if (risk.summary) {
+                parts.push(`> ${risk.summary}`);
+            }
+            if (risk.breakingChanges && risk.breakingChanges.length > 0) {
+                parts.push(
+                    `**Breaking Changes:**\n${risk.breakingChanges.map((b) => `• ${b}`).join('\n')}`,
+                );
+            }
+            if (risk.databaseImpact) {
+                parts.push(`**Database Impact:** ${risk.databaseImpact}`);
+            }
+            if (reviewUrl) {
+                parts.push(`[🔍 Review Update in WUD](${reviewUrl})`);
+            }
+            bodyText = parts.join('\n\n');
+        }
+
         const body = {
             title: this.renderSimpleTitle(container),
-            body: this.renderSimpleBody(container),
-            format: 'text',
-            type: 'info',
+            body: bodyText,
+            format,
+            type,
         };
 
         // Persistent storage usage (target apprise yml config file and tags)

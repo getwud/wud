@@ -83,10 +83,88 @@ class Pushover extends Trigger {
      * @returns {Promise<void>}
      */
     async trigger(container) {
-        return this.sendMessage({
+        const risk = container.result?.riskAnalysis;
+        if (!risk) {
+            return this.sendMessage({
+                title: this.renderSimpleTitle(container),
+                message: this.renderSimpleBody(container),
+            });
+        }
+
+        const RISK_PRIORITIES = {
+            low: 0,
+            medium: 0,
+            high: 1,
+            critical: 1,
+            locked: 0,
+        };
+        const priority =
+            RISK_PRIORITIES[risk.riskScore] ?? this.configuration.priority ?? 0;
+        const reviewUrl = this.getUpgradeReviewUrl(container);
+        const skipped = this.getSkippedVersionsCount(risk);
+        const riskEmojis = {
+            low: '🟢',
+            medium: '⚠️',
+            high: '⚡',
+            critical: '🚨',
+            locked: '🔒',
+        };
+        const emoji = riskEmojis[risk.riskScore] || 'ℹ️';
+
+        const isHtml = this.configuration.html === 1;
+        const baseBody = this.renderSimpleBody(container);
+        let enrichedMessage = baseBody;
+
+        if (isHtml) {
+            const parts = [baseBody];
+            parts.push(
+                `<b>Risk Level:</b> ${emoji} ${risk.riskScore.toUpperCase()}`,
+            );
+            if (skipped > 0) {
+                parts.push(`<b>Skipped Versions:</b> +${skipped}`);
+            }
+            if (risk.summary) {
+                parts.push(`<i>${risk.summary}</i>`);
+            }
+            if (risk.breakingChanges && risk.breakingChanges.length > 0) {
+                parts.push(
+                    `<b>Breaking Changes:</b><br/>${risk.breakingChanges.map((b) => `• ${b}`).join('<br/>')}`,
+                );
+            }
+            if (risk.databaseImpact) {
+                parts.push(`<b>DB Impact:</b> ${risk.databaseImpact}`);
+            }
+            enrichedMessage = parts.join('<br/><br/>');
+        } else {
+            const parts = [baseBody];
+            parts.push(`Risk Level: ${emoji} ${risk.riskScore.toUpperCase()}`);
+            if (skipped > 0) {
+                parts.push(`Skipped Versions: +${skipped}`);
+            }
+            if (risk.summary) {
+                parts.push(`Summary: ${risk.summary}`);
+            }
+            if (risk.breakingChanges && risk.breakingChanges.length > 0) {
+                parts.push(
+                    `Breaking Changes:\n${risk.breakingChanges.map((b) => `• ${b}`).join('\n')}`,
+                );
+            }
+            if (risk.databaseImpact) {
+                parts.push(`DB Impact: ${risk.databaseImpact}`);
+            }
+            enrichedMessage = parts.join('\n\n');
+        }
+
+        const payload: Record<string, any> = {
             title: this.renderSimpleTitle(container),
-            message: this.renderSimpleBody(container),
-        });
+            message: enrichedMessage,
+            priority,
+        };
+        if (reviewUrl) {
+            payload.url = reviewUrl;
+            payload.url_title = 'Review Update in WUD';
+        }
+        return this.sendMessage(payload);
     }
 
     /**
@@ -122,15 +200,15 @@ class Pushover extends Trigger {
 
     async sendMessage(message) {
         const messageToSend = {
-            ...message,
             sound: this.configuration.sound,
             device: this.configuration.device,
             priority: this.configuration.priority,
             html: this.configuration.html,
+            ...message,
         };
 
         // Emergency priority needs retry/expire props
-        if (this.configuration.priority === 2) {
+        if (messageToSend.priority === 2) {
             messageToSend.expire = this.configuration.expire;
             messageToSend.retry = this.configuration.retry;
         }

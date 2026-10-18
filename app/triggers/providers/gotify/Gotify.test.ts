@@ -629,5 +629,98 @@ describe('Gotify Trigger', () => {
                 },
             });
         });
+
+        test('trigger without riskAnalysis should preserve legacy payload', async () => {
+            gotify.configuration = {
+                ...configurationValid,
+                priority: 3,
+            };
+            const createMessageMock = jest.fn().mockResolvedValue({});
+            gotify.client = {
+                message: {
+                    createMessage: createMessageMock,
+                },
+            } as any;
+
+            const container = {
+                name: 'legacy-app',
+                updateKind: {
+                    kind: 'tag',
+                    localValue: '1.0',
+                    remoteValue: '1.1',
+                },
+                result: {},
+            } as any;
+
+            await gotify.trigger(container);
+
+            expect(createMessageMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    priority: 3,
+                }),
+            );
+            const callArg = createMessageMock.mock.calls[0][0];
+            expect(callArg.message).not.toContain('Risk Level:');
+            expect(callArg.extras).toBeUndefined();
+        });
+
+        test('trigger with riskAnalysis should adjust priority and set markdown and click extras', async () => {
+            gotify.configuration = {
+                ...configurationValid,
+                priority: 2,
+            };
+            const createMessageMock = jest.fn().mockResolvedValue({});
+            gotify.client = {
+                message: {
+                    createMessage: createMessageMock,
+                },
+            } as any;
+
+            const container = {
+                id: 'c99',
+                name: 'smart-app',
+                updateKind: {
+                    kind: 'tag',
+                    localValue: '1.0',
+                    remoteValue: '2.0',
+                },
+                result: {
+                    changelogUrl: 'https://app.com/releases/2.0',
+                    riskAnalysis: {
+                        riskScore: 'critical',
+                        skippedVersionsCount: 4,
+                        breakingChanges: ['Dropped Node 16 support'],
+                        databaseImpact: 'Data migration needed',
+                    },
+                },
+            } as any;
+
+            await gotify.trigger(container);
+
+            expect(createMessageMock).toHaveBeenCalledWith({
+                title: expect.any(String),
+                message: expect.stringContaining('**Risk Level:** 🚨 CRITICAL'),
+                priority: 9, // Critical maps to priority 9
+                extras: {
+                    'client::display': {
+                        contentType: 'text/markdown',
+                    },
+                    'client::notification': {
+                        click: {
+                            url: 'https://app.com/releases/2.0',
+                        },
+                    },
+                },
+            });
+            const callArg = createMessageMock.mock.calls[0][0];
+            expect(callArg.message).toContain('**Skipped Releases:** +4');
+            expect(callArg.message).toContain('Dropped Node 16 support');
+            expect(callArg.message).toContain(
+                '**Database Impact:** Data migration needed',
+            );
+            expect(callArg.message).toContain(
+                '[🔍 Review Update in WUD](https://app.com/releases/2.0)',
+            );
+        });
     });
 });

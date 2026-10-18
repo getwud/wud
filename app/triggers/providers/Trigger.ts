@@ -1034,6 +1034,39 @@ class Trigger extends Component {
     }
 
     /**
+     * Get review URL for container upgrade.
+     */
+    getUpgradeReviewUrl(container: Container): string {
+        const baseUrl = process.env.WUD_PUBLIC_URL
+            ? process.env.WUD_PUBLIC_URL.replace(/\/+$/, '')
+            : '';
+        return baseUrl
+            ? `${baseUrl}/#/containers?action=review&container=${container.id}`
+            : (container.result && container.result.changelogUrl) ||
+                  container.changelogUrl ||
+                  (container.result && container.result.link) ||
+                  container.link ||
+                  '';
+    }
+
+    /**
+     * Get skipped versions count from risk analysis object.
+     */
+    getSkippedVersionsCount(risk?: {
+        skippedVersionsCount?: number;
+        intermediateReleases?: unknown[];
+    }): number {
+        if (!risk) {
+            return 0;
+        }
+        return risk.skippedVersionsCount !== undefined
+            ? risk.skippedVersionsCount
+            : risk.intermediateReleases
+              ? Math.max(0, risk.intermediateReleases.length - 1)
+              : 0;
+    }
+
+    /**
      * Build the strict-typed render context for rollback notification templates
      * (blueprint §9.4).
      */

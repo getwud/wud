@@ -18,6 +18,13 @@ export interface NtfyConfiguration extends TriggerConfiguration {
     auth?: NtfyAuthConfiguration;
 }
 
+export interface NtfyAction {
+    action: string;
+    label: string;
+    url?: string;
+    [key: string]: unknown;
+}
+
 export interface NtfyMessageBody {
     topic?: string;
     title?: string;
@@ -26,6 +33,7 @@ export interface NtfyMessageBody {
     tags?: string[];
     icon?: string;
     click?: string;
+    actions?: NtfyAction[];
 }
 
 /**
@@ -98,26 +106,126 @@ class Ntfy extends Trigger {
      * @returns {Promise<unknown>}
      */
     async trigger(container: Container): Promise<void> {
-        const body: NtfyMessageBody = {
-            topic: this.configuration.topic,
-            title: this.renderSimpleTitle(container),
-            message: this.renderSimpleBody(container),
-            priority: this.configuration.priority,
+        const risk = container.result?.riskAnalysis;
+        if (!risk) {
+            const body: NtfyMessageBody = {
+                topic: this.configuration.topic,
+                title: this.renderSimpleTitle(container),
+                message: this.renderSimpleBody(container),
+                priority: this.configuration.priority,
+            };
+            if (this.configuration.tags && this.configuration.tags.length > 0) {
+                body.tags = this.configuration.tags;
+            }
+            if (this.configuration.icon) {
+                body.icon = this.configuration.icon;
+            }
+            if (this.configuration.click) {
+                const click = this.renderTemplate(
+                    this.configuration.click,
+                    container,
+                );
+                if (click) {
+                    body.click = click;
+                }
+            }
+            await this.sendHttpRequest(body);
+            return;
+        }
+
+        const RISK_PRIORITIES: Record<string, number> = {
+            low: 2,
+            medium: 3,
+            high: 4,
+            critical: 5,
+            locked: 3,
         };
-        if (this.configuration.tags && this.configuration.tags.length > 0) {
-            body.tags = this.configuration.tags;
+        const priority =
+            RISK_PRIORITIES[risk.riskScore] ?? this.configuration.priority ?? 3;
+
+        const riskTagEmojis: Record<string, string> = {
+            low: 'shield',
+            medium: 'warning',
+            high: 'warning',
+            critical: 'rotating_light',
+            locked: 'lock',
+        };
+        const riskTag = riskTagEmojis[risk.riskScore] || 'information_source';
+        const tags = Array.from(
+            new Set([
+                ...(this.configuration.tags || []),
+                riskTag,
+                risk.riskScore,
+            ]),
+        );
+
+        let message = this.renderSimpleBody(container);
+        const skipped = this.getSkippedVersionsCount(risk);
+        const riskEmojis: Record<string, string> = {
+            low: '🟢',
+            medium: '⚠️',
+            high: '⚡',
+            critical: '🚨',
+            locked: '🔒',
+        };
+        const emoji = riskEmojis[risk.riskScore] || 'ℹ️';
+
+        const extraParts: string[] = [];
+        extraParts.push(`Risk Level: ${emoji} ${risk.riskScore.toUpperCase()}`);
+        if (skipped > 0) {
+            extraParts.push(`Skipped Releases: +${skipped}`);
         }
-        if (this.configuration.icon) {
-            body.icon = this.configuration.icon;
+        if (risk.summary) {
+            extraParts.push(`Summary: ${risk.summary}`);
         }
+        if (risk.breakingChanges && risk.breakingChanges.length > 0) {
+            extraParts.push(
+                `Breaking Changes:\n${risk.breakingChanges.map((b: string) => `• ${b}`).join('\n')}`,
+            );
+        }
+        if (risk.databaseImpact) {
+            extraParts.push(`Database Impact: ${risk.databaseImpact}`);
+        }
+        message = `${message}\n\n${extraParts.join('\n\n')}`;
+
+        const reviewUrl = this.getUpgradeReviewUrl(container);
+        const actions: NtfyAction[] = [];
+        if (reviewUrl) {
+            actions.push({
+                action: 'view',
+                label: 'Review Update',
+                url: reviewUrl,
+            });
+        }
+
+        let click: string | undefined;
         if (this.configuration.click) {
-            const click = this.renderTemplate(
+            const renderedClick = this.renderTemplate(
                 this.configuration.click,
                 container,
             );
-            if (click) {
-                body.click = click;
+            if (renderedClick) {
+                click = renderedClick;
             }
+        } else if (reviewUrl) {
+            click = reviewUrl;
+        }
+
+        const body: NtfyMessageBody = {
+            topic: this.configuration.topic,
+            title: this.renderSimpleTitle(container),
+            message,
+            priority,
+            tags,
+        };
+        if (this.configuration.icon) {
+            body.icon = this.configuration.icon;
+        }
+        if (click) {
+            body.click = click;
+        }
+        if (actions.length > 0) {
+            body.actions = actions;
         }
         await this.sendHttpRequest(body);
     }

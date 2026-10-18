@@ -116,12 +116,100 @@ class Smtp extends Trigger {
      * @returns {Promise<void>}
      */
     async trigger(container) {
+        const risk = container.result?.riskAnalysis;
+        if (!risk) {
+            return this.transporter.sendMail({
+                from: this.configuration.from,
+                to: this.configuration.to,
+                subject: this.renderSimpleTitle(container),
+                text: this.renderSimpleBody(container),
+            });
+        }
+
+        const subject = this.renderSimpleTitle(container);
+        const text = this.renderSimpleBody(container);
+        const html = this.renderRiskHtml(container);
+
         return this.transporter.sendMail({
             from: this.configuration.from,
             to: this.configuration.to,
-            subject: this.renderSimpleTitle(container),
-            text: this.renderSimpleBody(container),
+            subject,
+            text,
+            html,
         });
+    }
+
+    renderRiskHtml(container) {
+        const risk = container.result?.riskAnalysis;
+        const RISK_COLORS = {
+            low: '#2eb886',
+            medium: '#e67e22',
+            high: '#e74c3c',
+            critical: '#e74c3c',
+            locked: '#9b59b6',
+        };
+        const riskEmojis = {
+            low: '🟢',
+            medium: '⚠️',
+            high: '⚡',
+            critical: '🚨',
+            locked: '🔒',
+        };
+        const color = RISK_COLORS[risk.riskScore] || '#2eb886';
+        const emoji = riskEmojis[risk.riskScore] || 'ℹ️';
+        const skipped = this.getSkippedVersionsCount(risk);
+        const reviewUrl = this.getUpgradeReviewUrl(container);
+        const title = this.renderSimpleTitle(container);
+        const body = this.renderSimpleBody(container);
+
+        let skippedHtml = '';
+        if (skipped > 0) {
+            skippedHtml = `<p><strong>Skipped Releases:</strong> +${skipped} intermediate version${skipped > 1 ? 's' : ''}</p>`;
+        }
+
+        let summaryHtml = '';
+        if (risk.summary) {
+            summaryHtml = `<blockquote style="border-left: 4px solid #ccc; margin: 10px 0; padding-left: 10px; color: #555;">${risk.summary}</blockquote>`;
+        }
+
+        let bcHtml = '';
+        if (risk.breakingChanges && risk.breakingChanges.length > 0) {
+            const listItems = risk.breakingChanges
+                .map((b) => `<li>${b}</li>`)
+                .join('');
+            bcHtml = `<div style="margin-top: 10px;"><strong>Breaking Changes:</strong><ul>${listItems}</ul></div>`;
+        }
+
+        let dbHtml = '';
+        if (risk.databaseImpact) {
+            dbHtml = `<p><strong>Database Impact:</strong> ${risk.databaseImpact}</p>`;
+        }
+
+        let buttonHtml = '';
+        if (reviewUrl) {
+            buttonHtml = `<p style="margin-top: 20px;"><a href="${reviewUrl}" style="background-color: #0366d6; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">🔍 Review Update in WUD</a></p>`;
+        }
+
+        return `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333;">
+                <h2>${title}</h2>
+                <p style="white-space: pre-line;">${body}</p>
+                <div style="border: 1px solid #e1e4e8; border-radius: 6px; padding: 16px; margin-top: 20px; background-color: #f6f8fa;">
+                    <h3 style="margin-top: 0;">Upgrade Risk Analysis</h3>
+                    <p>
+                        <strong>Risk Level:</strong>
+                        <span style="background-color: ${color}; color: #ffffff; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 0.9em;">
+                            ${emoji} ${risk.riskScore.toUpperCase()}
+                        </span>
+                    </p>
+                    ${summaryHtml}
+                    ${skippedHtml}
+                    ${bcHtml}
+                    ${dbHtml}
+                    ${buttonHtml}
+                </div>
+            </div>
+        `.trim();
     }
 
     /**

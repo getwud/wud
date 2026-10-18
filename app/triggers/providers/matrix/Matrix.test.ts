@@ -90,4 +90,86 @@ describe('Matrix Trigger', () => {
             },
         );
     });
+
+    test('trigger without riskAnalysis should preserve legacy payload without formatted_body', async () => {
+        const { default: axios } = await import('axios');
+        matrix.configuration = {
+            url: 'https://matrix.example.com',
+            roomid: '!myroom:example.com',
+            accesstoken: 'token123',
+            simpletitle: 'Update for ${container.name}',
+            simplebody:
+                'From ${container.image.tag.value} to ${container.result.tag}',
+        };
+
+        const container = {
+            name: 'matrix-app',
+            image: { tag: { value: '1.0' } },
+            result: { tag: '1.1' },
+        };
+
+        await matrix.trigger(container);
+        expect(axios.put).toHaveBeenCalledWith(
+            expect.any(String),
+            {
+                msgtype: 'm.text',
+                body: 'Update for matrix-app\n\nFrom 1.0 to 1.1',
+            },
+            expect.any(Object),
+        );
+    });
+
+    test('trigger with riskAnalysis should include HTML formatted_body with risk details', async () => {
+        const { default: axios } = await import('axios');
+        matrix.configuration = {
+            url: 'https://matrix.example.com',
+            roomid: '!myroom:example.com',
+            accesstoken: 'token123',
+            simpletitle: 'Update for ${container.name}',
+            simplebody:
+                'From ${container.image.tag.value} to ${container.result.tag}',
+        };
+
+        const container = {
+            name: 'matrix-app',
+            image: { tag: { value: '1.0' } },
+            result: {
+                tag: '2.0',
+                changelogUrl:
+                    'https://github.com/matrix-org/matrix-app/releases/2.0',
+                riskAnalysis: {
+                    riskScore: 'critical',
+                    skippedVersionsCount: 3,
+                    breakingChanges: ['Federation v1 dropped'],
+                    databaseImpact: 'Postgres schema rewrite',
+                },
+            },
+        };
+
+        await matrix.trigger(container);
+        expect(axios.put).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.objectContaining({
+                msgtype: 'm.text',
+                format: 'org.matrix.custom.html',
+                formatted_body: expect.stringContaining(
+                    '<font color="#e74c3c"><b>🚨 CRITICAL</b></font>',
+                ),
+            }),
+            expect.any(Object),
+        );
+        const sentPayload = axios.put.mock.calls[0][1];
+        expect(sentPayload.formatted_body).toContain(
+            'Skipped Versions:</b> +3',
+        );
+        expect(sentPayload.formatted_body).toContain(
+            '<li>Federation v1 dropped</li>',
+        );
+        expect(sentPayload.formatted_body).toContain(
+            'Database Impact:</b> Postgres schema rewrite',
+        );
+        expect(sentPayload.formatted_body).toContain(
+            '<a href="https://github.com/matrix-org/matrix-app/releases/2.0">🔍 Review Update in WUD</a>',
+        );
+    });
 });

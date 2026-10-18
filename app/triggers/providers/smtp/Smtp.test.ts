@@ -317,3 +317,53 @@ test('triggerBatch should format mail as expected', async () => {
         '- Container homeassistant running with tag 1.0.0 can be updated to tag 2.0.0\nhttps://test-2.0.0/changelog\n\n- Container homeassistant running with tag 1.0.0 can be updated to tag 2.0.0\nhttps://test-2.0.0/changelog\n',
     );
 });
+
+test('trigger with riskAnalysis should include HTML email body with upgrade risk section', async () => {
+    smtp.configuration = configurationValid;
+    smtp.transporter = {
+        sendMail: (conf) => conf,
+    };
+    const response = await smtp.trigger({
+        id: 'c123',
+        name: 'postgres',
+        image: {
+            name: 'postgres',
+            tag: { value: '14.0' },
+        },
+        result: {
+            tag: '16.0',
+            changelogUrl: 'https://postgres.org/release/16.0',
+            riskAnalysis: {
+                riskScore: 'critical',
+                summary: 'Major PG version jump requiring pg_upgrade',
+                skippedVersionsCount: 2,
+                breakingChanges: ['Dropped legacy collation parameter'],
+                databaseImpact: 'pg_upgrade and disk backup necessary',
+            },
+        },
+        updateKind: {
+            kind: 'tag',
+            localValue: '14.0',
+            remoteValue: '16.0',
+        },
+    });
+
+    expect(response.html).toBeDefined();
+    expect(response.html).toContain('Upgrade Risk Analysis');
+    expect(response.html).toContain('🚨 CRITICAL');
+    expect(response.html).toContain('background-color: #e74c3c');
+    expect(response.html).toContain(
+        'Skipped Releases:</strong> +2 intermediate versions',
+    );
+    expect(response.html).toContain(
+        'Major PG version jump requiring pg_upgrade',
+    );
+    expect(response.html).toContain(
+        '<li>Dropped legacy collation parameter</li>',
+    );
+    expect(response.html).toContain(
+        'Database Impact:</strong> pg_upgrade and disk backup necessary',
+    );
+    expect(response.html).toContain('href="https://postgres.org/release/16.0"');
+    expect(response.html).toContain('🔍 Review Update in WUD');
+});

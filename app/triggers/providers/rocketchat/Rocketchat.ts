@@ -58,7 +58,78 @@ class Rocketchat extends Trigger {
      */
     async trigger(container) {
         const message = this.composeMessage(container);
-        return this.postMessage(message);
+        const risk = container.result?.riskAnalysis;
+        if (!risk) {
+            return this.postMessage(message);
+        }
+
+        const RISK_COLORS = {
+            low: '#2eb886',
+            medium: '#e67e22',
+            high: '#e74c3c',
+            critical: '#e74c3c',
+            locked: '#9b59b6',
+        };
+        const riskEmojis = {
+            low: '🟢',
+            medium: '⚠️',
+            high: '⚡',
+            critical: '🚨',
+            locked: '🔒',
+        };
+
+        const color = RISK_COLORS[risk.riskScore] || '#2eb886';
+        const emoji = riskEmojis[risk.riskScore] || 'ℹ️';
+
+        const fields = [];
+        fields.push({
+            title: 'Risk Level',
+            value: `${emoji} ${risk.riskScore.toUpperCase()}`,
+            short: true,
+        });
+
+        const skipped = this.getSkippedVersionsCount(risk);
+        if (skipped > 0) {
+            fields.push({
+                title: 'Skipped Versions',
+                value: `+${skipped}`,
+                short: true,
+            });
+        }
+
+        if (risk.breakingChanges && risk.breakingChanges.length > 0) {
+            fields.push({
+                title: 'Breaking Changes',
+                value: risk.breakingChanges.map((b) => `• ${b}`).join('\n'),
+                short: false,
+            });
+        }
+
+        if (risk.databaseImpact) {
+            fields.push({
+                title: 'DB Impact',
+                value: risk.databaseImpact,
+                short: false,
+            });
+        }
+
+        const reviewUrl = this.getUpgradeReviewUrl(container);
+        if (reviewUrl) {
+            fields.push({
+                title: 'Review',
+                value: `[Review Update in WUD](${reviewUrl})`,
+                short: false,
+            });
+        }
+
+        const attachments = [
+            {
+                color,
+                fields,
+            },
+        ];
+
+        return this.postMessage(message, attachments);
     }
 
     composeMessage(container) {
@@ -120,10 +191,11 @@ class Rocketchat extends Trigger {
      * Send message through the Rocket Chat API.
      *
      * @param text
+     * @param attachments
      * @returns {Promise<*>}
      */
-    async postMessage(text) {
-        const data = this.buildMessageBody(text);
+    async postMessage(text, attachments = undefined) {
+        const data = this.buildMessageBody(text, attachments);
         const options = this.buildRequestOptions();
 
         return axios.post(
@@ -137,9 +209,10 @@ class Rocketchat extends Trigger {
      * Build the message body with all configuration options.
      *
      * @param {string} text - The message text
+     * @param {Array} attachments - Optional attachments
      * @returns {Object} The message body
      */
-    buildMessageBody(text) {
+    buildMessageBody(text, attachments = undefined) {
         const body = {
             channel: this.configuration.channel,
             text: text,
@@ -155,6 +228,9 @@ class Rocketchat extends Trigger {
         }
         if (this.configuration.parse?.urls) {
             body.parseUrls = this.configuration.parse.urls;
+        }
+        if (attachments && attachments.length > 0) {
+            body.attachments = attachments;
         }
 
         return body;

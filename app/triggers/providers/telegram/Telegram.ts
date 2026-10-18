@@ -124,19 +124,108 @@ class Telegram extends Trigger {
     trigger(container: Container) {
         const threadId = this.getMessageThreadId(container);
         const body = this.renderSimpleBody(container);
+        const risk = container.result?.riskAnalysis;
 
-        if (this.configuration.disabletitle) {
+        if (!risk) {
+            if (this.configuration.disabletitle) {
+                return threadId !== undefined
+                    ? this.sendMessage(body, threadId)
+                    : this.sendMessage(body);
+            }
+
+            const title = this.renderSimpleTitle(container);
+
+            const message = `${this.bold(title)}\n\n${this.escapeMarkdown(body)}`;
             return threadId !== undefined
-                ? this.sendMessage(body, threadId)
-                : this.sendMessage(body);
+                ? this.sendMessage(message, threadId)
+                : this.sendMessage(message);
         }
 
-        const title = this.renderSimpleTitle(container);
+        const isMarkdown =
+            (this.configuration.messageformat || '').toLowerCase() ===
+            'markdown';
+        const riskEmojis: Record<string, string> = {
+            low: '🟢',
+            medium: '⚠️',
+            high: '⚡',
+            critical: '🚨',
+            locked: '🔒',
+        };
+        const emoji = riskEmojis[risk.riskScore] || 'ℹ️';
+        const skipped = this.getSkippedVersionsCount(risk);
+        const reviewUrl = this.getUpgradeReviewUrl(container);
 
-        const message = `${this.bold(title)}\n\n${this.escapeMarkdown(body)}`;
-        return threadId !== undefined
-            ? this.sendMessage(message, threadId)
-            : this.sendMessage(message);
+        if (isMarkdown) {
+            const parts: string[] = [];
+            if (!this.configuration.disabletitle) {
+                const title = this.renderSimpleTitle(container);
+                parts.push(this.bold(title));
+            }
+            parts.push(this.escapeMarkdown(body));
+            parts.push(
+                `${this.bold('Risk Level:')} ${emoji} ${this.escapeMarkdown(risk.riskScore.toUpperCase())}`,
+            );
+            if (skipped > 0) {
+                parts.push(`${this.bold('Skipped Releases:')} \\+${skipped}`);
+            }
+            if (risk.summary) {
+                parts.push(`> ${this.escapeMarkdown(risk.summary)}`);
+            }
+            if (risk.breakingChanges && risk.breakingChanges.length > 0) {
+                const bc = risk.breakingChanges
+                    .map((b: string) => `• ${this.escapeMarkdown(b)}`)
+                    .join('\n');
+                parts.push(`${this.bold('Breaking Changes:')}\n${bc}`);
+            }
+            if (risk.databaseImpact) {
+                parts.push(
+                    `${this.bold('Database Impact:')} ${this.escapeMarkdown(risk.databaseImpact)}`,
+                );
+            }
+            if (reviewUrl) {
+                parts.push(
+                    `[🔍 Review Update in WUD](${this.escapeMarkdown(reviewUrl)})`,
+                );
+            }
+            const message = parts.join('\n\n');
+            return threadId !== undefined
+                ? this.sendMessage(message, threadId)
+                : this.sendMessage(message);
+        } else {
+            const parts: string[] = [];
+            if (!this.configuration.disabletitle) {
+                const title = this.renderSimpleTitle(container);
+                parts.push(this.bold(title));
+            }
+            parts.push(body);
+            parts.push(
+                `<b>Risk Level:</b> ${emoji} ${risk.riskScore.toUpperCase()}`,
+            );
+            if (skipped > 0) {
+                parts.push(`<b>Skipped Releases:</b> +${skipped}`);
+            }
+            if (risk.summary) {
+                parts.push(`<blockquote>${risk.summary}</blockquote>`);
+            }
+            if (risk.breakingChanges && risk.breakingChanges.length > 0) {
+                const bc = risk.breakingChanges
+                    .map((b: string) => `• ${b}`)
+                    .join('\n');
+                parts.push(`<b>Breaking Changes:</b>\n${bc}`);
+            }
+            if (risk.databaseImpact) {
+                parts.push(`<b>Database Impact:</b> ${risk.databaseImpact}`);
+            }
+            if (reviewUrl) {
+                parts.push(
+                    `<a href="${reviewUrl}">🔍 Review Update in WUD</a>`,
+                );
+            }
+            const message = parts.join('\n\n');
+            return threadId !== undefined
+                ? this.sendMessage(message, threadId)
+                : this.sendMessage(message);
+        }
     }
 
     triggerBatch(containers: Container[]) {

@@ -190,3 +190,72 @@ test('triggerBatch should send batch notification', async () => {
         title: '2 updates available',
     });
 });
+
+test('trigger with riskAnalysis should set priority 1 for high risk, url, and text details', async () => {
+    pushover.configuration = {
+        ...configurationValid,
+        html: 0,
+    };
+    const container = {
+        id: 'c123',
+        name: 'app-db',
+        updateKind: {
+            kind: 'tag',
+            localValue: '1.0.0',
+            remoteValue: '2.0.0',
+        },
+        result: {
+            changelogUrl: 'https://example.com/changelog',
+            riskAnalysis: {
+                riskScore: 'high',
+                summary: 'Database upgrade with schema change',
+                skippedVersionsCount: 2,
+                breakingChanges: ['Column dropped'],
+                databaseImpact: 'Migration required',
+            },
+        },
+    };
+    const result = (await pushover.trigger(container)) as any;
+    expect(result.priority).toBe(1);
+    expect(result.url).toBe('https://example.com/changelog');
+    expect(result.url_title).toBe('Review Update in WUD');
+    expect(result.message).toContain('Risk Level: ⚡ HIGH');
+    expect(result.message).toContain('Skipped Versions: +2');
+    expect(result.message).toContain(
+        'Summary: Database upgrade with schema change',
+    );
+    expect(result.message).toContain('Breaking Changes:\n• Column dropped');
+    expect(result.message).toContain('DB Impact: Migration required');
+});
+
+test('trigger with riskAnalysis and html enabled should format with HTML tags', async () => {
+    pushover.configuration = {
+        ...configurationValid,
+        html: 1,
+    };
+    const container = {
+        id: 'c123',
+        name: 'app-db',
+        updateKind: {
+            kind: 'tag',
+            localValue: '1.0.0',
+            remoteValue: '2.0.0',
+        },
+        result: {
+            changelogUrl: 'https://example.com/changelog',
+            riskAnalysis: {
+                riskScore: 'critical',
+                skippedVersionsCount: 1,
+                breakingChanges: ['Breaking auth'],
+            },
+        },
+    };
+    const result = (await pushover.trigger(container)) as any;
+    expect(result.priority).toBe(1);
+    expect(result.html).toBe(1);
+    expect(result.message).toContain('<b>Risk Level:</b> 🚨 CRITICAL');
+    expect(result.message).toContain('<b>Skipped Versions:</b> +1');
+    expect(result.message).toContain(
+        '<b>Breaking Changes:</b><br/>• Breaking auth',
+    );
+});

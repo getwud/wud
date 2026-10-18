@@ -111,4 +111,103 @@ describe('Rocketchat Trigger', () => {
             },
         );
     });
+
+    test('trigger without riskAnalysis should preserve legacy payload without attachments', async () => {
+        const { default: axios } = await import('axios');
+        rocketchat.configuration = {
+            url: 'https://open.rocket.chat',
+            user: { id: 'user123' },
+            auth: { token: 'token123' },
+            channel: '#general',
+            simpletitle: 'Update for ${container.name}',
+            simplebody:
+                'From ${container.image.tag.value} to ${container.result.tag}',
+        };
+
+        const container = {
+            name: 'rocketchat-app',
+            image: { tag: { value: '1.0' } },
+            result: { tag: '2.0' },
+        };
+
+        await rocketchat.trigger(container);
+        expect(axios.post).toHaveBeenCalledWith(
+            'https://open.rocket.chat/api/v1/chat.postMessage',
+            {
+                channel: '#general',
+                text: 'Update for rocketchat-app\n\nFrom 1.0 to 2.0',
+            },
+            expect.any(Object),
+        );
+    });
+
+    test('trigger with riskAnalysis should include color attachment and fields', async () => {
+        const { default: axios } = await import('axios');
+        rocketchat.configuration = {
+            url: 'https://open.rocket.chat',
+            user: { id: 'user123' },
+            auth: { token: 'token123' },
+            channel: '#general',
+            simpletitle: 'Update for ${container.name}',
+            simplebody:
+                'From ${container.image.tag.value} to ${container.result.tag}',
+        };
+
+        const container = {
+            name: 'rocketchat-app',
+            image: { tag: { value: '1.0' } },
+            result: {
+                tag: '2.0',
+                changelogUrl: 'https://rocket.chat/release/2.0',
+                riskAnalysis: {
+                    riskScore: 'medium',
+                    skippedVersionsCount: 1,
+                    breakingChanges: ['Deprecated REST endpoint removed'],
+                    databaseImpact: 'MongoDB 5.0 migration needed',
+                },
+            },
+        };
+
+        await rocketchat.trigger(container);
+        expect(axios.post).toHaveBeenCalledWith(
+            'https://open.rocket.chat/api/v1/chat.postMessage',
+            {
+                channel: '#general',
+                text: 'Update for rocketchat-app\n\nFrom 1.0 to 2.0',
+                attachments: [
+                    {
+                        color: '#e67e22',
+                        fields: [
+                            {
+                                title: 'Risk Level',
+                                value: '⚠️ MEDIUM',
+                                short: true,
+                            },
+                            {
+                                title: 'Skipped Versions',
+                                value: '+1',
+                                short: true,
+                            },
+                            {
+                                title: 'Breaking Changes',
+                                value: '• Deprecated REST endpoint removed',
+                                short: false,
+                            },
+                            {
+                                title: 'DB Impact',
+                                value: 'MongoDB 5.0 migration needed',
+                                short: false,
+                            },
+                            {
+                                title: 'Review',
+                                value: '[Review Update in WUD](https://rocket.chat/release/2.0)',
+                                short: false,
+                            },
+                        ],
+                    },
+                ],
+            },
+            expect.any(Object),
+        );
+    });
 });

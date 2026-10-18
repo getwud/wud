@@ -12,7 +12,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [HUB] Integrate automated changelog risk analysis and breaking change detection with WUD Hub
 - 🚀 [METADATA] Add WUD Hub remote metadata provider and precedence engine
 - 🚀 [TRIGGER] Add risk analysis variables and threshold filtering (riskthreshold, maxskippedthreshold)
-- 🚀 [TRIGGER] Dynamic risk severity styling and structured release insights for Discord and Slack notifications
+- 🚀 [TRIGGER] Dynamic risk severity styling and structured release insights across all notification triggers (Discord, Slack, Mattermost, Telegram, Gotify, Ntfy, Rocket.Chat, Pushover, Matrix, Zulip, SMTP, Apprise)
 - 🚀 [TRIGGER] Add real-time pull progress logging for Docker images (fixes #777)
 - 🚀 [TRIGGER] Log stdout/stderr on error and expose compose_project in command trigger (fixes #594, fixes #595)
 - 🚀 [TRIGGER] Support click URL in Ntfy trigger and expose hostname in batch templates (fixes #660, fixes #725)

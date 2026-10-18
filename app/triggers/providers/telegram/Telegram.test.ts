@@ -474,3 +474,101 @@ test('triggerBatch with disabletitle should also include message_thread_id from 
         undefined,
     );
 });
+
+test('trigger without riskAnalysis should preserve legacy payload', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        messageformat: 'Markdown',
+    };
+
+    const container: Container = {
+        name: 'test-app',
+        updateKind: { kind: 'tag', localValue: '1.0.0', remoteValue: '1.1.0' },
+        result: {},
+    } as any;
+
+    await telegram.trigger(container);
+
+    expect(mockedPost).toHaveBeenCalledWith(
+        'https://api.telegram.org/bottoken/sendMessage',
+        {
+            chat_id: '123456789',
+            parse_mode: 'MarkdownV2',
+            text: '*New tag found for container test\\-app*\n\nContainer test\\-app running with tag 1\\.0\\.0 can be updated to tag 1\\.1\\.0',
+        },
+        undefined,
+    );
+});
+
+test('trigger with riskAnalysis in Markdown mode should enrich message with risk details', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        messageformat: 'Markdown',
+    };
+
+    const container: Container = {
+        id: 'c123',
+        name: 'test-app',
+        updateKind: { kind: 'tag', localValue: '1.0.0', remoteValue: '2.0.0' },
+        result: {
+            changelogUrl: 'https://example.com/changelog',
+            riskAnalysis: {
+                riskScore: 'high',
+                summary: 'Major breaking changes detected',
+                skippedVersionsCount: 3,
+                breakingChanges: ['API v1 removed', 'Config format changed'],
+                databaseImpact: 'Migration required',
+            },
+        },
+    } as any;
+
+    await telegram.trigger(container);
+
+    expect(mockedPost).toHaveBeenCalled();
+    const sentText = (mockedPost.mock.calls[0][1] as any).text;
+    expect(sentText).toContain('⚡ HIGH');
+    expect(sentText).toContain('Skipped Releases');
+    expect(sentText).toContain('\\+3');
+    expect(sentText).toContain('Major breaking changes detected');
+    expect(sentText).toContain('API v1 removed');
+    expect(sentText).toContain('Config format changed');
+    expect(sentText).toContain('Migration required');
+    expect(sentText).toContain(
+        '[🔍 Review Update in WUD](https://example\\.com/changelog)',
+    );
+});
+
+test('trigger with riskAnalysis in HTML mode should enrich message with HTML tags', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        messageformat: 'HTML',
+    };
+
+    const container: Container = {
+        id: 'c123',
+        name: 'test-app',
+        updateKind: { kind: 'tag', localValue: '1.0.0', remoteValue: '2.0.0' },
+        result: {
+            changelogUrl: 'https://example.com/changelog',
+            riskAnalysis: {
+                riskScore: 'critical',
+                skippedVersionsCount: 1,
+                breakingChanges: ['Breaking auth change'],
+            },
+        },
+    } as any;
+
+    await telegram.trigger(container);
+
+    expect(mockedPost).toHaveBeenCalled();
+    const sentBody = mockedPost.mock.calls[0][1] as any;
+    expect(sentBody.parse_mode).toBe('HTML');
+    expect(sentBody.text).toContain('<b>Risk Level:</b> 🚨 CRITICAL');
+    expect(sentBody.text).toContain('<b>Skipped Releases:</b> +1');
+    expect(sentBody.text).toContain(
+        '<b>Breaking Changes:</b>\n• Breaking auth change',
+    );
+    expect(sentBody.text).toContain(
+        '<a href="https://example.com/changelog">🔍 Review Update in WUD</a>',
+    );
+});
