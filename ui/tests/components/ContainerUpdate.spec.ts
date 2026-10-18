@@ -166,4 +166,98 @@ describe('ContainerUpdate', () => {
     expect(wrapper.text()).toContain('Update in cool-down');
     expect(wrapper.text()).toContain('held in cool-down period');
   });
+
+  describe('risk analysis state reset', () => {
+    it('resets localRiskAnalysis and falls back to new container riskAnalysis when container changes', async () => {
+      const containerA = {
+        id: 'container-a',
+        result: {
+          tag: '1.1.0',
+          riskAnalysis: {
+            riskScore: 'low',
+            summary: 'Container A initial risk',
+            breakingChanges: [],
+            envVarChanges: [],
+            databaseImpact: null,
+            evaluatedAt: new Date().toISOString(),
+          },
+        },
+      };
+      const containerB = {
+        id: 'container-b',
+        result: {
+          tag: '2.0.0',
+          riskAnalysis: {
+            riskScore: 'high',
+            summary: 'Container B initial risk',
+            breakingChanges: ['Breaking change in B'],
+            envVarChanges: [],
+            databaseImpact: null,
+            evaluatedAt: new Date().toISOString(),
+          },
+        },
+      };
+
+      await wrapper.setProps({
+        container: containerA,
+        result: containerA.result,
+      });
+
+      wrapper.vm.localRiskAnalysis = {
+        riskScore: 'critical',
+        summary: 'Container A re-evaluated risk',
+        breakingChanges: ['Critical flaw'],
+        envVarChanges: [],
+        databaseImpact: null,
+        evaluatedAt: new Date().toISOString(),
+      };
+      expect(wrapper.vm.effectiveRiskAnalysis.riskScore).toBe('critical');
+
+      await wrapper.setProps({
+        container: containerB,
+        result: containerB.result,
+      });
+
+      expect(wrapper.vm.localRiskAnalysis).toBeNull();
+      expect(wrapper.vm.effectiveRiskAnalysis.riskScore).toBe('high');
+      expect(wrapper.vm.effectiveRiskAnalysis.summary).toBe('Container B initial risk');
+    });
+
+    it('resets localRiskAnalysis when containerId changes', async () => {
+      await wrapper.setProps({
+        containerId: 'container-1',
+        result: { tag: '1.0.0' },
+      });
+
+      wrapper.vm.localRiskAnalysis = {
+        riskScore: 'medium',
+        summary: 'Cached risk',
+      };
+      expect(wrapper.vm.effectiveRiskAnalysis.riskScore).toBe('medium');
+
+      await wrapper.setProps({
+        containerId: 'container-2',
+      });
+
+      expect(wrapper.vm.localRiskAnalysis).toBeNull();
+      expect(wrapper.vm.effectiveRiskAnalysis).toBeNull();
+    });
+
+    it('resets localRiskAnalysis when result.tag changes', async () => {
+      await wrapper.setProps({
+        result: { tag: '1.0.0' },
+      });
+
+      wrapper.vm.localRiskAnalysis = {
+        riskScore: 'low',
+        summary: 'Old tag risk',
+      };
+
+      await wrapper.setProps({
+        result: { tag: '2.0.0' },
+      });
+
+      expect(wrapper.vm.localRiskAnalysis).toBeNull();
+    });
+  });
 });

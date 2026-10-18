@@ -2,6 +2,7 @@
   <div>
     <upgrade-risk-card
       v-if="updateAvailable || isCoolingDown || isSnoozed || snoozedVersion"
+      :key="container?.id || containerId || result?.tag || 'risk-card'"
       :container="container || { result, id: containerId }"
       :risk-analysis="effectiveRiskAnalysis"
       :is-unpaired="isUnpaired"
@@ -217,6 +218,28 @@ export default defineComponent({
         kind = this.updateKind.semverDiff;
       }
       return kind;
+    },
+  },
+  watch: {
+    "container.id"(newId?: string, oldId?: string) {
+      if (newId !== oldId) {
+        this.localRiskAnalysis = null;
+      }
+    },
+    containerId(newId?: string, oldId?: string) {
+      if (newId !== oldId) {
+        this.localRiskAnalysis = null;
+      }
+    },
+    container(newVal?: any, oldVal?: any) {
+      if (newVal !== oldVal) {
+        this.localRiskAnalysis = null;
+      }
+    },
+    "result.tag"(newVal?: string, oldVal?: string) {
+      if (newVal !== oldVal) {
+        this.localRiskAnalysis = null;
+      }
     },
   },
   methods: {

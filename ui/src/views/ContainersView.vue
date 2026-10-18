@@ -425,6 +425,7 @@
           <v-window v-model="drawerTab">
             <v-window-item value="update" v-if="selectedContainer.result">
               <container-update
+                :key="selectedContainer.id"
                 :container="selectedContainer"
                 :is-unpaired="isHubUnpaired"
                 :result="selectedContainer.result"
