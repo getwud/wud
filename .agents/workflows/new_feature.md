@@ -46,7 +46,7 @@ flowchart TD
 
 ## Step 2: Architecture Blueprint (`architect`)
 > [!IMPORTANT]
-> The Architect **MUST** use an advanced reasoning model (e.g. Claude 3.5 Sonnet, Gemini Pro, GPT-4o, o3-mini; no Flash).
+> The Architect **MUST** use an advanced reasoning model (e.g. Gemini Pro, Claude 3.5 Sonnet / Opus, GPT-4o, o3-mini).
 
 1. **Design Component Hierarchy & Backward Compatibility**:
    - Determine whether the feature is a new Watcher (`app/watchers/`), Registry (`app/registries/`), Trigger (`app/triggers/`), or Storage feature.
