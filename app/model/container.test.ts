@@ -1083,5 +1083,31 @@ describe('rich container metadata', () => {
             expect(() => container.validate(validated1)).not.toThrow();
             expect(validated1.link).toBe('https://example.com/my-app');
         });
+
+        test('should resolve container.result.changelogUrl dynamically against container.result.tag', () => {
+            const raw = {
+                ...createBase(),
+                image: {
+                    ...createBase().image,
+                    tag: { value: '1.0.0', semver: true },
+                },
+                labels: {
+                    'wud.link.changelog':
+                        'https://github.com/org/repo/releases/tag/v${major}.${minor}.${patch}',
+                },
+                result: {
+                    tag: '2.3.4',
+                },
+            };
+
+            const resolved = container.resolveContainerMetadata(raw as any);
+
+            expect(resolved.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v1.0.0',
+            );
+            expect(resolved.result?.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v2.3.4',
+            );
+        });
     });
 });

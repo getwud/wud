@@ -249,6 +249,7 @@ describe('ContainerItem', () => {
     await wrapper.setProps({
       container: {
         ...mockContainer,
+        updateAvailable: false,
         documentationUrl: 'https://docs.example.com',
         changelogUrl: 'https://github.com/org/repo/releases',
         upstreamUrl: 'https://github.com/org/repo',
@@ -269,5 +270,28 @@ describe('ContainerItem', () => {
 
     expect(sourceBtn).toBeDefined();
     expect(sourceBtn.attributes('href')).toBe('https://github.com/org/repo');
+  });
+
+  it('renders Release notes action button pointing to result.changelogUrl when updateAvailable is true', async () => {
+    wrapper.vm.showDetail = true;
+    await wrapper.setProps({
+      container: {
+        ...mockContainer,
+        updateAvailable: true,
+        changelogUrl: 'https://github.com/org/repo/releases',
+        result: {
+          tag: '2.0.0',
+          changelogUrl: 'https://github.com/org/repo/releases/tag/v2.0.0',
+        },
+      },
+    });
+    await wrapper.vm.$nextTick();
+
+    const buttons = wrapper.findAll('.v-card-actions .v-btn');
+    const releaseNotesBtn = buttons.find((btn) => btn.text().includes('Release notes'));
+
+    expect(releaseNotesBtn).toBeDefined();
+    expect(releaseNotesBtn.attributes('href')).toBe('https://github.com/org/repo/releases/tag/v2.0.0');
+    expect(releaseNotesBtn.attributes('title')).toBe('Release notes (2.0.0)');
   });
 });

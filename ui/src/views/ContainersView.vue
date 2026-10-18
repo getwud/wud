@@ -172,7 +172,7 @@
                     </template>
                     <span class="text-caption">Copy to clipboard</span>
                   </v-tooltip>
-                  <v-tooltip bottom v-if="item.raw ? item.raw.changelogUrl : item.changelogUrl">
+                  <v-tooltip bottom v-if="(item.raw ? item.raw.result?.changelogUrl : item.result?.changelogUrl) || (item.raw ? item.raw.changelogUrl : item.changelogUrl)">
                     <template v-slot:activator="{ props }">
                       <v-btn
                         icon="mdi-history"
@@ -180,14 +180,14 @@
                         color="secondary"
                         size="small"
                         class="ml-1"
-                        :href="item.raw ? item.raw.changelogUrl : item.changelogUrl"
+                        :href="(item.raw ? item.raw.result?.changelogUrl : item.result?.changelogUrl) || (item.raw ? item.raw.changelogUrl : item.changelogUrl)"
                         target="_blank"
                         v-bind="props"
                         @click.stop
-                        aria-label="View release notes / changelog"
+                        :aria-label="`View release notes for ${getNewVersion(item.raw || item)}`"
                       />
                     </template>
-                    <span>View release notes / changelog</span>
+                    <span>View release notes for {{ getNewVersion(item.raw || item) }}</span>
                   </v-tooltip>
                 </div>
               </template>
@@ -275,7 +275,15 @@
                     @click.stop
                   />
                   <v-list-item
-                    v-if="item.raw ? item.raw.changelogUrl : item.changelogUrl"
+                    v-if="(item.raw ? item.raw.updateAvailable : item.updateAvailable) && ((item.raw ? item.raw.result?.changelogUrl : item.result?.changelogUrl) || (item.raw ? item.raw.changelogUrl : item.changelogUrl))"
+                    prepend-icon="mdi-history"
+                    :title="'Release notes (' + getNewVersion(item.raw || item) + ')'"
+                    :href="(item.raw ? item.raw.result?.changelogUrl : item.result?.changelogUrl) || (item.raw ? item.raw.changelogUrl : item.changelogUrl)"
+                    target="_blank"
+                    @click.stop
+                  />
+                  <v-list-item
+                    v-else-if="item.raw ? item.raw.changelogUrl : item.changelogUrl"
                     prepend-icon="mdi-history"
                     title="Changelog"
                     :href="item.raw ? item.raw.changelogUrl : item.changelogUrl"
@@ -780,11 +788,14 @@ export default defineComponent({
     
     getNewVersion(container: any) {
       let newVersion = "unknown";
-      if (container.result?.created && container.image.created !== container.result.created) {
+      if (container.result?.created && container.image?.created !== container.result.created) {
         newVersion = (this as any).$filters.dateTime(container.result.created);
       }
+      if (container.result?.tag) {
+        newVersion = container.result.tag;
+      }
       if (container.updateKind) {
-        newVersion = container.updateKind.remoteValue;
+        newVersion = container.updateKind.remoteValue || newVersion;
       }
       if (container.updateKind?.kind === "digest") {
         newVersion = (this as any).$filters.short(newVersion, 15);

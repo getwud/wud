@@ -869,7 +869,7 @@ describe('ContainersView', () => {
           displayName: 'Changelog App',
           watcher: 'local',
           image: { tag: { value: '1.0.0' }, registry: { name: 'hub' } },
-          result: { tag: '2.0.0' },
+          result: { tag: '2.0.0', changelogUrl: 'https://example.com/release-notes/2.0.0' },
           updateAvailable: true,
           changelogUrl: 'https://example.com/release-notes',
         },
@@ -877,8 +877,9 @@ describe('ContainersView', () => {
       await testWrapper.vm.$nextTick();
 
       const html = testWrapper.html();
-      expect(html).toContain('https://example.com/release-notes');
-      expect(html).toContain('View release notes / changelog');
+      expect(html).toContain('https://example.com/release-notes/2.0.0');
+      expect(html).toContain('View release notes for 2.0.0');
+      expect(html).toContain('Release notes (2.0.0)');
       testWrapper.unmount();
     });
 

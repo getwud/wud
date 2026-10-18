@@ -81,6 +81,25 @@ describe('ContainerDetail', () => {
     expect(wrapper.text()).toContain('https://github.com/example/app');
   });
 
+  it('renders Release notes with candidate changelogUrl when updateAvailable is true', () => {
+    wrapper = mount(ContainerDetail, {
+      props: {
+        container: {
+          ...baseContainer,
+          updateAvailable: true,
+          changelogUrl: 'https://github.com/example/app/releases',
+          result: {
+            tag: '2.0.0',
+            changelogUrl: 'https://github.com/example/app/releases/tag/v2.0.0',
+          },
+        },
+      },
+    });
+
+    expect(wrapper.text()).toContain('Release notes');
+    expect(wrapper.text()).toContain('https://github.com/example/app/releases/tag/v2.0.0');
+  });
+
   it('does not render legacy link or linkTemplate', () => {
     wrapper = mount(ContainerDetail, {
       props: {
