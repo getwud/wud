@@ -12,33 +12,50 @@
         <div class="d-flex align-center justify-space-between flex-wrap ga-3">
           <div class="d-flex align-center flex-wrap ga-2">
             <!-- Current version -->
-            <div class="version-badge px-3 py-1 rounded border d-flex flex-column">
-              <span class="text-caption text-medium-emphasis font-weight-medium">CURRENT</span>
-              <span class="font-mono text-body-1 font-weight-bold">{{ currentVersionDisplay }}</span>
+            <div class="version-badge px-3 py-2 rounded border d-flex flex-column">
+              <div class="version-badge-header d-flex align-center justify-space-between mb-1">
+                <span class="text-caption text-medium-emphasis font-weight-bold">CURRENT</span>
+                <v-tooltip text="Copy current tag" location="bottom">
+                  <template #activator="{ props }">
+                    <v-btn
+                      v-bind="props"
+                      icon="mdi-content-copy"
+                      variant="text"
+                      density="compact"
+                      size="x-small"
+                      class="copy-tag-btn"
+                      @click="copyToClipboard('current tag', currentVersionDisplay)"
+                      aria-label="Copy current tag"
+                    ></v-btn>
+                  </template>
+                </v-tooltip>
+              </div>
+              <span class="font-mono text-body-1 font-weight-bold version-badge-value">{{ currentVersionDisplay }}</span>
             </div>
 
             <!-- Transition Arrow -->
-            <v-icon color="primary" size="22" class="mx-1">mdi-arrow-right-bold</v-icon>
+            <v-icon color="primary" size="24" class="mx-1 align-self-center">mdi-arrow-right-bold</v-icon>
 
             <!-- Target version -->
-            <div class="version-badge px-3 py-1 rounded border d-flex flex-column">
-              <div class="d-flex align-center">
-                <span class="text-caption text-medium-emphasis font-weight-medium">TARGET</span>
+            <div class="version-badge px-3 py-2 rounded border d-flex flex-column">
+              <div class="version-badge-header d-flex align-center justify-space-between mb-1">
+                <span class="text-caption text-medium-emphasis font-weight-bold">TARGET</span>
                 <v-tooltip text="Copy target tag" location="bottom">
                   <template #activator="{ props }">
                     <v-btn
                       v-bind="props"
                       icon="mdi-content-copy"
                       variant="text"
+                      density="compact"
                       size="x-small"
-                      class="ml-1"
+                      class="copy-tag-btn"
                       @click="copyToClipboard('update tag', targetVersionDisplay)"
                       aria-label="Copy target tag"
                     ></v-btn>
                   </template>
                 </v-tooltip>
               </div>
-              <span class="font-mono text-body-1 font-weight-bold text-primary">{{ targetVersionDisplay }}</span>
+              <span class="font-mono text-body-1 font-weight-bold text-primary version-badge-value">{{ targetVersionDisplay }}</span>
             </div>
 
             <!-- Semantic Bump Badge & Semver Chip -->
@@ -399,5 +416,24 @@ export default defineComponent({
 }
 .version-badge {
   background-color: rgba(var(--v-theme-surface-variant), 0.15);
+  min-height: 64px;
+  min-width: 140px;
+  box-sizing: border-box;
+}
+.version-badge-header {
+  height: 20px;
+  line-height: 20px;
+}
+.version-badge-value {
+  line-height: 1.3;
+}
+.copy-tag-btn {
+  width: 20px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  opacity: 0.65;
+}
+.copy-tag-btn:hover {
+  opacity: 1;
 }
 </style>

@@ -316,5 +316,25 @@ describe('ContainerUpdate', () => {
       expect((heroWrapper.vm as any).bumpBadgeColor).toBe('info');
       heroWrapper.unmount();
     });
+
+    it('renders symmetric copy buttons for both current and target version badges', () => {
+      const heroWrapper = mount(ContainerUpdate, {
+        props: {
+          updateKind: mockUpdateKind,
+          updateAvailable: true,
+          result: mockResult,
+        },
+      });
+
+      const copyCurrentBtn = heroWrapper.find('button[aria-label="Copy current tag"]');
+      const copyTargetBtn = heroWrapper.find('button[aria-label="Copy target tag"]');
+
+      expect(copyCurrentBtn.exists()).toBe(true);
+      expect(copyTargetBtn.exists()).toBe(true);
+
+      const badges = heroWrapper.findAll('.version-badge');
+      expect(badges.length).toBe(2);
+      heroWrapper.unmount();
+    });
   });
 });
