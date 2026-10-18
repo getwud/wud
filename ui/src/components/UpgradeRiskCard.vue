@@ -288,7 +288,7 @@ import { defineComponent, computed, ref, PropType } from "vue";
 import RiskPill from "./RiskPill.vue";
 import { RiskAnalysisResult, EnvVarChange, RiskScore } from "@/services/hub";
 
-export { RiskAnalysisResult, EnvVarChange, RiskScore };
+export type { RiskAnalysisResult, EnvVarChange, RiskScore };
 
 export default defineComponent({
   name: "UpgradeRiskCard",
