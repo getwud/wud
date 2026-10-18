@@ -240,7 +240,7 @@ export function getHubConfiguration(): HubConfiguration {
     const rawTimeout =
         wudEnvVars.WUD_HUB_TIMEOUT ||
         (get('wud.hub', wudEnvVars) as any)?.timeout ||
-        4000;
+        30000;
 
     const schema = joi.object({
         enabled: joi
@@ -252,7 +252,7 @@ export function getHubConfiguration(): HubConfiguration {
             .uri({ scheme: ['http', 'https'] })
             .default('https://hub.getwud.com'),
         concurrency: joi.number().integer().min(1).max(20).default(5),
-        timeout: joi.number().integer().min(500).max(30000).default(4000),
+        timeout: joi.number().integer().min(1000).max(60000).default(30000),
     });
 
     const validation = schema.validate({

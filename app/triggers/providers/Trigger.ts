@@ -10,6 +10,7 @@ export interface TriggerConfiguration extends ComponentConfiguration {
     events?: string | string[];
     threshold?: string;
     riskthreshold?: string;
+    maxskippedthreshold?: number;
     mode?: string;
     once?: boolean;
     simpletitle?: string;
@@ -187,12 +188,38 @@ class Trigger extends Component {
             medium: 2,
             high: 3,
             critical: 4,
+            locked: 3,
         };
 
         const currentRank = rank[score.toLowerCase()] || 0;
         const targetRank = rank[riskThreshold.toLowerCase()] || 1;
 
         return currentRank >= targetRank;
+    }
+
+    /**
+     * Return true if skipped versions count is within the maximum allowed threshold.
+     * @param containerResult
+     * @param maxSkippedThreshold
+     * @returns {boolean}
+     */
+    static isSkippedThresholdReached(
+        containerResult: Container,
+        maxSkippedThreshold?: number,
+    ): boolean {
+        if (maxSkippedThreshold === undefined || maxSkippedThreshold === null) {
+            return true;
+        }
+        const skipped =
+            containerResult.result?.riskAnalysis?.skippedVersionsCount ??
+            (containerResult.result?.riskAnalysis?.intermediateReleases
+                ? Math.max(
+                      0,
+                      containerResult.result.riskAnalysis.intermediateReleases
+                          .length - 1,
+                  )
+                : 0);
+        return skipped <= maxSkippedThreshold;
     }
 
     /**
@@ -347,6 +374,15 @@ class Trigger extends Component {
                     )
                 ) {
                     logContainer.debug('Risk threshold not reached => ignore');
+                } else if (
+                    !Trigger.isSkippedThresholdReached(
+                        containerReport.container,
+                        this.configuration.maxskippedthreshold,
+                    )
+                ) {
+                    logContainer.debug(
+                        'Max skipped threshold exceeded => ignore',
+                    );
                 } else if (!this.isDigestAllowed(containerReport.container)) {
                     logContainer.debug(
                         'Digest update ignored because ondigest is disabled',
@@ -411,6 +447,12 @@ class Trigger extends Component {
                     Trigger.isRiskThresholdReached(
                         containerReport.container,
                         this.configuration.riskthreshold,
+                    ),
+                )
+                .filter((containerReport) =>
+                    Trigger.isSkippedThresholdReached(
+                        containerReport.container,
+                        this.configuration.maxskippedthreshold,
                     ),
                 );
             const containersFiltered = containerReportsFiltered.map(
@@ -748,6 +790,7 @@ class Trigger extends Component {
                 .string()
                 .insensitive()
                 .valid('all', 'low', 'medium', 'high', 'critical'),
+            maxskippedthreshold: this.joi.number().integer().min(0),
             mode: this.joi
                 .string()
                 .insensitive()
@@ -885,6 +928,19 @@ class Trigger extends Component {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const riskSummary = riskAnalysis?.summary || '';
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const skippedVersionsCount =
+            riskAnalysis?.skippedVersionsCount !== undefined
+                ? riskAnalysis.skippedVersionsCount
+                : riskAnalysis?.intermediateReleases
+                  ? Math.max(0, riskAnalysis.intermediateReleases.length - 1)
+                  : 0;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const intermediateVersionsList = (
+            riskAnalysis?.intermediateReleases || []
+        )
+            .map((item) => item.tag)
+            .join(', ');
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const hasBreakingChanges = Boolean(
             riskAnalysis?.breakingChanges &&
                 riskAnalysis.breakingChanges.length > 0,
@@ -895,12 +951,23 @@ class Trigger extends Component {
         const breakingChangesText = (riskAnalysis?.breakingChanges || [])
             .map((item) => `- ${item}`)
             .join('\n');
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         const databaseImpact = riskAnalysis?.databaseImpact || '';
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const hasDatabaseImpact = Boolean(
             databaseImpact && databaseImpact.trim() !== '',
         );
+        const baseUrl = process.env.WUD_PUBLIC_URL
+            ? process.env.WUD_PUBLIC_URL.replace(/\/+$/, '')
+            : '';
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const upgradeReviewUrl = baseUrl
+            ? `${baseUrl}/#/containers?action=review&container=${container.id}`
+            : (container.result && container.result.changelogUrl) ||
+              container.changelogUrl ||
+              (container.result && container.result.link) ||
+              container.link ||
+              '';
 
         return eval('`' + template + '`');
     }

@@ -55,7 +55,11 @@
     <template v-else>
       <v-card-item class="py-3 bg-surface-variant">
         <template #prepend>
-          <RiskPill :risk-score="currentRiskScore" :size="'small'" />
+          <RiskPill
+            :risk-score="currentRiskScore"
+            :skipped-versions-count="analysis?.skippedVersionsCount"
+            :size="'small'"
+          />
         </template>
         <v-card-title class="text-subtitle-1 font-weight-bold d-flex align-center flex-wrap ga-2">
           <span>Upgrade Risk Analysis</span>
@@ -87,6 +91,57 @@
         </div>
 
         <template v-else>
+          <!-- Gated / Freemium Locked Banner -->
+          <v-alert
+            v-if="isGated"
+            type="info"
+            variant="tonal"
+            density="compact"
+            icon="mdi-lock-outline"
+            class="mb-3"
+          >
+            <div class="font-weight-medium text-body-2">Multi-Version Journey Locked</div>
+            <div class="text-caption mb-2">
+              Deep cumulative changelog analysis across multiple skipped versions is a WUD Hub feature.
+            </div>
+            <v-btn
+              v-if="analysis?.trialActivationUrl"
+              :href="analysis.trialActivationUrl"
+              target="_blank"
+              size="x-small"
+              color="primary"
+              variant="flat"
+            >
+              Start 14-Day Free Trial
+            </v-btn>
+            <v-btn
+              v-else
+              to="/hub"
+              size="x-small"
+              color="primary"
+              variant="flat"
+            >
+              View Hub Plans
+            </v-btn>
+          </v-alert>
+
+          <!-- Multi-version jump banner -->
+          <v-alert
+            v-if="analysis?.skippedVersionsCount && analysis.skippedVersionsCount > 0"
+            color="secondary"
+            variant="tonal"
+            density="compact"
+            icon="mdi-transit-connection-variant"
+            class="mb-3"
+          >
+            <div class="font-weight-medium text-body-2">
+              Multi-Version Upgrade Jump
+            </div>
+            <div class="text-caption">
+              This upgrade skips {{ analysis.skippedVersionsCount }} intermediate {{ analysis.skippedVersionsCount === 1 ? 'release' : 'releases' }}. Cumulative changes across all intermediate versions are aggregated below.
+            </div>
+          </v-alert>
+
           <!-- Summary -->
           <div v-if="analysis?.summary" class="mb-3">
             <div class="text-caption font-weight-bold text-medium-emphasis mb-1">
@@ -155,18 +210,18 @@
                     </td>
                     <td>
                       <v-chip
-                        :color="getEnvVarChipColor(env.type)"
+                        :color="getEnvVarChipColor(env.changeType || (env as any).type)"
                         size="x-small"
                         label
                         variant="flat"
                       >
-                        {{ env.type }}
+                        {{ env.changeType || (env as any).type }}
                       </v-chip>
                     </td>
                     <td class="text-caption">
                       {{ env.description }}
-                      <span v-if="env.defaultValue" class="text-medium-emphasis">
-                        (default: <code>{{ env.defaultValue }}</code>)
+                      <span v-if="(env as any).defaultValue" class="text-medium-emphasis">
+                        (default: <code>{{ (env as any).defaultValue }}</code>)
                       </span>
                     </td>
                   </tr>
@@ -188,23 +243,35 @@
       <v-divider />
 
       <v-card-actions class="px-4 py-2 bg-surface-variant d-flex align-center justify-space-between flex-wrap ga-2">
-        <v-btn
-          v-if="changelogUrl"
-          :href="changelogUrl"
-          target="_blank"
-          variant="text"
-          size="small"
-          prepend-icon="mdi-open-in-new"
-          color="secondary"
-        >
-          View Release Notes
-        </v-btn>
-        <span v-else></span>
+        <div class="d-flex align-center ga-2 flex-wrap">
+          <v-btn
+            v-if="changelogUrl"
+            :href="changelogUrl"
+            target="_blank"
+            variant="text"
+            size="small"
+            prepend-icon="mdi-open-in-new"
+            color="secondary"
+          >
+            View Release Notes
+          </v-btn>
+
+          <v-btn
+            v-if="analysis"
+            variant="flat"
+            size="small"
+            color="primary"
+            prepend-icon="mdi-timeline-text-outline"
+            @click="onOpenReview"
+          >
+            Review Upgrade Journey
+          </v-btn>
+        </div>
 
         <v-btn
           variant="tonal"
           size="small"
-          color="primary"
+          color="secondary"
           :loading="reEvaluating"
           prepend-icon="mdi-refresh"
           @click="onReEvaluate"
@@ -219,23 +286,9 @@
 <script lang="ts">
 import { defineComponent, computed, ref, PropType } from "vue";
 import RiskPill from "./RiskPill.vue";
+import { RiskAnalysisResult, EnvVarChange, RiskScore } from "@/services/hub";
 
-export interface EnvVarChange {
-  name: string;
-  type: "added" | "removed" | "modified" | "required" | "optional";
-  description: string;
-  defaultValue?: string;
-}
-
-export interface RiskAnalysisResult {
-  riskScore: "low" | "medium" | "high" | "critical" | "unknown" | "unsupported";
-  summary: string;
-  breakingChanges: string[];
-  envVarChanges: EnvVarChange[];
-  databaseImpact: string | null;
-  evaluatedAt: string;
-  cached?: boolean;
-}
+export { RiskAnalysisResult, EnvVarChange, RiskScore };
 
 export default defineComponent({
   name: "UpgradeRiskCard",
@@ -260,7 +313,7 @@ export default defineComponent({
       default: false,
     },
   },
-  emits: ["re-evaluate"],
+  emits: ["re-evaluate", "open-review"],
   setup(props, { emit }) {
     const reEvaluating = ref(false);
 
@@ -270,6 +323,13 @@ export default defineComponent({
 
     const currentRiskScore = computed(() => {
       return analysis.value?.riskScore || "unknown";
+    });
+
+    const isGated = computed(() => {
+      return (
+        analysis.value?.freemiumGated === true ||
+        analysis.value?.riskScore === "locked"
+      );
     });
 
     const changelogUrl = computed(() => {
@@ -301,6 +361,7 @@ export default defineComponent({
         case "required":
           return "error";
         case "modified":
+        case "deprecated":
           return "warning";
         case "added":
           return "success";
@@ -323,14 +384,23 @@ export default defineComponent({
       }
     }
 
+    function onOpenReview() {
+      emit("open-review", {
+        container: props.container,
+        analysis: analysis.value,
+      });
+    }
+
     return {
       analysis,
       currentRiskScore,
+      isGated,
       changelogUrl,
       formattedEvaluatedAt,
       reEvaluating,
       getEnvVarChipColor,
       onReEvaluate,
+      onOpenReview,
     };
   },
 });

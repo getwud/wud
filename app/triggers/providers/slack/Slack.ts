@@ -53,6 +53,7 @@ class Slack extends Trigger {
                 medium: '⚠️',
                 high: '⚡',
                 critical: '🚨',
+                locked: '🔒',
             };
             const emoji = riskEmojis[risk.riskScore] || 'ℹ️';
             const parts: string[] = [];
@@ -66,6 +67,18 @@ class Slack extends Trigger {
             parts.push(
                 `*Risk Level:* ${emoji} ${risk.riskScore.toUpperCase()}`,
             );
+
+            const skipped =
+                risk.skippedVersionsCount !== undefined
+                    ? risk.skippedVersionsCount
+                    : risk.intermediateReleases
+                      ? Math.max(0, risk.intermediateReleases.length - 1)
+                      : 0;
+            if (skipped > 0) {
+                parts.push(
+                    `*Skipped Releases:* +${skipped} intermediate version${skipped > 1 ? 's' : ''}`,
+                );
+            }
 
             if (risk.summary) {
                 parts.push(`> ${risk.summary}`);
@@ -88,6 +101,19 @@ class Slack extends Trigger {
                 container.result?.changelogUrl || container.changelogUrl;
             if (changelog) {
                 parts.push(`<${changelog}|Official Release Notes>`);
+            }
+
+            const baseUrl = process.env.WUD_PUBLIC_URL
+                ? process.env.WUD_PUBLIC_URL.replace(/\/+$/, '')
+                : '';
+            const reviewUrl = baseUrl
+                ? `${baseUrl}/#/containers?action=review&container=${container.id}`
+                : container.result?.changelogUrl ||
+                  container.changelogUrl ||
+                  container.result?.link ||
+                  container.link;
+            if (reviewUrl) {
+                parts.push(`<${reviewUrl}|🔍 Inspect Upgrade Journey>`);
             }
 
             return this.sendMessage(parts.join('\n\n'));

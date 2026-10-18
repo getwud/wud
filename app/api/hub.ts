@@ -7,7 +7,7 @@ export async function postChangelogRiskAnalysis(
     baseUrl: string,
     token: string,
     params: { imageRef: string; currentTag: string; targetTag: string },
-    timeoutMs = 4000,
+    timeoutMs = 30000,
 ): Promise<RiskAnalysisResult> {
     const url = `${baseUrl.replace(/\/+$/, '')}/api/v1/changelogs/risk-analysis`;
     const response = await axios.post<RiskAnalysisResult>(url, params, {

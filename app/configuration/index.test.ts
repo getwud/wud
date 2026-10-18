@@ -221,7 +221,7 @@ describe('getHubConfiguration', () => {
             key: undefined,
             endpoint: 'https://hub.getwud.com',
             concurrency: 5,
-            timeout: 4000,
+            timeout: 30000,
         });
     });
 

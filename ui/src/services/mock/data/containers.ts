@@ -159,6 +159,30 @@ export const mockContainers = [
       link: "https://github.com/home-assistant/core/releases/tag/2024.12.0",
       riskAnalysis: {
         riskScore: "high",
+        skippedVersionsCount: 2,
+        intermediateReleases: [
+          {
+            tag: "2024.11.3",
+            name: "Home Assistant 2024.11.3",
+            publishedAt: "2024-11-22T10:00:00.000Z",
+            isTarget: false,
+            summary: "Patch release fixing Matter bridge reconnection and Zigbee stability.",
+            breakingChanges: [],
+            url: "https://github.com/home-assistant/core/releases/tag/2024.11.3",
+          },
+          {
+            tag: "2024.12.0",
+            name: "Home Assistant 2024.12.0",
+            publishedAt: "2024-12-04T18:30:00.000Z",
+            isTarget: true,
+            summary: "Year-end major release with overhaul of Bluetooth integrations and dashboard updates.",
+            breakingChanges: [
+              "Legacy Bluetooth scanner integration removed; replace with modern bluetooth adapter driver",
+              "Z-Wave JS schema version 4 migration required before restart",
+            ],
+            url: "https://github.com/home-assistant/core/releases/tag/2024.12.0",
+          },
+        ],
         summary: "Multiple integration deprecations and breaking changes to Bluetooth and Z-Wave configuration.",
         breakingChanges: [
           "Legacy Bluetooth scanner integration removed; replace with modern bluetooth adapter driver",
@@ -167,6 +191,7 @@ export const mockContainers = [
         envVarChanges: [
           {
             name: "DISABLE_JEMALLOC",
+            changeType: "added",
             type: "optional",
             description: "Allows disabling jemalloc if memory profiling is required",
           },

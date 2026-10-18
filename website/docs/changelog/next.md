@@ -8,13 +8,15 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 > Changes below are merged on `main` and will be included in the upcoming release.
 
 - 🚀 [CONTAINER] Add rich metadata (isOfficial, documentationUrl, changelogUrl, upstreamUrl) and standalone link labels
+- 🚀 [CORE] Multi-version upgrade journey and changelog risk analysis
 - 🚀 [HUB] Integrate automated changelog risk analysis and breaking change detection with WUD Hub
 - 🚀 [METADATA] Add WUD Hub remote metadata provider and precedence engine
-- 🚀 [TRIGGER] Add `riskthreshold` filtering and expose risk variables in notification templates (`riskScore`, `riskSummary`, `hasBreakingChanges`, `databaseImpact`)
+- 🚀 [TRIGGER] Add `riskthreshold` and `maxskippedthreshold` filtering, exposing multi-version journey variables in notification templates (`riskScore`, `skippedVersionsCount`, `intermediateVersionsList`, `upgradeReviewUrl`)
 - 🚀 [TRIGGER] Dynamic risk severity styling and structured release insights for Discord and Slack notifications
 - 🚀 [TRIGGER] Add real-time pull progress logging for Docker images (fixes #777)
 - 🚀 [TRIGGER] Log stdout/stderr on error and expose compose_project in command trigger (fixes #594, fixes #595)
 - 🚀 [TRIGGER] Support click URL in Ntfy trigger and expose hostname in batch templates (fixes #660, fixes #725)
+- 🚀 [UI] Add 3-tier progressive disclosure upgrade review modal and timeline
 - 🚀 [UI] Add official image badge and direct metadata actions (changelog, docs, source) to container list and remove deprecated link template from details view
 - 🚀 [UI] Add `RiskPill` risk badge and `UpgradeRiskCard` with changelog summaries, breaking changes, and env variable diffs
 - 🚀 [UI] Display and search container metadata in log view (fixes #1419)

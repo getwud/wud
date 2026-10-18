@@ -181,6 +181,7 @@ test('trigger should format risk analysis sections when riskAnalysis is present'
                 targetTag: '7.2.4',
                 riskScore: 'medium',
                 summary: 'Configuration and ACL syntax updates',
+                skippedVersionsCount: 3,
                 breakingChanges: ['Deprecated sentinel commands removed'],
                 databaseImpact: 'Snapshot format migration',
             },
@@ -192,6 +193,9 @@ test('trigger should format risk analysis sections when riskAnalysis is present'
     expect(slack.sendMessage).toHaveBeenCalled();
     const sentMessage = slack.sendMessage.mock.calls[0][0];
     expect(sentMessage).toContain('*Risk Level:* ⚠️ MEDIUM');
+    expect(sentMessage).toContain(
+        '*Skipped Releases:* +3 intermediate versions',
+    );
     expect(sentMessage).toContain('> Configuration and ACL syntax updates');
     expect(sentMessage).toContain(
         '*Breaking Changes (1):*\n• Deprecated sentinel commands removed',
@@ -201,5 +205,8 @@ test('trigger should format risk analysis sections when riskAnalysis is present'
     );
     expect(sentMessage).toContain(
         '<https://github.com/redis/redis/releases/tag/7.2.4|Official Release Notes>',
+    );
+    expect(sentMessage).toContain(
+        '<https://github.com/redis/redis/releases/tag/7.2.4|🔍 Inspect Upgrade Journey>',
     );
 });

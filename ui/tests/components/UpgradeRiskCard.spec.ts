@@ -15,8 +15,12 @@ const mockContainer = {
 };
 
 const mockAnalysis: RiskAnalysisResult = {
+  imageRef: "redis",
+  currentTag: "7.0.0",
+  targetTag: "7.2.0",
   riskScore: "high",
   summary: "Major breaking changes and configuration deprecations.",
+  skippedVersionsCount: 2,
   breakingChanges: [
     "Deprecated ACL rules removed in favor of selector syntax",
     "Maxmemory policy default changed",
@@ -24,12 +28,12 @@ const mockAnalysis: RiskAnalysisResult = {
   envVarChanges: [
     {
       name: "REDIS_PASSWORD",
-      type: "required",
+      changeType: "required" as any,
       description: "Password is now strictly required",
     },
     {
       name: "REDIS_LEGACY_MODE",
-      type: "removed",
+      changeType: "removed" as any,
       description: "Legacy protocol v2 support removed",
     },
   ],
@@ -65,6 +69,7 @@ describe("UpgradeRiskCard.vue", () => {
     expect(wrapper.text()).toContain("Upgrade Risk Analysis");
     expect(wrapper.text()).toContain("cached");
     expect(wrapper.text()).toContain(mockAnalysis.summary);
+    expect(wrapper.text()).toContain("Multi-Version Upgrade Jump");
     expect(wrapper.text()).toContain("BREAKING CHANGES (2)");
     expect(wrapper.text()).toContain("Deprecated ACL rules removed in favor of selector syntax");
     expect(wrapper.text()).toContain("Database & Storage Impact");
@@ -72,8 +77,28 @@ describe("UpgradeRiskCard.vue", () => {
     expect(wrapper.text()).toContain("ENVIRONMENT VARIABLE CHANGES (2)");
     expect(wrapper.text()).toContain("REDIS_PASSWORD");
     expect(wrapper.text()).toContain("REDIS_LEGACY_MODE");
+    expect(wrapper.text()).toContain("Review Upgrade Journey");
     expect(wrapper.text()).toContain("View Release Notes");
     expect(wrapper.text()).toContain("Re-evaluate Risk");
+  });
+
+  it("renders freemium gated banner when freemiumGated is true", () => {
+    const gatedAnalysis: RiskAnalysisResult = {
+      ...mockAnalysis,
+      freemiumGated: true,
+      trialActivationUrl: "https://hub.getwud.app/trials",
+    };
+
+    const wrapper = mount(UpgradeRiskCard, {
+      props: {
+        container: mockContainer,
+        riskAnalysis: gatedAnalysis,
+        isUnpaired: false,
+      },
+    });
+
+    expect(wrapper.text()).toContain("Multi-Version Journey Locked");
+    expect(wrapper.text()).toContain("Start 14-Day Free Trial");
   });
 
   it("renders loading state when loading is true", () => {
@@ -87,6 +112,23 @@ describe("UpgradeRiskCard.vue", () => {
     });
 
     expect(wrapper.text()).toContain("Evaluating changelog risks via WUD Hub...");
+  });
+
+  it("emits open-review event when Review Upgrade Journey button is clicked", () => {
+    const wrapper = mount(UpgradeRiskCard, {
+      props: {
+        container: mockContainer,
+        riskAnalysis: mockAnalysis,
+        isUnpaired: false,
+      },
+    });
+
+    (wrapper.vm as any).onOpenReview();
+    expect(wrapper.emitted("open-review")).toBeTruthy();
+    expect(wrapper.emitted("open-review")![0][0]).toEqual({
+      container: mockContainer,
+      analysis: mockAnalysis,
+    });
   });
 
   it("emits re-evaluate event when Re-evaluate Risk button is clicked", async () => {

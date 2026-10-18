@@ -725,5 +725,42 @@ describe('API Container', () => {
                 mockContainer,
             );
         });
+
+        test('should respect forceRefresh passed via request body', async () => {
+            const mockContainer: any = {
+                id: 'c1',
+                updateAvailable: true,
+                image: { name: 'redis', tag: { value: '7.0.15' } },
+                result: { tag: '7.2.4' },
+            };
+            const mockRisk = {
+                imageRef: 'redis',
+                currentTag: '7.0.15',
+                targetTag: '7.2.4',
+                riskScore: 'low',
+                breakingChanges: [],
+                envVarChanges: [],
+                databaseImpact: null,
+                summary: 'Standard update',
+            };
+            (storeContainer.getContainer as jest.Mock).mockReturnValue(
+                mockContainer,
+            );
+            mockMetadataProvider.getRiskAnalysis.mockResolvedValueOnce(
+                mockRisk,
+            );
+
+            const res = await request(app)
+                .post('/c1/risk-analysis')
+                .send({ forceRefresh: true });
+
+            expect(res.status).toBe(200);
+            expect(mockMetadataProvider.getRiskAnalysis).toHaveBeenCalledWith(
+                'redis',
+                '7.0.15',
+                '7.2.4',
+                true,
+            );
+        });
     });
 });

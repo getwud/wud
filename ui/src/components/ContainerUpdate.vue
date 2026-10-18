@@ -8,6 +8,7 @@
       :is-unpaired="isUnpaired"
       :loading="riskLoading"
       @re-evaluate="reEvaluateRisk"
+      @open-review="$emit('open-review', $event)"
     />
 
     <v-alert
@@ -193,7 +194,7 @@ export default defineComponent({
       default: null,
     },
   },
-  emits: ["risk-updated"],
+  emits: ["risk-updated", "open-review"],
   data() {
     return {
       riskLoading: false,

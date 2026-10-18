@@ -211,6 +211,7 @@ describe('Discord Trigger', () => {
                     targetTag: '7.2.4',
                     riskScore: 'critical',
                     summary: 'Persistence changes & DB format migration',
+                    skippedVersionsCount: 2,
                     breakingChanges: ['Breaking snapshot layout'],
                     databaseImpact: 'Automatic DB format conversion on startup',
                 },
@@ -235,6 +236,10 @@ describe('Discord Trigger', () => {
                             },
                             { name: 'Risk Level', value: '🚨 CRITICAL' },
                             {
+                                name: 'Skipped Releases',
+                                value: '+2 intermediate versions',
+                            },
+                            {
                                 name: 'Summary',
                                 value: 'Persistence changes & DB format migration',
                             },
@@ -249,6 +254,10 @@ describe('Discord Trigger', () => {
                             {
                                 name: 'Release Notes',
                                 value: 'https://github.com/redis/redis/releases/tag/7.2.4',
+                            },
+                            {
+                                name: 'Upgrade Review',
+                                value: '[Inspect Upgrade Journey](https://github.com/redis/redis/releases/tag/7.2.4)',
                             },
                         ],
                     },

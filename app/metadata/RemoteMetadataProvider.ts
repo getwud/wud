@@ -165,7 +165,7 @@ export class RemoteMetadataProvider {
                         targetTag,
                     },
                     {
-                        timeout: 4000,
+                        timeout: this.config.timeout,
                     },
                 );
 
@@ -176,6 +176,22 @@ export class RemoteMetadataProvider {
 
                     const enrichedResult: RiskAnalysisResult = {
                         ...response.data,
+                        skippedVersionsCount:
+                            response.data.skippedVersionsCount !== undefined
+                                ? response.data.skippedVersionsCount
+                                : response.data.intermediateReleases
+                                  ? Math.max(
+                                        0,
+                                        response.data.intermediateReleases
+                                            .length - 1,
+                                    )
+                                  : 0,
+                        intermediateReleases:
+                            response.data.intermediateReleases || [],
+                        breakingChanges: response.data.breakingChanges || [],
+                        envVarChanges: response.data.envVarChanges || [],
+                        databaseImpact: response.data.databaseImpact || null,
+                        summary: response.data.summary || '',
                         evaluatedAt:
                             response.data.evaluatedAt ||
                             new Date().toISOString(),

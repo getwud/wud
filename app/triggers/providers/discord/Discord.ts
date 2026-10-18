@@ -60,6 +60,7 @@ class Discord extends Trigger {
             medium: 15381256, // 0xeab308
             high: 16347926, // 0xf97316
             critical: 15680580, // 0xef4444
+            locked: 10175195, // 0x9b59b6
         };
         const color =
             RISK_COLORS[risk.riskScore] ?? this.configuration.cardcolor;
@@ -70,12 +71,26 @@ class Discord extends Trigger {
             medium: '⚠️',
             high: '⚡',
             critical: '🚨',
+            locked: '🔒',
         };
         const emoji = riskEmojis[risk.riskScore] || 'ℹ️';
         extraFields.push({
             name: 'Risk Level',
             value: `${emoji} ${risk.riskScore.toUpperCase()}`,
         });
+
+        const skipped =
+            risk.skippedVersionsCount !== undefined
+                ? risk.skippedVersionsCount
+                : risk.intermediateReleases
+                  ? Math.max(0, risk.intermediateReleases.length - 1)
+                  : 0;
+        if (skipped > 0) {
+            extraFields.push({
+                name: 'Skipped Releases',
+                value: `+${skipped} intermediate version${skipped > 1 ? 's' : ''}`,
+            });
+        }
 
         if (risk.summary) {
             extraFields.push({
@@ -104,6 +119,22 @@ class Discord extends Trigger {
             extraFields.push({
                 name: 'Release Notes',
                 value: changelog,
+            });
+        }
+
+        const baseUrl = process.env.WUD_PUBLIC_URL
+            ? process.env.WUD_PUBLIC_URL.replace(/\/+$/, '')
+            : '';
+        const reviewUrl = baseUrl
+            ? `${baseUrl}/#/containers?action=review&container=${container.id}`
+            : container.result?.changelogUrl ||
+              container.changelogUrl ||
+              container.result?.link ||
+              container.link;
+        if (reviewUrl) {
+            extraFields.push({
+                name: 'Upgrade Review',
+                value: `[Inspect Upgrade Journey](${reviewUrl})`,
             });
         }
 

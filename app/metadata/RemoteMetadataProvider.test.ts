@@ -346,7 +346,7 @@ describe('RemoteMetadataProvider', () => {
                     currentTag: '7.0.15',
                     targetTag: '7.2.4',
                 },
-                { timeout: 4000 },
+                { timeout: 30000 },
             );
 
             // Synchronous cached lookup
@@ -459,6 +459,123 @@ describe('RemoteMetadataProvider', () => {
                 '7.2.4',
             );
             expect(res).toBeNull();
+        });
+
+        test('parses multi-version payload with intermediate releases and skipped versions', async () => {
+            const provider = new RemoteMetadataProvider({
+                enabled: true,
+                key: 'wud_live_valid',
+            });
+
+            const multiVersionPayload = {
+                imageRef: 'postgres',
+                currentTag: '14.2',
+                targetTag: '16.1',
+                riskScore: 'critical',
+                skippedVersionsCount: 2,
+                intermediateReleases: [
+                    {
+                        tag: '15.0',
+                        name: 'PostgreSQL 15',
+                        isTarget: false,
+                        breakingChanges: [
+                            'Removed public schema default grant',
+                        ],
+                    },
+                    {
+                        tag: '16.1',
+                        name: 'PostgreSQL 16.1',
+                        isTarget: true,
+                        breakingChanges: [],
+                    },
+                ],
+                breakingChanges: ['Removed public schema default grant'],
+                envVarChanges: [],
+                databaseImpact: 'pg_upgrade required',
+                summary:
+                    'Major multi-version upgrade across PostgreSQL 15 & 16',
+                freemiumGated: false,
+            };
+
+            mockClient.post.mockResolvedValueOnce({
+                status: 200,
+                data: multiVersionPayload,
+            });
+
+            const result = await provider.getRiskAnalysis(
+                'postgres',
+                '14.2',
+                '16.1',
+            );
+            expect(result).toBeDefined();
+            expect(result?.riskScore).toBe('critical');
+            expect(result?.skippedVersionsCount).toBe(2);
+            expect(result?.intermediateReleases).toHaveLength(2);
+            expect(result?.intermediateReleases?.[0].breakingChanges).toEqual([
+                'Removed public schema default grant',
+            ]);
+            expect(result?.databaseImpact).toBe('pg_upgrade required');
+        });
+
+        test('uses composite key with normalization (trim & lowercase)', async () => {
+            const provider = new RemoteMetadataProvider({
+                enabled: true,
+                key: 'wud_live_valid',
+            });
+
+            mockClient.post.mockResolvedValueOnce({
+                status: 200,
+                data: mockRiskResponse,
+            });
+
+            // First call with mixed case and whitespace
+            const res1 = await provider.getRiskAnalysis(
+                '  REDIS  ',
+                ' 7.0.15 ',
+                ' 7.2.4 ',
+            );
+            expect(res1).toBeDefined();
+            expect(mockClient.post).toHaveBeenCalledTimes(1);
+
+            // Second call with normalized args should hit cache without posting again
+            const res2 = await provider.getRiskAnalysis(
+                'redis',
+                '7.0.15',
+                '7.2.4',
+            );
+            expect(res2?.cached).toBe(true);
+            expect(mockClient.post).toHaveBeenCalledTimes(1);
+        });
+
+        test('handles HTTP 402 Payment Required with 1h backoff', async () => {
+            const provider = new RemoteMetadataProvider({
+                enabled: true,
+                key: 'wud_live_valid',
+            });
+
+            mockClient.post.mockRejectedValueOnce({
+                response: {
+                    status: 402,
+                    data: { message: 'Subscription required' },
+                },
+            });
+
+            const res = await provider.getRiskAnalysis(
+                'redis',
+                '7.0.15',
+                '7.2.4',
+            );
+            expect(res).toBeNull();
+            expect(provider.getStatus().status).toBe('degraded');
+
+            // Blocked during backoff
+            const res2 = await provider.getRiskAnalysis(
+                'redis',
+                '7.0.15',
+                '7.2.4',
+            );
+            expect(res2).toBeNull();
+            expect(mockClient.post).toHaveBeenCalledTimes(1);
         });
     });
 });

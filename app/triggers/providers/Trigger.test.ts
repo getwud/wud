@@ -61,6 +61,23 @@ test('validateConfiguration should accept valid riskthreshold', async () => {
     expect(validated.riskthreshold).toBe('high');
 });
 
+test('validateConfiguration should accept valid maxskippedthreshold', async () => {
+    const validated = trigger.validateConfiguration({
+        ...configurationValid,
+        maxskippedthreshold: 3,
+    });
+    expect(validated.maxskippedthreshold).toBe(3);
+});
+
+test('validateConfiguration should reject negative maxskippedthreshold', async () => {
+    expect(() => {
+        trigger.validateConfiguration({
+            ...configurationValid,
+            maxskippedthreshold: -1,
+        });
+    }).toThrowError(ValidationError);
+});
+
 test('validateConfiguration should throw error when invalid', async () => {
     const configuration = {
         url: 'git://xxx.com',
@@ -1711,6 +1728,119 @@ describe('granular per-trigger labels (fixes #691)', () => {
             expect(triggerBatchSpy).toHaveBeenCalledWith([
                 reports[1].container,
             ]);
+        });
+
+        test('renderTemplate should interpolate skippedVersionsCount, intermediateVersionsList, and upgradeReviewUrl', () => {
+            const tr = new Trigger();
+            const container = {
+                id: 'c-multi',
+                name: 'postgres-db',
+                watcher: 'docker',
+                link: 'https://postgres.org',
+                result: {
+                    tag: '16.1',
+                    changelogUrl:
+                        'https://github.com/postgres/postgres/releases/tag/16.1',
+                    riskAnalysis: {
+                        imageRef: 'postgres',
+                        currentTag: '14.0',
+                        targetTag: '16.1',
+                        riskScore: 'high',
+                        skippedVersionsCount: 2,
+                        intermediateReleases: [
+                            { tag: '15.0', isTarget: false },
+                            { tag: '16.0', isTarget: false },
+                            { tag: '16.1', isTarget: true },
+                        ],
+                        breakingChanges: ['Major DB upgrade'],
+                    },
+                },
+            };
+
+            const template =
+                'Skipped: ${skippedVersionsCount} | List: ${intermediateVersionsList} | Review: ${upgradeReviewUrl}';
+            const rendered = tr.renderTemplate(template, container as any);
+
+            expect(rendered).toContain('Skipped: 2');
+            expect(rendered).toContain('List: 15.0, 16.0, 16.1');
+            expect(rendered).toContain(
+                'Review: https://github.com/postgres/postgres/releases/tag/16.1',
+            );
+        });
+
+        test('isSkippedThresholdReached logic with maxSkippedThreshold', () => {
+            const makeContainer = (skipped?: number) =>
+                ({
+                    id: 'c',
+                    result: {
+                        riskAnalysis:
+                            skipped !== undefined
+                                ? { skippedVersionsCount: skipped }
+                                : undefined,
+                    },
+                }) as any;
+
+            // undefined threshold always allows
+            expect(
+                Trigger.isSkippedThresholdReached(makeContainer(5), undefined),
+            ).toBe(true);
+            expect(
+                Trigger.isSkippedThresholdReached(makeContainer(0), undefined),
+            ).toBe(true);
+
+            // maxSkippedThreshold = 2
+            expect(Trigger.isSkippedThresholdReached(makeContainer(0), 2)).toBe(
+                true,
+            );
+            expect(Trigger.isSkippedThresholdReached(makeContainer(2), 2)).toBe(
+                true,
+            );
+            expect(Trigger.isSkippedThresholdReached(makeContainer(3), 2)).toBe(
+                false,
+            );
+
+            // fallback when riskAnalysis absent is 0 skipped versions
+            expect(
+                Trigger.isSkippedThresholdReached(makeContainer(undefined), 0),
+            ).toBe(true);
+        });
+
+        test('handleContainerReport should filter out container exceeding maxskippedthreshold', async () => {
+            const tr = new Trigger();
+            tr.log = log;
+            tr.configuration = {
+                ...configurationValid,
+                maxskippedthreshold: 1,
+            };
+            const triggerSpy = jest.spyOn(tr, 'trigger').mockResolvedValue();
+
+            // 3 skipped versions > max 1
+            const reportExceeding = {
+                changed: true,
+                container: {
+                    id: 'c1',
+                    name: 'app-skip',
+                    watcher: 'docker',
+                    updateAvailable: true,
+                    result: { riskAnalysis: { skippedVersionsCount: 3 } },
+                },
+            };
+            await tr.handleContainerReport(reportExceeding as any);
+            expect(triggerSpy).not.toHaveBeenCalled();
+
+            // 1 skipped version <= max 1
+            const reportPassing = {
+                changed: true,
+                container: {
+                    id: 'c2',
+                    name: 'app-ok',
+                    watcher: 'docker',
+                    updateAvailable: true,
+                    result: { riskAnalysis: { skippedVersionsCount: 1 } },
+                },
+            };
+            await tr.handleContainerReport(reportPassing as any);
+            expect(triggerSpy).toHaveBeenCalledWith(reportPassing.container);
         });
     });
 });

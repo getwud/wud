@@ -175,11 +175,13 @@
                   <RiskPill
                     v-if="(item.raw ? item.raw.result?.riskAnalysis : item.result?.riskAnalysis) || isHubUnpaired"
                     :risk-score="(item.raw ? item.raw.result?.riskAnalysis?.riskScore : item.result?.riskAnalysis?.riskScore)"
+                    :skipped-versions-count="(item.raw ? item.raw.result?.riskAnalysis?.skippedVersionsCount : item.result?.riskAnalysis?.skippedVersionsCount)"
                     :is-unpaired="isHubUnpaired"
                     size="small"
                     class="ml-1"
                     clickable
-                    @click.stop="openContainerDrawer(item.raw || item)"
+                    @click.stop="openReviewDialog(item.raw || item)"
+                    @open-review="openReviewDialog(item.raw || item)"
                   />
                   <v-tooltip bottom v-if="(item.raw ? item.raw.result?.changelogUrl : item.result?.changelogUrl) || (item.raw ? item.raw.changelogUrl : item.changelogUrl)">
                     <template v-slot:activator="{ props }">
@@ -438,6 +440,7 @@
                 :snoozed-version="selectedContainer.snoozedVersion"
                 :snoozed-until="selectedContainer.snoozedUntil"
                 @risk-updated="onContainerRiskUpdated"
+                @open-review="openReviewDialog(selectedContainer)"
               />
             </v-window-item>
             <v-window-item value="triggers">
@@ -512,6 +515,15 @@
       :container="containerToUpdate"
       @updated="onContainerUpdated"
     />
+
+    <!-- Upgrade Review Modal -->
+    <upgrade-review-modal
+      v-if="containerToReview"
+      v-model="dialogReview"
+      :container="containerToReview"
+      :is-unpaired="isHubUnpaired"
+      @update-now="openUpdateDialog"
+    />
   </v-container>
 </template>
 
@@ -525,6 +537,7 @@ import ContainerUpdate from "@/components/ContainerUpdate.vue";
 import ContainerUpdateDialog from "@/components/ContainerUpdateDialog.vue";
 import IconRenderer from "@/components/IconRenderer.vue";
 import RiskPill from "@/components/RiskPill.vue";
+import UpgradeReviewModal from "@/components/UpgradeReviewModal.vue";
 import {
   deleteContainer,
   getAllContainers,
@@ -549,6 +562,7 @@ export default defineComponent({
     ContainerUpdateDialog,
     IconRenderer,
     RiskPill,
+    UpgradeReviewModal,
   },
 
   data() {
@@ -593,6 +607,8 @@ export default defineComponent({
 
       dialogUpdate: false,
       containerToUpdate: null as any,
+      dialogReview: false,
+      containerToReview: null as any,
       animatedRows: new Set<string>(),
       isHubUnpaired: false,
     };
@@ -605,6 +621,12 @@ export default defineComponent({
       } catch {
         // ignore
       }
+    },
+    "$route.query": {
+      handler() {
+        this.handleRouteQuery();
+      },
+      deep: true,
     },
   },
 
@@ -634,6 +656,7 @@ export default defineComponent({
     } catch {
       this.isHubUnpaired = false;
     }
+    this.handleRouteQuery();
   },
 
   unmounted() {
@@ -944,6 +967,22 @@ export default defineComponent({
       this.dialogUpdate = true;
     },
 
+    openReviewDialog(container: any) {
+      this.containerToReview = container;
+      this.dialogReview = true;
+    },
+
+    handleRouteQuery() {
+      const action = this.$route?.query?.action;
+      const containerId = this.$route?.query?.container;
+      if (action === "review" && containerId && this.containers) {
+        const found = this.containers.find((c: any) => c.id === containerId);
+        if (found) {
+          this.openReviewDialog(found);
+        }
+      }
+    },
+
     async onContainerUpdated() {
       await this.refreshContainers();
     },
@@ -1093,6 +1132,7 @@ export default defineComponent({
         if (of) vm.oldestFirst = String(of).toLowerCase() === "true";
         if (gl) vm.groupByLabel = gl;
         vm.containers = containers;
+        vm.handleRouteQuery();
       });
     } catch (e: any) {
       next((vm: any) => {

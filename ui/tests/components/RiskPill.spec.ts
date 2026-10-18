@@ -65,6 +65,19 @@ describe("RiskPill.vue", () => {
     expect((wrapper.vm as any).chipVariant).toBe("flat");
   });
 
+  it("renders locked risk pill correctly", () => {
+    const wrapper = mount(RiskPill, {
+      props: {
+        riskScore: "locked",
+      },
+    });
+
+    expect(wrapper.text()).toContain("Locked");
+    expect((wrapper.vm as any).chipColor).toBe("primary");
+    expect((wrapper.vm as any).chipIcon).toBe("mdi-lock-outline");
+    expect((wrapper.vm as any).chipVariant).toBe("tonal");
+  });
+
   it("renders pending risk pill correctly", () => {
     const wrapper = mount(RiskPill, {
       props: {
@@ -116,6 +129,32 @@ describe("RiskPill.vue", () => {
 
     await wrapper.find(".risk-pill").trigger("click");
     expect(pushMock).toHaveBeenCalledWith("/hub");
+  });
+
+  it("renders skipped versions count badge when skippedVersionsCount > 0", () => {
+    const wrapper = mount(RiskPill, {
+      props: {
+        riskScore: "medium",
+        skippedVersionsCount: 3,
+      },
+    });
+
+    expect(wrapper.text()).toContain("+3 versions");
+    expect(wrapper.find(".skipped-pill").exists()).toBe(true);
+  });
+
+  it("renders review button and emits open-review on click", async () => {
+    const wrapper = mount(RiskPill, {
+      props: {
+        riskScore: "high",
+        showReviewButton: true,
+      },
+    });
+
+    const reviewBtn = wrapper.find(".review-btn");
+    expect(reviewBtn.exists()).toBe(true);
+    await reviewBtn.trigger("click");
+    expect(wrapper.emitted("open-review")).toBeTruthy();
   });
 
   it("emits click event on chip click", async () => {

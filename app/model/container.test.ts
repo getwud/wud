@@ -1234,6 +1234,87 @@ describe('rich container metadata', () => {
             );
         });
 
+        test('should validate container with multi-version riskAnalysis payload and locked status', () => {
+            const raw = {
+                ...createBase(),
+                result: {
+                    tag: '7.2.4',
+                    riskAnalysis: {
+                        imageRef: 'redis',
+                        currentTag: '7.0.15',
+                        targetTag: '7.2.4',
+                        riskScore: 'locked',
+                        skippedVersionsCount: 3,
+                        intermediateReleases: [
+                            {
+                                tag: '7.1.0',
+                                name: 'Redis 7.1.0',
+                                publishedAt: '2023-08-15T00:00:00.000Z',
+                                isTarget: false,
+                                summary: 'Unstable development branch',
+                                breakingChanges: ['Protocol change'],
+                                url: 'https://github.com/redis/redis/releases/tag/7.1.0',
+                            },
+                            {
+                                tag: '7.2.0',
+                                name: 'Redis 7.2.0',
+                                publishedAt: '2023-10-01T00:00:00.000Z',
+                                isTarget: false,
+                                summary: 'Major persistence changes',
+                                breakingChanges: ['AOF format migration'],
+                            },
+                            {
+                                tag: '7.2.4',
+                                isTarget: true,
+                                summary: 'Security fix release',
+                            },
+                        ],
+                        breakingChanges: ['AOF format migration'],
+                        envVarChanges: [],
+                        databaseImpact: 'AOF rewrite',
+                        summary:
+                            'Skipping across multiple minor/major versions',
+                        cached: false,
+                        freemiumGated: true,
+                        trialActivationUrl: 'https://hub.getwud.io/activate',
+                    },
+                },
+            };
+
+            const validated = container.validate(raw);
+            const risk = validated.result?.riskAnalysis;
+            expect(risk).toBeDefined();
+            expect(risk?.riskScore).toBe('locked');
+            expect(risk?.skippedVersionsCount).toBe(3);
+            expect(risk?.intermediateReleases).toHaveLength(3);
+            expect(risk?.intermediateReleases?.[0].tag).toBe('7.1.0');
+            expect(risk?.intermediateReleases?.[0].breakingChanges).toEqual([
+                'Protocol change',
+            ]);
+            expect(risk?.intermediateReleases?.[2].isTarget).toBe(true);
+            expect(risk?.freemiumGated).toBe(true);
+            expect(risk?.trialActivationUrl).toBe(
+                'https://hub.getwud.io/activate',
+            );
+        });
+
+        test('should export schemas and validate schemas directly', () => {
+            expect(container.intermediateReleaseItemSchema).toBeDefined();
+            expect(container.envVarChangeSchema).toBeDefined();
+            expect(container.riskAnalysisSchema).toBeDefined();
+            expect(container.containerResultSchema).toBeDefined();
+
+            const item = {
+                tag: '1.2.0',
+                isTarget: true,
+            };
+            const itemValidation =
+                container.intermediateReleaseItemSchema.validate(item);
+            expect(itemValidation.error).toBeUndefined();
+            expect(itemValidation.value.isTarget).toBe(true);
+            expect(itemValidation.value.breakingChanges).toEqual([]);
+        });
+
         test('should accept container without riskAnalysis', () => {
             const raw = {
                 ...createBase(),

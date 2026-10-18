@@ -180,8 +180,15 @@ In addition to provider-specific settings, all triggers support the following co
     type="enum"
     required={false}
     defaultValue="all"
-    supported="`all`, `low`, `medium`, `high`, `critical`">
+    supported="`all`, `low`, `medium`, `high`, `critical`, `locked`">
     Minimum changelog risk score required to fire the trigger (evaluated by WUD Hub)
+  </ConfigOption>
+
+  <ConfigOption name="WUD_TRIGGER_{trigger_type}_{trigger_name}_MAXSKIPPEDTHRESHOLD"
+    type="integer"
+    required={false}
+    supported="integer >= 0">
+    Maximum number of intermediate versions allowed to be skipped. If an update skips more versions than this ceiling, the trigger is skipped.
   </ConfigOption>
 </ConfigList>
 
@@ -203,6 +210,14 @@ When integrated with WUD Hub, changelog risk analysis evaluates updates into ris
 - **`medium`**: Executes the trigger for `medium`, `high`, and `critical` risk updates (filters out routine low-risk updates).
 - **`high`**: Executes the trigger only for `high` and `critical` risk updates (requiring manual attention or breaking changes).
 - **`critical`**: Executes the trigger only for `critical` risk updates (such as breaking database migrations or mandatory environment variable changes).
+- **`locked`**: Executes the trigger for `locked`, `high`, or `critical` updates (flagging multi-version leaps requiring subscription or deep review).
+
+### Max Skipped Threshold
+
+When updating containers that release frequently, jumping across too many versions at once may carry excessive operational risk:
+
+- Configure `MAXSKIPPEDTHRESHOLD=<number>` (e.g. `2`) to prevent auto-updates or notifications if the upgrade skips more intermediate versions than the ceiling.
+- Use this option alongside `RISKTHRESHOLD` to guard against unintended multi-minor or multi-major leaps.
 
 ---
 
@@ -229,13 +244,16 @@ In simple mode (`MODE=simple`), all container properties are accessible via the 
 | `container.upstreamUrl` | Upstream source code repository URL (from label) | `https://github.com/postgres/postgres` |
 | `container.link` | Preserved link fallback (pointing to `documentationUrl` or `upstreamUrl`) | `https://...` |
 | `container.result.link` | Changelog or registry link (if available) | `https://...` |
-| `riskScore` | Changelog risk score (`low`, `medium`, `high`, `critical`, `unknown`, `unsupported`) | `low`, `high` |
+| `riskScore` | Changelog risk score (`low`, `medium`, `high`, `critical`, `locked`, `unknown`, `unsupported`) | `low`, `high`, `locked` |
 | `riskSummary` | Executive summary of release changes from changelog | `Maintenance release with minor security fixes.` |
+| `skippedVersionsCount` | Number of intermediate releases skipped between current and target version | `2` |
+| `intermediateVersionsList` | Bulleted or comma-separated list of skipped intermediate tags | `7.2.0, 7.2.1` |
 | `hasBreakingChanges` | Boolean indicating whether breaking changes are present (`true` or `false`) | `false` |
 | `breakingChangesCount` | Number of detected breaking changes | `2` |
 | `breakingChangesText` | Bulleted markdown list of breaking changes | `- Deprecated configuration removed` |
 | `databaseImpact` | Text description of database or storage format impact | `Schema migration runs on startup.` |
 | `hasDatabaseImpact` | Boolean indicating whether database impact is present (`true` or `false`) | `true` |
+| `upgradeReviewUrl` | Direct deep-link URL to review the update in the WUD UI | `https://wud.example.com/#/containers?action=review&container=redis` |
 
 :::tip[Multi-Host Notifications]
 When monitoring multiple Docker daemons or remote hosts using distinct watchers (e.g. `WUD_WATCHER_HOST1_...`, `WUD_WATCHER_HOST2_...`), include `$${container.watcher}` in your `SIMPLEBODY` or `SIMPLETITLE` to identify which host discovered the update.

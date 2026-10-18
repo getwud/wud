@@ -8,6 +8,7 @@ export type {
     RiskScore,
     EnvVarChange,
     EnvVarChangeType,
+    IntermediateReleaseItem,
 } from '../metadata/types';
 const { parse: parseSemver, diff: diffSemver, transform: transformTag } = tag;
 
@@ -155,8 +156,19 @@ export function parseDurationMs(
     }
 }
 
+// Intermediate release item schema
+export const intermediateReleaseItemSchema = joi.object({
+    tag: joi.string().required(),
+    name: joi.string().allow('', null).optional(),
+    publishedAt: joi.string().isoDate().allow('', null).optional(),
+    isTarget: joi.boolean().default(false),
+    summary: joi.string().allow('', null).optional(),
+    breakingChanges: joi.array().items(joi.string()).default([]),
+    url: joi.string().uri().allow('', null).optional(),
+});
+
 // Environment variable change schema
-const envVarChangeSchema = joi.object({
+export const envVarChangeSchema = joi.object({
     name: joi.string().required(),
     changeType: joi
         .string()
@@ -166,7 +178,7 @@ const envVarChangeSchema = joi.object({
 });
 
 // Risk analysis schema
-const riskAnalysisSchema = joi.object({
+export const riskAnalysisSchema = joi.object({
     imageRef: joi.string().required(),
     currentTag: joi.string().required(),
     targetTag: joi.string().required(),
@@ -180,14 +192,37 @@ const riskAnalysisSchema = joi.object({
             'unknown',
             'pending',
             'unsupported',
+            'locked',
         )
         .required(),
+    skippedVersionsCount: joi.number().integer().min(0).optional(),
+    intermediateReleases: joi
+        .array()
+        .items(intermediateReleaseItemSchema)
+        .default([]),
     breakingChanges: joi.array().items(joi.string()).default([]),
     envVarChanges: joi.array().items(envVarChangeSchema).default([]),
     databaseImpact: joi.string().allow('', null).default(null),
     summary: joi.string().allow('', null).default(''),
     cached: joi.boolean().default(false),
     evaluatedAt: joi.string().isoDate().optional(),
+    freemiumGated: joi.boolean().optional(),
+    trialActivationUrl: joi.string().uri().allow('', null).optional(),
+});
+
+// Container result schema
+export const containerResultSchema = joi.object({
+    tag: joi.string().min(1),
+    digest: joi.string(),
+    created: joi.string().isoDate(),
+    version: joi.string(),
+    link: joi.string(),
+    changelogUrl: joi.string().uri().optional().allow(''),
+    riskAnalysis: riskAnalysisSchema.optional(),
+    hook: joi.object({
+        phase: joi.string().valid('pre', 'post'),
+        parentTrigger: joi.string(),
+    }),
 });
 
 // Container data schema
@@ -245,19 +280,7 @@ const schema = joi.object({
             created: joi.string().isoDate(),
         })
         .required(),
-    result: joi.object({
-        tag: joi.string().min(1),
-        digest: joi.string(),
-        created: joi.string().isoDate(),
-        version: joi.string(),
-        link: joi.string(),
-        changelogUrl: joi.string().uri().optional().allow(''),
-        riskAnalysis: riskAnalysisSchema.optional(),
-        hook: joi.object({
-            phase: joi.string().valid('pre', 'post'),
-            parentTrigger: joi.string(),
-        }),
-    }),
+    result: containerResultSchema,
     error: joi.object({
         message: joi.string().min(1).required(),
     }),

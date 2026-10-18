@@ -89,7 +89,8 @@ export type RiskScore =
     | 'critical'
     | 'unknown'
     | 'pending'
-    | 'unsupported';
+    | 'unsupported'
+    | 'locked';
 
 export type EnvVarChangeType = 'added' | 'removed' | 'modified' | 'deprecated';
 
@@ -99,17 +100,31 @@ export interface EnvVarChange {
     description: string;
 }
 
+export interface IntermediateReleaseItem {
+    tag: string;
+    name?: string;
+    publishedAt?: string;
+    isTarget: boolean;
+    summary?: string;
+    breakingChanges?: string[];
+    url?: string;
+}
+
 export interface RiskAnalysisResult {
     imageRef: string;
     currentTag: string;
     targetTag: string;
     riskScore: RiskScore;
+    skippedVersionsCount?: number;
+    intermediateReleases?: IntermediateReleaseItem[];
     breakingChanges: string[];
     envVarChanges: EnvVarChange[];
     databaseImpact: string | null;
     summary: string;
     cached?: boolean;
     evaluatedAt?: string;
+    freemiumGated?: boolean;
+    trialActivationUrl?: string;
 }
 
 export interface RemoteRiskAnalysisRequest {
