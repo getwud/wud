@@ -13,7 +13,7 @@ describe("UpgradeTimeline.vue", () => {
     expect(wrapper.text()).toContain("No intermediate release details available.");
   });
 
-  it("renders releases with tags, summaries, and breaking changes", () => {
+  it("renders releases with tags, summaries, breaking changes, and initial Current Version node", () => {
     const releases: IntermediateReleaseItem[] = [
       {
         tag: "7.2.0",
@@ -43,12 +43,19 @@ describe("UpgradeTimeline.vue", () => {
       },
     });
 
+    // Starting node
+    expect(wrapper.text()).toContain("7.0.15");
+    expect(wrapper.text()).toContain("Currently running version");
+    expect(wrapper.text()).toContain("Current Version");
+
+    // Intermediate release
     expect(wrapper.text()).toContain("7.2.0");
     expect(wrapper.text()).toContain("Redis 7.2.0");
     expect(wrapper.text()).toContain("Major release with protocol updates");
     expect(wrapper.text()).toContain("1 breaking");
     expect(wrapper.text()).toContain("RESP3 protocol enabled by default");
 
+    // Target release
     expect(wrapper.text()).toContain("7.2.4");
     expect(wrapper.text()).toContain("Target Version");
     expect(wrapper.text()).toContain("Security release");

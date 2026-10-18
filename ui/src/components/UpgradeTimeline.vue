@@ -1,6 +1,9 @@
 <template>
   <div class="upgrade-timeline">
-    <div v-if="!releases || releases.length === 0" class="text-body-2 text-medium-emphasis py-4 text-center">
+    <div
+      v-if="!releases || releases.length === 0"
+      class="text-body-2 text-medium-emphasis py-4 text-center"
+    >
       No intermediate release details available.
     </div>
 
@@ -11,8 +14,37 @@
       side="end"
       class="pa-0"
     >
+      <!-- Initial Starting Node: Current Version -->
       <v-timeline-item
-        v-for="(release, index) in releases"
+        v-if="currentTag"
+        dot-color="secondary"
+        icon="mdi-map-marker"
+        size="small"
+        fill-dot
+      >
+        <div class="timeline-content mb-3">
+          <div class="d-flex align-center flex-wrap ga-2">
+            <span class="text-subtitle-2 font-weight-bold font-mono">
+              {{ currentTag }}
+            </span>
+            <span class="text-body-2 text-medium-emphasis">
+              — Currently running version
+            </span>
+            <v-chip
+              size="x-small"
+              color="secondary"
+              variant="tonal"
+              label
+            >
+              Current Version
+            </v-chip>
+          </div>
+        </div>
+      </v-timeline-item>
+
+      <!-- Intermediate and Target Releases -->
+      <v-timeline-item
+        v-for="(release, index) in filteredReleases"
         :key="release.tag || index"
         :dot-color="getDotColor(release)"
         :icon="getDotIcon(release)"
@@ -90,7 +122,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from "vue";
+import { defineComponent, computed, PropType } from "vue";
 import { IntermediateReleaseItem } from "@/services/hub";
 
 export default defineComponent({
@@ -109,7 +141,13 @@ export default defineComponent({
       default: "",
     },
   },
-  setup() {
+  setup(props) {
+    const filteredReleases = computed<IntermediateReleaseItem[]>(() => {
+      if (!props.releases) return [];
+      if (!props.currentTag) return props.releases;
+      return props.releases.filter((r) => r.tag !== props.currentTag);
+    });
+
     function getDotColor(release: IntermediateReleaseItem): string {
       if (release.isTarget) return "primary";
       if (release.breakingChanges && release.breakingChanges.length > 0) return "error";
@@ -140,6 +178,7 @@ export default defineComponent({
     }
 
     return {
+      filteredReleases,
       getDotColor,
       getDotIcon,
       formatDate,

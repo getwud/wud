@@ -79,8 +79,11 @@ describe("UpgradeReviewModal.vue", () => {
     });
 
     expect(wrapper.text()).toContain("Upgrade Review — redis");
+    expect((wrapper.vm as any).currentTag).toBe("7.0.15");
+    expect((wrapper.vm as any).targetTag).toBe("7.2.4");
     expect(wrapper.text()).toContain("7.0.15");
     expect(wrapper.text()).toContain("7.2.4");
+    expect(wrapper.text()).not.toContain("[object Object]");
   });
 
   it("renders pre-flight summary with executive summary, breaking changes, and database impact", () => {

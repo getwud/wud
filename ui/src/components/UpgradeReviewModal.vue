@@ -359,20 +359,36 @@ export default defineComponent({
     const containerImage = computed(() => {
       const img = props.container?.image;
       if (!img) return "";
-      return img.name || img.tag || "";
+      return typeof img.name === "string" ? img.name : "";
     });
 
     const currentTag = computed(() => {
-      return props.container?.image?.tag || analysis.value?.currentTag || "";
+      const imgTag = props.container?.image?.tag;
+      if (imgTag && typeof imgTag === "object" && "value" in imgTag) {
+        return String((imgTag as any).value || "");
+      }
+      if (typeof imgTag === "string") {
+        return imgTag;
+      }
+      return analysis.value?.currentTag || "";
     });
 
     const targetTag = computed(() => {
-      return (
-        props.container?.result?.tag ||
-        analysis.value?.targetTag ||
-        props.container?.result?.version ||
-        ""
-      );
+      const resTag = props.container?.result?.tag;
+      if (resTag && typeof resTag === "object" && "value" in resTag) {
+        return String((resTag as any).value || "");
+      }
+      if (typeof resTag === "string") {
+        return resTag;
+      }
+      if (analysis.value?.targetTag) {
+        return String(analysis.value.targetTag);
+      }
+      const resVer = props.container?.result?.version;
+      if (typeof resVer === "string") {
+        return resVer;
+      }
+      return "";
     });
 
     const isGated = computed(() => {
