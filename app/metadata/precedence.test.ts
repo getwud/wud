@@ -83,6 +83,14 @@ describe('applyContainerPrecedence', () => {
         expect(result.includeTags).toBe('^16\\.\\d+$');
         expect(result.displayIcon).toBe('si:postgresql');
         expect(result.link).toBe('https://www.postgresql.org/docs/');
+        expect(result.isOfficial).toBe(true);
+        expect(result.documentationUrl).toBe(
+            'https://www.postgresql.org/docs/',
+        );
+        expect(result.upstreamUrl).toBe('https://github.com/postgres/postgres');
+        expect(result.changelogUrl).toBe(
+            'https://www.postgresql.org/docs/release/',
+        );
         expect(result.hub?.sources.includeTags).toBe('hub');
         expect(result.hub?.sources.displayIcon).toBe('hub');
         expect(result.hub?.sources.link).toBe('hub');
@@ -123,6 +131,35 @@ describe('applyContainerPrecedence', () => {
         const result = applyContainerPrecedence(container, hubSettings);
 
         expect(result.link).toBe('https://github.com/redis/redis');
+        expect(result.upstreamUrl).toBe('https://github.com/redis/redis');
         expect(result.hub?.sources.link).toBe('hub');
+    });
+
+    test('Explicit container labels for rich metadata override Hub values', () => {
+        const container = createBaseContainer({
+            'wud.link.doc': 'https://custom-doc.example.com',
+            'wud.link.changelog': 'https://custom-changelog.example.com',
+            'wud.link.upstream': 'https://custom-upstream.example.com',
+        });
+        container.documentationUrl = 'https://custom-doc.example.com';
+        container.changelogUrl = 'https://custom-changelog.example.com';
+        container.upstreamUrl = 'https://custom-upstream.example.com';
+
+        const hubSettings: RemoteSettingsResponse = {
+            image: 'library/postgres',
+            documentationUrl: 'https://hub-doc.example.com',
+            changelogUrl: 'https://hub-changelog.example.com',
+            upstreamUrl: 'https://hub-upstream.example.com',
+            isOfficial: true,
+        };
+
+        const result = applyContainerPrecedence(container, hubSettings);
+
+        expect(result.documentationUrl).toBe('https://custom-doc.example.com');
+        expect(result.changelogUrl).toBe(
+            'https://custom-changelog.example.com',
+        );
+        expect(result.upstreamUrl).toBe('https://custom-upstream.example.com');
+        expect(result.isOfficial).toBe(true);
     });
 });

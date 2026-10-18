@@ -1,4 +1,11 @@
-import { Container } from '../model/container';
+import {
+    Container,
+    getFirstLabel,
+    CHANGELOG_LABEL_KEYS,
+    UPSTREAM_LABEL_KEYS,
+    DOC_LABEL_KEYS,
+    TEMPLATE_LABEL_KEYS,
+} from '../model/container';
 import { RemoteSettingsResponse, ContainerHubMetadata } from './types';
 import {
     wudTagInclude,
@@ -48,19 +55,58 @@ export function applyContainerPrecedence(
         finalIcon = container.displayIcon;
     }
 
-    // 3. Documentation / Upstream Link
-    const localLinkTemplate = labels[wudLinkTemplate];
+    // 3. Documentation / Upstream Link & Rich Metadata
+    const localLinkTemplate =
+        labels[wudLinkTemplate] ||
+        getFirstLabel(labels, TEMPLATE_LABEL_KEYS) ||
+        container.linkTemplate;
+    const localDocLabel = getFirstLabel(labels, DOC_LABEL_KEYS);
+    const localChangelogLabel = getFirstLabel(labels, CHANGELOG_LABEL_KEYS);
+    const localUpstreamLabel = getFirstLabel(labels, UPSTREAM_LABEL_KEYS);
+
     let sourceLink: 'label' | 'hub' | 'default' = 'default';
 
     if (localLinkTemplate && localLinkTemplate.trim() !== '') {
         sourceLink = 'label';
     } else if (hubSettings?.documentationUrl || hubSettings?.upstreamUrl) {
         sourceLink = 'hub';
-        if (!container.link) {
-            container.link =
-                hubSettings.documentationUrl ||
-                hubSettings.upstreamUrl ||
-                undefined;
+    }
+
+    // 4. Seamlessly populate first-class Container rich metadata fields
+    if (hubSettings) {
+        if (hubSettings.isOfficial !== undefined) {
+            container.isOfficial = Boolean(
+                container.isOfficial || hubSettings.isOfficial,
+            );
+        }
+
+        if (
+            hubSettings.documentationUrl &&
+            !localDocLabel &&
+            !localLinkTemplate
+        ) {
+            container.documentationUrl = hubSettings.documentationUrl;
+        }
+
+        if (hubSettings.changelogUrl && !localChangelogLabel) {
+            container.changelogUrl = hubSettings.changelogUrl;
+        }
+
+        if (hubSettings.upstreamUrl && !localUpstreamLabel) {
+            container.upstreamUrl = hubSettings.upstreamUrl;
+        }
+
+        if (sourceLink === 'hub' && !container.linkTemplate) {
+            const descriptor = Object.getOwnPropertyDescriptor(
+                container,
+                'link',
+            );
+            if (!descriptor || descriptor.writable || descriptor.set) {
+                container.link =
+                    container.documentationUrl ||
+                    container.upstreamUrl ||
+                    container.link;
+            }
         }
     }
 
@@ -72,7 +118,7 @@ export function applyContainerPrecedence(
     const hubMetadata: ContainerHubMetadata = {
         enriched: Boolean(hubSettings),
         resolvedAt: new Date().toISOString(),
-        isOfficial: Boolean(hubSettings?.isOfficial),
+        isOfficial: Boolean(container.isOfficial ?? hubSettings?.isOfficial),
         sources: {
             includeTags: sourceIncludeTags,
             displayIcon: sourceIcon,

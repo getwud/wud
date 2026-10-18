@@ -197,8 +197,17 @@ describe('RemoteMetadataProvider', () => {
 
         const mockDetails = {
             organization: { id: 'org_1', name: 'Test Org', slug: 'test-org' },
-            apiKey: { preview: 'wud_...1234', valid: true, scopes: ['metadata:read'] },
-            subscription: { planTier: 'smart_updates', status: 'active', trialDaysRemaining: null, portalUrl: null },
+            apiKey: {
+                preview: 'wud_...1234',
+                valid: true,
+                scopes: ['metadata:read'],
+            },
+            subscription: {
+                planTier: 'smart_updates',
+                status: 'active',
+                trialDaysRemaining: null,
+                portalUrl: null,
+            },
             quota: { monitoredContainers: 10, limit: 25 },
         };
 
@@ -246,7 +255,12 @@ describe('RemoteMetadataProvider', () => {
         const mockDetails = {
             organization: { id: 'org_1', name: 'Test Org', slug: 'test-org' },
             apiKey: { preview: 'wud_...1234', valid: true, scopes: [] },
-            subscription: { planTier: 'free', status: 'active', trialDaysRemaining: null, portalUrl: null },
+            subscription: {
+                planTier: 'free',
+                status: 'active',
+                trialDaysRemaining: null,
+                portalUrl: null,
+            },
             quota: { monitoredContainers: 2, limit: 10 },
         };
 

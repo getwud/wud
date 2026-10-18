@@ -17,7 +17,10 @@ export class RemoteMetadataProvider {
     private readonly config: HubConfiguration;
     private readonly client: AxiosInstance;
     private readonly pool: ConcurrencyPool;
-    private readonly containerMetadata = new Map<string, ContainerHubMetadata>();
+    private readonly containerMetadata = new Map<
+        string,
+        ContainerHubMetadata
+    >();
 
     private status: ProviderConnectionStatus = 'standalone';
     private consecutiveErrors = 0;
@@ -150,9 +153,10 @@ export class RemoteMetadataProvider {
         return this.pool.run(async () => {
             try {
                 this.lastCheckTimestamp = new Date().toISOString();
-                const response = await this.client.get<RemoteHubDetails>(
-                    '/api/v1/hub/status',
-                );
+                const response =
+                    await this.client.get<RemoteHubDetails>(
+                        '/api/v1/hub/status',
+                    );
 
                 if (response.status === 200 && response.data) {
                     this.status = 'connected';

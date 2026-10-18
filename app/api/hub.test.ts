@@ -19,7 +19,12 @@ jest.mock('../metadata', () => {
             remote: {
                 organization: { id: 'org_1', name: 'Acme', slug: 'acme' },
                 apiKey: { preview: 'wud_...0001', valid: true, scopes: [] },
-                subscription: { planTier: 'free', status: 'active', trialDaysRemaining: null, portalUrl: null },
+                subscription: {
+                    planTier: 'free',
+                    status: 'active',
+                    trialDaysRemaining: null,
+                    portalUrl: null,
+                },
                 quota: { monitoredContainers: 5, limit: 10 },
             },
         })),
@@ -60,4 +65,3 @@ describe('Hub API Router', () => {
         expect(provider.getOrFetchStatus).toHaveBeenCalledWith(true);
     });
 });
-

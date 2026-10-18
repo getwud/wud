@@ -234,32 +234,32 @@ const schema = joi.object({
     hub: joi.object().optional(),
 });
 
-const CHANGELOG_LABEL_KEYS = [
+export const CHANGELOG_LABEL_KEYS = [
     'wud.link.changelog',
     'getwud.app/link.changelog',
     'wud/link.changelog',
     'wud.getwud.io/link.changelog',
 ];
-const UPSTREAM_LABEL_KEYS = [
+export const UPSTREAM_LABEL_KEYS = [
     'wud.link.upstream',
     'getwud.app/link.upstream',
     'wud/link.upstream',
     'wud.getwud.io/link.upstream',
 ];
-const DOC_LABEL_KEYS = [
+export const DOC_LABEL_KEYS = [
     'wud.link.doc',
     'getwud.app/link.doc',
     'wud/link.doc',
     'wud.getwud.io/link.doc',
 ];
-const TEMPLATE_LABEL_KEYS = [
+export const TEMPLATE_LABEL_KEYS = [
     'wud.link.template',
     'getwud.app/link.template',
     'wud/link.template',
     'wud.getwud.io/link.template',
 ];
 
-function getFirstLabel(
+export function getFirstLabel(
     labels: Record<string, string> | undefined,
     keys: string[],
 ): string | undefined {
