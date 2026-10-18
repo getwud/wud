@@ -444,8 +444,15 @@ export function resolveContainerMetadata(
     container.documentationUrl = resolvedDoc || undefined;
 
     // 5. Historical link fallback: documentationUrl || upstreamUrl || link
-    container.link =
-        container.documentationUrl || container.upstreamUrl || container.link;
+    if (!container.linkTemplate) {
+        const descriptor = Object.getOwnPropertyDescriptor(container, 'link');
+        if (!descriptor || descriptor.writable || descriptor.set) {
+            container.link =
+                container.documentationUrl ||
+                container.upstreamUrl ||
+                container.link;
+        }
+    }
 
     return container;
 }
@@ -599,6 +606,7 @@ function addLinkProperty(container: Container) {
     if (container.linkTemplate) {
         Object.defineProperty(container, 'link', {
             enumerable: true,
+            configurable: true,
             get(this: Container) {
                 return (
                     getLink(container, container.image?.tag?.value || '') ||
@@ -606,13 +614,20 @@ function addLinkProperty(container: Container) {
                     this.upstreamUrl
                 );
             },
+            set(_val: string) {
+                // No-op setter to avoid 'only a getter' errors
+            },
         });
 
         if (container.result) {
             Object.defineProperty(container.result, 'link', {
                 enumerable: true,
+                configurable: true,
                 get() {
                     return getLink(container, container.result?.tag ?? '');
+                },
+                set(_val: string) {
+                    // No-op setter to avoid 'only a getter' errors
                 },
             });
         }

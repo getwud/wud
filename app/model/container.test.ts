@@ -1113,5 +1113,20 @@ describe('rich container metadata', () => {
                 /Error when validating container properties/,
             );
         });
+
+        test('should allow re-validating a container with linkTemplate multiple times without throwing', () => {
+            const raw = {
+                ...createBase(),
+                linkTemplate: 'https://example.com/${container.name}',
+                result: { tag: '2.0.0' },
+            };
+
+            const validated1 = container.validate(raw);
+            expect(validated1.link).toBe('https://example.com/my-app');
+
+            // Re-validate the already validated container object (simulating store update)
+            expect(() => container.validate(validated1)).not.toThrow();
+            expect(validated1.link).toBe('https://example.com/my-app');
+        });
     });
 });
