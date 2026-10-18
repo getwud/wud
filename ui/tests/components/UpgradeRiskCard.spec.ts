@@ -67,7 +67,7 @@ describe("UpgradeRiskCard.vue", () => {
     });
 
     expect(wrapper.text()).toContain("Upgrade Risk Analysis");
-    expect(wrapper.text()).toContain("cached");
+    expect(wrapper.text()).not.toContain("cached");
     expect(wrapper.text()).toContain(mockAnalysis.summary);
     expect(wrapper.text()).toContain("Multi-Version Upgrade Jump");
     expect(wrapper.text()).toContain("BREAKING CHANGES (2)");

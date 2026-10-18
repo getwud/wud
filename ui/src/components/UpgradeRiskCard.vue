@@ -63,15 +63,6 @@
         </template>
         <v-card-title class="text-subtitle-1 font-weight-bold d-flex align-center flex-wrap ga-2">
           <span>Upgrade Risk Analysis</span>
-          <v-chip
-            v-if="analysis?.cached"
-            size="x-small"
-            variant="tonal"
-            color="info"
-            label
-          >
-            cached
-          </v-chip>
           <span
             v-if="analysis?.evaluatedAt"
             class="text-caption text-medium-emphasis font-weight-regular ml-auto"
