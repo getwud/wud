@@ -63,12 +63,6 @@
         </v-tab>
         <v-tab value="checklist" prepend-icon="mdi-checkbox-marked-circle-outline">
           Safety Checklist
-          <v-badge
-            :content="`${checklistCompletedCount}/${checklistItems.length}`"
-            inline
-            :color="checklistCompletedCount === checklistItems.length ? 'success' : 'primary'"
-            class="ml-1"
-          />
         </v-tab>
       </v-tabs>
 
@@ -237,22 +231,14 @@
 
         <!-- TAB 3: SAFETY CHECKLIST -->
         <div v-else-if="activeTab === 'checklist'">
-          <div class="d-flex align-center justify-space-between mb-2">
-            <span class="text-caption font-weight-bold text-medium-emphasis">
-              PRE-FLIGHT READINESS CHECKLIST
-            </span>
-            <span class="text-caption font-weight-medium">
-              {{ checklistCompletedCount }} / {{ checklistItems.length }} completed
-            </span>
+          <div class="mb-3">
+            <div class="text-caption font-weight-bold text-medium-emphasis mb-1">
+              PRE-FLIGHT VERIFICATIONS
+            </div>
+            <div class="text-caption text-medium-emphasis">
+              Recommended verifications before proceeding with the update:
+            </div>
           </div>
-
-          <v-progress-linear
-            :model-value="(checklistCompletedCount / checklistItems.length) * 100"
-            color="primary"
-            height="6"
-            rounded
-            class="mb-4"
-          />
 
           <v-list class="bg-surface-light rounded pa-2">
             <v-list-item
@@ -261,12 +247,11 @@
               class="px-2 py-1"
             >
               <template #prepend>
-                <v-checkbox-btn
-                  v-model="item.checked"
-                  color="primary"
-                />
+                <v-icon color="success" size="small" class="mr-3">
+                  mdi-check-circle-outline
+                </v-icon>
               </template>
-              <v-list-item-title class="font-weight-medium text-body-2" :class="{ 'text-decoration-line-through text-medium-emphasis': item.checked }">
+              <v-list-item-title class="font-weight-medium text-body-2">
                 {{ item.title }}
               </v-list-item-title>
               <v-list-item-subtitle class="text-caption text-medium-emphasis">
@@ -315,7 +300,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, computed, ref, reactive, PropType } from "vue";
+import { defineComponent, computed, ref, PropType } from "vue";
 import RiskPill from "./RiskPill.vue";
 import UpgradeTimeline from "./UpgradeTimeline.vue";
 import { RiskAnalysisResult, IntermediateReleaseItem, EnvVarChange } from "@/services/hub";
@@ -410,32 +395,24 @@ export default defineComponent({
       return analysis.value?.intermediateReleases || [];
     });
 
-    const checklistItems = reactive([
+    const checklistItems = [
       {
         title: "Backup Database & Persistent Data",
         description: "Perform snapshot/backup of container volumes or databases before proceeding.",
-        checked: false,
       },
       {
         title: "Verify Breaking Changes & Deprecations",
         description: "Confirm that application configs and APIs are compatible with breaking changes.",
-        checked: false,
       },
       {
         title: "Review Environment Variables",
         description: "Ensure newly added or modified environment variables are updated in docker-compose or env files.",
-        checked: false,
       },
       {
         title: "Prepare Rollback Procedure",
         description: "Ensure container rollback command or image pin is ready in case of unexpected startup failure.",
-        checked: false,
       },
-    ]);
-
-    const checklistCompletedCount = computed(() => {
-      return checklistItems.filter((i) => i.checked).length;
-    });
+    ];
 
     function getEnvVarChipColor(type: string): string {
       switch (type) {
@@ -517,7 +494,7 @@ export default defineComponent({
 
       lines.push(`## Pre-Flight Readiness Checklist`);
       checklistItems.forEach((item) => {
-        lines.push(`- [${item.checked ? "x" : " "}] ${item.title}: ${item.description}`);
+        lines.push(`- ${item.title}: ${item.description}`);
       });
 
       const mdContent = lines.join("\n");
@@ -541,7 +518,6 @@ export default defineComponent({
       envVarChanges,
       intermediateReleases,
       checklistItems,
-      checklistCompletedCount,
       getEnvVarChipColor,
       close,
       onUpdateNow,

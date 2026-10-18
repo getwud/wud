@@ -121,7 +121,7 @@ describe("UpgradeReviewModal.vue", () => {
     expect(wrapper.text()).toContain("7.2.4");
   });
 
-  it("switches to checklist tab and tracks completed checklist items", async () => {
+  it("switches to checklist tab and renders pre-flight verification items statically", async () => {
     const wrapper = mount(UpgradeReviewModal, {
       props: {
         modelValue: true,
@@ -132,14 +132,12 @@ describe("UpgradeReviewModal.vue", () => {
     (wrapper.vm as any).activeTab = "checklist";
     await wrapper.vm.$nextTick();
 
-    expect(wrapper.text()).toContain("PRE-FLIGHT READINESS CHECKLIST");
-    expect((wrapper.vm as any).checklistCompletedCount).toBe(0);
-
-    // Check first item
-    (wrapper.vm as any).checklistItems[0].checked = true;
-    await wrapper.vm.$nextTick();
-    expect((wrapper.vm as any).checklistCompletedCount).toBe(1);
-    expect(wrapper.text()).toContain("1 / 4 completed");
+    expect(wrapper.text()).toContain("PRE-FLIGHT VERIFICATIONS");
+    expect(wrapper.text()).toContain("Recommended verifications before proceeding with the update:");
+    expect(wrapper.text()).toContain("Backup Database & Persistent Data");
+    expect(wrapper.text()).toContain("Verify Breaking Changes & Deprecations");
+    expect(wrapper.text()).toContain("Review Environment Variables");
+    expect(wrapper.text()).toContain("Prepare Rollback Procedure");
   });
 
   it("emits update-now when Update Container button is clicked", async () => {
