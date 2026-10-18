@@ -1326,5 +1326,42 @@ describe('rich container metadata', () => {
             const validated = container.validate(raw);
             expect(validated.result?.riskAnalysis).toBeUndefined();
         });
+
+        test('should accept container with riskAnalysis: null', () => {
+            const raw = {
+                ...createBase(),
+                result: {
+                    tag: '2.0.0',
+                    riskAnalysis: null,
+                },
+            };
+
+            const validated = container.validate(raw);
+            expect(validated.result?.riskAnalysis).toBeNull();
+        });
+
+        test('should accept container with riskAnalysis containing unknown/extra fields', () => {
+            const raw = {
+                ...createBase(),
+                result: {
+                    tag: '2.0.0',
+                    riskAnalysis: {
+                        imageRef: 'postgres',
+                        currentTag: '15.1',
+                        targetTag: '16.0',
+                        riskScore: 'medium',
+                        breakingChanges: [],
+                        futureExtensionField: 'experimental',
+                    },
+                },
+            };
+
+            const validated = container.validate(raw);
+            expect(validated.result?.riskAnalysis).toBeDefined();
+            expect(validated.result?.riskAnalysis?.riskScore).toBe('medium');
+            expect(
+                (validated.result?.riskAnalysis as any).futureExtensionField,
+            ).toBe('experimental');
+        });
     });
 });

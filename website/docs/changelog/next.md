@@ -11,7 +11,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [CORE] Multi-version upgrade journey and changelog risk analysis
 - 🚀 [HUB] Integrate automated changelog risk analysis and breaking change detection with WUD Hub
 - 🚀 [METADATA] Add WUD Hub remote metadata provider and precedence engine
-- 🚀 [TRIGGER] Add `riskthreshold` and `maxskippedthreshold` filtering, exposing multi-version journey variables in notification templates (`riskScore`, `skippedVersionsCount`, `intermediateVersionsList`, `upgradeReviewUrl`)
+- 🚀 [TRIGGER] Add risk analysis variables and threshold filtering (riskthreshold, maxskippedthreshold)
 - 🚀 [TRIGGER] Dynamic risk severity styling and structured release insights for Discord and Slack notifications
 - 🚀 [TRIGGER] Add real-time pull progress logging for Docker images (fixes #777)
 - 🚀 [TRIGGER] Log stdout/stderr on error and expose compose_project in command trigger (fixes #594, fixes #595)
@@ -20,6 +20,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [UI] Add official image badge and direct metadata actions (changelog, docs, source) to container list and remove deprecated link template from details view
 - 🚀 [UI] Add `RiskPill` risk badge and `UpgradeRiskCard` with changelog summaries, breaking changes, and env variable diffs
 - 🚀 [UI] Display and search container metadata in log view (fixes #1419)
+- 🚀 [WATCHER] Integrate Hub risk analysis into container update inspection
 - 🐛 [AUTH] Invalidate active sessions when user is deleted
 - 🐛 [CORE] Fix graceful shutdown on SIGTERM (fixes #1397)
 - 🐛 [CORE] Resilient Docker event stream with exponential backoff and targeted single-container reconciliation on update (fixes #1393)

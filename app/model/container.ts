@@ -178,37 +178,39 @@ export const envVarChangeSchema = joi.object({
 });
 
 // Risk analysis schema
-export const riskAnalysisSchema = joi.object({
-    imageRef: joi.string().required(),
-    currentTag: joi.string().required(),
-    targetTag: joi.string().required(),
-    riskScore: joi
-        .string()
-        .valid(
-            'low',
-            'medium',
-            'high',
-            'critical',
-            'unknown',
-            'pending',
-            'unsupported',
-            'locked',
-        )
-        .required(),
-    skippedVersionsCount: joi.number().integer().min(0).optional(),
-    intermediateReleases: joi
-        .array()
-        .items(intermediateReleaseItemSchema)
-        .default([]),
-    breakingChanges: joi.array().items(joi.string()).default([]),
-    envVarChanges: joi.array().items(envVarChangeSchema).default([]),
-    databaseImpact: joi.string().allow('', null).default(null),
-    summary: joi.string().allow('', null).default(''),
-    cached: joi.boolean().default(false),
-    evaluatedAt: joi.string().isoDate().optional(),
-    freemiumGated: joi.boolean().optional(),
-    trialActivationUrl: joi.string().uri().allow('', null).optional(),
-});
+export const riskAnalysisSchema = joi
+    .object({
+        imageRef: joi.string().required(),
+        currentTag: joi.string().required(),
+        targetTag: joi.string().required(),
+        riskScore: joi
+            .string()
+            .valid(
+                'low',
+                'medium',
+                'high',
+                'critical',
+                'unknown',
+                'pending',
+                'unsupported',
+                'locked',
+            )
+            .required(),
+        skippedVersionsCount: joi.number().integer().min(0).optional(),
+        intermediateReleases: joi
+            .array()
+            .items(intermediateReleaseItemSchema)
+            .default([]),
+        breakingChanges: joi.array().items(joi.string()).default([]),
+        envVarChanges: joi.array().items(envVarChangeSchema).default([]),
+        databaseImpact: joi.string().allow('', null).default(null),
+        summary: joi.string().allow('', null).default(''),
+        cached: joi.boolean().default(false),
+        evaluatedAt: joi.string().isoDate().optional(),
+        freemiumGated: joi.boolean().optional(),
+        trialActivationUrl: joi.string().uri().allow('', null).optional(),
+    })
+    .unknown(true);
 
 // Container result schema
 export const containerResultSchema = joi.object({
@@ -218,7 +220,7 @@ export const containerResultSchema = joi.object({
     version: joi.string(),
     link: joi.string(),
     changelogUrl: joi.string().uri().optional().allow(''),
-    riskAnalysis: riskAnalysisSchema.optional(),
+    riskAnalysis: riskAnalysisSchema.optional().allow(null),
     hook: joi.object({
         phase: joi.string().valid('pre', 'post'),
         parentTrigger: joi.string(),

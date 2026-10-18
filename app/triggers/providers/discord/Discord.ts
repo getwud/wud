@@ -56,11 +56,11 @@ class Discord extends Trigger {
         }
 
         const RISK_COLORS = {
-            low: 2278750, // 0x22c55e
-            medium: 15381256, // 0xeab308
-            high: 16347926, // 0xf97316
-            critical: 15680580, // 0xef4444
-            locked: 10175195, // 0x9b59b6
+            low: 3061894, // #2eb886
+            medium: 15105570, // #e67e22
+            high: 15158332, // #e74c3c
+            critical: 15158332, // #e74c3c
+            locked: 10175195, // #9b59b6
         };
         const color =
             RISK_COLORS[risk.riskScore] ?? this.configuration.cardcolor;
@@ -86,9 +86,23 @@ class Discord extends Trigger {
                   ? Math.max(0, risk.intermediateReleases.length - 1)
                   : 0;
         if (skipped > 0) {
+            const currentTag =
+                container.image?.tag?.value ||
+                container.updateKind?.localValue ||
+                risk.currentTag ||
+                '';
+            const targetTag =
+                container.result?.tag ||
+                container.updateKind?.remoteValue ||
+                risk.targetTag ||
+                '';
+            const tagFlow =
+                currentTag && targetTag
+                    ? ` (${currentTag} ➔ ${targetTag})`
+                    : '';
             extraFields.push({
-                name: 'Skipped Releases',
-                value: `+${skipped} intermediate version${skipped > 1 ? 's' : ''}`,
+                name: 'Skipped Versions',
+                value: `+${skipped} versions${tagFlow}`,
             });
         }
 
@@ -101,14 +115,14 @@ class Discord extends Trigger {
 
         if (risk.breakingChanges && risk.breakingChanges.length > 0) {
             extraFields.push({
-                name: `Breaking Changes (${risk.breakingChanges.length})`,
+                name: 'Breaking Changes',
                 value: risk.breakingChanges.map((b) => `• ${b}`).join('\n'),
             });
         }
 
         if (risk.databaseImpact) {
             extraFields.push({
-                name: 'Database Impact',
+                name: 'DB / Storage Impact',
                 value: risk.databaseImpact,
             });
         }
@@ -125,16 +139,16 @@ class Discord extends Trigger {
         const baseUrl = process.env.WUD_PUBLIC_URL
             ? process.env.WUD_PUBLIC_URL.replace(/\/+$/, '')
             : '';
-        const reviewUrl = baseUrl
+        const upgradeReviewUrl = baseUrl
             ? `${baseUrl}/#/containers?action=review&container=${container.id}`
             : container.result?.changelogUrl ||
               container.changelogUrl ||
               container.result?.link ||
               container.link;
-        if (reviewUrl) {
+        if (upgradeReviewUrl) {
             extraFields.push({
-                name: 'Upgrade Review',
-                value: `[Inspect Upgrade Journey](${reviewUrl})`,
+                name: 'Link',
+                value: `[ 🔍 Review Update in WUD ](${upgradeReviewUrl})`,
             });
         }
 

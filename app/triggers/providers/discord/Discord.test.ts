@@ -228,7 +228,7 @@ describe('Discord Trigger', () => {
                 embeds: [
                     {
                         title: 'Update for redis-server',
-                        color: 15680580, // 0xef4444 (critical)
+                        color: 15158332, // #e74c3c (critical)
                         fields: [
                             {
                                 name: 'Update Available',
@@ -236,19 +236,19 @@ describe('Discord Trigger', () => {
                             },
                             { name: 'Risk Level', value: '🚨 CRITICAL' },
                             {
-                                name: 'Skipped Releases',
-                                value: '+2 intermediate versions',
+                                name: 'Skipped Versions',
+                                value: '+2 versions (7.0.15 ➔ 7.2.4)',
                             },
                             {
                                 name: 'Summary',
                                 value: 'Persistence changes & DB format migration',
                             },
                             {
-                                name: 'Breaking Changes (1)',
+                                name: 'Breaking Changes',
                                 value: '• Breaking snapshot layout',
                             },
                             {
-                                name: 'Database Impact',
+                                name: 'DB / Storage Impact',
                                 value: 'Automatic DB format conversion on startup',
                             },
                             {
@@ -256,13 +256,65 @@ describe('Discord Trigger', () => {
                                 value: 'https://github.com/redis/redis/releases/tag/7.2.4',
                             },
                             {
-                                name: 'Upgrade Review',
-                                value: '[Inspect Upgrade Journey](https://github.com/redis/redis/releases/tag/7.2.4)',
+                                name: 'Link',
+                                value: '[ 🔍 Review Update in WUD ](https://github.com/redis/redis/releases/tag/7.2.4)',
                             },
                         ],
                     },
                 ],
             },
         });
+    });
+
+    test('trigger should use proper embed colors for low, medium, and high risk scores', async () => {
+        const { default: axios } = await import('axios');
+        discord.configuration = {
+            url: 'https://discord.com/api/webhooks/123/abc',
+        };
+
+        const createContainer = (score) => ({
+            name: 'test',
+            updateKind: { localValue: '1.0.0', remoteValue: '1.1.0' },
+            result: {
+                tag: '1.1.0',
+                riskAnalysis: {
+                    imageRef: 'test',
+                    currentTag: '1.0.0',
+                    targetTag: '1.1.0',
+                    riskScore: score,
+                    breakingChanges: [],
+                },
+            },
+        });
+
+        // Low risk -> #2eb886 (3061894)
+        await discord.trigger(createContainer('low'));
+        expect(axios).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    embeds: [expect.objectContaining({ color: 3061894 })],
+                }),
+            }),
+        );
+
+        // Medium risk -> #e67e22 (15105570)
+        await discord.trigger(createContainer('medium'));
+        expect(axios).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    embeds: [expect.objectContaining({ color: 15105570 })],
+                }),
+            }),
+        );
+
+        // High risk -> #e74c3c (15158332)
+        await discord.trigger(createContainer('high'));
+        expect(axios).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    embeds: [expect.objectContaining({ color: 15158332 })],
+                }),
+            }),
+        );
     });
 });

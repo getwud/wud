@@ -223,6 +223,19 @@ class Trigger extends Component {
     }
 
     /**
+     * Alias for isSkippedThresholdReached.
+     */
+    static isMaxSkippedThresholdReached(
+        containerResult: Container,
+        maxSkippedThreshold?: number,
+    ): boolean {
+        return Trigger.isSkippedThresholdReached(
+            containerResult,
+            maxSkippedThreshold,
+        );
+    }
+
+    /**
      * Return true if update reaches trigger exclusion threshold.
      * @param containerResult
      * @param threshold

@@ -346,7 +346,7 @@ describe('RemoteMetadataProvider', () => {
                     currentTag: '7.0.15',
                     targetTag: '7.2.4',
                 },
-                { timeout: 30000 },
+                { timeout: 4000 },
             );
 
             // Synchronous cached lookup
@@ -386,11 +386,17 @@ describe('RemoteMetadataProvider', () => {
             await provider.getRiskAnalysis('redis', '7.0.15', '7.2.4', true);
             expect(mockClient.post).toHaveBeenCalledTimes(2);
 
-            // Also test with object option { forceRefresh: true }
+            // Also test with object option { forceRefresh: true, timeout: 2000 }
             await provider.getRiskAnalysis('redis', '7.0.15', '7.2.4', {
                 forceRefresh: true,
+                timeout: 2000,
             });
             expect(mockClient.post).toHaveBeenCalledTimes(3);
+            expect(mockClient.post).toHaveBeenLastCalledWith(
+                '/api/v1/changelogs/risk-analysis',
+                expect.any(Object),
+                { timeout: 2000 },
+            );
         });
 
         test('invalidateRiskCache removes cache entry', async () => {

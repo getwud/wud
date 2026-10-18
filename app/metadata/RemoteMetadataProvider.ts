@@ -120,7 +120,9 @@ export class RemoteMetadataProvider {
         imageRef: string,
         currentTag: string,
         targetTag: string,
-        forceRefreshOrOptions: boolean | { forceRefresh?: boolean } = false,
+        forceRefreshOrOptions:
+            | boolean
+            | { forceRefresh?: boolean; timeout?: number } = false,
     ): Promise<RiskAnalysisResult | null> {
         if (
             !this.config.enabled ||
@@ -134,6 +136,12 @@ export class RemoteMetadataProvider {
             typeof forceRefreshOrOptions === 'boolean'
                 ? forceRefreshOrOptions
                 : Boolean(forceRefreshOrOptions?.forceRefresh);
+
+        const requestTimeout =
+            typeof forceRefreshOrOptions === 'object' &&
+            forceRefreshOrOptions?.timeout !== undefined
+                ? forceRefreshOrOptions.timeout
+                : 4000;
 
         const cacheKey = this.getRiskCacheKey(imageRef, currentTag, targetTag);
 
@@ -165,7 +173,7 @@ export class RemoteMetadataProvider {
                         targetTag,
                     },
                     {
-                        timeout: this.config.timeout,
+                        timeout: requestTimeout,
                     },
                 );
 

@@ -1803,6 +1803,14 @@ describe('granular per-trigger labels (fixes #691)', () => {
             expect(
                 Trigger.isSkippedThresholdReached(makeContainer(undefined), 0),
             ).toBe(true);
+
+            // test isMaxSkippedThresholdReached alias
+            expect(
+                Trigger.isMaxSkippedThresholdReached(makeContainer(3), 2),
+            ).toBe(false);
+            expect(
+                Trigger.isMaxSkippedThresholdReached(makeContainer(1), 2),
+            ).toBe(true);
         });
 
         test('handleContainerReport should filter out container exceeding maxskippedthreshold', async () => {
