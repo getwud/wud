@@ -63,12 +63,6 @@
         </template>
         <v-card-title class="text-subtitle-1 font-weight-bold d-flex align-center flex-wrap ga-2">
           <span>Upgrade Risk Analysis</span>
-          <span
-            v-if="analysis?.evaluatedAt"
-            class="text-caption text-medium-emphasis font-weight-regular ml-auto"
-          >
-            Evaluated {{ formattedEvaluatedAt }}
-          </span>
         </v-card-title>
       </v-card-item>
 
@@ -357,20 +351,6 @@ export default defineComponent({
       );
     });
 
-    const formattedEvaluatedAt = computed(() => {
-      if (!analysis.value?.evaluatedAt) return "";
-      try {
-        const d = new Date(analysis.value.evaluatedAt);
-        return d.toLocaleDateString(undefined, {
-          month: "short",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-      } catch {
-        return analysis.value.evaluatedAt;
-      }
-    });
 
     const currentTag = computed(() => {
       const imgTag = props.container?.image?.tag;
@@ -446,7 +426,6 @@ export default defineComponent({
       currentRiskScore,
       isGated,
       changelogUrl,
-      formattedEvaluatedAt,
       currentTag,
       targetTag,
       intermediateReleases,
