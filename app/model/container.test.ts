@@ -958,7 +958,7 @@ describe('rich container metadata', () => {
             expect(validated.link).toBe('https://hub.docker.com/_/redis');
         });
 
-        test('should prioritize explicit container labels over remote provider and defaults', () => {
+        test('should prioritize explicit container labels over defaults', () => {
             const raw = {
                 ...createBase(),
                 labels: {
@@ -969,17 +969,7 @@ describe('rich container metadata', () => {
                 },
             };
 
-            const remoteMetadata = {
-                changelogUrl: 'https://hub.remote.com/changelog',
-                upstreamUrl: 'https://hub.remote.com/upstream',
-                documentationUrl: 'https://hub.remote.com/doc',
-                isOfficial: false,
-            };
-
-            const resolved = container.resolveContainerMetadata(
-                raw as any,
-                remoteMetadata,
-            );
+            const resolved = container.resolveContainerMetadata(raw as any);
 
             expect(resolved.changelogUrl).toBe(
                 'https://github.com/redis/redis/releases',
@@ -987,8 +977,7 @@ describe('rich container metadata', () => {
             expect(resolved.upstreamUrl).toBe('https://github.com/redis/redis');
             expect(resolved.documentationUrl).toBe('https://redis.io/docs/');
             expect(resolved.link).toBe('https://redis.io/docs/');
-            // Remote provider isOfficial takes precedence if passed
-            expect(resolved.isOfficial).toBe(false);
+            expect(resolved.isOfficial).toBe(true);
         });
 
         test('should support canonical getwud.app/ and alias label prefixes', () => {
@@ -1052,40 +1041,6 @@ describe('rich container metadata', () => {
                 'https://github.com/my-org/custom-app',
             );
             expect(resolved.link).toBe('https://github.com/my-org/custom-app');
-        });
-
-        test('should use remote provider metadata when container labels are absent', () => {
-            const raw = {
-                ...createBase(),
-                image: {
-                    ...createBase().image,
-                    name: 'my-org/custom-app',
-                },
-            };
-
-            const remoteMetadata = {
-                changelogUrl: 'https://hub.remote.com/changelog',
-                upstreamUrl: 'https://hub.remote.com/upstream',
-                documentationUrl: 'https://hub.remote.com/doc',
-                isOfficial: true,
-            };
-
-            const resolved = container.resolveContainerMetadata(
-                raw as any,
-                remoteMetadata,
-            );
-
-            expect(resolved.isOfficial).toBe(true);
-            expect(resolved.changelogUrl).toBe(
-                'https://hub.remote.com/changelog',
-            );
-            expect(resolved.upstreamUrl).toBe(
-                'https://hub.remote.com/upstream',
-            );
-            expect(resolved.documentationUrl).toBe(
-                'https://hub.remote.com/doc',
-            );
-            expect(resolved.link).toBe('https://hub.remote.com/doc');
         });
 
         test('should preserve existing container.link if documentationUrl and upstreamUrl are absent', () => {

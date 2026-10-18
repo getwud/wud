@@ -229,13 +229,6 @@ const schema = joi.object({
     labels: joi.object(),
 });
 
-export interface RemoteContainerMetadata {
-    isOfficial?: boolean;
-    documentationUrl?: string;
-    changelogUrl?: string;
-    upstreamUrl?: string;
-}
-
 const CHANGELOG_LABEL_KEYS = [
     'wud.link.changelog',
     'getwud.app/link.changelog',
@@ -373,15 +366,11 @@ export function renderLinkTemplate(
 
 /**
  * Resolve container rich metadata adhering to precedence:
- * 1) Explicit local container labels
- * 2) Remote provider metadata (if present)
- * 3) Standalone defaults (official Docker Hub images)
- * 4) Backward-compatibility link fallback
+ * 1) Explicit local container labels / annotations
+ * 2) Standalone defaults (official Docker Hub images)
+ * 3) Backward-compatibility link fallback
  */
-export function resolveContainerMetadata(
-    container: Container,
-    remoteMetadata?: RemoteContainerMetadata | null,
-): Container {
+export function resolveContainerMetadata(container: Container): Container {
     if (!container) {
         return container;
     }
@@ -390,37 +379,23 @@ export function resolveContainerMetadata(
 
     // 1. isOfficial resolution
     let isOfficial = false;
-    if (remoteMetadata?.isOfficial !== undefined) {
-        isOfficial = Boolean(remoteMetadata.isOfficial);
-    } else if ((container as any).hub?.isOfficial !== undefined) {
-        isOfficial = Boolean((container as any).hub.isOfficial);
-    } else if (container.isOfficial) {
+    if (container.isOfficial) {
         isOfficial = true;
     } else if (image) {
         isOfficial = isDockerOfficialImage(image);
     }
     container.isOfficial = isOfficial;
 
-    const remoteHubDetails = (container as any).hub?.hubDetails;
-
     // 2. changelogUrl resolution
     const rawChangelog =
         container.changelogUrl || getFirstLabel(labels, CHANGELOG_LABEL_KEYS);
-    let resolvedChangelog = renderLinkTemplate(rawChangelog, container);
-    if (!resolvedChangelog) {
-        resolvedChangelog =
-            remoteMetadata?.changelogUrl || remoteHubDetails?.changelogUrl;
-    }
+    const resolvedChangelog = renderLinkTemplate(rawChangelog, container);
     container.changelogUrl = resolvedChangelog || undefined;
 
     // 3. upstreamUrl resolution
     const rawUpstream =
         container.upstreamUrl || getFirstLabel(labels, UPSTREAM_LABEL_KEYS);
-    let resolvedUpstream = renderLinkTemplate(rawUpstream, container);
-    if (!resolvedUpstream) {
-        resolvedUpstream =
-            remoteMetadata?.upstreamUrl || remoteHubDetails?.upstreamUrl;
-    }
+    const resolvedUpstream = renderLinkTemplate(rawUpstream, container);
     container.upstreamUrl = resolvedUpstream || undefined;
 
     // 4. documentationUrl resolution
@@ -430,11 +405,6 @@ export function resolveContainerMetadata(
         getFirstLabel(labels, TEMPLATE_LABEL_KEYS) ||
         container.linkTemplate;
     let resolvedDoc = renderLinkTemplate(rawDoc, container);
-    if (!resolvedDoc) {
-        resolvedDoc =
-            remoteMetadata?.documentationUrl ||
-            remoteHubDetails?.documentationUrl;
-    }
     if (!resolvedDoc && container.isOfficial && image?.name) {
         const repoName = image.name.trim().replace(/^library\//, '');
         if (repoName) {
