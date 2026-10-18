@@ -267,3 +267,52 @@ test('gauge should register container with delay and cool-down labels without wa
         1,
     );
 });
+
+test('gauge should register container with rich metadata labels without warning', async () => {
+    let onAdded;
+    event.registerContainerAdded.mockImplementation((handler) => {
+        onAdded = handler;
+        return jest.fn();
+    });
+    event.registerContainerUpdated.mockImplementation(() => jest.fn());
+    event.registerContainerRemoved.mockImplementation(() => jest.fn());
+
+    const richContainer = {
+        id: 'c-rich',
+        name: 'app',
+        watcher: 'test',
+        isOfficial: true,
+        documentationUrl: 'https://docs.example.com',
+        changelogUrl: 'https://github.com/example/app/releases',
+        upstreamUrl: 'https://github.com/example/app',
+        image: {
+            id: 'img1',
+            registry: { name: 'reg', url: 'https://hub' },
+            name: 'img',
+            tag: { value: '1.0', semver: false },
+            digest: { watch: false },
+            architecture: 'amd64',
+            os: 'linux',
+        },
+    };
+    store.getContainers = jest.fn(() => [richContainer]);
+
+    const spyWarn = jest.spyOn(log, 'warn');
+    const gauge = container.init();
+    const spySet = jest.spyOn(gauge, 'set');
+    spySet.mockClear();
+
+    onAdded(richContainer);
+    container.populateGauge();
+
+    expect(spyWarn).not.toHaveBeenCalled();
+    expect(spySet).toHaveBeenCalledWith(
+        expect.objectContaining({
+            is_official: true,
+            documentation_url: 'https://docs.example.com',
+            changelog_url: 'https://github.com/example/app/releases',
+            upstream_url: 'https://github.com/example/app',
+        }),
+        1,
+    );
+});
