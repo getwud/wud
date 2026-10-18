@@ -152,6 +152,18 @@
   border-color: rgba(148, 163, 184, 0.2);
 }
 
+.badgeDeprecated {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+[data-theme='dark'] .badgeDeprecated {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
 .badgeType {
   background: rgba(14, 165, 233, 0.08);
   color: #0284c7;

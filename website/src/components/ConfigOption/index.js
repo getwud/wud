@@ -36,6 +36,7 @@ export function ConfigOption({
   type,
   defaultValue,
   supported,
+  deprecated,
   children,
 }) {
   const [copied, setCopied] = useState(false);
@@ -79,6 +80,14 @@ export function ConfigOption({
                 required ? styles.badgeRequired : styles.badgeOptional
               )}>
               {required ? 'Required' : 'Optional'}
+            </span>
+          )}
+
+          {deprecated && (
+            <span
+              className={clsx(styles.badge, styles.badgeDeprecated)}
+              title="Deprecated property">
+              Deprecated
             </span>
           )}
 
