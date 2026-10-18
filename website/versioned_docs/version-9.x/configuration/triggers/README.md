@@ -51,7 +51,7 @@ In addition to provider-specific settings, all triggers support the following co
     required={false}
     type="string"
     defaultValue="${containers.length} updates available"
-    supported="String template with `${count}` placeholder">
+    supported="String template with `${count}`, `${hostname}`, `${watcher}` placeholders">
     Template used to render the notification title in batch mode
   </ConfigOption>
 
@@ -205,6 +205,11 @@ In simple mode (`MODE=simple`), all container properties are accessible via the 
 | `container.updateKind.localValue` | Current local tag or short digest | `1.25.0` |
 | `container.updateKind.remoteValue` | Target remote tag or short digest | `1.26.0` |
 | `container.updateKind.semverDiff` | Semver difference level | `major`, `minor`, `patch` |
+| `container.isOfficial` | Boolean indicating if the image is an official Docker Hub image (`true` or `false`) | `true` |
+| `container.documentationUrl` | Documentation URL (from label or Docker Hub official default) | `https://hub.docker.com/_/postgres` |
+| `container.changelogUrl` | Changelog or release notes URL (from label) | `https://github.com/postgres/postgres/releases` |
+| `container.upstreamUrl` | Upstream source code repository URL (from label) | `https://github.com/postgres/postgres` |
+| `container.link` | Preserved link fallback (pointing to `documentationUrl` or `upstreamUrl`) | `https://...` |
 | `container.result.link` | Changelog or registry link (if available) | `https://...` |
 
 :::tip[Multi-Host Notifications]
@@ -219,6 +224,9 @@ In batch mode (`MODE=batch`), multiple container updates are grouped into a sing
 | :--- | :--- | :--- |
 | `containers` | Array of updated `container` objects | `[ { name: 'web', ... }, ... ]` |
 | `containers.length` | Total number of containers with available updates | `3` |
+| `count` | Shorthand alias for `containers.length` | `3` |
+| `hostname` | Host name from `WUD_LOG_HOSTNAME` or system hostname | `server1` |
+| `watcher` | Common watcher name across containers (or first watcher) | `local`, `host1` |
 
 ---
 

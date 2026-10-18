@@ -48,6 +48,14 @@ Public packages work out of the box with zero configuration. Configure this modu
     supported="Any integer greater than or equal to 1">
     Maximum number of active requests for this GHCR configuration.
   </ConfigOption>
+  <ConfigOption
+    name="WUD_REGISTRY_GHCR_{registry_name}_PULLCONCURRENCY"
+    required={false}
+    type="integer"
+    defaultValue="1"
+    supported="Any integer greater than or equal to 1">
+    Maximum number of image pulls the Docker trigger runs at once against GHCR. GHCR rate limits bursts of pulls (HTTP 429 `toomanyrequests`), so the default runs them one at a time.
+  </ConfigOption>
 </ConfigList>
 
 ---

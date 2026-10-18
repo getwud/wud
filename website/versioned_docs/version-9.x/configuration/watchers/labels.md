@@ -50,11 +50,36 @@ In orchestrators that support multi-container workloads (such as Kubernetes Pods
   </ConfigOption>
 
   <ConfigOption
+    name="link.changelog"
+    required={false}
+    type="string"
+    supported="Static URL or JS string template (${major}, ${minor}, ${patch}, ${prerelease}, ${original}, ${transformed}, ${image.name})">
+    Link or URL template pointing to container release notes or changelog
+  </ConfigOption>
+
+  <ConfigOption
+    name="link.doc"
+    required={false}
+    type="string"
+    supported="Static URL or JS string template (${major}, ${minor}, ${patch}, ${prerelease}, ${original}, ${transformed}, ${image.name})">
+    Link or URL template pointing to container or application documentation
+  </ConfigOption>
+
+  <ConfigOption
     name="link.template"
     required={false}
-    type="enum"
-    supported="JS string template (${container}, ${original}, ${transformed}, ${major}, ${minor}, ${patch}, ${prerelease})">
-    Browsable URL template for changelogs and release notes
+    deprecated={true}
+    type="string"
+    supported="Static URL or JS string template (${major}, ${minor}, ${patch}, ${prerelease}, ${original}, ${transformed}, ${image.name})">
+    Historical label pointing to container documentation (deprecated in favor of `link.doc` or `link.changelog`, maintained for backward compatibility)
+  </ConfigOption>
+
+  <ConfigOption
+    name="link.upstream"
+    required={false}
+    type="string"
+    supported="Static URL or JS string template (${major}, ${minor}, ${patch}, ${prerelease}, ${original}, ${transformed}, ${image.name})">
+    Link or URL template pointing to upstream source code repository (GitHub, GitLab, etc.)
   </ConfigOption>
 
   <ConfigOption
@@ -602,18 +627,44 @@ services:
 
 ---
 
-### 6. Link Container Versions to Changelogs / Release Notes
+### 6. Container Links & Rich Metadata (Changelog, Documentation, Upstream Source)
 
-Generate a direct clickable link to release notes in notifications and the Web UI using a URL template:
+WUD provides dedicated labels to attach rich metadata links to your containers and workloads. These links appear as direct action buttons in the Web UI and are passed to all notification triggers (Discord, Telegram, Slack, Webhooks, etc.):
 
-Available template variables:
+- **Documentation (`link.doc`)**: Link or URL template pointing to application documentation or guides.
+- **Changelog (`link.changelog`)**: Link or URL template pointing to release notes or changelog entries.
+- **Upstream Source (`link.upstream`)**: Link or URL template pointing to the upstream source code repository (e.g. GitHub, GitLab, Codeberg).
 
-- `${original}`: The original unparsed tag
-- `${transformed}`: The tag after applying `tag.transform`
-- `${major}`: Major version number
-- `${minor}`: Minor version number
-- `${patch}`: Patch version number
-- `${prerelease}`: Prerelease identifier
+#### Dynamic Template Variables & Static URLs
+
+All three labels (`link.doc`, `link.changelog`, and `link.upstream`), as well as the historical `link.template`, support static URLs or dynamic JavaScript string template variables evaluated against the container update data:
+
+- `${major}`: Major version number (e.g. `16`)
+- `${minor}`: Minor version number (e.g. `2`)
+- `${patch}`: Patch version number (e.g. `0`)
+- `${prerelease}`: Prerelease identifier (e.g. `beta.1`)
+- `${original}`: The original unparsed tag value (e.g. `10.6.4-alpine`)
+- `${transformed}`: The tag after applying `tag.transform` rules
+- `${image.name}`: Monitored container image name (e.g. `mariadb` or `searx/searx`)
+
+#### Automatic Official Docker Hub Detection
+
+For official Docker Hub images (e.g. `postgres`, `redis`, `nginx`, `alpine` or `library/postgres`), WUD automatically detects their official status (`isOfficial = true`).
+
+When no custom documentation link is specified, WUD automatically sets `documentationUrl` to the official Docker Hub overview page (`https://hub.docker.com/_/<image_name>`).
+
+:::warning[Deprecation Notice: wud.link.template]
+The label `wud.link.template` (and its orchestrator aliases `getwud.app/link.template`) is **deprecated** in favor of `wud.link.doc` (for documentation) and `wud.link.changelog` (for version-specific release notes).
+
+**Migration Path:**
+
+- If your template points to version changelogs or release notes, rename it to `wud.link.changelog` (or `getwud.app/link.changelog`).
+- If your template points to general documentation or upstream repositories, migrate to `wud.link.doc` or `wud.link.upstream`.
+
+For backward compatibility, WUD will continue to respect `link.template` as a fallback for `documentationUrl` when `link.doc` is not defined.
+:::
+
+#### Multi-Orchestrator Configuration
 
 <Tabs groupId="orchestrator">
 <TabItem value="docker" label="🐳 Docker">
@@ -623,7 +674,9 @@ services:
   mariadb:
     image: mariadb:10.6.4
     labels:
-      - wud.link.template=https://mariadb.com/kb/en/mariadb-${major}${minor}${patch}-changelog
+      - wud.link.doc=https://mariadb.org/documentation/
+      - wud.link.changelog=https://mariadb.com/kb/en/mariadb-${major}${minor}${patch}-changelog
+      - wud.link.upstream=https://github.com/MariaDB/server
 ```
 
 </TabItem>
@@ -632,7 +685,9 @@ services:
 ```yaml title="deployment.yaml"
 metadata:
   annotations:
-    getwud.app/link.template: "https://mariadb.com/kb/en/mariadb-${major}${minor}${patch}-changelog"
+    getwud.app/link.doc: "https://mariadb.org/documentation/"
+    getwud.app/link.changelog: "https://mariadb.com/kb/en/mariadb-${major}${minor}${patch}-changelog"
+    getwud.app/link.upstream: "https://github.com/MariaDB/server"
 ```
 
 </TabItem>
@@ -641,7 +696,9 @@ metadata:
 ```hcl title="job.nomad.hcl"
 job "mariadb" {
   meta {
-    "getwud.app/link.template" = "https://mariadb.com/kb/en/mariadb-${major}${minor}${patch}-changelog"
+    "getwud.app/link.doc"       = "https://mariadb.org/documentation/"
+    "getwud.app/link.changelog" = "https://mariadb.com/kb/en/mariadb-${major}${minor}${patch}-changelog"
+    "getwud.app/link.upstream"  = "https://github.com/MariaDB/server"
   }
 }
 ```
@@ -657,7 +714,9 @@ services:
     image: mariadb:10.6.4
     deploy:
       labels:
-        - getwud.app/link.template=https://mariadb.com/kb/en/mariadb-${major}${minor}${patch}-changelog
+        - getwud.app/link.doc=https://mariadb.org/documentation/
+        - getwud.app/link.changelog=https://mariadb.com/kb/en/mariadb-${major}${minor}${patch}-changelog
+        - getwud.app/link.upstream=https://github.com/MariaDB/server
 ```
 
 </TabItem>

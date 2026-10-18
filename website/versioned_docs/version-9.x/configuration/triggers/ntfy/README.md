@@ -61,6 +61,14 @@ import TabItem from '@theme/TabItem';
     Custom icon URL to display with the notification [see docs](https://docs.ntfy.sh/publish/#icons)
   </ConfigOption>
 
+  <ConfigOption
+    name="WUD_TRIGGER_NTFY_{trigger_name}_CLICK"
+    required={false}
+    type="string"
+    supported="URL or string template (e.g. `${link}`, `${container.link}`)">
+    URL to open when the notification is clicked [see docs](https://docs.ntfy.sh/publish/#click-action)
+  </ConfigOption>
+
   <ConfigOption name="WUD_TRIGGER_NTFY_{trigger_name}_AUTH_TOKEN"
     required={false}
     type="string"
