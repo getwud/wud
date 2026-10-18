@@ -808,6 +808,14 @@ class Trigger extends Component {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const link =
             (container.result && container.result.link) || container.link || '';
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const changelogUrl = container.changelogUrl || '';
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const upstreamUrl = container.upstreamUrl || '';
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const documentationUrl = container.documentationUrl || '';
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const isOfficial = container.isOfficial ?? false;
 
         return eval('`' + template + '`');
     }

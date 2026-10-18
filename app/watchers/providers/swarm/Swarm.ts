@@ -24,6 +24,9 @@ import {
     KEY_TAG_TRANSFORM,
     KEY_WATCH_DIGEST,
     KEY_LINK_TEMPLATE,
+    KEY_LINK_CHANGELOG,
+    KEY_LINK_UPSTREAM,
+    KEY_LINK_DOC,
     KEY_DISPLAY_NAME,
     KEY_DISPLAY_ICON,
     KEY_TRIGGER_INCLUDE,
@@ -475,6 +478,12 @@ export class Swarm extends Watcher {
                 KEY_TAG_TRANSFORM,
             );
             const linkTemplate = getLabelValue(mergedLabels, KEY_LINK_TEMPLATE);
+            const changelogUrl = getLabelValue(
+                mergedLabels,
+                KEY_LINK_CHANGELOG,
+            );
+            const upstreamUrl = getLabelValue(mergedLabels, KEY_LINK_UPSTREAM);
+            const documentationUrl = getLabelValue(mergedLabels, KEY_LINK_DOC);
             const displayName = getLabelValue(mergedLabels, KEY_DISPLAY_NAME);
             const displayIcon =
                 getLabelValue(mergedLabels, KEY_DISPLAY_ICON) || 'mdi:docker';
@@ -529,6 +538,9 @@ export class Swarm extends Watcher {
                 excludeTags,
                 transformTags,
                 linkTemplate,
+                changelogUrl,
+                upstreamUrl,
+                documentationUrl,
                 displayName: displayName || serviceName,
                 displayIcon,
                 triggerInclude,

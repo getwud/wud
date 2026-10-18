@@ -62,6 +62,10 @@ test('model should be validated when compliant', async () => {
         name: 'test',
         displayName: 'test',
         displayIcon: 'mdi:docker',
+        isOfficial: false,
+        documentationUrl: 'https://release-1.0.0.acme.com',
+        changelogUrl: undefined,
+        upstreamUrl: undefined,
 
         linkTemplate: 'https://release-${major}.${minor}.${patch}.acme.com',
         link: 'https://release-1.0.0.acme.com',
@@ -362,6 +366,10 @@ test('flatten should be flatten the nested properties with underscores when call
         image_registry_url: 'https://hub',
         image_tag_semver: true,
         image_tag_value: '1.0.0',
+        is_official: false,
+        documentation_url: 'https://release-1.0.0.acme.com',
+        changelog_url: undefined,
+        upstream_url: undefined,
         is_snoozed: false,
         link: 'https://release-1.0.0.acme.com',
 
@@ -840,5 +848,240 @@ describe('cool-down delay logic', () => {
 
         expect(validated.isCoolingDown).toBe(true);
         expect(validated.updateAvailable).toBe(false);
+    });
+});
+
+describe('rich container metadata', () => {
+    describe('isDockerOfficialImage', () => {
+        test('should return true for official docker images', () => {
+            expect(
+                container.isDockerOfficialImage({
+                    name: 'postgres',
+                    registry: { name: 'hub', url: 'https://hub' },
+                } as any),
+            ).toBe(true);
+
+            expect(
+                container.isDockerOfficialImage({
+                    name: 'library/redis',
+                    registry: { name: 'hub', url: 'https://hub' },
+                } as any),
+            ).toBe(true);
+
+            expect(
+                container.isDockerOfficialImage({
+                    name: 'nginx',
+                    registry: {
+                        name: 'docker.io',
+                        url: 'https://registry-1.docker.io/v2',
+                    },
+                } as any),
+            ).toBe(true);
+        });
+
+        test('should return false for community and third-party registry images', () => {
+            expect(
+                container.isDockerOfficialImage({
+                    name: 'linuxserver/plex',
+                    registry: { name: 'hub', url: 'https://hub' },
+                } as any),
+            ).toBe(false);
+
+            expect(
+                container.isDockerOfficialImage({
+                    name: 'app',
+                    registry: { name: 'custom', url: 'http://myreg:5000' },
+                } as any),
+            ).toBe(false);
+
+            expect(
+                container.isDockerOfficialImage({
+                    name: 'org/repo',
+                    registry: { name: 'ghcr', url: 'https://ghcr.io' },
+                } as any),
+            ).toBe(false);
+        });
+
+        test('should safely handle missing or malformed image data', () => {
+            expect(container.isDockerOfficialImage(undefined as any)).toBe(
+                false,
+            );
+            expect(container.isDockerOfficialImage({} as any)).toBe(false);
+            expect(
+                container.isDockerOfficialImage({
+                    name: '',
+                    registry: { name: 'hub', url: 'https://hub' },
+                } as any),
+            ).toBe(false);
+            expect(
+                container.isDockerOfficialImage({
+                    name: 'library/',
+                    registry: { name: 'hub', url: 'https://hub' },
+                } as any),
+            ).toBe(false);
+            expect(
+                container.isDockerOfficialImage({
+                    name: 'library/nested/repo',
+                    registry: { name: 'hub', url: 'https://hub' },
+                } as any),
+            ).toBe(false);
+        });
+    });
+
+    describe('resolveContainerMetadata & precedence', () => {
+        const createBase = () => ({
+            id: 'c-1',
+            name: 'my-app',
+            watcher: 'w',
+            image: {
+                id: 'img-1',
+                name: 'library/redis',
+                registry: { name: 'hub', url: 'https://hub' },
+                tag: { value: '7.0.0', semver: true },
+                digest: { watch: false },
+                architecture: 'amd64',
+                os: 'linux',
+            },
+        });
+
+        test('should resolve default documentationUrl for official images when no labels or remote metadata exist', () => {
+            const raw = createBase();
+            const validated = container.validate(raw);
+
+            expect(validated.isOfficial).toBe(true);
+            expect(validated.documentationUrl).toBe(
+                'https://hub.docker.com/_/redis',
+            );
+            expect(validated.changelogUrl).toBeUndefined();
+            expect(validated.upstreamUrl).toBeUndefined();
+            // Backward-compatibility: link points to documentationUrl
+            expect(validated.link).toBe('https://hub.docker.com/_/redis');
+        });
+
+        test('should prioritize explicit container labels over defaults', () => {
+            const raw = {
+                ...createBase(),
+                labels: {
+                    'wud.link.changelog':
+                        'https://github.com/redis/redis/releases',
+                    'wud.link.upstream': 'https://github.com/redis/redis',
+                    'wud.link.doc': 'https://redis.io/docs/',
+                },
+            };
+
+            const resolved = container.resolveContainerMetadata(raw as any);
+
+            expect(resolved.changelogUrl).toBe(
+                'https://github.com/redis/redis/releases',
+            );
+            expect(resolved.upstreamUrl).toBe('https://github.com/redis/redis');
+            expect(resolved.documentationUrl).toBe('https://redis.io/docs/');
+            expect(resolved.link).toBe('https://redis.io/docs/');
+            expect(resolved.isOfficial).toBe(true);
+        });
+
+        test('should support canonical getwud.app/ and alias label prefixes', () => {
+            const raw = {
+                ...createBase(),
+                labels: {
+                    'getwud.app/link.changelog':
+                        'https://canonical.com/changelog',
+                    'wud/link.upstream': 'https://alias.com/upstream',
+                    'wud.getwud.io/link.doc': 'https://legacy.com/doc',
+                },
+            };
+
+            const resolved = container.resolveContainerMetadata(raw as any);
+
+            expect(resolved.changelogUrl).toBe(
+                'https://canonical.com/changelog',
+            );
+            expect(resolved.upstreamUrl).toBe('https://alias.com/upstream');
+            expect(resolved.documentationUrl).toBe('https://legacy.com/doc');
+            expect(resolved.link).toBe('https://legacy.com/doc');
+        });
+
+        test('should interpolate variables in templated link labels', () => {
+            const raw = {
+                ...createBase(),
+                labels: {
+                    'wud.link.changelog':
+                        'https://github.com/redis/redis/releases/tag/${major}.${minor}',
+                    'wud.link.doc': 'https://docs.my-app.org/v/${major}',
+                },
+            };
+
+            const resolved = container.resolveContainerMetadata(raw as any);
+
+            expect(resolved.changelogUrl).toBe(
+                'https://github.com/redis/redis/releases/tag/7.0',
+            );
+            expect(resolved.documentationUrl).toBe(
+                'https://docs.my-app.org/v/7',
+            );
+        });
+
+        test('should fall back to upstreamUrl when documentationUrl is not set', () => {
+            const raw = {
+                ...createBase(),
+                image: {
+                    ...createBase().image,
+                    name: 'my-org/custom-app',
+                },
+                labels: {
+                    'wud.link.upstream': 'https://github.com/my-org/custom-app',
+                },
+            };
+
+            const resolved = container.resolveContainerMetadata(raw as any);
+
+            expect(resolved.isOfficial).toBe(false);
+            expect(resolved.documentationUrl).toBeUndefined();
+            expect(resolved.upstreamUrl).toBe(
+                'https://github.com/my-org/custom-app',
+            );
+            expect(resolved.link).toBe('https://github.com/my-org/custom-app');
+        });
+
+        test('should preserve existing container.link if documentationUrl and upstreamUrl are absent', () => {
+            const raw = {
+                ...createBase(),
+                image: {
+                    ...createBase().image,
+                    name: 'my-org/custom-app',
+                },
+                link: 'https://legacy-link.com',
+            };
+
+            const resolved = container.resolveContainerMetadata(raw as any);
+
+            expect(resolved.link).toBe('https://legacy-link.com');
+        });
+
+        test('should fail validation when documentationUrl is not a valid URI', () => {
+            const raw = {
+                ...createBase(),
+                documentationUrl: 'not-a-valid-uri',
+            };
+
+            expect(() => container.validate(raw)).toThrow(
+                /Error when validating container properties/,
+            );
+        });
+
+        test('should allow re-validating a container with linkTemplate multiple times without throwing', () => {
+            const raw = {
+                ...createBase(),
+                linkTemplate: 'https://example.com/${container.name}',
+                result: { tag: '2.0.0' },
+            };
+
+            const validated1 = container.validate(raw);
+            expect(validated1.link).toBe('https://example.com/my-app');
+
+            // Re-validate the already validated container object (simulating store update)
+            expect(() => container.validate(validated1)).not.toThrow();
+            expect(validated1.link).toBe('https://example.com/my-app');
+        });
     });
 });

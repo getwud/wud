@@ -3561,6 +3561,51 @@ describe('Docker Watcher', () => {
             expect(mockPrivateHub.normalizeImage).toHaveBeenCalled();
             expect(result.image.registry.name).toBe('hub.private');
         });
+
+        test('should extract rich link labels (changelog, upstream, doc) from container labels', async () => {
+            const containerModule = await import('../../../model/container');
+            const actualContainer = jest.requireActual(
+                '../../../model/container',
+            );
+            containerModule.resolveContainerMetadata.mockImplementation(
+                actualContainer.resolveContainerMetadata,
+            );
+            containerModule.validate.mockImplementation((c) => {
+                actualContainer.resolveContainerMetadata(c);
+                return c;
+            });
+            await docker.register('watcher', 'docker', 'test', {});
+            const containerWithLabels = {
+                Id: 'rich-labels-container',
+                Names: ['/app'],
+                Image: 'custom/app:1.0.0',
+                Labels: {
+                    'wud.link.changelog': 'https://github.com/org/app/releases',
+                    'wud.link.upstream': 'https://github.com/org/app',
+                    'wud.link.doc': 'https://docs.app.org',
+                },
+            };
+
+            const mockImage = {
+                Id: 'sha256:1234567890abcdef',
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01T00:00:00.000Z',
+            };
+            mockDockerApi.getImage.mockReturnValue({
+                inspect: jest.fn().mockResolvedValue(mockImage),
+            });
+
+            const result =
+                await docker.addImageDetailsToContainer(containerWithLabels);
+
+            expect(result.changelogUrl).toBe(
+                'https://github.com/org/app/releases',
+            );
+            expect(result.upstreamUrl).toBe('https://github.com/org/app');
+            expect(result.documentationUrl).toBe('https://docs.app.org');
+            expect(result.link).toBe('https://docs.app.org');
+        });
     });
 
     describe('Container Reporting', () => {

@@ -674,6 +674,35 @@ test('renderTemplate should expose hostname and support container.link fallback'
     }
 });
 
+test('renderTemplate should expose rich container metadata variables', () => {
+    const container = {
+        name: 'postgres',
+        isOfficial: true,
+        documentationUrl: 'https://hub.docker.com/_/postgres',
+        changelogUrl: 'https://github.com/postgres/postgres/releases',
+        upstreamUrl: 'https://github.com/postgres/postgres',
+        result: {
+            tag: '16.1',
+        },
+    };
+
+    const templateWithContainerPrefix =
+        '${container.name} | Official: ${container.isOfficial} | Doc: ${container.documentationUrl} | Changelog: ${container.changelogUrl} | Source: ${container.upstreamUrl}';
+    expect(
+        trigger.renderTemplate(templateWithContainerPrefix, container),
+    ).toEqual(
+        'postgres | Official: true | Doc: https://hub.docker.com/_/postgres | Changelog: https://github.com/postgres/postgres/releases | Source: https://github.com/postgres/postgres',
+    );
+
+    const templateWithShorthandVars =
+        'Official: ${isOfficial} | Doc: ${documentationUrl} | Changelog: ${changelogUrl} | Source: ${upstreamUrl}';
+    expect(
+        trigger.renderTemplate(templateWithShorthandVars, container),
+    ).toEqual(
+        'Official: true | Doc: https://hub.docker.com/_/postgres | Changelog: https://github.com/postgres/postgres/releases | Source: https://github.com/postgres/postgres',
+    );
+});
+
 test('renderBatchBody should replace placeholders when called', async () => {
     expect(
         trigger.renderBatchBody([

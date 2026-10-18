@@ -30,6 +30,12 @@ import {
     wudWatchDigestCanonical,
     wudLinkTemplate,
     wudLinkTemplateCanonical,
+    wudLinkChangelog,
+    wudLinkChangelogCanonical,
+    wudLinkUpstream,
+    wudLinkUpstreamCanonical,
+    wudLinkDoc,
+    wudLinkDocCanonical,
     wudDisplayName,
     wudDisplayNameCanonical,
     wudDisplayIcon,
@@ -617,6 +623,12 @@ export class Nomad extends Watcher {
             wudTagTransformCanonical,
         );
         const linkTemplate = getMeta(wudLinkTemplate, wudLinkTemplateCanonical);
+        const changelogUrl = getMeta(
+            wudLinkChangelog,
+            wudLinkChangelogCanonical,
+        );
+        const upstreamUrl = getMeta(wudLinkUpstream, wudLinkUpstreamCanonical);
+        const documentationUrl = getMeta(wudLinkDoc, wudLinkDocCanonical);
         const displayName = getMeta(wudDisplayName, wudDisplayNameCanonical);
         const displayIcon = getMeta(wudDisplayIcon, wudDisplayIconCanonical);
         const triggerInclude = getMeta(
@@ -775,6 +787,9 @@ export class Nomad extends Watcher {
             excludeTags,
             transformTags,
             linkTemplate,
+            changelogUrl,
+            upstreamUrl,
+            documentationUrl,
             triggerInclude,
             triggerExclude,
             image: {

@@ -43,6 +43,11 @@ export const mockContainers = [
       "com.docker.compose.project": "networking",
       "com.docker.compose.service": "traefik",
     },
+    isOfficial: true,
+    documentationUrl: "https://hub.docker.com/_/traefik",
+    changelogUrl: "https://github.com/traefik/traefik/releases",
+    upstreamUrl: "https://github.com/traefik/traefik",
+    link: "https://hub.docker.com/_/traefik",
   },
   {
     id: "pihole-dns",
@@ -88,6 +93,11 @@ export const mockContainers = [
       "com.docker.compose.project": "networking",
       "com.docker.compose.service": "pihole",
     },
+    isOfficial: false,
+    documentationUrl: "https://docs.pi-hole.net/",
+    changelogUrl: "https://github.com/pi-hole/docker-pi-hole/releases",
+    upstreamUrl: "https://github.com/pi-hole/docker-pi-hole",
+    link: "https://docs.pi-hole.net/",
   },
   {
     id: "homeassistant-core",

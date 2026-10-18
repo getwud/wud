@@ -771,6 +771,29 @@ describe('Kubernetes Watcher', () => {
             );
         });
 
+        test('resolves rich link annotations and per-container overrides', () => {
+            const annotations = {
+                'getwud.app/link.changelog':
+                    'https://github.com/my-org/app/releases',
+                'wud/link.upstream': 'https://github.com/my-org/app',
+                'wud.getwud.io/link.doc': 'https://docs.my-app.org',
+                'getwud.app/link.changelog.worker':
+                    'https://github.com/my-org/app/releases/worker',
+            };
+            expect(getAnnotationValue(annotations, 'link.changelog')).toBe(
+                'https://github.com/my-org/app/releases',
+            );
+            expect(
+                getAnnotationValue(annotations, 'link.changelog', 'worker'),
+            ).toBe('https://github.com/my-org/app/releases/worker');
+            expect(getAnnotationValue(annotations, 'link.upstream')).toBe(
+                'https://github.com/my-org/app',
+            );
+            expect(getAnnotationValue(annotations, 'link.doc')).toBe(
+                'https://docs.my-app.org',
+            );
+        });
+
         test('returns undefined when no annotations or key not found', () => {
             expect(getAnnotationValue(undefined, 'watch')).toBeUndefined();
             expect(getAnnotationValue({}, 'watch')).toBeUndefined();

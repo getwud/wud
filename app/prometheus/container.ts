@@ -54,10 +54,12 @@ export function init() {
             populateGauge();
         },
         labelNames: [
+            'changelog_url',
             'cooling_down_until',
             'delay',
             'display_icon',
             'display_name',
+            'documentation_url',
             'error_message',
             'exclude_tags',
             'id',
@@ -76,6 +78,7 @@ export function init() {
             'image_variant',
             'include_tags',
             'is_cooling_down',
+            'is_official',
             'is_snoozed',
             'labels',
             'link_template',
@@ -98,6 +101,7 @@ export function init() {
             'update_kind_local_value',
             'update_kind_remote_value',
             'update_kind_semver_diff',
+            'upstream_url',
             'watcher',
         ],
     });

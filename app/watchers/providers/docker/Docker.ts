@@ -22,6 +22,9 @@ import {
     wudTagTransform,
     wudWatchDigest,
     wudLinkTemplate,
+    wudLinkChangelog,
+    wudLinkUpstream,
+    wudLinkDoc,
     wudDisplayName,
     wudDisplayIcon,
     wudTriggerInclude,
@@ -37,6 +40,7 @@ import {
     validate as validateContainer,
     fullName,
     Container,
+    resolveContainerMetadata,
 } from '../../../model/container';
 import * as registry from '../../../registry';
 import {
@@ -1763,6 +1767,7 @@ export class Docker extends Watcher {
 
                 if (container.Labels || container.labels) {
                     containerInStore.labels = containerLabels;
+                    resolveContainerMetadata(containerInStore);
                 }
 
                 const watchDigestLabel = containerLabels[wudWatchDigest];
@@ -1918,6 +1923,9 @@ export class Docker extends Watcher {
             excludeTags,
             transformTags: effectiveTransformTags,
             linkTemplate,
+            changelogUrl: containerLabels[wudLinkChangelog],
+            upstreamUrl: containerLabels[wudLinkUpstream],
+            documentationUrl: containerLabels[wudLinkDoc],
             displayName,
             displayIcon,
             triggerInclude,
@@ -2016,6 +2024,7 @@ export class Docker extends Watcher {
             containerWithNormalizedImage.image.registry.name =
                 registryProvider.getId();
         }
+        resolveContainerMetadata(containerWithNormalizedImage);
         return validateContainer(containerWithNormalizedImage);
     }
 }
