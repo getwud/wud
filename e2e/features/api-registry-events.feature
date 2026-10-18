@@ -22,6 +22,15 @@ Feature: Authenticated registry push notifications
     Then response code should be 202
     And response body path $.accepted should be 0
 
+  Scenario: GitLab native v1 push notifications support a charset parameter
+    Given I remove Content-Type header
+    And I set Content-Type header to application/vnd.docker.distribution.events.v1+json; charset=utf-8
+    And I set bearer token to registry-e2e-secret
+    And I set body to {"events":[{"action":"push","target":{"repository":"apps/test","tag":"latest","digest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","mediaType":"application/vnd.docker.distribution.manifest.v2+json","url":"https://registry.gitlab.com/v2/apps/test/manifests/latest"},"request":{"host":"registry.gitlab.com"}}]}
+    When I POST to /api/registries/gitlab.private/events
+    Then response code should be 202
+    And response body path $.accepted should be 1
+
   Scenario: Registry notifications reject a malformed envelope
     Given I set bearer token to registry-e2e-secret
     And I set body to {"events":"invalid"}
