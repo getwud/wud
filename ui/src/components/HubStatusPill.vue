@@ -73,16 +73,16 @@ const labelText = computed(() => {
 const tooltipText = computed(() => {
   switch (statusData.value.status) {
     case "connected":
-      return "Connecté à WUD Hub — Découverte automatique des configurations active.";
+      return "Connected to WUD Hub — Automagic configuration discovery active.";
     case "degraded":
       return (
         statusData.value.errorMessage ||
-        "Quota Hub atteint ou réseau ralenti. Mode fallback actif."
+        "Hub quota reached or network latency. Fallback mode active."
       );
     case "error":
-      return "Clé API Hub invalide ou refusée (401/403). Vérifiez votre variable d’environnement.";
+      return "WUD Hub API key invalid or rejected (401/403). Check your environment variable.";
     default:
-      return "Mode Standalone WUD. Définissez WUD_HUB_API_KEY pour activer l’automagic discovery.";
+      return "WUD Standalone mode. Set WUD_HUB_API_KEY to enable automagic discovery.";
   }
 });
 </script>

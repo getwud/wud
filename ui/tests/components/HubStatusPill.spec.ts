@@ -33,6 +33,9 @@ describe('HubStatusPill', () => {
 
     expect(wrapper.text()).toContain('Standalone');
     expect(wrapper.find('.hub-status-pill').classes()).toContain('status-standalone');
+    expect((wrapper.vm as any).tooltipText).toBe(
+      'WUD Standalone mode. Set WUD_HUB_API_KEY to enable automagic discovery.'
+    );
   });
 
   it('renders Hub and connected status class when Hub is connected', async () => {
@@ -48,6 +51,9 @@ describe('HubStatusPill', () => {
 
     expect(wrapper.text()).toContain('Hub');
     expect(wrapper.find('.hub-status-pill').classes()).toContain('status-connected');
+    expect((wrapper.vm as any).tooltipText).toBe(
+      'Connected to WUD Hub — Automagic configuration discovery active.'
+    );
   });
 
   it('renders Hub Degraded when status is degraded', async () => {
@@ -64,6 +70,7 @@ describe('HubStatusPill', () => {
 
     expect(wrapper.text()).toContain('Hub Degraded');
     expect(wrapper.find('.hub-status-pill').classes()).toContain('status-degraded');
+    expect((wrapper.vm as any).tooltipText).toBe('Rate limit exceeded');
   });
 
   it('renders Hub Error when getHubStatus throws', async () => {
@@ -74,6 +81,9 @@ describe('HubStatusPill', () => {
 
     expect(wrapper.text()).toContain('Hub Error');
     expect(wrapper.find('.hub-status-pill').classes()).toContain('status-error');
+    expect((wrapper.vm as any).tooltipText).toBe(
+      'WUD Hub API key invalid or rejected (401/403). Check your environment variable.'
+    );
   });
 
   it('redirects to /hub on click', async () => {
