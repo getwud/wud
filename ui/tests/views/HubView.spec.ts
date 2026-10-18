@@ -80,7 +80,10 @@ describe('HubView.vue', () => {
       // Test copy snippet
       await wrapper.find('.code-container button').trigger('click');
       expect(mockedCopyToClipboard).toHaveBeenCalledWith(
-        expect.stringContaining('WUD_HUB_API_KEY=wud_live_xxxxxxxxxxxxxxxx')
+        expect.stringContaining('image: getwud/wud')
+      );
+      expect(mockedCopyToClipboard).toHaveBeenCalledWith(
+        expect.stringContaining('WUD_HUB_API_KEY=wud_xxxxxxxxxxxxxxxxxxxx')
       );
       expect(emitMock).toHaveBeenCalledWith('notify', 'Snippet copied to clipboard');
     });

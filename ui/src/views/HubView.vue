@@ -340,9 +340,9 @@
             ></v-btn>
             <pre class="ma-0">services:
   wud:
-    image: fmartinou/whats-up-docker
+    image: getwud/wud
     environment:
-      - WUD_HUB_API_KEY=wud_live_xxxxxxxxxxxxxxxx</pre>
+      - WUD_HUB_API_KEY=wud_xxxxxxxxxxxxxxxxxxxx</pre>
           </div>
           <div class="text-caption text-medium-emphasis">
             Then restart the service with <code>docker compose up -d</code>.
@@ -493,9 +493,9 @@ async function copyApiKey() {
 async function copySnippet() {
   const snippet = `services:
   wud:
-    image: fmartinou/whats-up-docker
+    image: getwud/wud
     environment:
-      - WUD_HUB_API_KEY=wud_live_xxxxxxxxxxxxxxxx`;
+      - WUD_HUB_API_KEY=wud_xxxxxxxxxxxxxxxxxxxx`;
   const copied = await copyToClipboard(snippet);
   if (copied) {
     eventBus.emit("notify", "Snippet copied to clipboard");
