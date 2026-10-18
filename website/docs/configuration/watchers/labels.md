@@ -53,7 +53,7 @@ In orchestrators that support multi-container workloads (such as Kubernetes Pods
     name="link.changelog"
     required={false}
     type="string"
-    supported="Static URL or JS string template (${original}, ${transformed}, ${major}, ${minor}, ${patch}, ${image.name})">
+    supported="Static URL or JS string template (${major}, ${minor}, ${patch}, ${prerelease}, ${original}, ${transformed}, ${image.name})">
     Link or URL template pointing to container release notes or changelog
   </ConfigOption>
 
@@ -61,7 +61,7 @@ In orchestrators that support multi-container workloads (such as Kubernetes Pods
     name="link.doc"
     required={false}
     type="string"
-    supported="Static URL or JS string template (${original}, ${transformed}, ${major}, ${minor}, ${patch}, ${image.name})">
+    supported="Static URL or JS string template (${major}, ${minor}, ${patch}, ${prerelease}, ${original}, ${transformed}, ${image.name})">
     Link or URL template pointing to container or application documentation
   </ConfigOption>
 
@@ -70,7 +70,7 @@ In orchestrators that support multi-container workloads (such as Kubernetes Pods
     required={false}
     deprecated={true}
     type="string"
-    supported="Static URL or JS string template (${original}, ${transformed}, ${major}, ${minor}, ${patch}, ${image.name})">
+    supported="Static URL or JS string template (${major}, ${minor}, ${patch}, ${prerelease}, ${original}, ${transformed}, ${image.name})">
     Historical label pointing to container documentation (deprecated in favor of `link.doc` or `link.changelog`, maintained for backward compatibility)
   </ConfigOption>
 
@@ -78,7 +78,7 @@ In orchestrators that support multi-container workloads (such as Kubernetes Pods
     name="link.upstream"
     required={false}
     type="string"
-    supported="Static URL or JS string template (${original}, ${transformed}, ${major}, ${minor}, ${patch}, ${image.name})">
+    supported="Static URL or JS string template (${major}, ${minor}, ${patch}, ${prerelease}, ${original}, ${transformed}, ${image.name})">
     Link or URL template pointing to upstream source code repository (GitHub, GitLab, etc.)
   </ConfigOption>
 
