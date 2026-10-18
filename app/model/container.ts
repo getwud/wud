@@ -52,6 +52,10 @@ export interface Container {
     displayIcon: string;
     status: string;
     watcher: string;
+    isOfficial?: boolean;
+    documentationUrl?: string;
+    changelogUrl?: string;
+    upstreamUrl?: string;
     stack?: string;
     delay?: string;
     isCoolingDown?: boolean;
@@ -149,6 +153,10 @@ const schema = joi.object({
     displayIcon: joi.string().default('mdi:docker'),
     status: joi.string().default('unknown'),
     watcher: joi.string().min(1).required(),
+    isOfficial: joi.boolean().default(false),
+    documentationUrl: joi.string().uri().optional().allow(''),
+    changelogUrl: joi.string().uri().optional().allow(''),
+    upstreamUrl: joi.string().uri().optional().allow(''),
     stack: joi.string().allow('').optional(),
     delay: joi.string().allow('', null).optional(),
     isCoolingDown: joi.boolean().default(false),
@@ -221,30 +229,123 @@ const schema = joi.object({
     labels: joi.object(),
 });
 
+export interface RemoteContainerMetadata {
+    isOfficial?: boolean;
+    documentationUrl?: string;
+    changelogUrl?: string;
+    upstreamUrl?: string;
+}
+
+const CHANGELOG_LABEL_KEYS = [
+    'wud.link.changelog',
+    'getwud.app/link.changelog',
+    'wud/link.changelog',
+    'wud.getwud.io/link.changelog',
+];
+const UPSTREAM_LABEL_KEYS = [
+    'wud.link.upstream',
+    'getwud.app/link.upstream',
+    'wud/link.upstream',
+    'wud.getwud.io/link.upstream',
+];
+const DOC_LABEL_KEYS = [
+    'wud.link.doc',
+    'getwud.app/link.doc',
+    'wud/link.doc',
+    'wud.getwud.io/link.doc',
+];
+const TEMPLATE_LABEL_KEYS = [
+    'wud.link.template',
+    'getwud.app/link.template',
+    'wud/link.template',
+    'wud.getwud.io/link.template',
+];
+
+function getFirstLabel(
+    labels: Record<string, string> | undefined,
+    keys: string[],
+): string | undefined {
+    if (!labels) return undefined;
+    for (const key of keys) {
+        const val = labels[key];
+        if (val !== undefined && val !== null && String(val).trim() !== '') {
+            return String(val).trim();
+        }
+    }
+    return undefined;
+}
+
 /**
- * Render Link template.
- * @param container
- * @returns {undefined|*}
+ * Check whether an image is an official Docker Hub image.
+ *
+ * An image is considered official if:
+ * 1. The registry is Docker Hub (registry.name === 'hub' or docker.io).
+ * 2. The image name does not include a slash (e.g. postgres, redis, nginx),
+ *    OR starts explicitly with library/ (e.g. library/postgres).
+ * 3. It does not contain a private registry domain/port.
+ *
+ * @param image ContainerImage
+ * @returns boolean
  */
-function getLink(container: Container, originalTagValue: string) {
-    if (!container || !container.linkTemplate) {
+export function isDockerOfficialImage(image: ContainerImage): boolean {
+    if (!image || !image.name) {
+        return false;
+    }
+    const registryName = image.registry?.name?.toLowerCase();
+    const registryUrl = image.registry?.url?.toLowerCase() || '';
+    const isHub = registryName === 'hub' || registryUrl.includes('docker.io');
+    if (!isHub) {
+        return false;
+    }
+    const cleanName = image.name.trim().toLowerCase();
+    if (cleanName.startsWith('library/')) {
+        const repo = cleanName.slice('library/'.length);
+        return repo.length > 0 && !repo.includes('/');
+    }
+    return cleanName.length > 0 && !cleanName.includes('/');
+}
+
+/**
+ * Render a link template string with container variables.
+ *
+ * @param template string | undefined
+ * @param container Container
+ * @param originalTagValue string
+ * @returns string | undefined
+ */
+export function renderLinkTemplate(
+    template: string | undefined,
+    container: Container,
+    originalTagValue?: string,
+): string | undefined {
+    if (!template || typeof template !== 'string') {
         return undefined;
     }
+    const trimmed = template.trim();
+    if (!trimmed.includes('${')) {
+        return trimmed;
+    }
+
+    const currentTag =
+        originalTagValue !== undefined
+            ? originalTagValue
+            : container.image?.tag?.value || '';
 
     // Export vars for dynamic template interpolation
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const raw = originalTagValue; // deprecated, kept for backward compatibility
+    const raw = currentTag; // deprecated, kept for backward compatibility
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const original = originalTagValue;
-    const transformed = container.transformTags
-        ? transformTag(container.transformTags, originalTagValue, container)
-        : originalTagValue;
+    const original = currentTag;
+    const transformed =
+        container.transformTags && currentTag
+            ? transformTag(container.transformTags, currentTag, container)
+            : currentTag;
     let major = '';
     let minor = '';
     let patch = '';
     let prerelease = '';
 
-    if (container.image.tag.semver) {
+    if (container.image?.tag?.semver && transformed) {
         const versionSemver = parseSemver(transformed);
         if (versionSemver) {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -260,8 +361,109 @@ function getLink(container: Container, originalTagValue: string) {
                     : '';
         }
     }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const image = container.image;
 
-    return eval('`' + container.linkTemplate + '`');
+    try {
+        return eval('`' + trimmed + '`');
+    } catch {
+        return trimmed;
+    }
+}
+
+/**
+ * Resolve container rich metadata adhering to precedence:
+ * 1) Explicit local container labels
+ * 2) Remote provider metadata (if present)
+ * 3) Standalone defaults (official Docker Hub images)
+ * 4) Backward-compatibility link fallback
+ */
+export function resolveContainerMetadata(
+    container: Container,
+    remoteMetadata?: RemoteContainerMetadata | null,
+): Container {
+    if (!container) {
+        return container;
+    }
+    const labels = container.labels || {};
+    const image = container.image;
+
+    // 1. isOfficial resolution
+    let isOfficial = false;
+    if (remoteMetadata?.isOfficial !== undefined) {
+        isOfficial = Boolean(remoteMetadata.isOfficial);
+    } else if ((container as any).hub?.isOfficial !== undefined) {
+        isOfficial = Boolean((container as any).hub.isOfficial);
+    } else if (container.isOfficial) {
+        isOfficial = true;
+    } else if (image) {
+        isOfficial = isDockerOfficialImage(image);
+    }
+    container.isOfficial = isOfficial;
+
+    const remoteHubDetails = (container as any).hub?.hubDetails;
+
+    // 2. changelogUrl resolution
+    const rawChangelog =
+        container.changelogUrl || getFirstLabel(labels, CHANGELOG_LABEL_KEYS);
+    let resolvedChangelog = renderLinkTemplate(rawChangelog, container);
+    if (!resolvedChangelog) {
+        resolvedChangelog =
+            remoteMetadata?.changelogUrl || remoteHubDetails?.changelogUrl;
+    }
+    container.changelogUrl = resolvedChangelog || undefined;
+
+    // 3. upstreamUrl resolution
+    const rawUpstream =
+        container.upstreamUrl || getFirstLabel(labels, UPSTREAM_LABEL_KEYS);
+    let resolvedUpstream = renderLinkTemplate(rawUpstream, container);
+    if (!resolvedUpstream) {
+        resolvedUpstream =
+            remoteMetadata?.upstreamUrl || remoteHubDetails?.upstreamUrl;
+    }
+    container.upstreamUrl = resolvedUpstream || undefined;
+
+    // 4. documentationUrl resolution
+    const rawDoc =
+        container.documentationUrl ||
+        getFirstLabel(labels, DOC_LABEL_KEYS) ||
+        getFirstLabel(labels, TEMPLATE_LABEL_KEYS) ||
+        container.linkTemplate;
+    let resolvedDoc = renderLinkTemplate(rawDoc, container);
+    if (!resolvedDoc) {
+        resolvedDoc =
+            remoteMetadata?.documentationUrl ||
+            remoteHubDetails?.documentationUrl;
+    }
+    if (!resolvedDoc && container.isOfficial && image?.name) {
+        const repoName = image.name.trim().replace(/^library\//, '');
+        if (repoName) {
+            resolvedDoc = `https://hub.docker.com/_/${repoName}`;
+        }
+    }
+    container.documentationUrl = resolvedDoc || undefined;
+
+    // 5. Historical link fallback: documentationUrl || upstreamUrl || link
+    container.link =
+        container.documentationUrl || container.upstreamUrl || container.link;
+
+    return container;
+}
+
+/**
+ * Render Link template.
+ * @param container
+ * @returns {undefined|*}
+ */
+function getLink(container: Container, originalTagValue: string) {
+    if (!container || !container.linkTemplate) {
+        return undefined;
+    }
+    return renderLinkTemplate(
+        container.linkTemplate,
+        container,
+        originalTagValue,
+    );
 }
 
 /**
@@ -398,7 +600,11 @@ function addLinkProperty(container: Container) {
         Object.defineProperty(container, 'link', {
             enumerable: true,
             get(this: Container) {
-                return getLink(container, container.image.tag.value);
+                return (
+                    getLink(container, container.image?.tag?.value || '') ||
+                    this.documentationUrl ||
+                    this.upstreamUrl
+                );
             },
         });
 
@@ -406,10 +612,12 @@ function addLinkProperty(container: Container) {
             Object.defineProperty(container.result, 'link', {
                 enumerable: true,
                 get() {
-                    return getLink(container, container.result.tag ?? '');
+                    return getLink(container, container.result?.tag ?? '');
                 },
             });
         }
+    } else if (!container.link) {
+        container.link = container.documentationUrl || container.upstreamUrl;
     }
 }
 
@@ -537,6 +745,9 @@ function addResultChangedFunction(container: Container) {
  * @returns {*}
  */
 export function validate(container: any): Container {
+    if (container && typeof container === 'object') {
+        resolveContainerMetadata(container as Container);
+    }
     const validation = schema.validate(container);
     if (validation.error) {
         throw new Error(

@@ -66,6 +66,21 @@
               {{ container.image.tag.value }}
             </v-chip>
           </span>
+          <v-tooltip v-if="container.isOfficial" bottom>
+            <template v-slot:activator="{ props }">
+              <v-chip
+                label
+                variant="outlined"
+                color="info"
+                class="ml-1"
+                v-bind="props"
+              >
+                <v-icon start size="small">mdi-check-decagram</v-icon>
+                Official
+              </v-chip>
+            </template>
+            <span class="text-caption">Official Docker Image</span>
+          </v-tooltip>
           <span v-if="smAndUp && container.updateAvailable" class="d-flex align-center" style="gap: 4px">
             <v-icon>mdi-arrow-right</v-icon>
             <v-tooltip bottom>
@@ -177,6 +192,48 @@
                 >
                   Update
                   <v-icon right>mdi-package-down</v-icon>
+                </v-btn>
+
+                <v-btn
+                  v-if="docUrl"
+                  small
+                  color="secondary"
+                  variant="outlined"
+                  class="mr-2"
+                  title="Documentation"
+                  :href="docUrl"
+                  target="_blank"
+                >
+                  Docs
+                  <v-icon right>mdi-book-open-page-variant</v-icon>
+                </v-btn>
+
+                <v-btn
+                  v-if="container.changelogUrl"
+                  small
+                  color="secondary"
+                  variant="outlined"
+                  class="mr-2"
+                  title="Changelog"
+                  :href="container.changelogUrl"
+                  target="_blank"
+                >
+                  Changelog
+                  <v-icon right>mdi-history</v-icon>
+                </v-btn>
+
+                <v-btn
+                  v-if="container.upstreamUrl"
+                  small
+                  color="secondary"
+                  variant="outlined"
+                  class="mr-2"
+                  title="Source Code"
+                  :href="container.upstreamUrl"
+                  target="_blank"
+                >
+                  Source
+                  <v-icon right>mdi-code-tags</v-icon>
                 </v-btn>
 
                 <v-dialog
@@ -379,6 +436,12 @@ export default defineComponent({
         }
       }
       return color;
+    },
+
+    docUrl(): string | undefined {
+      return (
+        this.container.documentationUrl || this.container.link || undefined
+      );
     },
   },
 

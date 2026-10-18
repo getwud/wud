@@ -902,6 +902,27 @@ describe('Nomad getMetaValue helper', () => {
         );
     });
 
+    test('resolves rich link metadata and per-task overrides', () => {
+        const meta = {
+            'getwud.app/link.changelog':
+                'https://github.com/my-org/app/releases',
+            'wud.link.upstream': 'https://github.com/my-org/app',
+            'wud/link.doc': 'https://docs.my-app.org',
+            'wud.link.changelog.frontend':
+                'https://github.com/my-org/app/releases/frontend',
+        };
+        expect(getMetaValue(meta, 'link.changelog')).toBe(
+            'https://github.com/my-org/app/releases',
+        );
+        expect(
+            getMetaValue(meta, 'link.changelog', undefined, 'frontend'),
+        ).toBe('https://github.com/my-org/app/releases/frontend');
+        expect(getMetaValue(meta, 'link.upstream')).toBe(
+            'https://github.com/my-org/app',
+        );
+        expect(getMetaValue(meta, 'link.doc')).toBe('https://docs.my-app.org');
+    });
+
     test('returns undefined when meta is undefined or key not present', () => {
         expect(getMetaValue(undefined, 'watch')).toBeUndefined();
         expect(getMetaValue({}, 'watch')).toBeUndefined();

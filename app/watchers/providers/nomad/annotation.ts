@@ -22,6 +22,9 @@ export const KEY_TAG_EXCLUDE = 'tag.exclude';
 export const KEY_TAG_TRANSFORM = 'tag.transform';
 export const KEY_WATCH_DIGEST = 'watch.digest';
 export const KEY_LINK_TEMPLATE = 'link.template';
+export const KEY_LINK_CHANGELOG = 'link.changelog';
+export const KEY_LINK_UPSTREAM = 'link.upstream';
+export const KEY_LINK_DOC = 'link.doc';
 export const KEY_DISPLAY_NAME = 'display.name';
 export const KEY_DISPLAY_ICON = 'display.icon';
 export const KEY_TRIGGER_INCLUDE = 'trigger.include';
@@ -46,6 +49,15 @@ export const wudWatchDigestCanonical = 'getwud.app/watch.digest';
 
 export const wudLinkTemplate = 'wud.link.template';
 export const wudLinkTemplateCanonical = 'getwud.app/link.template';
+
+export const wudLinkChangelog = 'wud.link.changelog';
+export const wudLinkChangelogCanonical = 'getwud.app/link.changelog';
+
+export const wudLinkUpstream = 'wud.link.upstream';
+export const wudLinkUpstreamCanonical = 'getwud.app/link.upstream';
+
+export const wudLinkDoc = 'wud.link.doc';
+export const wudLinkDocCanonical = 'getwud.app/link.doc';
 
 export const wudDisplayName = 'wud.display.name';
 export const wudDisplayNameCanonical = 'getwud.app/display.name';

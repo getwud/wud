@@ -119,13 +119,59 @@
         container.linkTemplate
       }}</v-list-item-subtitle>
     </v-list-item>
-    <v-list-item v-if="container.link">
+    <v-list-item v-if="container.isOfficial">
+      <template v-slot:prepend>
+        <v-icon color="primary">mdi-check-decagram</v-icon>
+      </template>
+      <v-list-item-title>Official</v-list-item-title>
+      <v-list-item-subtitle>Official Docker Image</v-list-item-subtitle>
+    </v-list-item>
+    <v-list-item v-if="container.documentationUrl">
+      <template v-slot:prepend>
+        <v-icon color="secondary">mdi-book-open-page-variant</v-icon>
+      </template>
+      <v-list-item-title>Documentation</v-list-item-title>
+      <v-list-item-subtitle>
+        <a :href="container.documentationUrl" target="_blank">{{
+          container.documentationUrl
+        }}</a>
+      </v-list-item-subtitle>
+    </v-list-item>
+    <v-list-item v-if="container.changelogUrl">
+      <template v-slot:prepend>
+        <v-icon color="secondary">mdi-history</v-icon>
+      </template>
+      <v-list-item-title>Changelog</v-list-item-title>
+      <v-list-item-subtitle>
+        <a :href="container.changelogUrl" target="_blank">{{
+          container.changelogUrl
+        }}</a>
+      </v-list-item-subtitle>
+    </v-list-item>
+    <v-list-item v-if="container.upstreamUrl">
+      <template v-slot:prepend>
+        <v-icon color="secondary">mdi-code-tags</v-icon>
+      </template>
+      <v-list-item-title>Source Code</v-list-item-title>
+      <v-list-item-subtitle>
+        <a :href="container.upstreamUrl" target="_blank">{{
+          container.upstreamUrl
+        }}</a>
+      </v-list-item-subtitle>
+    </v-list-item>
+    <v-list-item
+      v-if="
+        container.link &&
+        container.link !== container.documentationUrl &&
+        container.link !== container.upstreamUrl
+      "
+    >
       <template v-slot:prepend>
         <v-icon color="secondary">mdi-link</v-icon>
       </template>
       <v-list-item-title>Link</v-list-item-title>
-      <v-list-item-subtitle
-        ><a :href="container.link" target="_blank">{{ container.link }}</a>
+      <v-list-item-subtitle>
+        <a :href="container.link" target="_blank">{{ container.link }}</a>
       </v-list-item-subtitle>
     </v-list-item>
   </v-list>

@@ -190,11 +190,24 @@ describe('Swarm Watcher - Pure Helpers', () => {
             'wud.tag.include': '^1\\.0',
             'wud/display.name': 'My App',
             'wud.getwud.io/stack': 'prod',
+            'getwud.app/link.changelog':
+                'https://github.com/my-org/app/releases',
+            'wud.link.upstream': 'https://github.com/my-org/app',
+            'wud/link.doc': 'https://docs.my-app.org',
         };
         expect(getLabelValue(labels, 'watch')).toBe('true');
         expect(getLabelValue(labels, 'tag.include')).toBe('^1\\.0');
         expect(getLabelValue(labels, 'display.name')).toBe('My App');
         expect(getLabelValue(labels, 'stack')).toBe('prod');
+        expect(getLabelValue(labels, 'link.changelog')).toBe(
+            'https://github.com/my-org/app/releases',
+        );
+        expect(getLabelValue(labels, 'link.upstream')).toBe(
+            'https://github.com/my-org/app',
+        );
+        expect(getLabelValue(labels, 'link.doc')).toBe(
+            'https://docs.my-app.org',
+        );
         expect(getLabelValue(labels, 'nonexistent')).toBeUndefined();
         expect(getLabelValue(undefined, 'watch')).toBeUndefined();
     });

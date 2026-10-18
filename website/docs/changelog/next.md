@@ -7,6 +7,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 > Changes below are merged on `main` and will be included in the upcoming release.
 
+- 🚀 [CONTAINER] Add rich metadata (isOfficial, documentationUrl, changelogUrl, upstreamUrl) and standalone link labels
 - 🚀 [TRIGGER] Add real-time pull progress logging for Docker images (fixes #777)
 - 🚀 [TRIGGER] Log stdout/stderr on error and expose compose_project in command trigger (fixes #594, fixes #595)
 - 🚀 [TRIGGER] Support click URL in Ntfy trigger and expose hostname in batch templates (fixes #660, fixes #725)

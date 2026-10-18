@@ -27,6 +27,9 @@ import {
     KEY_TAG_TRANSFORM,
     KEY_WATCH_DIGEST,
     KEY_LINK_TEMPLATE,
+    KEY_LINK_CHANGELOG,
+    KEY_LINK_UPSTREAM,
+    KEY_LINK_DOC,
     KEY_DISPLAY_NAME,
     KEY_DISPLAY_ICON,
     KEY_TRIGGER_INCLUDE,
@@ -721,6 +724,9 @@ export class Kubernetes extends Watcher {
         const excludeTags = getAnnotation(KEY_TAG_EXCLUDE);
         const transformTags = getAnnotation(KEY_TAG_TRANSFORM);
         const linkTemplate = getAnnotation(KEY_LINK_TEMPLATE);
+        const changelogUrl = getAnnotation(KEY_LINK_CHANGELOG);
+        const upstreamUrl = getAnnotation(KEY_LINK_UPSTREAM);
+        const documentationUrl = getAnnotation(KEY_LINK_DOC);
         const displayName = getAnnotation(KEY_DISPLAY_NAME);
         const displayIcon = getAnnotation(KEY_DISPLAY_ICON);
         const triggerInclude = getAnnotation(KEY_TRIGGER_INCLUDE);
@@ -887,6 +893,9 @@ export class Kubernetes extends Watcher {
             excludeTags,
             transformTags,
             linkTemplate,
+            changelogUrl,
+            upstreamUrl,
+            documentationUrl,
             triggerInclude,
             triggerExclude,
             image: {

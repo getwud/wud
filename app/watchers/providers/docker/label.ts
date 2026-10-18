@@ -34,6 +34,21 @@ export const wudWatchDigest = 'wud.watch.digest';
 export const wudLinkTemplate = 'wud.link.template';
 
 /**
+ * Optional link pointing to container changelog / release notes.
+ */
+export const wudLinkChangelog = 'wud.link.changelog';
+
+/**
+ * Optional link pointing to upstream source code repository.
+ */
+export const wudLinkUpstream = 'wud.link.upstream';
+
+/**
+ * Optional link pointing to documentation.
+ */
+export const wudLinkDoc = 'wud.link.doc';
+
+/**
  * Optional friendly name to display.
  */
 export const wudDisplayName = 'wud.display.name';
