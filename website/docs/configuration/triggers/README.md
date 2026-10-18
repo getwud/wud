@@ -219,6 +219,34 @@ When updating containers that release frequently, jumping across too many versio
 - Configure `MAXSKIPPEDTHRESHOLD=<number>` (e.g. `2`) to prevent auto-updates or notifications if the upgrade skips more intermediate versions than the ceiling.
 - Use this option alongside `RISKTHRESHOLD` to guard against unintended multi-minor or multi-major leaps.
 
+<Tabs>
+<TabItem value="docker-compose" label="docker-compose.yml">
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    environment:
+      # Only notify on high or critical risk updates
+      - WUD_TRIGGER_DISCORD_ALERTS_RISKTHRESHOLD=high
+      # Block notification if more than 3 intermediate versions are skipped
+      - WUD_TRIGGER_DISCORD_ALERTS_MAXSKIPPEDTHRESHOLD=3
+```
+
+</TabItem>
+<TabItem value="env" label=".env">
+
+```bash
+# Filter triggers by evaluated risk level
+WUD_TRIGGER_SLACK_DEV_RISKTHRESHOLD=medium
+
+# Cap intermediate version jumps
+WUD_TRIGGER_SLACK_DEV_MAXSKIPPEDTHRESHOLD=2
+```
+
+</TabItem>
+</Tabs>
+
 ---
 
 ## 📝 Template Placeholders & Variables
@@ -244,20 +272,27 @@ In simple mode (`MODE=simple`), all container properties are accessible via the 
 | `container.upstreamUrl` | Upstream source code repository URL (from label) | `https://github.com/postgres/postgres` |
 | `container.link` | Preserved link fallback (pointing to `documentationUrl` or `upstreamUrl`) | `https://...` |
 | `container.result.link` | Changelog or registry link (if available) | `https://...` |
-| `riskScore` | Changelog risk score (`low`, `medium`, `high`, `critical`, `locked`, `unknown`, `unsupported`) | `low`, `high`, `locked` |
-| `riskSummary` | Executive summary of release changes from changelog | `Maintenance release with minor security fixes.` |
-| `skippedVersionsCount` | Number of intermediate releases skipped between current and target version | `2` |
-| `intermediateVersionsList` | Bulleted or comma-separated list of skipped intermediate tags | `7.2.0, 7.2.1` |
-| `hasBreakingChanges` | Boolean indicating whether breaking changes are present (`true` or `false`) | `false` |
-| `breakingChangesCount` | Number of detected breaking changes | `2` |
-| `breakingChangesText` | Bulleted markdown list of breaking changes | `- Deprecated configuration removed` |
-| `databaseImpact` | Text description of database or storage format impact | `Schema migration runs on startup.` |
-| `hasDatabaseImpact` | Boolean indicating whether database impact is present (`true` or `false`) | `true` |
-| `upgradeReviewUrl` | Direct deep-link URL to review the update in the WUD UI | `https://wud.example.com/#/containers?action=review&container=redis` |
 
 :::tip[Multi-Host Notifications]
 When monitoring multiple Docker daemons or remote hosts using distinct watchers (e.g. `WUD_WATCHER_HOST1_...`, `WUD_WATCHER_HOST2_...`), include `$${container.watcher}` in your `SIMPLEBODY` or `SIMPLETITLE` to identify which host discovered the update.
 :::
+
+### Upgrade Risk & Multi-Version Variables (requires WUD Hub)
+
+When WUD Hub is connected, updates are automatically evaluated before trigger notifications are sent:
+
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `${riskScore}` | Evaluated upgrade risk level (`low`, `medium`, `high`, `critical`, `locked`, `unknown`, `unsupported`) | `low`, `medium`, `high`, `critical` |
+| `${riskSummary}` | Executive summary of release changes from changelog | `Maintenance release with minor security fixes.` |
+| `${skippedVersionsCount}` | Number of intermediate releases skipped between current and target version | `2` |
+| `${intermediateVersionsList}` | Comma-separated list of skipped intermediate tags | `7.2.0, 7.2.1` |
+| `${hasBreakingChanges}` | Boolean indicating whether breaking changes are present (`true` or `false`) | `true` |
+| `${breakingChangesCount}` | Total count of detected breaking changes | `2` |
+| `${breakingChangesText}` | Formatted bullet list of breaking changes | `- Deprecated configuration removed` |
+| `${hasDatabaseImpact}` | Boolean indicating whether database impact is present (`true` or `false`) | `true` |
+| `${databaseImpact}` | Description of database or storage format impact | `Schema migration runs on startup.` |
+| `${upgradeReviewUrl}` | Direct deep-link URL to review the update in the WUD UI | `https://wud.example.com/#/containers?action=review&container=redis` |
 
 ### Batch Mode Variables
 

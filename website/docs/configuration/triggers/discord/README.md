@@ -103,3 +103,30 @@ docker run \
 2. Click **New Webhook** and select the channel where update notifications should be posted.
 3. Copy the **Webhook URL** and configure it as `WUD_TRIGGER_DISCORD_{trigger_name}_URL`.
 4. For additional details, see the [official Discord webhook guide](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks).
+
+---
+
+## 🛡️ Upgrade Risk & Multi-Version Formatting (WUD Hub)
+
+When connected to WUD Hub, Discord notifications are enhanced with automated risk analysis and multi-version upgrade insights.
+
+### Risk Score Color Badges
+
+The embed card border automatically reflects the evaluated risk level:
+
+- 🟢 **Green / Low (`#2eb886` / `3061894`)**: Routine patch or minor release with no detected breaking changes (`🛡️ LOW`).
+- 🟠 **Orange / Medium (`#e67e22` / `15105570`)**: Moderate update that may include deprecation notices or notable dependency bumps (`⚠️ MEDIUM`).
+- 🔴 **Red / High & Critical (`#e74c3c` / `15158332`)**: High-risk updates (`⚡ HIGH`) or critical updates (`🚨 CRITICAL`) containing breaking changes, altered environment variables, or database migrations.
+- 🟣 **Purple / Locked (`#9b59b6` / `10175195`)**: Multi-version leap requiring plan activation or in-depth review (`🔒 LOCKED`).
+
+### Rich Embed Fields
+
+When risk analysis is available, the Discord embed includes structured fields:
+
+- **Risk Level**: Displays the risk indicator emoji and status (e.g. `🛡️ LOW`, `⚠️ MEDIUM`, `⚡ HIGH`, `🚨 CRITICAL`, `🔒 LOCKED`).
+- **Skipped Versions**: Highlights intermediate releases skipped during the upgrade with tag progression (e.g. `+2 versions (1.0.0 ➔ 1.2.0)`).
+- **Summary**: Concise synopsis of changes from the release changelog.
+- **Breaking Changes**: Bullet list (`• ...`) of detected breaking changes between the current and target versions.
+- **DB / Storage Impact**: High-visibility alert for schema migrations or storage alterations.
+- **Release Notes**: Direct link to the upstream changelog.
+- **Review Update Button**: Markdown link button (`[ 🔍 Review Update in WUD ](url)`) deep-linking into the WUD web UI to inspect the upgrade journey and run pre-flight safety checks.

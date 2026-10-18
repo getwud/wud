@@ -183,6 +183,64 @@ services:
 
 ---
 
+## Triggers
+
+Triggers perform automated actions (such as sending notifications or executing updates) whenever a new container version is discovered. For complete details on configuring individual notification services and orchestration triggers, see the [Triggers documentation](./triggers/README.md).
+
+### Upgrade Risk & Multi-Version Variables (requires WUD Hub)
+
+When WUD Hub is connected, updates are automatically evaluated before trigger notifications are sent:
+
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `${riskScore}` | Evaluated upgrade risk level (`low`, `medium`, `high`, `critical`, `locked`, `unknown`, `unsupported`) | `low`, `medium`, `high`, `critical` |
+| `${riskSummary}` | Executive summary of release changes from changelog | `Maintenance release with minor security fixes.` |
+| `${skippedVersionsCount}` | Number of intermediate releases skipped between current and target version | `2` |
+| `${intermediateVersionsList}` | Comma-separated list of skipped intermediate tags | `7.2.0, 7.2.1` |
+| `${hasBreakingChanges}` | Boolean indicating whether breaking changes are present (`true` or `false`) | `true` |
+| `${breakingChangesCount}` | Total count of detected breaking changes | `2` |
+| `${breakingChangesText}` | Formatted bullet list of breaking changes | `- Deprecated configuration removed` |
+| `${hasDatabaseImpact}` | Boolean indicating whether database impact is present (`true` or `false`) | `true` |
+| `${databaseImpact}` | Description of database or storage format impact | `Schema migration runs on startup.` |
+| `${upgradeReviewUrl}` | Direct deep-link URL to review the update in the WUD UI | `https://wud.example.com/#/containers?action=review&container=redis` |
+
+#### Threshold Filtering: `riskthreshold` and `maxskippedthreshold`
+
+You can gate trigger executions based on the assessed risk level or prevent jumps across too many intermediate versions using the `riskthreshold` and `maxskippedthreshold` options:
+
+- **`riskthreshold`**: Minimum changelog risk score required to fire the trigger (`all`, `low`, `medium`, `high`, `critical`).
+- **`maxskippedthreshold`**: Maximum number of intermediate versions allowed to be skipped (integer `>= 0`). If an update skips more releases than this ceiling, the trigger will not fire.
+
+<Tabs>
+<TabItem value="docker-compose" label="docker-compose.yml">
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    environment:
+      # Only notify on high or critical risk updates
+      - WUD_TRIGGER_DISCORD_ALERTS_RISKTHRESHOLD=high
+      # Block notification if more than 3 intermediate versions are skipped
+      - WUD_TRIGGER_DISCORD_ALERTS_MAXSKIPPEDTHRESHOLD=3
+```
+
+</TabItem>
+<TabItem value="env" label=".env">
+
+```bash
+# Filter triggers by evaluated risk level
+WUD_TRIGGER_SLACK_DEV_RISKTHRESHOLD=medium
+
+# Cap intermediate version jumps
+WUD_TRIGGER_SLACK_DEV_MAXSKIPPEDTHRESHOLD=2
+```
+
+</TabItem>
+</Tabs>
+
+---
+
 ## Secret Management
 
 :::warning[File-Based Secrets]

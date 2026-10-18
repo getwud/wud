@@ -91,3 +91,22 @@ docker run \
 2. Under **OAuth & Permissions** > **Scopes**, add the `chat:write` and `chat:write.public` bot token scopes.
 3. Install the app to your workspace and copy the generated **Bot User OAuth Token** (`xoxb-...`).
 4. Set the token as `WUD_TRIGGER_SLACK_{trigger_name}_TOKEN`.
+
+---
+
+## 🛡️ Upgrade Risk Analysis Formatting (WUD Hub)
+
+When connected to WUD Hub, Slack update notifications include structured risk evaluation blocks:
+
+- **Risk Emojis & Level**: Highlights severity with visual indicators:
+  - `🟢 LOW`: Safe, backward-compatible updates.
+  - `⚠️ MEDIUM`: Updates with notable changes or deprecations.
+  - `⚡ HIGH`: Updates containing breaking changes or major dependency updates.
+  - `🚨 CRITICAL`: Critical updates with high operational risk or mandatory configuration adjustments.
+  - `🔒 LOCKED`: Multi-version leaps requiring subscription activation or deeper review.
+- **Skipped Releases**: Shows the count of intermediate versions skipped (e.g. `*Skipped Releases:* +2 intermediate versions`).
+- **Summary Quote**: Styled blockquote (`> ...`) providing an executive summary of changelog highlights.
+- **Breaking Changes Bullet List**: Detailed list of breaking changes (`*Breaking Changes (N):*` followed by `• ...` bullets).
+- **Database Impact**: Prominently flags persistent storage format changes or database schema migrations (`*Database Impact:* ...`).
+- **Official Release Notes**: Direct link formatted as `<url|Official Release Notes>`.
+- **Review Link Action**: Interactive Slack link `<url|🔍 Inspect Upgrade Journey>` linking directly to the container upgrade review modal in WUD.
