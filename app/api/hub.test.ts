@@ -11,6 +11,18 @@ jest.mock('../metadata', () => {
             endpoint: 'https://hub.getwud.com',
             hasKey: true,
         })),
+        getOrFetchStatus: jest.fn(async (forceRefresh?: boolean) => ({
+            enabled: true,
+            status: 'connected',
+            endpoint: 'https://hub.getwud.com',
+            hasKey: true,
+            remote: {
+                organization: { id: 'org_1', name: 'Acme', slug: 'acme' },
+                apiKey: { preview: 'wud_...0001', valid: true, scopes: [] },
+                subscription: { planTier: 'free', status: 'active', trialDaysRemaining: null, portalUrl: null },
+                quota: { monitoredContainers: 5, limit: 10 },
+            },
+        })),
     };
     return {
         getRemoteMetadataProvider: jest.fn(() => mockProvider),
@@ -33,16 +45,19 @@ describe('Hub API Router', () => {
         expect(res.body.status).toBe('connected');
         expect(res.body.enabled).toBe(true);
         expect(res.body.hasKey).toBe(true);
+        expect(res.body.remote).toBeDefined();
+        expect(res.body.remote.organization.name).toBe('Acme');
 
         const provider = getRemoteMetadataProvider();
-        expect(provider.getStatus).toHaveBeenCalled();
+        expect(provider.getOrFetchStatus).toHaveBeenCalledWith(false);
     });
 
-    test('GET /hub/status should return 200 without authentication', async () => {
-        const res = await request(app).get('/hub/status');
+    test('GET /hub/status?refresh=true should pass forceRefresh to getOrFetchStatus', async () => {
+        const res = await request(app).get('/hub/status?refresh=true');
         expect(res.status).toBe(200);
-        expect(res.body.status).toBe('connected');
-        expect(res.body.enabled).toBe(true);
+
+        const provider = getRemoteMetadataProvider();
+        expect(provider.getOrFetchStatus).toHaveBeenCalledWith(true);
     });
 });
 

@@ -2,6 +2,13 @@ import { mount, flushPromises } from '@vue/test-utils';
 import HubStatusPill from '@/components/HubStatusPill.vue';
 import * as hubService from '@/services/hub';
 
+const pushMock = jest.fn();
+jest.mock('vue-router', () => ({
+  useRouter: jest.fn(() => ({
+    push: pushMock,
+  })),
+}));
+
 jest.mock('@/services/hub', () => ({
   getHubStatus: jest.fn(),
 }));
@@ -67,5 +74,20 @@ describe('HubStatusPill', () => {
 
     expect(wrapper.text()).toContain('Hub Error');
     expect(wrapper.find('.hub-status-pill').classes()).toContain('status-error');
+  });
+
+  it('redirects to /hub on click', async () => {
+    mockedGetHubStatus.mockResolvedValueOnce({
+      enabled: true,
+      status: 'connected',
+      endpoint: 'https://hub.getwud.com',
+      hasKey: true,
+    });
+
+    const wrapper = mount(HubStatusPill);
+    await flushPromises();
+
+    await wrapper.find('.hub-status-pill').trigger('click');
+    expect(pushMock).toHaveBeenCalledWith('/hub');
   });
 });

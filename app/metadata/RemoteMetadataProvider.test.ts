@@ -12,6 +12,7 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 describe('RemoteMetadataProvider', () => {
     let mockClient: {
         post: jest.Mock;
+        get: jest.Mock;
     };
 
     beforeEach(() => {
@@ -19,6 +20,7 @@ describe('RemoteMetadataProvider', () => {
         resetRemoteMetadataProvider();
         mockClient = {
             post: jest.fn(),
+            get: jest.fn(),
         };
         mockedAxios.create.mockReturnValue(mockClient as any);
     });
@@ -175,5 +177,97 @@ describe('RemoteMetadataProvider', () => {
 
         provider.deleteContainerMetadata('c-123');
         expect(provider.getContainerMetadata('c-123')).toBeUndefined();
+    });
+
+    test('fetchRemoteStatus returns null when standalone', async () => {
+        const provider = new RemoteMetadataProvider({
+            enabled: false,
+            key: undefined,
+        });
+        const res = await provider.fetchRemoteStatus();
+        expect(res).toBeNull();
+        expect(mockClient.get).not.toHaveBeenCalled();
+    });
+
+    test('fetchRemoteStatus fetches remote details from Hub and updates status', async () => {
+        const provider = new RemoteMetadataProvider({
+            enabled: true,
+            key: 'wud_live_valid',
+        });
+
+        const mockDetails = {
+            organization: { id: 'org_1', name: 'Test Org', slug: 'test-org' },
+            apiKey: { preview: 'wud_...1234', valid: true, scopes: ['metadata:read'] },
+            subscription: { planTier: 'smart_updates', status: 'active', trialDaysRemaining: null, portalUrl: null },
+            quota: { monitoredContainers: 10, limit: 25 },
+        };
+
+        mockClient.get.mockResolvedValueOnce({
+            status: 200,
+            data: mockDetails,
+        });
+
+        const details = await provider.fetchRemoteStatus();
+        expect(details).toEqual(mockDetails);
+        expect(mockClient.get).toHaveBeenCalledWith('/api/v1/hub/status');
+
+        const status = provider.getStatus();
+        expect(status.status).toBe('connected');
+        expect(status.remote).toEqual(mockDetails);
+    });
+
+    test('fetchRemoteStatus handles 401 error and marks status as error', async () => {
+        const provider = new RemoteMetadataProvider({
+            enabled: true,
+            key: 'wud_live_invalid',
+        });
+
+        mockClient.get.mockRejectedValueOnce({
+            response: {
+                status: 401,
+                data: { message: 'Invalid API Key' },
+            },
+        });
+
+        const details = await provider.fetchRemoteStatus();
+        expect(details).toBeNull();
+
+        const status = provider.getStatus();
+        expect(status.status).toBe('error');
+        expect(status.remote).toBeUndefined();
+    });
+
+    test('getOrFetchStatus uses cache and forceRefresh bypasses cache', async () => {
+        const provider = new RemoteMetadataProvider({
+            enabled: true,
+            key: 'wud_live_valid',
+        });
+
+        const mockDetails = {
+            organization: { id: 'org_1', name: 'Test Org', slug: 'test-org' },
+            apiKey: { preview: 'wud_...1234', valid: true, scopes: [] },
+            subscription: { planTier: 'free', status: 'active', trialDaysRemaining: null, portalUrl: null },
+            quota: { monitoredContainers: 2, limit: 10 },
+        };
+
+        mockClient.get.mockResolvedValue({
+            status: 200,
+            data: mockDetails,
+        });
+
+        // 1st call fetches
+        const s1 = await provider.getOrFetchStatus();
+        expect(s1.remote).toEqual(mockDetails);
+        expect(mockClient.get).toHaveBeenCalledTimes(1);
+
+        // 2nd call uses cache
+        const s2 = await provider.getOrFetchStatus();
+        expect(s2.remote).toEqual(mockDetails);
+        expect(mockClient.get).toHaveBeenCalledTimes(1);
+
+        // Force refresh calls again
+        const s3 = await provider.getOrFetchStatus(true);
+        expect(s3.remote).toEqual(mockDetails);
+        expect(mockClient.get).toHaveBeenCalledTimes(2);
     });
 });

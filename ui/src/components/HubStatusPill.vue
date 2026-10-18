@@ -2,6 +2,7 @@
   <div
     class="hub-status-pill d-flex align-center px-2 py-1 rounded-pill"
     :class="statusClass"
+    @click="goToHub"
   >
     <span class="status-dot mr-1"></span>
     <span class="text-caption font-weight-bold">
@@ -15,7 +16,16 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from "vue";
+import { useRouter } from "vue-router";
 import { getHubStatus, HubStatus } from "@/services/hub";
+
+const router = useRouter();
+
+function goToHub() {
+  if (router) {
+    router.push("/hub");
+  }
+}
 
 const statusData = ref<HubStatus>({
   enabled: false,
@@ -82,6 +92,12 @@ const tooltipText = computed(() => {
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.12);
   transition: all 0.2s ease;
+  user-select: none;
+}
+.hub-status-pill:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.24);
+  transform: translateY(-1px);
 }
 .status-dot {
   width: 8px;

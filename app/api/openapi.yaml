@@ -700,6 +700,13 @@ paths:
                 - Hub
             summary: WUD Hub connection status
             operationId: getHubStatus
+            parameters:
+                - name: refresh
+                  in: query
+                  description: Force refresh status from Hub
+                  required: false
+                  schema:
+                      type: boolean
             responses:
                 '200':
                     description: Hub connection status
@@ -725,6 +732,49 @@ paths:
                                         type: boolean
                                     lastCheck:
                                         type: string
+                                    remote:
+                                        type: object
+                                        properties:
+                                            organization:
+                                                type: object
+                                                properties:
+                                                    id:
+                                                        type: string
+                                                    name:
+                                                        type: string
+                                                    slug:
+                                                        type: string
+                                            apiKey:
+                                                type: object
+                                                properties:
+                                                    preview:
+                                                        type: string
+                                                    valid:
+                                                        type: boolean
+                                                    scopes:
+                                                        type: array
+                                                        items:
+                                                            type: string
+                                            subscription:
+                                                type: object
+                                                properties:
+                                                    planTier:
+                                                        type: string
+                                                    status:
+                                                        type: string
+                                                    trialDaysRemaining:
+                                                        type: integer
+                                                        nullable: true
+                                                    portalUrl:
+                                                        type: string
+                                                        nullable: true
+                                            quota:
+                                                type: object
+                                                properties:
+                                                    monitoredContainers:
+                                                        type: integer
+                                                    limit:
+                                                        type: integer
                                     errorMessage:
                                         type: string
 components:

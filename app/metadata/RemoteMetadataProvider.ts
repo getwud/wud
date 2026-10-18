@@ -8,6 +8,7 @@ import {
     ProviderConnectionStatus,
     HubStatusSummary,
     ContainerHubMetadata,
+    RemoteHubDetails,
 } from './types';
 
 const log = logger.child({ component: 'remote-metadata-provider' });
@@ -23,6 +24,8 @@ export class RemoteMetadataProvider {
     private backoffUntil = 0;
     private lastErrorMessage?: string;
     private lastCheckTimestamp?: string;
+    private remoteStatus?: RemoteHubDetails;
+    private lastRemoteFetchTime = 0;
 
     constructor(customConfig?: Partial<HubConfiguration>) {
         this.config = { ...getHubConfiguration(), ...customConfig };
@@ -112,6 +115,7 @@ export class RemoteMetadataProvider {
 
         if (statusCode === 401 || statusCode === 403) {
             this.status = 'error';
+            this.remoteStatus = undefined;
             log.warn(
                 `[RemoteMetadataProvider] WUD Hub API Key rejected (HTTP ${statusCode}). Hub enrichment disabled until restart.`,
             );
@@ -138,6 +142,52 @@ export class RemoteMetadataProvider {
         );
     }
 
+    async fetchRemoteStatus(): Promise<RemoteHubDetails | null> {
+        if (!this.config.enabled || !this.config.key) {
+            return null;
+        }
+
+        return this.pool.run(async () => {
+            try {
+                this.lastCheckTimestamp = new Date().toISOString();
+                const response = await this.client.get<RemoteHubDetails>(
+                    '/api/v1/hub/status',
+                );
+
+                if (response.status === 200 && response.data) {
+                    this.status = 'connected';
+                    this.consecutiveErrors = 0;
+                    this.lastErrorMessage = undefined;
+                    this.remoteStatus = response.data;
+                    this.lastRemoteFetchTime = Date.now();
+                    return response.data;
+                }
+                return null;
+            } catch (err: unknown) {
+                this.handleHttpError(err, 'hub_status');
+                return null;
+            }
+        });
+    }
+
+    async getOrFetchStatus(forceRefresh = false): Promise<HubStatusSummary> {
+        if (!this.config.enabled || !this.config.key) {
+            return this.getStatus();
+        }
+
+        const CACHE_TTL_MS = 60 * 1000;
+        if (
+            !forceRefresh &&
+            this.remoteStatus &&
+            Date.now() - this.lastRemoteFetchTime < CACHE_TTL_MS
+        ) {
+            return this.getStatus();
+        }
+
+        await this.fetchRemoteStatus();
+        return this.getStatus();
+    }
+
     getStatus(): HubStatusSummary {
         return {
             enabled: this.config.enabled,
@@ -145,6 +195,7 @@ export class RemoteMetadataProvider {
             endpoint: this.config.endpoint,
             hasKey: Boolean(this.config.key && this.config.key.trim() !== ''),
             lastCheck: this.lastCheckTimestamp,
+            remote: this.remoteStatus,
             errorMessage: this.lastErrorMessage,
         };
     }

@@ -40,11 +40,44 @@ export interface ContainerHubMetadata {
     };
 }
 
+export interface RemoteHubOrganization {
+    id: string;
+    name: string;
+    slug: string;
+}
+
+export interface RemoteHubApiKey {
+    preview: string;
+    valid: boolean;
+    scopes: string[];
+}
+
+export interface RemoteHubSubscription {
+    planTier: string;
+    status: string;
+    trialDaysRemaining: number | null;
+    portalUrl: string | null;
+}
+
+export interface RemoteHubQuota {
+    monitoredContainers: number;
+    limit: number;
+}
+
+export interface RemoteHubDetails {
+    status?: string;
+    organization: RemoteHubOrganization;
+    apiKey: RemoteHubApiKey;
+    subscription: RemoteHubSubscription;
+    quota: RemoteHubQuota;
+}
+
 export interface HubStatusSummary {
     enabled: boolean;
     status: ProviderConnectionStatus;
     endpoint: string;
     hasKey: boolean;
     lastCheck?: string;
+    remote?: RemoteHubDetails;
     errorMessage?: string;
 }
