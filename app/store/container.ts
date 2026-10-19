@@ -267,6 +267,8 @@ export function insertContainer(container: any): Container {
 export function updateContainer(container: any): Container {
     const containerToReturn = validateContainer(container);
     const db = getDb();
+    // Listeners keyed by name (MQTT topics) need the old one to clean up after a rename.
+    const previousContainer = getContainer(containerToReturn.id);
 
     // 1. Update or upsert container record
     db.insert(schema.containers)
@@ -411,7 +413,7 @@ export function updateContainer(container: any): Container {
         }
     }
 
-    emitContainerUpdated(containerToReturn);
+    emitContainerUpdated(containerToReturn, previousContainer);
     return containerToReturn;
 }
 

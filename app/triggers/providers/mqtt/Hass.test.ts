@@ -257,6 +257,49 @@ test.each(containerData)(
     },
 );
 
+test('onContainerUpdated must clear the old topics of a renamed container before publishing the new ones', async () => {
+    await hass.onContainerUpdated(
+        { name: 'wud', watcher: 'watcher-name', displayIcon: 'mdi:docker' },
+        {
+            name: 'wud-wud-self-update-1792343272433',
+            watcher: 'watcher-name',
+            displayIcon: 'mdi:docker',
+        },
+    );
+    expect(mqttClientMock.publish).toHaveBeenNthCalledWith(
+        1,
+        'topic/watcher-name/wud-wud-self-update-1792343272433',
+        '',
+        { retain: true },
+    );
+    expect(mqttClientMock.publish).toHaveBeenNthCalledWith(
+        2,
+        'homeassistant/update/topic_watcher-name_wud-wud-self-update-1792343272433/config',
+        '',
+        { retain: true },
+    );
+    expect(mqttClientMock.publish).toHaveBeenNthCalledWith(
+        3,
+        'homeassistant/update/topic_watcher-name_wud/config',
+        expect.any(String),
+        { retain: true },
+    );
+});
+
+test('onContainerUpdated must not clear anything when the name is unchanged', async () => {
+    const container = {
+        name: 'container-name',
+        watcher: 'watcher-name',
+        displayIcon: 'mdi:docker',
+    };
+    await hass.onContainerUpdated(container, { ...container });
+    await hass.onContainerUpdated(container);
+    const emptyPublishes = mqttClientMock.publish.mock.calls.filter(
+        ([, payload]) => payload === '',
+    );
+    expect(emptyPublishes).toEqual([]);
+});
+
 test.each(containerData)(
     'updateContainerSensors must publish all sensors expected by HA',
     async ({ containerName }) => {
