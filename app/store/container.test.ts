@@ -478,4 +478,27 @@ describe('Container Store (SQLite)', () => {
             release: 'candidate',
         });
     });
+
+    test('getContainers and getContainer should gracefully handle invalid documentationUrl in labels or corrupt DB rows without crashing', () => {
+        const rawWithInvalidDoc = {
+            ...sampleContainer,
+            id: 'container-corrupt-doc',
+            labels: {
+                'wud.link.doc': 'not-a-valid-uri',
+            },
+        };
+
+        expect(() =>
+            container.insertContainer(rawWithInvalidDoc),
+        ).not.toThrow();
+
+        const fetched = container.getContainer('container-corrupt-doc');
+        expect(fetched).toBeDefined();
+        expect(fetched?.documentationUrl).toBeUndefined();
+
+        const allContainers = container.getContainers();
+        expect(
+            allContainers.some((c) => c.id === 'container-corrupt-doc'),
+        ).toBe(true);
+    });
 });

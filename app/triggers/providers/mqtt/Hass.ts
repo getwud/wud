@@ -43,6 +43,7 @@ export interface SummaryPayloadItem {
     remoteValue: string;
     semverDiff?: string;
     link?: string;
+    release_url?: string;
 }
 
 interface HassSensor {
@@ -258,9 +259,15 @@ class Hass {
                 if (container.updateKind?.semverDiff) {
                     item.semverDiff = container.updateKind.semverDiff;
                 }
-                const link = container.result?.link || container.link;
+                const releaseUrl = container.result
+                    ? (container.result.changelogUrl ?? container.result.link)
+                    : undefined;
+                const link = releaseUrl ?? container.link;
                 if (link) {
                     item.link = link;
+                }
+                if (releaseUrl) {
+                    item.release_url = releaseUrl;
                 }
                 return item;
             },
@@ -323,7 +330,8 @@ class Hass {
                     in_progress_template:
                         '{{ value_json.in_progress | default(false) }}',
                     release_url: container.result
-                        ? container.result.link
+                        ? (container.result.changelogUrl ??
+                          container.result.link)
                         : undefined,
                     json_attributes_topic: containerStateSensor.topic,
                 },

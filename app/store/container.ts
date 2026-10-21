@@ -99,7 +99,21 @@ function buildContainerFromRows(
         }
     }
 
-    return validateContainer(raw);
+    try {
+        return validateContainer(raw);
+    } catch (e: any) {
+        log.warn(
+            `Error validating container ${containerRow.id} from database: ${e.message}. Attempting recovery without invalid URL fields.`,
+        );
+        delete raw.documentationUrl;
+        delete raw.changelogUrl;
+        delete raw.upstreamUrl;
+        if (raw.result) {
+            delete raw.result.changelogUrl;
+            delete raw.result.link;
+        }
+        return validateContainer(raw);
+    }
 }
 
 /**
@@ -452,7 +466,12 @@ export function getContainer(id: string): Container | undefined {
         .limit(1)
         .get();
 
-    return buildContainerFromRows(containerRow, imageRow, historyRow);
+    try {
+        return buildContainerFromRows(containerRow, imageRow, historyRow);
+    } catch (e: any) {
+        log.warn(`Corrupted container ${id} in store: ${e.message}`);
+        return undefined;
+    }
 }
 
 /**
@@ -468,25 +487,37 @@ export function getContainers(query: Record<string, any> = {}): Container[] {
 
     const containerRows = db.select().from(schema.containers).all();
 
-    let containerList = containerRows.map((containerRow) => {
-        const imageRow = db
-            .select()
-            .from(schema.containerImages)
-            .where(eq(schema.containerImages.containerId, containerRow.id))
-            .get();
+    let containerList: Container[] = [];
+    for (const containerRow of containerRows) {
+        try {
+            const imageRow = db
+                .select()
+                .from(schema.containerImages)
+                .where(eq(schema.containerImages.containerId, containerRow.id))
+                .get();
 
-        const historyRow = db
-            .select()
-            .from(schema.containerResultsHistory)
-            .where(
-                eq(schema.containerResultsHistory.containerId, containerRow.id),
-            )
-            .orderBy(desc(schema.containerResultsHistory.id))
-            .limit(1)
-            .get();
+            const historyRow = db
+                .select()
+                .from(schema.containerResultsHistory)
+                .where(
+                    eq(
+                        schema.containerResultsHistory.containerId,
+                        containerRow.id,
+                    ),
+                )
+                .orderBy(desc(schema.containerResultsHistory.id))
+                .limit(1)
+                .get();
 
-        return buildContainerFromRows(containerRow, imageRow, historyRow);
-    });
+            containerList.push(
+                buildContainerFromRows(containerRow, imageRow, historyRow),
+            );
+        } catch (e: any) {
+            log.warn(
+                `Skipping corrupted container record ${containerRow.id} from store: ${e.message}`,
+            );
+        }
+    }
 
     // In-memory filter for any query attributes
     if (query && Object.keys(query).length > 0) {

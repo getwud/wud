@@ -234,6 +234,41 @@ test('addContainerSensor must publish the container display name as title', asyn
     expect(discoveryPayload.title).toEqual('my-container');
 });
 
+test('addContainerSensor must prefer result.changelogUrl over result.link for release_url', async () => {
+    await hass.addContainerSensor({
+        name: 'container-name',
+        watcher: 'watcher-name',
+        displayIcon: 'mdi:docker',
+        result: {
+            tag: '2.0.0',
+            link: 'https://example.com/repo',
+            changelogUrl: 'https://example.com/changelog',
+        },
+    });
+    const discoveryPayload = JSON.parse(
+        mqttClientMock.publish.mock.calls[0][1],
+    );
+    expect(discoveryPayload.release_url).toEqual(
+        'https://example.com/changelog',
+    );
+});
+
+test('addContainerSensor must fall back to result.link for release_url when changelogUrl is absent', async () => {
+    await hass.addContainerSensor({
+        name: 'container-name',
+        watcher: 'watcher-name',
+        displayIcon: 'mdi:docker',
+        result: {
+            tag: '2.0.0',
+            link: 'https://example.com/repo',
+        },
+    });
+    const discoveryPayload = JSON.parse(
+        mqttClientMock.publish.mock.calls[0][1],
+    );
+    expect(discoveryPayload.release_url).toEqual('https://example.com/repo');
+});
+
 test.each(containerData)(
     'removeContainerSensor must publish empty payloads on state and discovery topics expected by HA',
     async ({ containerName, data }) => {
@@ -1009,6 +1044,7 @@ describe('entities: summary', () => {
                     stack: 'my-stack',
                     semverDiff: 'minor',
                     link: 'https://github.com/release/1.1.0',
+                    release_url: 'https://github.com/release/1.1.0',
                 },
                 {
                     name: 'app2',
@@ -1149,6 +1185,39 @@ describe('entities: summary', () => {
             '[]',
             { retain: true },
         );
+    });
+
+    test('publishSummaryUpdates should populate link and release_url using changelogUrl', async () => {
+        jest.spyOn(containerStore, 'getContainers').mockReturnValue([
+            {
+                name: 'app-with-changelog',
+                displayName: 'App With Changelog',
+                updateAvailable: true,
+                watcher: 'local',
+                updateKind: {
+                    kind: 'tag',
+                    localValue: '1.0.0',
+                    remoteValue: '2.0.0',
+                    semverDiff: 'major',
+                },
+                result: {
+                    tag: '2.0.0',
+                    link: 'https://example.com/repo',
+                    changelogUrl: 'https://example.com/changelog',
+                },
+            },
+        ]);
+
+        await summaryHass.publishSummaryUpdates();
+
+        const updatesCall = mqttClientMock.publish.mock.calls.find(
+            ([topic]) => topic === 'topic/updates',
+        );
+        expect(updatesCall).toBeDefined();
+        const payload = JSON.parse(updatesCall[1]);
+        expect(payload).toHaveLength(1);
+        expect(payload[0].link).toEqual('https://example.com/changelog');
+        expect(payload[0].release_url).toEqual('https://example.com/changelog');
     });
 
     test('updateWatcherSensors in summary mode must remove watcher status sensor', async () => {

@@ -1244,9 +1244,20 @@ export class Kubernetes extends Watcher {
         } else {
             containerReport.container =
                 storeContainer.updateContainer(containerWithResult);
+            const isUpdateAvailable = Boolean(
+                containerWithResult.updateAvailable,
+            );
+            const wasUpdateAvailable = Boolean(containerInDb.updateAvailable);
+            const wasCoolingDown = Boolean(containerInDb.isCoolingDown);
+            const transitionedOutOfCooldown =
+                (!wasUpdateAvailable || wasCoolingDown) && isUpdateAvailable;
+            const resultChanged = Boolean(
+                containerInDb.resultChanged &&
+                    containerInDb.resultChanged(containerReport.container),
+            );
             containerReport.changed =
-                containerInDb.resultChanged(containerReport.container) &&
-                containerWithResult.updateAvailable;
+                (resultChanged || transitionedOutOfCooldown) &&
+                isUpdateAvailable;
         }
         return containerReport;
     }
