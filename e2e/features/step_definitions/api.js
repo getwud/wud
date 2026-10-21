@@ -11,3 +11,8 @@ Given(/^I remove authorization header$/, function removeAuthHeader(callback) {
     this.apickli.removeRequestHeader('Authorization');
     callback();
 });
+
+Given(/^I remove Content-Type header$/, function removeContentTypeHeader(callback) {
+    this.apickli.removeRequestHeader('Content-Type');
+    callback();
+});

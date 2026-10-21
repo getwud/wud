@@ -41,6 +41,12 @@ const container = {
     },
 } as Container;
 const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
+const contentTypes = [
+    'application/json',
+    'application/vnd.docker.distribution.events.v1+json',
+    'application/vnd.docker.distribution.events.v1+json; charset=utf-8',
+    'application/vnd.docker.distribution.events.v2+json',
+];
 
 describe('registry notification receiver', () => {
     let watcher: {
@@ -75,27 +81,85 @@ describe('registry notification receiver', () => {
         app: express.Express,
         body = payload,
         token = 'Bearer secret',
+        contentType = 'application/vnd.docker.distribution.events.v2+json',
     ) =>
         request(app)
             .post('/registries/gitlab.local/events')
             .set('Authorization', token)
-            .set(
-                'Content-Type',
-                'application/vnd.docker.distribution.events.v2+json',
-            )
+            .set('Content-Type', contentType)
             .send(JSON.stringify(body));
 
-    test('authenticates native vendor notifications and emits only matched batch reports', async () => {
-        expect((await send(app)).status).toBe(202);
-        await settle();
-        expect(watcher.getContainers).toHaveBeenCalledTimes(1);
-        expect(watcher.processWatchContainers).toHaveBeenCalledWith([
-            container,
-        ]);
-        expect(event.emitContainerReports).toHaveBeenCalledWith([
-            { container, changed: true },
-        ]);
-        expect(container.image.digest.watch).toBe(false);
+    test.each(contentTypes)(
+        'authenticates %s notifications and emits only matched batch reports',
+        async (contentType) => {
+            const nativePayload = {
+                events: [
+                    {
+                        ...payload.events[0],
+                        id: 'registry-push-event',
+                        timestamp: '2026-10-18T21:41:44Z',
+                        actor: { name: 'builder' },
+                        source: { instanceID: 'gitlab-registry' },
+                        request: {
+                            host: 'registry.example.com',
+                            method: 'PUT',
+                        },
+                    },
+                ],
+            };
+            const response = await send(
+                app,
+                nativePayload,
+                'Bearer secret',
+                contentType,
+            );
+            expect(response.status).toBe(202);
+            expect(response.body).toEqual({ accepted: 1 });
+            await settle();
+            expect(watcher.getContainers).toHaveBeenCalledTimes(1);
+            expect(watcher.processWatchContainers).toHaveBeenCalledWith([
+                container,
+            ]);
+            expect(event.emitContainerReports).toHaveBeenCalledWith([
+                { container, changed: true },
+            ]);
+            expect(container.image.digest.watch).toBe(false);
+        },
+    );
+    test.each(['', 'Bearer wrong'])(
+        'rejects unauthorized v1 notifications before parsing (%s)',
+        async (token) => {
+            const response = await request(app)
+                .post('/registries/gitlab.local/events')
+                .set('Authorization', token)
+                .set('Content-Type', contentTypes[1])
+                .send('{');
+            expect(response.status).toBe(401);
+            expect(watcher.getContainers).not.toHaveBeenCalled();
+        },
+    );
+    test.each(['{', JSON.stringify({ events: 'invalid' })])(
+        'rejects malformed v1 notifications: %s',
+        async (body) => {
+            const response = await request(app)
+                .post('/registries/gitlab.local/events')
+                .set('Authorization', 'Bearer secret')
+                .set('Content-Type', contentTypes[1])
+                .send(body);
+            expect(response.status).toBe(400);
+            expect(watcher.getContainers).not.toHaveBeenCalled();
+        },
+    );
+    test('retains the payload limit for v1 notifications', async () => {
+        const response = await request(app)
+            .post('/registries/gitlab.local/events')
+            .set('Authorization', 'Bearer secret')
+            .set('Content-Type', contentTypes[1])
+            .send(
+                JSON.stringify({ ...payload, padding: 'x'.repeat(256 * 1024) }),
+            );
+        expect(response.status).toBe(413);
+        expect(watcher.getContainers).not.toHaveBeenCalled();
     });
     test.each(['', 'Bearer wrong'])(
         'rejects invalid authentication %s',
