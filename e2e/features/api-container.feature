@@ -21,12 +21,12 @@ Feature: WUD Container API Exposure
     And response body path $[<index>].updateAvailable should be <updateAvailable>
     Examples:
       | index | registry       | containerName            | registryUrl                                             | imageName                    | tag               | resultTag         | updateAvailable | testCase                     |
-      | 1     | ghcr.private   | ghcr_radarr              | https://ghcr.io/v2                                      | linuxserver/radarr           | 5.14.0.9383-ls245 | 6.4.4.10685-ls321 | true            | GHCR complex semver update   |
+      | 1     | ghcr.private   | ghcr_radarr              | https://ghcr.io/v2                                      | linuxserver/radarr           | 5.14.0.9383-ls245 | 6.4.4.10685-ls323 | true            | GHCR complex semver update   |
       | 3     | hub.public     | hub_alpine_latest        | https://registry-1.docker.io/v2                         | library/alpine               | latest            | latest            | false           | Hub latest tag no update     |
       | 4     | hub.public     | hub_homeassistant_202161 | https://registry-1.docker.io/v2                         | homeassistant/home-assistant | 2021.6.1          | 2026.10.2         | true            | Hub date-based versioning    |
       | 5     | hub.public     | hub_nginx_latest         | https://registry-1.docker.io/v2                         | library/nginx                | latest            | latest            | true            | Hub latest tag digest update |
-      | 6     | lscr.private   | lscr_radarr              | https://lscr.io/v2                                      | linuxserver/radarr           | 5.14.0.9383-ls245 | 6.4.4.10685-ls321 | true            | LSCR complex semver update   |
-      | 7     | quay.public    | quay_prometheus          | https://quay.io/v2                                      | prometheus/prometheus        | v2.52.0           | v3.15.0           | true            | Quay semver major update     |
+      | 6     | lscr.private   | lscr_radarr              | https://lscr.io/v2                                      | linuxserver/radarr           | 5.14.0.9383-ls245 | 6.4.4.10685-ls323 | true            | LSCR complex semver update   |
+      | 7     | quay.public    | quay_prometheus          | https://quay.io/v2                                      | prometheus/prometheus        | v2.52.0           | v3.15.1           | true            | Quay semver major update     |
 
     @ci-only
     Examples:
@@ -59,7 +59,7 @@ Feature: WUD Container API Exposure
     And response body path $.name should be hub_nginx_latest
     And response body path $.image.tag.semver should be false
     And response body path $.image.digest.value should be sha256:4aacdcf186934dcb02f642579314075910f1855590fd3039d8fa4c9f96e48315
-    And response body path $.result.digest should be sha256:6c7972b94d62ce93357d1e0d0ef6d3db8a2e9b8b6f3234d943d60ecbc4f4eb31
+    And response body path $.result.digest should be sha256:37c8e9baaff4b18b238c6da45db97b0f944d92ec815f714b5aa83cfd9d97b09b
     And response body path $.updateAvailable should be true
 
   # Test link functionality

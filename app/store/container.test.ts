@@ -88,6 +88,18 @@ describe('Container Store (SQLite)', () => {
         expect(history[1].tag).toBe('1.1.0');
     });
 
+    test('updateContainer should pass the previous container version to the event', () => {
+        container.insertContainer(sampleContainer);
+
+        const spyEvent = jest.spyOn(event, 'emitContainerUpdated');
+        container.updateContainer({ ...sampleContainer, name: 'renamed' });
+
+        expect(spyEvent).toHaveBeenCalledWith(
+            expect.objectContaining({ name: 'renamed' }),
+            expect.objectContaining({ name: 'test' }),
+        );
+    });
+
     test('updateContainer with same result should touch timestamp without duplicating history', () => {
         container.insertContainer(sampleContainer);
 

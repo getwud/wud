@@ -124,11 +124,16 @@ export function registerContainerAdded(handler) {
 }
 
 /**
- * Emit container added.
+ * Emit container updated.
  * @param containerUpdated
+ * @param previousContainer the container as it was before the update, if known
  */
-export function emitContainerUpdated(containerUpdated) {
-    eventEmitter.emit(WUD_CONTAINER_UPDATED, containerUpdated);
+export function emitContainerUpdated(containerUpdated, previousContainer?) {
+    eventEmitter.emit(
+        WUD_CONTAINER_UPDATED,
+        containerUpdated,
+        previousContainer,
+    );
 }
 
 /**

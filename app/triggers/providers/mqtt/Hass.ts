@@ -155,8 +155,8 @@ class Hass {
         registerContainerAdded((container) =>
             this.addContainerSensor(container),
         );
-        registerContainerUpdated((container) =>
-            this.addContainerSensor(container),
+        registerContainerUpdated((container, previousContainer) =>
+            this.onContainerUpdated(container, previousContainer),
         );
         registerContainerRemoved((container) =>
             this.removeContainerSensor(container),
@@ -329,6 +329,27 @@ class Hass {
                 },
             });
         }
+    }
+
+    /**
+     * Sync HA after a container update.
+     * Topics are derived from the container name, so a renamed container (e.g.
+     * the self-update replacement renamed from `<name>-wud-self-update-<ts>`)
+     * gets new ones; the old ones are cleared first, or HA keeps an entity for
+     * a container that no longer exists under that name.
+     */
+    async onContainerUpdated(
+        container: Container,
+        previousContainer?: Container,
+    ) {
+        if (
+            previousContainer &&
+            this.getContainerStateTopic({ container: previousContainer }) !==
+                this.getContainerStateTopic({ container })
+        ) {
+            await this.removeContainerSensor(previousContainer);
+        }
+        await this.addContainerSensor(container);
     }
 
     /**
