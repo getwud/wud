@@ -1058,15 +1058,14 @@ describe('rich container metadata', () => {
             expect(resolved.link).toBe('https://legacy-link.com');
         });
 
-        test('should fail validation when documentationUrl is not a valid URI', () => {
+        test('should ignore invalid documentationUrl and not fail validation when documentationUrl is not a valid URI', () => {
             const raw = {
                 ...createBase(),
                 documentationUrl: 'not-a-valid-uri',
             };
 
-            expect(() => container.validate(raw)).toThrow(
-                /Error when validating container properties/,
-            );
+            const validated = container.validate(raw);
+            expect(validated.documentationUrl).toBeUndefined();
         });
 
         test('should allow re-validating a container with linkTemplate multiple times without throwing', () => {

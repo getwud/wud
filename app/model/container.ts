@@ -1,7 +1,25 @@
 import joi from 'joi';
 import flat from 'flat';
 import { snakeCase } from 'snake-case';
+import logger from '../log';
 import * as tag from '../tag';
+
+const log = logger.child({ component: 'model-container' });
+
+const uriSchema = joi.string().uri();
+
+/**
+ * Validate whether a string is a valid URI.
+ *
+ * @param uri string | undefined | null
+ * @returns boolean
+ */
+export function isValidUri(uri: string | undefined | null): boolean {
+    if (!uri || typeof uri !== 'string' || uri.trim() === '') {
+        return false;
+    }
+    return !uriSchema.validate(uri.trim()).error;
+}
 const { parse: parseSemver, diff: diffSemver, transform: transformTag } = tag;
 
 export interface ContainerImage {
@@ -391,15 +409,24 @@ export function resolveContainerMetadata(container: Container): Container {
     // 2. changelogUrl resolution
     const rawChangelog =
         container.changelogUrl || getFirstLabel(labels, CHANGELOG_LABEL_KEYS);
-    const resolvedChangelog = renderLinkTemplate(rawChangelog, container);
+    let resolvedChangelog = renderLinkTemplate(rawChangelog, container);
+    if (resolvedChangelog && !isValidUri(resolvedChangelog)) {
+        log.warn(
+            `Invalid changelog URL "${resolvedChangelog}" for container ${container.name || container.id}, ignoring`,
+        );
+        resolvedChangelog = undefined;
+    }
     container.changelogUrl = resolvedChangelog || undefined;
 
     if (container.result && container.result.tag && rawChangelog) {
-        const candidateChangelog = renderLinkTemplate(
+        let candidateChangelog = renderLinkTemplate(
             rawChangelog,
             container,
             container.result.tag,
         );
+        if (candidateChangelog && !isValidUri(candidateChangelog)) {
+            candidateChangelog = undefined;
+        }
         if (candidateChangelog) {
             container.result.changelogUrl = candidateChangelog;
         }
@@ -408,7 +435,13 @@ export function resolveContainerMetadata(container: Container): Container {
     // 3. upstreamUrl resolution
     const rawUpstream =
         container.upstreamUrl || getFirstLabel(labels, UPSTREAM_LABEL_KEYS);
-    const resolvedUpstream = renderLinkTemplate(rawUpstream, container);
+    let resolvedUpstream = renderLinkTemplate(rawUpstream, container);
+    if (resolvedUpstream && !isValidUri(resolvedUpstream)) {
+        log.warn(
+            `Invalid upstream URL "${resolvedUpstream}" for container ${container.name || container.id}, ignoring`,
+        );
+        resolvedUpstream = undefined;
+    }
     container.upstreamUrl = resolvedUpstream || undefined;
 
     // 4. documentationUrl resolution
@@ -423,6 +456,12 @@ export function resolveContainerMetadata(container: Container): Container {
         if (repoName) {
             resolvedDoc = `https://hub.docker.com/_/${repoName}`;
         }
+    }
+    if (resolvedDoc && !isValidUri(resolvedDoc)) {
+        log.warn(
+            `Invalid documentation URL "${resolvedDoc}" for container ${container.name || container.id}, ignoring`,
+        );
+        resolvedDoc = undefined;
     }
     container.documentationUrl = resolvedDoc || undefined;
 
