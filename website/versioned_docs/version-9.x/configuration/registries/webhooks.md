@@ -52,7 +52,13 @@ Replace the secret with the same value configured in WUD, then run `sudo gitlab-
 
 ## Payload and matching
 
-The receiver accepts `application/json` and `application/vnd.docker.distribution.events.v2+json`. A tagged manifest push looks like:
+The receiver accepts these Content-Type values:
+
+- `application/json`
+- `application/vnd.docker.distribution.events.v1+json` (the standard registry notification type used by GitLab)
+- `application/vnd.docker.distribution.events.v2+json`
+
+The Content-Type selects JSON body parsing; an unsupported type can leave the notification body unparsed and result in a `400` malformed-notification response. A tagged manifest push looks like:
 
 ```json
 {
