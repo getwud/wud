@@ -42,6 +42,7 @@ describe('Gotify Trigger', () => {
                 gotify.validateConfiguration(configurationValid);
             expect(validatedConfiguration).toStrictEqual({
                 ...configurationValid,
+                preload: false,
                 rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
                 events: ['available'],
                 successtitle: 'Update SUCCESS for ${container.name}',
@@ -61,6 +62,7 @@ describe('Gotify Trigger', () => {
             });
             const expectedWithoutPriority: Record<string, unknown> = {
                 ...configurationValid,
+                preload: false,
                 rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
                 events: ['available'],
                 successtitle: 'Update SUCCESS for ${container.name}',

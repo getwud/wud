@@ -29,6 +29,14 @@ import TabItem from '@theme/TabItem';
   </ConfigOption>
 
   <ConfigOption
+    name="WUD_TRIGGER_DOCKER_{trigger_name}_PRELOAD"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    When enabled with `AUTO=false`, automatically downloads updated image layers in the background without restarting the container, ensuring zero-downtime recreation when manually updated
+  </ConfigOption>
+
+  <ConfigOption
     name="WUD_TRIGGER_DOCKER_{trigger_name}_PRUNE"
     required={false}
     type="boolean"

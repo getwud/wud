@@ -34,6 +34,7 @@ test('validateConfiguration should return validated configuration when valid', a
         apprise.validateConfiguration(configurationValid);
     expect(validatedConfiguration).toStrictEqual({
         ...configurationValid,
+        preload: false,
         rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
         events: ['available'],
         successtitle: 'Update SUCCESS for ${container.name}',

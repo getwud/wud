@@ -51,6 +51,7 @@ export interface ContainerResult {
     version?: string;
     link?: string;
     changelogUrl?: string;
+    preloaded?: boolean;
     hook?: {
         phase: string;
         parentTrigger: string;
@@ -227,6 +228,7 @@ const schema = joi.object({
         version: joi.string(),
         link: joi.string(),
         changelogUrl: joi.string().uri().optional().allow(''),
+        preloaded: joi.boolean().optional(),
         hook: joi.object({
             phase: joi.string().valid('pre', 'post'),
             parentTrigger: joi.string(),

@@ -44,6 +44,14 @@ import TabItem from '@theme/TabItem';
     When enabled, only pulls the new image ahead of time without rewriting compose files or restarting
   </ConfigOption>
 
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_PRELOAD"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    When enabled with `AUTO=false`, automatically downloads updated image layers in the background without rewriting compose files or restarting services, ensuring zero-downtime recreation when manually updated
+  </ConfigOption>
+
   <ConfigOption name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_FILE"
     type="path"
     required={false}

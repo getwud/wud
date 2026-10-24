@@ -5,6 +5,7 @@ import Dockercompose, {
     findServiceKeyForContainer,
     isMatchingServiceImage,
 } from './Dockercompose';
+import Docker from '../docker/Docker';
 import { testTriggerProvider } from '../TriggerTestHelper';
 import { HookManager } from '../../hooks/HookManager';
 import { Container } from '../../../model/container';
@@ -1668,6 +1669,57 @@ services:
 
             watcherSpy.mockRestore();
             selfSpy.mockRestore();
+        });
+    });
+
+    describe('preload', () => {
+        test('supportsPreload should return true', () => {
+            expect(dockercompose.supportsPreload()).toBe(true);
+        });
+
+        test('preload should delegate to super.preload and execute image pull', async () => {
+            const pullImageSpy = jest
+                .spyOn(Docker.prototype, 'pullImage')
+                .mockResolvedValue(undefined);
+
+            const container: any = {
+                id: '123456789',
+                name: 'compose-service',
+                watcher: 'local',
+                updateAvailable: true,
+                updateKind: {
+                    kind: 'tag',
+                    remoteValue: '2.0.0',
+                    semverDiff: 'major',
+                },
+                image: {
+                    name: 'my-compose-app',
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    registry: { name: 'hub', url: 'hub.docker.com' },
+                },
+                result: { tag: '2.0.0' },
+            };
+
+            const watcherSpy = jest
+                .spyOn(dockercompose, 'getWatcher')
+                .mockReturnValue({
+                    dockerApi: {},
+                } as any);
+
+            await dockercompose.preload(container);
+
+            expect(pullImageSpy).toHaveBeenCalledWith(
+                expect.anything(),
+                undefined,
+                expect.stringContaining('2.0.0'),
+                expect.anything(),
+                expect.anything(),
+            );
+            expect(container.result.preloaded).toBe(true);
+
+            pullImageSpy.mockRestore();
+            watcherSpy.mockRestore();
         });
     });
 });

@@ -1150,6 +1150,20 @@ class Dockercompose extends Docker {
     }
 
     /**
+     * Whether this trigger supports background image preloading.
+     */
+    supportsPreload(): boolean {
+        return true;
+    }
+
+    /**
+     * Preload image for container: delegate to Docker trigger.
+     */
+    async preload(container: Container): Promise<void> {
+        return super.preload(container);
+    }
+
+    /**
      * Read docker-compose file as an object.
      * @param file - Optional file path, defaults to configuration file
      * @returns {Promise<any>}

@@ -29,6 +29,7 @@ test('validateConfiguration should return validated configuration when valid', a
         command.validateConfiguration(configurationValid);
     expect(validatedConfiguration).toStrictEqual({
         ...configurationValid,
+        preload: false,
         rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
         events: ['available'],
         successtitle: 'Update SUCCESS for ${container.name}',
@@ -46,6 +47,7 @@ test('validateConfiguration should apply_default_configuration', async () => {
     });
     expect(validatedConfiguration).toStrictEqual({
         ...configurationValid,
+        preload: false,
         rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
         events: ['available'],
         successtitle: 'Update SUCCESS for ${container.name}',

@@ -1849,6 +1849,103 @@ class Docker extends Trigger {
     }
 
     /**
+     * Whether this trigger supports background image preloading.
+     */
+    supportsPreload(): boolean {
+        return true;
+    }
+
+    /**
+     * Preload image for container without touching running instances.
+     */
+    async preload(container: Container): Promise<void> {
+        const logContainer = this.log.child({ container: fullName(container) });
+
+        if (!container.updateAvailable) {
+            logContainer.info(
+                `No update available for container ${fullName(container)} => skip preload`,
+            );
+            return;
+        }
+
+        if (!this.hasResolvableUpdate(container)) {
+            const candidateTag =
+                container.updateKind?.remoteValue ??
+                container.result?.tag ??
+                'null';
+            logContainer.info(
+                `No resolvable update for container ${fullName(container)} (newTag: ${candidateTag}) => skip preload`,
+            );
+            return;
+        }
+
+        const watcher = this.getWatcher(container);
+        if (!watcher || !watcher.dockerApi) {
+            logContainer.error(
+                `Watcher ${container.watcher} not found for container ${fullName(container)}`,
+            );
+            throw new Error(
+                `Watcher ${container.watcher} not found for container ${fullName(container)}`,
+            );
+        }
+
+        const { dockerApi } = watcher;
+        const registry = getState().registry[container.image.registry.name];
+        const auth = registry ? await registry.getAuthPull() : undefined;
+
+        // Determine image pull target:
+        // - If SemVer tag (container.image.tag.semver): pull candidate tag (repo:${container.result.tag})
+        // - If floating tag or digest watch (!container.image.tag.semver or container.image.digest.watch):
+        //   pull strictly by manifest digest (repo@sha256:${container.result.digest}) to keep daemon RepoTags intact
+        const isSemver =
+            container.image.tag?.semver && !container.image.digest?.watch;
+        let targetTagOrDigest: string;
+
+        if (isSemver) {
+            targetTagOrDigest =
+                container.updateKind?.remoteValue ??
+                container.result?.tag ??
+                container.image.tag.value;
+        } else {
+            const digest =
+                container.result?.digest ??
+                (container.updateKind?.kind === 'digest'
+                    ? container.updateKind.remoteValue
+                    : undefined);
+            if (digest) {
+                targetTagOrDigest = digest.includes(':')
+                    ? digest
+                    : `sha256:${digest}`;
+            } else {
+                targetTagOrDigest =
+                    container.updateKind?.remoteValue ??
+                    container.result?.tag ??
+                    container.image.tag?.value ??
+                    'latest';
+            }
+        }
+
+        const imageFullName = registry
+            ? registry.getImageFullName(container.image, targetTagOrDigest)
+            : targetTagOrDigest;
+
+        await this.pullImage(
+            dockerApi,
+            auth,
+            imageFullName,
+            logContainer,
+            registry,
+        );
+
+        logContainer.info(
+            `Preloaded image ${imageFullName} for container ${container.name}`,
+        );
+        if (container.result) {
+            container.result.preloaded = true;
+        }
+    }
+
+    /**
      * Update the container.
      */
     async trigger(

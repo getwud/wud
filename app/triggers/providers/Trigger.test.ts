@@ -42,6 +42,7 @@ test('validateConfiguration should return validated configuration when valid', a
         trigger.validateConfiguration(configurationValid);
     expect(validatedConfiguration).toStrictEqual({
         ...configurationValid,
+        preload: false,
         rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
         events: ['available'],
         successtitle: 'Update SUCCESS for ${container.name}',
@@ -1606,6 +1607,193 @@ describe('granular per-trigger labels (fixes #691)', () => {
             expect(testTrigger.renderBatchTitle([failureContainer])).toEqual(
                 'Update FAILED for my-app',
             );
+        });
+    });
+
+    describe('preload mode', () => {
+        let preloadTrigger;
+
+        class PreloadCapableTrigger extends Trigger {
+            supportsPreload() {
+                return true;
+            }
+            async preload(container) {
+                // mock implementation
+            }
+        }
+
+        beforeEach(() => {
+            preloadTrigger = new PreloadCapableTrigger();
+            preloadTrigger.type = 'docker';
+            preloadTrigger.name = 'test';
+            preloadTrigger.log = log;
+            preloadTrigger.configuration = {
+                auto: false,
+                preload: true,
+                threshold: 'all',
+                includebydefault: true,
+                ondigest: true,
+            };
+        });
+
+        test('base Trigger should have supportsPreload=false by default', () => {
+            const baseTrigger = new Trigger();
+            expect(baseTrigger.supportsPreload()).toBe(false);
+        });
+
+        test('base Trigger preload() should be a no-op resolving void', async () => {
+            const baseTrigger = new Trigger();
+            await expect(baseTrigger.preload({})).resolves.toBeUndefined();
+        });
+
+        test('init should register to container report when auto=false, preload=true, supportsPreload=true', async () => {
+            const spy = jest.spyOn(event, 'registerContainerReport');
+            await preloadTrigger.init();
+            expect(spy).toHaveBeenCalled();
+        });
+
+        test('init should not register to container report when auto=false and preload=false', async () => {
+            const spy = jest.spyOn(event, 'registerContainerReport');
+            preloadTrigger.configuration.preload = false;
+            await preloadTrigger.init();
+            expect(spy).not.toHaveBeenCalled();
+        });
+
+        test('init should not register to container report when auto=false and supportsPreload=false', async () => {
+            const spy = jest.spyOn(event, 'registerContainerReport');
+            const unsupportingTrigger = new Trigger();
+            unsupportingTrigger.log = log;
+            unsupportingTrigger.configuration = {
+                auto: false,
+                preload: true,
+            };
+            await unsupportingTrigger.init();
+            expect(spy).not.toHaveBeenCalled();
+        });
+
+        test('handleContainerPreload should ignore null or undefined container', async () => {
+            const spyPreload = jest.spyOn(preloadTrigger, 'preload');
+            await preloadTrigger.handleContainerPreload({});
+            await preloadTrigger.handleContainerPreload({ container: null });
+            expect(spyPreload).not.toHaveBeenCalled();
+        });
+
+        test('handleContainerPreload should ignore container with error', async () => {
+            const spyPreload = jest.spyOn(preloadTrigger, 'preload');
+            await preloadTrigger.handleContainerPreload({
+                container: {
+                    name: 'broken',
+                    error: { message: 'something bad' },
+                    updateAvailable: true,
+                },
+            });
+            expect(spyPreload).not.toHaveBeenCalled();
+        });
+
+        test('handleContainerPreload should ignore container when updateAvailable is false', async () => {
+            const spyPreload = jest.spyOn(preloadTrigger, 'preload');
+            await preloadTrigger.handleContainerPreload({
+                container: {
+                    name: 'up-to-date',
+                    updateAvailable: false,
+                    result: { tag: '1.0.0' },
+                },
+            });
+            expect(spyPreload).not.toHaveBeenCalled();
+        });
+
+        test('handleContainerPreload should ignore container when threshold not reached', async () => {
+            const spyPreload = jest.spyOn(preloadTrigger, 'preload');
+            preloadTrigger.configuration.threshold = 'patch';
+            await preloadTrigger.handleContainerPreload({
+                container: {
+                    name: 'major-update',
+                    updateAvailable: true,
+                    updateKind: { kind: 'tag', semverDiff: 'major' },
+                    result: { tag: '2.0.0' },
+                },
+            });
+            expect(spyPreload).not.toHaveBeenCalled();
+        });
+
+        test('handleContainerPreload should ignore container when preload disabled by container label', async () => {
+            const spyPreload = jest.spyOn(preloadTrigger, 'preload');
+            await preloadTrigger.handleContainerPreload({
+                container: {
+                    name: 'no-preload',
+                    updateAvailable: true,
+                    labels: { 'wud.trigger.docker.test.preload': 'false' },
+                    result: { tag: '2.0.0' },
+                },
+            });
+            expect(spyPreload).not.toHaveBeenCalled();
+        });
+
+        test('handleContainerPreload should honor generic trigger.preload=false label', async () => {
+            const spyPreload = jest.spyOn(preloadTrigger, 'preload');
+            await preloadTrigger.handleContainerPreload({
+                container: {
+                    name: 'no-preload-generic',
+                    updateAvailable: true,
+                    labels: { 'wud.trigger.preload': 'false' },
+                    result: { tag: '2.0.0' },
+                },
+            });
+            expect(spyPreload).not.toHaveBeenCalled();
+        });
+
+        test('handleContainerPreload should honor trigger.preload=true label when trigger config has preload=false', async () => {
+            preloadTrigger.configuration.preload = false;
+            const spyPreload = jest.spyOn(preloadTrigger, 'preload');
+            const container = {
+                name: 'preload-by-label',
+                updateAvailable: true,
+                labels: { 'wud.trigger.preload': 'true' },
+                result: { tag: '2.0.0' },
+            };
+            await preloadTrigger.handleContainerPreload({ container });
+            expect(spyPreload).toHaveBeenCalledWith(container);
+            expect(container.result.preloaded).toBe(true);
+        });
+
+        test('handleContainerPreload should call preload and set container.result.preloaded=true', async () => {
+            const spyPreload = jest.spyOn(preloadTrigger, 'preload');
+            const container = {
+                name: 'ready-to-preload',
+                watcher: 'local',
+                updateAvailable: true,
+                result: { tag: '2.0.0' },
+            };
+            await preloadTrigger.handleContainerPreload({ container });
+            expect(spyPreload).toHaveBeenCalledWith(container);
+            expect(container.result.preloaded).toBe(true);
+        });
+
+        test('handleContainerPreload should skip when container.result.preloaded is already true', async () => {
+            const spyPreload = jest.spyOn(preloadTrigger, 'preload');
+            const container = {
+                name: 'already-preloaded',
+                updateAvailable: true,
+                result: { tag: '2.0.0', preloaded: true },
+            };
+            await preloadTrigger.handleContainerPreload({ container });
+            expect(spyPreload).not.toHaveBeenCalled();
+        });
+
+        test('handleContainerPreload should catch and log preload errors without rethrowing', async () => {
+            jest.spyOn(preloadTrigger, 'preload').mockRejectedValue(
+                new Error('Docker daemon disconnected'),
+            );
+            const container = {
+                name: 'fail-preload',
+                watcher: 'local',
+                updateAvailable: true,
+                result: { tag: '2.0.0' },
+            };
+            await expect(
+                preloadTrigger.handleContainerPreload({ container }),
+            ).resolves.toBeUndefined();
+            expect(container.result.preloaded).toBeUndefined();
         });
     });
 });
