@@ -3,10 +3,11 @@ import Component, { ComponentConfiguration } from '../../registry/Component';
 import * as event from '../../event';
 import { getTriggerCounter } from '../../prometheus/trigger';
 import { fullName, Container } from '../../model/container';
-import { AlternativesSchema, ObjectSchema } from 'joi';
+import { ObjectSchema } from 'joi';
 
 export interface TriggerConfiguration extends ComponentConfiguration {
     auto?: boolean;
+    preload?: boolean;
     events?: string | string[];
     threshold?: string;
     mode?: string;
@@ -612,6 +613,102 @@ class Trigger extends Component {
     }
 
     /**
+     * Check if a container matches this trigger's conditions (threshold, inclusion/exclusion, digest).
+     */
+    isTriggerContainerMatch(container: Container): boolean {
+        return (
+            Trigger.isThresholdReached(
+                container,
+                (this.configuration.threshold || 'all').toLowerCase(),
+            ) && this.mustTrigger(container)
+        );
+    }
+
+    /**
+     * Return true if image preloading is enabled for this container.
+     */
+    isPreloadEnabled(container: Container): boolean {
+        const preload = this.configuration.preload === true;
+        const labels = container.labels as Record<string, unknown> | undefined;
+        if (this.type && this.name) {
+            const instanceVal = Trigger.parseBooleanLabel(
+                Trigger.findLabelValue(
+                    labels,
+                    `trigger.${this.type}.${this.name}.preload`,
+                ),
+            );
+            if (instanceVal !== undefined) {
+                return instanceVal;
+            }
+        }
+        if (this.type) {
+            const typeVal = Trigger.parseBooleanLabel(
+                Trigger.findLabelValue(labels, `trigger.${this.type}.preload`),
+            );
+            if (typeVal !== undefined) {
+                return typeVal;
+            }
+        }
+        const genericVal = Trigger.parseBooleanLabel(
+            Trigger.findLabelValue(labels, 'trigger.preload'),
+        );
+        if (genericVal !== undefined) {
+            return genericVal;
+        }
+        return preload;
+    }
+
+    /**
+     * Whether this trigger supports background image preloading.
+     */
+    supportsPreload(): boolean {
+        return false;
+    }
+
+    /**
+     * Preload image for container. Must be overridden in trigger implementation class.
+     */
+    async preload(_container: Container): Promise<void> {
+        // do nothing by default
+    }
+
+    /**
+     * Handle container preload report.
+     */
+    async handleContainerPreload(report: ContainerReport) {
+        const container = report?.container;
+        if (!container) {
+            return;
+        }
+        if (container.error !== undefined) {
+            return;
+        }
+        if (!container.updateAvailable) {
+            return;
+        }
+        if (!this.isTriggerContainerMatch(container)) {
+            return;
+        }
+        if (!this.isPreloadEnabled(container)) {
+            return;
+        }
+        if (container.result && !container.result.preloaded) {
+            const logContainer =
+                this.log.child({
+                    container: fullName(container),
+                }) || this.log;
+            try {
+                logContainer.debug('Preload image');
+                await this.preload(container);
+                container.result.preloaded = true;
+            } catch (e: any) {
+                logContainer.warn(`Preload error (${e.message})`);
+                logContainer.debug(e);
+            }
+        }
+    }
+
+    /**
      * Init the Trigger.
      */
     async init() {
@@ -649,6 +746,14 @@ class Trigger extends Component {
             );
         } else {
             this.log.info(`Registering for manual execution`);
+            if (this.configuration.preload && this.supportsPreload()) {
+                this.log.info(
+                    'Preload mode enabled: listening for container updates to pre-cache images',
+                );
+                event.registerContainerReport(async (containerReport) =>
+                    this.handleContainerPreload(containerReport),
+                );
+            }
         }
 
         // Rollback notification plumbing: only triggers that explicitly declare
@@ -768,6 +873,7 @@ class Trigger extends Component {
             rollbackbody: this.joi
                 .string()
                 .default(Trigger.DEFAULT_ROLLBACK_BODY),
+            preload: this.joi.boolean().default(false),
             includebydefault: this.joi.boolean(),
             ondigest: this.joi.boolean(),
         });

@@ -7,6 +7,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 > Changes below are merged on `main` and will be included in the upcoming release.
 
+- 🚀 [TRIGGER] Add image preloading option for Docker and Docker Compose triggers (closes #1434).
 - 🐛 [AUTH] Support passwords containing colons in Basic authentication per RFC 7617 (fixes #1451).
 - 🐛 [CORE] Prevent startup crash caused by unhandled validation errors on invalid `documentationUrl` in store records (#1441).
 - 🐛 [PROMETHEUS] Add `result_changelog_url` to Prometheus container metrics gauge and filter undeclared labels to prevent container drop (fixes #1452).

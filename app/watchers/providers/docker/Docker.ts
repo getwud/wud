@@ -2008,13 +2008,49 @@ export class Docker extends Watcher {
                     tag && tag !== '<none>:<none>' && !tag.endsWith(':<none>'),
             );
             if (validRepoTags.length === 0) {
-                this.log.warn(
-                    `Cannot get a reliable tag for this image [${imageNameToParse}]`,
-                );
-                return Promise.resolve();
+                let configImage = container.Config?.Image;
+                if (
+                    !configImage &&
+                    this.dockerApi &&
+                    (container.Id || container.id)
+                ) {
+                    try {
+                        const containerInspect = await this.dockerApi
+                            .getContainer(container.Id || container.id)
+                            .inspect();
+                        configImage = containerInspect?.Config?.Image;
+                    } catch {
+                        // ignore inspect error
+                    }
+                }
+                const isConfigImageId =
+                    typeof configImage === 'string' &&
+                    (configImage.startsWith('sha256:') ||
+                        /^[a-f0-9]{64}$/i.test(configImage) ||
+                        (rawImageId !== '' &&
+                            configImage.replace(/^sha256:/, '').length >= 12 &&
+                            /^[a-f0-9]+$/i.test(
+                                configImage.replace(/^sha256:/, ''),
+                            ) &&
+                            rawImageId.startsWith(
+                                configImage.replace(/^sha256:/, ''),
+                            )));
+
+                if (configImage && !isConfigImageId) {
+                    this.log.info(
+                        `Image tags missing from daemon; recovering image name from container config [${configImage}]`,
+                    );
+                    imageNameToParse = configImage;
+                } else {
+                    this.log.warn(
+                        `Cannot get a reliable tag for this image [${imageNameToParse}]`,
+                    );
+                    return Promise.resolve();
+                }
+            } else {
+                // Get the first repo tag (better than nothing ;)
+                [imageNameToParse] = validRepoTags;
             }
-            // Get the first repo tag (better than nothing ;)
-            [imageNameToParse] = validRepoTags;
         }
 
         if (imageNameToParse.includes('@')) {

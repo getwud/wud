@@ -31,6 +31,7 @@ const configurationValid = {
         'Container ${container.name} running with ${container.updateKind.kind} ${container.updateKind.localValue} can be updated to ${container.updateKind.kind} ${container.updateKind.remoteValue}${container.result && container.result.link ? "\\n" + container.result.link : ""}',
 
     batchtitle: '${containers.length} updates available',
+    preload: false,
     rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
     events: ['available'],
     successtitle: 'Update SUCCESS for ${container.name}',

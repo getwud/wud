@@ -125,7 +125,7 @@ jest.mock('../../../registry', () => ({
                     withPullPermit: (pull) => pull(),
                     deferPulls: () => undefined,
                     getImageFullName: (image, tagOrDigest) =>
-                        `${image.registry.url}/${image.name}:${tagOrDigest}`,
+                        `${image.registry.url}/${image.name}${tagOrDigest && tagOrDigest.includes(':') ? '@' : ':'}${tagOrDigest}`,
                 },
             },
         };
@@ -141,6 +141,7 @@ test('validateConfiguration should return validated configuration when valid', a
         docker.validateConfiguration(configurationValid);
     expect(validatedConfiguration).toStrictEqual({
         ...configurationValid,
+        preload: false,
         rollbacktitle: Trigger.DEFAULT_ROLLBACK_TITLE,
         events: ['available'],
         successtitle: 'Update SUCCESS for ${container.name}',
@@ -2879,5 +2880,185 @@ describe('pull rate limiting', () => {
         expect(events[0]).toBe('deferPulls:1500');
         expect(events[1]).toBe('pull2Started');
         expect(events[2]).toBe('pull1Retried');
+    });
+
+    describe('preload', () => {
+        let pullImageSpy;
+
+        beforeEach(() => {
+            pullImageSpy = jest
+                .spyOn(docker, 'pullImage')
+                .mockResolvedValue(undefined);
+        });
+
+        test('supportsPreload should return true', () => {
+            expect(docker.supportsPreload()).toBe(true);
+        });
+
+        test('preload should skip when updateAvailable is false', async () => {
+            const container = {
+                id: '123456789',
+                name: 'test-app',
+                watcher: 'test',
+                updateAvailable: false,
+                image: {
+                    name: 'test',
+                    tag: { value: '1.0.0', semver: true },
+                    registry: { name: 'hub', url: 'hub.docker.com' },
+                },
+                result: { tag: '1.1.0' },
+            };
+            await docker.preload(container);
+            expect(pullImageSpy).not.toHaveBeenCalled();
+            expect(container.result.preloaded).toBeUndefined();
+        });
+
+        test('preload should skip when hasResolvableUpdate is false', async () => {
+            const container = {
+                id: '123456789',
+                name: 'test-app',
+                watcher: 'test',
+                updateAvailable: true,
+                updateKind: { kind: 'tag', remoteValue: '1.0.0' },
+                image: {
+                    name: 'test',
+                    tag: { value: '1.0.0', semver: true },
+                    registry: { name: 'hub', url: 'hub.docker.com' },
+                },
+                result: { tag: '1.0.0' },
+            };
+            await docker.preload(container);
+            expect(pullImageSpy).not.toHaveBeenCalled();
+            expect(container.result.preloaded).toBeUndefined();
+        });
+
+        test('preload should throw when watcher is missing', async () => {
+            const container = {
+                id: '123456789',
+                name: 'test-app',
+                watcher: 'unknown',
+                updateAvailable: true,
+                updateKind: { kind: 'tag', remoteValue: '1.1.0' },
+                image: {
+                    name: 'test',
+                    tag: { value: '1.0.0', semver: true },
+                    registry: { name: 'hub', url: 'hub.docker.com' },
+                },
+                result: { tag: '1.1.0' },
+            };
+            await expect(docker.preload(container)).rejects.toThrow(
+                /Watcher unknown not found/,
+            );
+        });
+
+        test('preload should pull candidate tag for semver image and mark preloaded', async () => {
+            const container = {
+                id: '123456789',
+                name: 'test-app',
+                watcher: 'test',
+                updateAvailable: true,
+                updateKind: {
+                    kind: 'tag',
+                    remoteValue: '1.1.0',
+                    semverDiff: 'minor',
+                },
+                image: {
+                    name: 'test',
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    registry: { name: 'hub', url: 'hub.docker.com' },
+                },
+                result: { tag: '1.1.0' },
+            };
+            await docker.preload(container);
+            expect(pullImageSpy).toHaveBeenCalledWith(
+                expect.anything(),
+                undefined,
+                'hub.docker.com/test:1.1.0',
+                expect.anything(),
+                expect.anything(),
+            );
+            expect(container.result.preloaded).toBe(true);
+        });
+
+        test('preload should pull by manifest digest for floating tag image', async () => {
+            const container = {
+                id: '123456789',
+                name: 'test-app',
+                watcher: 'test',
+                updateAvailable: true,
+                updateKind: {
+                    kind: 'digest',
+                    remoteValue: 'sha256:remote-digest-123',
+                },
+                image: {
+                    name: 'test',
+                    tag: { value: 'latest', semver: false },
+                    digest: { watch: false, value: 'sha256:local-digest-000' },
+                    registry: { name: 'hub', url: 'hub.docker.com' },
+                },
+                result: { tag: 'latest', digest: 'sha256:remote-digest-123' },
+            };
+            await docker.preload(container);
+            expect(pullImageSpy).toHaveBeenCalledWith(
+                expect.anything(),
+                undefined,
+                'hub.docker.com/test@sha256:remote-digest-123',
+                expect.anything(),
+                expect.anything(),
+            );
+            expect(container.result.preloaded).toBe(true);
+        });
+
+        test('preload should pull by manifest digest when digest watch is enabled on semver image', async () => {
+            const container = {
+                id: '123456789',
+                name: 'test-app',
+                watcher: 'test',
+                updateAvailable: true,
+                updateKind: {
+                    kind: 'digest',
+                    remoteValue: 'sha256:digest-abc',
+                },
+                image: {
+                    name: 'test',
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: true, value: 'sha256:digest-old' },
+                    registry: { name: 'hub', url: 'hub.docker.com' },
+                },
+                result: { tag: '1.0.0', digest: 'sha256:digest-abc' },
+            };
+            await docker.preload(container);
+            expect(pullImageSpy).toHaveBeenCalledWith(
+                expect.anything(),
+                undefined,
+                'hub.docker.com/test@sha256:digest-abc',
+                expect.anything(),
+                expect.anything(),
+            );
+            expect(container.result.preloaded).toBe(true);
+        });
+
+        test('preload should never call container stop, remove, or createContainer', async () => {
+            const watcher = docker.getWatcher({ watcher: 'test' });
+            const createSpy = jest.spyOn(watcher.dockerApi, 'createContainer');
+
+            const container = {
+                id: '123456789',
+                name: 'test-app',
+                watcher: 'test',
+                updateAvailable: true,
+                updateKind: { kind: 'tag', remoteValue: '1.1.0' },
+                image: {
+                    name: 'test',
+                    tag: { value: '1.0.0', semver: true },
+                    registry: { name: 'hub', url: 'hub.docker.com' },
+                },
+                result: { tag: '1.1.0' },
+            };
+
+            await docker.preload(container);
+            expect(createSpy).not.toHaveBeenCalled();
+        });
     });
 });

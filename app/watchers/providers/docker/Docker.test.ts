@@ -3064,6 +3064,51 @@ describe('Docker Watcher', () => {
             expect(result).toBeUndefined();
         });
 
+        test('should fallback to container.Config.Image when RepoTags is empty', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockLog = {
+                info: jest.fn(),
+                warn: jest.fn(),
+                debug: jest.fn(),
+            };
+            docker.log = mockLog;
+            const container = {
+                Id: '123',
+                Image: 'sha256:abcdef123456',
+                Names: ['/test'],
+                State: 'running',
+                Labels: {},
+            };
+            const imageDetails = {
+                Id: 'sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+                RepoTags: [],
+                Architecture: 'amd64',
+                Os: 'linux',
+            };
+            mockImage.inspect.mockResolvedValue(imageDetails);
+            mockContainer.inspect.mockResolvedValue({
+                Config: {
+                    Image: 'my-org/my-app:latest',
+                },
+            });
+            mockParse.mockReturnValue({
+                path: 'my-org/my-app',
+                tag: 'latest',
+            });
+
+            const result = await docker.addImageDetailsToContainer(container);
+
+            expect(mockLog.info).toHaveBeenCalledWith(
+                expect.stringContaining(
+                    'recovering image name from container config [my-org/my-app:latest]',
+                ),
+            );
+            expect(mockParse).toHaveBeenCalledWith('my-org/my-app:latest');
+            expect(result).toBeDefined();
+            expect(result.image.name).toBe('my-org/my-app');
+            expect(result.image.tag.value).toBe('latest');
+        });
+
         test('should warn for non-semver without digest watching', async () => {
             await docker.register('watcher', 'docker', 'test', {});
             const mockLog = { warn: jest.fn() };

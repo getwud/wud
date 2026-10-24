@@ -25,7 +25,15 @@ import TabItem from '@theme/TabItem';
     required={false}
     type="boolean"
     defaultValue="false">
-    When enabled, only pulls the new image ahead of time without recreating the container
+    Simulation mode: pulls the new image to verify registry availability, but **never** stops or recreates the container (even during manual execution via Home Assistant, UI, or API). Not intended for preparing future manual updates (see `PRELOAD` instead)
+  </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKER_{trigger_name}_PRELOAD"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    When enabled with `AUTO=false`, automatically downloads updated image layers in the background (using pull-by-digest for floating tags) without restarting or recreating the container. When an operator triggers the manual update later (via Home Assistant, Web UI, or API), container recreation is instantaneous (&lt; 1s) with zero network wait
   </ConfigOption>
 
   <ConfigOption
@@ -87,6 +95,37 @@ import TabItem from '@theme/TabItem';
 
 :::info
 This trigger also supports all [common trigger configuration options](../README.md#common-trigger-configuration) (such as thresholds, scheduling, and batching).
+:::
+
+---
+
+## ⚡ Operating Modes: Auto, Preload & Dry-Run
+
+When configuring the Docker trigger alongside the common `AUTO` setting (`WUD_TRIGGER_DOCKER_{trigger_name}_AUTO`), it is essential to distinguish between **`DRYRUN`** and **`PRELOAD`**:
+
+- **`DRYRUN` (Simulation / Test mode)**:  
+  Validates credentials and pulls the new image to verify registry availability, but **never** stops or recreates the container. This applies even if you manually trigger an update from the Web UI, Home Assistant, or REST API. `DRYRUN` is strictly intended for testing and validation—it is **not** meant for preparing a future manual update.
+
+- **`PRELOAD` (Controlled Manual Updates with Zero Downtime)**:  
+  Designed specifically for production workflows where automated updates are disabled (`AUTO=false`) to avoid unexpected restarts. When an update is detected, WUD downloads all image layers in the background ahead of time. For floating tags (such as `:latest`), WUD pulls specifically by manifest digest so running containers keep their existing tag references intact. When an operator triggers the update later (via Home Assistant button, Web UI, or API), container recreation is instantaneous (&lt; 1s) because all layers are already present locally.
+
+### Mode Comparison
+
+The table below summarizes the four typical operating modes:
+
+| Mode | `AUTO` | `PRELOAD` | `DRYRUN` | Behavior & Use Case |
+| :--- | :---: | :---: | :---: | :--- |
+| **Fully Automated** | `true` | `false` | `false` | **Hands-off auto-update:** Containers are immediately pulled and recreated as soon as an update is detected. |
+| **Fully Manual** | `false` | `false` | `false` | **Standard manual update:** WUD notifies when an update is available without downloading images in advance. When triggered manually, WUD pulls the image and recreates the container (downtime includes download time). |
+| **Manual with Zero-Downtime Preload** | `false` | `true` | `false` | **Optimized maintenance:** WUD pre-caches image layers in the background without touching running containers. When triggered manually, container recreation is instantaneous (&lt; 1s) with zero network wait. |
+| **Simulation / Test** | * | * | `true` | **Test mode only:** Pulls images to test network and registry access, but **never** stops, removes, or recreates containers (even on manual execution). |
+
+:::tip[Per-Container Preload Configuration]
+Preload can also be opted into per container using Docker labels:
+
+- `wud.trigger.preload=true` (applies to all triggers supporting preload)
+- `wud.trigger.docker.<trigger_name>.preload=true` (applies to a specific trigger instance)
+
 :::
 
 ---
@@ -390,6 +429,42 @@ docker run -d \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -e WUD_TRIGGER_DOCKER_LOCAL_PRUNE=true \
   -e WUD_TRIGGER_DOCKER_LOCAL_SELFUPDATE=true \
+  getwud/wud
+```
+
+</TabItem>
+</Tabs>
+
+### Controlled Manual Updates with Background Preloading
+
+Combine `AUTO=false` and `PRELOAD=true` so updated image layers are pre-cached in the background, allowing instantaneous recreation when manually triggered:
+
+<Tabs>
+<TabItem value="docker-compose" label="Docker Compose">
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # Disable automatic container recreation
+      - WUD_TRIGGER_DOCKER_LOCAL_AUTO=false
+      # Preload updated image layers in the background
+      - WUD_TRIGGER_DOCKER_LOCAL_PRELOAD=true
+      - WUD_TRIGGER_DOCKER_LOCAL_PRUNE=true
+```
+
+</TabItem>
+<TabItem value="docker" label="Docker">
+
+```bash
+docker run -d \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -e WUD_TRIGGER_DOCKER_LOCAL_AUTO=false \
+  -e WUD_TRIGGER_DOCKER_LOCAL_PRELOAD=true \
+  -e WUD_TRIGGER_DOCKER_LOCAL_PRUNE=true \
   getwud/wud
 ```
 
