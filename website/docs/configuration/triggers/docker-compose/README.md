@@ -41,7 +41,7 @@ import TabItem from '@theme/TabItem';
     required={false}
     type="boolean"
     defaultValue="false">
-    When enabled, only pulls the new image ahead of time without rewriting compose files or restarting
+    Simulation mode: pulls the new image to verify registry availability, but **never** rewrites compose files or recreates services (even during manual execution via Home Assistant, UI, or API). Not intended for preparing future manual updates (see `PRELOAD` instead)
   </ConfigOption>
 
   <ConfigOption
@@ -49,7 +49,7 @@ import TabItem from '@theme/TabItem';
     required={false}
     type="boolean"
     defaultValue="false">
-    When enabled with `AUTO=false`, automatically downloads updated image layers in the background without rewriting compose files or restarting services, ensuring zero-downtime recreation when manually updated
+    When enabled with `AUTO=false`, automatically downloads updated image layers in the background (using pull-by-digest for floating tags) without rewriting compose files or restarting services. When an operator triggers the manual update later (via Home Assistant, Web UI, or API), stack recreation is instantaneous (&lt; 1s) with zero network wait
   </ConfigOption>
 
   <ConfigOption name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_FILE"
@@ -133,6 +133,37 @@ import TabItem from '@theme/TabItem';
 
 :::info
 This trigger supports all [common trigger configuration options](../README.md#common-trigger-configuration) and runs in `batch` mode by default.
+:::
+
+---
+
+## ⚡ Operating Modes: Auto, Preload & Dry-Run
+
+When configuring the Docker Compose trigger alongside the common `AUTO` setting (`WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_AUTO`), it is essential to distinguish between **`DRYRUN`** and **`PRELOAD`**:
+
+- **`DRYRUN` (Simulation / Test mode)**:  
+  Validates credentials and pulls the new image to verify registry availability, but **never** modifies Compose files, stops containers, or restarts stack services. This applies even if you manually trigger an update from the Web UI, Home Assistant, or REST API. `DRYRUN` is strictly intended for testing and validation—it is **not** meant for preparing a future manual update.
+
+- **`PRELOAD` (Controlled Manual Updates with Zero Downtime)**:  
+  Designed specifically for production workflows where automated updates are disabled (`AUTO=false`) to avoid unexpected stack restarts. When an update is detected, WUD downloads all image layers in the background ahead of time without modifying `docker-compose.yml` or restarting containers. For floating tags (such as `:latest`), WUD pulls specifically by manifest digest so running containers keep their existing tag references intact. When an operator triggers the update later (via Home Assistant button, Web UI, or API), stack recreation is instantaneous (&lt; 1s) because all layers are already present locally.
+
+### Mode Comparison
+
+The table below summarizes the four typical operating modes:
+
+| Mode | `AUTO` | `PRELOAD` | `DRYRUN` | Behavior & Use Case |
+| :--- | :---: | :---: | :---: | :--- |
+| **Fully Automated** | `true` | `false` | `false` | **Hands-off auto-update:** Services and Compose files are immediately updated and recreated as soon as an update is detected. |
+| **Fully Manual** | `false` | `false` | `false` | **Standard manual update:** WUD notifies when an update is available without downloading images in advance. When triggered manually, WUD pulls the image, rewrites the Compose file, and restarts services (downtime includes download time). |
+| **Manual with Zero-Downtime Preload** | `false` | `true` | `false` | **Optimized maintenance:** WUD pre-caches image layers in the background without touching running services or Compose files. When triggered manually, recreation is instantaneous (&lt; 1s) with zero network wait. |
+| **Simulation / Test** | * | * | `true` | **Test mode only:** Pulls images to test network and registry access, but **never** modifies Compose files or recreates services (even on manual execution). |
+
+:::tip[Per-Container Preload Configuration]
+Preload can also be opted into per container using Docker labels:
+
+- `wud.trigger.preload=true` (applies to all triggers supporting preload)
+- `wud.trigger.dockercompose.<trigger_name>.preload=true` (applies to a specific trigger instance)
+
 :::
 
 ---
@@ -376,4 +407,25 @@ services:
       - /opt/stacks:/stacks
     environment:
       - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_FILE=/stacks/$${container.labels['com.docker.compose.project']}/docker-compose.yml
+```
+
+### Controlled Manual Updates with Background Preloading
+
+Combine `AUTO=false` and `PRELOAD=true` so updated image layers are pre-cached in the background without touching Compose files, allowing instantaneous stack updates when triggered manually:
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/stacks/app/docker-compose.yml:/wud/docker-compose.yml
+    environment:
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_FILE=/wud/docker-compose.yml
+      # Disable automatic stack recreation
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_AUTO=false
+      # Preload updated image layers in the background
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_PRELOAD=true
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_BACKUP=true
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_PRUNE=true
 ```
