@@ -8,6 +8,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 > Changes below are merged on `main` and will be included in the upcoming release.
 
 - 🐛 [CORE] Prevent startup crash caused by unhandled validation errors on invalid `documentationUrl` in store records (#1441).
+- 🐛 [PROMETHEUS] Add `result_changelog_url` to Prometheus container metrics gauge and filter undeclared labels to prevent container drop (fixes #1452).
 - 🐛 [REGISTRY] Accept Docker Distribution v1 notification Content-Type so GitLab registry webhook bodies are parsed instead of rejected as malformed.
 - 🐛 [TRIGGER] Clear the Home Assistant MQTT topics of a renamed container, so a self-update no longer leaves a stale `<name>-wud-self-update-<ts>` entity behind (fixes #1438)
 - 🐛 [TRIGGER] Use `wud.link.changelog` as `release_url` in Home Assistant trigger entities and summary attributes (#1437).
