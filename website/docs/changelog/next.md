@@ -10,6 +10,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [CORE] Prevent startup crash caused by unhandled validation errors on invalid `documentationUrl` in store records (#1441).
 - 🐛 [REGISTRY] Accept Docker Distribution v1 notification Content-Type so GitLab registry webhook bodies are parsed instead of rejected as malformed.
 - 🐛 [TRIGGER] Clear the Home Assistant MQTT topics of a renamed container, so a self-update no longer leaves a stale `<name>-wud-self-update-<ts>` entity behind (fixes #1438)
+- 🐛 [TRIGGER] Start restored service by container ID during Compose rollback to prevent 404 error leaving container stopped (fixes #1450).
 - 🐛 [TRIGGER] Use `wud.link.changelog` as `release_url` in Home Assistant trigger entities and summary attributes (#1437).
 - 🐛 [WATCHER] Fix container update detection and trigger firing when transitioning out of cooldown (#1445).
 - 🐛 [WATCHER] Preserve container labels from `Config.Labels` during targeted container reconciliation in Docker watcher (#1435).
