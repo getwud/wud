@@ -406,20 +406,60 @@ class Trigger extends Component {
         // Base logic for pre-update triggers can be added here or in overriding classes
     }
 
+    isMutating(): boolean {
+        return ['docker', 'dockercompose', 'nomad'].includes(this.type);
+    }
+
     async handleContainerUpdateSuccess(container: Container) {
+        if (this.isMutating()) return;
         if (!this.mustTrigger(container)) return;
         if (!this.getSubscribedEvents(container).includes('success')) return;
         this.log.debug(
             `Handling successful update event for ${container.name}`,
         );
-        // Base logic for success triggers can be added here or in overriding classes
+        let status = 'error';
+        try {
+            const containerWithEvent: Container = {
+                ...container,
+                updateEvent: 'success',
+            };
+            if (this.configuration.mode === 'batch') {
+                await this.triggerBatch([containerWithEvent]);
+            } else {
+                await this.trigger(containerWithEvent);
+            }
+            status = 'success';
+        } catch (e: any) {
+            this.log.warn(`Error (${e.message})`);
+            this.log.debug(e);
+        } finally {
+            this.increasePrometheusTriggerCounter(status);
+        }
     }
 
     async handleContainerUpdateFailure(container: Container) {
+        if (this.isMutating()) return;
         if (!this.mustTrigger(container)) return;
         if (!this.getSubscribedEvents(container).includes('failure')) return;
         this.log.debug(`Handling failed update event for ${container.name}`);
-        // Base logic for failure triggers can be added here or in overriding classes
+        let status = 'error';
+        try {
+            const containerWithEvent: Container = {
+                ...container,
+                updateEvent: 'failure',
+            };
+            if (this.configuration.mode === 'batch') {
+                await this.triggerBatch([containerWithEvent]);
+            } else {
+                await this.trigger(containerWithEvent);
+            }
+            status = 'success';
+        } catch (e: any) {
+            this.log.warn(`Error (${e.message})`);
+            this.log.debug(e);
+        } finally {
+            this.increasePrometheusTriggerCounter(status);
+        }
     }
 
     isTriggerIncludedOrExcluded(containerResult: Container, trigger: string) {
@@ -819,8 +859,43 @@ class Trigger extends Component {
         const documentationUrl = container.documentationUrl || '';
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const isOfficial = container.isOfficial ?? false;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const error =
+            (container.error &&
+                (typeof container.error === 'string'
+                    ? container.error
+                    : container.error.message)) ||
+            '';
 
         return eval('`' + template + '`');
+    }
+
+    /**
+     * Render trigger title for success event.
+     */
+    renderSuccessTitle(container: Container) {
+        return this.renderTemplate(this.configuration.successtitle!, container);
+    }
+
+    /**
+     * Render trigger body for success event.
+     */
+    renderSuccessBody(container: Container) {
+        return this.renderTemplate(this.configuration.successbody!, container);
+    }
+
+    /**
+     * Render trigger title for failure event.
+     */
+    renderFailureTitle(container: Container) {
+        return this.renderTemplate(this.configuration.failuretitle!, container);
+    }
+
+    /**
+     * Render trigger body for failure event.
+     */
+    renderFailureBody(container: Container) {
+        return this.renderTemplate(this.configuration.failurebody!, container);
     }
 
     /**
@@ -829,6 +904,12 @@ class Trigger extends Component {
      * @returns {*}
      */
     renderSimpleTitle(container: Container) {
+        if (container.updateEvent === 'success') {
+            return this.renderSuccessTitle(container);
+        }
+        if (container.updateEvent === 'failure') {
+            return this.renderFailureTitle(container);
+        }
         return this.renderTemplate(this.configuration.simpletitle!, container);
     }
 
@@ -838,6 +919,12 @@ class Trigger extends Component {
      * @returns {*}
      */
     renderSimpleBody(container: Container) {
+        if (container.updateEvent === 'success') {
+            return this.renderSuccessBody(container);
+        }
+        if (container.updateEvent === 'failure') {
+            return this.renderFailureBody(container);
+        }
         return this.renderTemplate(this.configuration.simplebody!, container);
     }
 
@@ -857,6 +944,14 @@ class Trigger extends Component {
      * @returns {*}
      */
     renderBatchTitle(containers: Container[]) {
+        if (containers.length > 0) {
+            if (containers[0].updateEvent === 'success') {
+                return this.renderSuccessTitle(containers[0]);
+            }
+            if (containers[0].updateEvent === 'failure') {
+                return this.renderFailureTitle(containers[0]);
+            }
+        }
         return this.renderBatch(this.configuration.batchtitle!, containers);
     }
 

@@ -1478,4 +1478,134 @@ describe('granular per-trigger labels (fixes #691)', () => {
             expect(Trigger.parseBooleanLabel('invalid')).toBeUndefined();
         });
     });
+
+    describe('handleContainerUpdateSuccess and handleContainerUpdateFailure', () => {
+        let testTrigger: any;
+
+        beforeEach(() => {
+            testTrigger = new Trigger();
+            testTrigger.type = 'smtp';
+            testTrigger.name = 'email';
+            testTrigger.configuration = testTrigger.validateConfiguration({
+                events: ['success', 'failure'],
+            });
+            testTrigger.trigger = jest.fn().mockResolvedValue(undefined);
+            testTrigger.triggerBatch = jest.fn().mockResolvedValue(undefined);
+        });
+
+        test('handleContainerUpdateSuccess should call trigger with updateEvent=success', async () => {
+            const container: any = {
+                name: 'web',
+                updateAvailable: true,
+            };
+            await testTrigger.handleContainerUpdateSuccess(container);
+            expect(testTrigger.trigger).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: 'web',
+                    updateEvent: 'success',
+                }),
+            );
+        });
+
+        test('handleContainerUpdateSuccess should call triggerBatch when mode is batch', async () => {
+            testTrigger.configuration.mode = 'batch';
+            const container: any = {
+                name: 'web',
+                updateAvailable: true,
+            };
+            await testTrigger.handleContainerUpdateSuccess(container);
+            expect(testTrigger.triggerBatch).toHaveBeenCalledWith([
+                expect.objectContaining({
+                    name: 'web',
+                    updateEvent: 'success',
+                }),
+            ]);
+        });
+
+        test('handleContainerUpdateSuccess should not fire when not subscribed to success event', async () => {
+            testTrigger.configuration.events = ['available'];
+            const container: any = {
+                name: 'web',
+                updateAvailable: true,
+            };
+            await testTrigger.handleContainerUpdateSuccess(container);
+            expect(testTrigger.trigger).not.toHaveBeenCalled();
+        });
+
+        test('handleContainerUpdateSuccess should not fire for mutating triggers', async () => {
+            testTrigger.type = 'docker';
+            const container: any = {
+                name: 'web',
+                updateAvailable: true,
+            };
+            await testTrigger.handleContainerUpdateSuccess(container);
+            expect(testTrigger.trigger).not.toHaveBeenCalled();
+        });
+
+        test('handleContainerUpdateFailure should call trigger with updateEvent=failure', async () => {
+            const container: any = {
+                name: 'web',
+                error: { message: 'container crash' },
+            };
+            await testTrigger.handleContainerUpdateFailure(container);
+            expect(testTrigger.trigger).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: 'web',
+                    updateEvent: 'failure',
+                }),
+            );
+        });
+
+        test('handleContainerUpdateFailure should not fire when not subscribed to failure event', async () => {
+            testTrigger.configuration.events = ['available'];
+            const container: any = {
+                name: 'web',
+            };
+            await testTrigger.handleContainerUpdateFailure(container);
+            expect(testTrigger.trigger).not.toHaveBeenCalled();
+        });
+
+        test('renderSimpleTitle and renderSimpleBody should format success and failure messages', () => {
+            const successContainer: any = {
+                name: 'my-app',
+                updateEvent: 'success',
+            };
+            expect(testTrigger.renderSimpleTitle(successContainer)).toEqual(
+                'Update SUCCESS for my-app',
+            );
+            expect(testTrigger.renderSimpleBody(successContainer)).toEqual(
+                'Container my-app has been successfully updated.',
+            );
+
+            const failureContainer: any = {
+                name: 'my-app',
+                updateEvent: 'failure',
+                error: { message: 'pull timeout' },
+            };
+            expect(testTrigger.renderSimpleTitle(failureContainer)).toEqual(
+                'Update FAILED for my-app',
+            );
+            expect(testTrigger.renderSimpleBody(failureContainer)).toEqual(
+                'Container my-app update failed: pull timeout',
+            );
+        });
+
+        test('renderBatchTitle should format success and failure events', () => {
+            const successContainer: any = {
+                name: 'my-app',
+                updateEvent: 'success',
+            };
+            expect(testTrigger.renderBatchTitle([successContainer])).toEqual(
+                'Update SUCCESS for my-app',
+            );
+
+            const failureContainer: any = {
+                name: 'my-app',
+                updateEvent: 'failure',
+            };
+            expect(testTrigger.renderBatchTitle([failureContainer])).toEqual(
+                'Update FAILED for my-app',
+            );
+        });
+    });
 });
