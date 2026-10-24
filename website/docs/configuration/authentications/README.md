@@ -36,6 +36,20 @@ WUD's startup verification recognizes the OIDC admin group configuration and sta
 If no administrator is found in the database, no bootstrap administrator credentials (`WUD_AUTH_ADMIN_USER`/`PASSWORD`) are provided, and no OIDC admin group is configured, WUD will fail to start and log an explicit error to prevent lockout.
 :::
 
+## Session Secret
+
+WUD signs browser sessions with a secret. By default, it derives this secret from the WUD version and the host's MAC address, which means existing sessions are invalidated when either value changes.
+
+To keep sessions valid across container recreation, upgrades, or host migration, configure a stable random secret with at least 32 characters:
+
+```bash
+WUD_AUTH_SESSION_SECRET=<at-least-32-random-characters>
+```
+
+An explicitly configured empty or shorter value is rejected during startup. As with other sensitive WUD environment variables, you can store the value in a file with `WUD_AUTH_SESSION_SECRET__FILE` instead.
+
+Changing or rotating the configured secret invalidates existing browser sessions.
+
 ---
 
 ## Managing Users & API Tokens
