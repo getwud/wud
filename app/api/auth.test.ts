@@ -2,6 +2,7 @@ import express from 'express';
 import request from 'supertest';
 import * as auth from './auth';
 import * as registry from '../registry';
+import * as configuration from '../configuration';
 import { countLocalUsers, getUserById } from '../store/user';
 
 jest.mock('./SqliteSessionStore', () => {
@@ -47,7 +48,13 @@ jest.mock('uuid', () => ({
 jest.mock('../configuration', () => ({
     getVersion: jest.fn(() => '1.0.0'),
     getLogLevel: jest.fn(() => 'info'),
+    wudEnvVars: {},
 }));
+
+const wudEnvVars = configuration.wudEnvVars as Record<
+    string,
+    string | undefined
+>;
 
 describe('API Auth', () => {
     let app: express.Express;
@@ -62,6 +69,7 @@ describe('API Auth', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        delete wudEnvVars.WUD_AUTH_SESSION_SECRET;
         (registry.getState as jest.Mock).mockReturnValue({
             authentication: {
                 mockAuth: {
@@ -239,6 +247,37 @@ describe('API Auth', () => {
     test('getAllIds should return registered strategy ids', () => {
         const ids = auth.getAllIds();
         expect(ids).toContain('mockAuth');
+    });
+
+    describe('session secret', () => {
+        test('should use the configured session secret', () => {
+            wudEnvVars.WUD_AUTH_SESSION_SECRET = 'a'.repeat(32);
+
+            expect(auth.getSessionSecretKey()).toBe('a'.repeat(32));
+        });
+
+        test('should reject an empty configured session secret', () => {
+            wudEnvVars.WUD_AUTH_SESSION_SECRET = '   ';
+
+            expect(() => auth.getSessionSecretKey()).toThrow(
+                'WUD_AUTH_SESSION_SECRET must be a non-empty value',
+            );
+        });
+
+        test('should reject a configured session secret shorter than 32 characters', () => {
+            wudEnvVars.WUD_AUTH_SESSION_SECRET = 'a'.repeat(31);
+
+            expect(() => auth.getSessionSecretKey()).toThrow(
+                'WUD_AUTH_SESSION_SECRET must be a non-empty value of at least 32 characters',
+            );
+        });
+
+        test('should fall back to the version and MAC-bound secret when unset', () => {
+            expect(auth.getSessionSecretKey()).toBe(
+                '12345678-1234-5678-1234-567812345678',
+            );
+            expect(configuration.getVersion).toHaveBeenCalled();
+        });
     });
 
     describe('passport serializeUser and deserializeUser', () => {

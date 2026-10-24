@@ -7,6 +7,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 > Changes below are merged on `main` and will be included in the upcoming release.
 
+- 🚀 [AUTH] Support a configured session secret via `WUD_AUTH_SESSION_SECRET`, while preserving the version and MAC-bound fallback when unset.
 - 🚀 [TRIGGER] Add image preloading option for Docker and Docker Compose triggers (closes #1434).
 - 🐛 [AUTH] Support passwords containing colons in Basic authentication per RFC 7617 (fixes #1451).
 - 🐛 [CORE] Prevent startup crash caused by unhandled validation errors on invalid `documentationUrl` in store records (#1441).
