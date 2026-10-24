@@ -212,6 +212,66 @@ export function reconcileEntrypoint(
     return normalizeCommand(containerEntrypoint);
 }
 
+/**
+ * Return the IPv4 address of an endpoint as reported by inspect (live address first, then the IPAM request).
+ */
+export function getEndpointIPv4Address(
+    endpointConfig?: Dockerode.EndpointSettings | null,
+): string | undefined {
+    if (!endpointConfig) {
+        return undefined;
+    }
+    return (
+        endpointConfig.IPAddress ||
+        endpointConfig.IPAMConfig?.IPv4Address ||
+        undefined
+    );
+}
+
+/**
+ * Tell whether a MAC address is the one Docker derives from an IPv4 address (02:42:<ip as 4 hex bytes>).
+ *
+ * Docker generates the MAC of every bridge/macvlan/ipvlan endpoint from the IPv4 address it assigns,
+ * so a MAC equal to that derivation was not chosen by the user: it belongs to the address, not to the
+ * container. Returns false when either value is missing or malformed (unknown => keep whatever is there).
+ */
+export function isDockerGeneratedMacAddress(
+    macAddress?: string | null,
+    ipv4Address?: string | null,
+): boolean {
+    if (!macAddress || !ipv4Address) {
+        return false;
+    }
+    const octets = ipv4Address.trim().split('.');
+    if (
+        octets.length !== 4 ||
+        octets.some((octet) => !/^\d{1,3}$/.test(octet) || Number(octet) > 255)
+    ) {
+        return false;
+    }
+    const derived = `02:42:${octets
+        .map((octet) => Number(octet).toString(16).padStart(2, '0'))
+        .join(':')}`;
+    return macAddress.trim().toLowerCase() === derived;
+}
+
+/**
+ * Forward a MAC address only if the user configured it.
+ *
+ * When recreating a container, the replacement gets a fresh IP (the current container still holds its address
+ * while the new one is created), so forwarding the current, Docker-generated MAC pins the new container to a MAC
+ * that belongs to another address. Whichever container is later assigned that address derives the same MAC and
+ * the two then share it on the bridge, which misdelivers frames ("No route to host", 502s). See #1461.
+ */
+export function shouldForwardMacAddress(
+    macAddress?: string | null,
+    ipv4Address?: string | null,
+): boolean {
+    return (
+        !!macAddress && !isDockerGeneratedMacAddress(macAddress, ipv4Address)
+    );
+}
+
 export interface DockerProgressDetail {
     current?: number;
     total?: number;
@@ -838,7 +898,13 @@ class Docker extends Trigger {
         if (endpointConfig.DriverOpts) {
             sanitized.DriverOpts = endpointConfig.DriverOpts;
         }
-        if (endpointConfig.MacAddress) {
+        // Only a user-configured MAC is reusable; a Docker-generated one belongs to the old IP (#1461)
+        if (
+            shouldForwardMacAddress(
+                endpointConfig.MacAddress,
+                getEndpointIPv4Address(endpointConfig),
+            )
+        ) {
             sanitized.MacAddress = endpointConfig.MacAddress;
         }
         const linkLocalIPs = (endpointConfig as any).LinkLocalIPs;
@@ -1202,7 +1268,34 @@ class Docker extends Trigger {
                             !currentContainer.Id.startsWith(alias),
                     );
                 }
+                // Drop the Docker-generated MAC: the replacement gets a new IP and must derive its own (#1461)
+                if (
+                    endpointConfig.MacAddress &&
+                    !shouldForwardMacAddress(
+                        endpointConfig.MacAddress,
+                        getEndpointIPv4Address(endpointConfig),
+                    )
+                ) {
+                    delete endpointConfig.MacAddress;
+                }
             });
+        }
+        // Same for the legacy container-level MacAddress inherited from Config (deprecated since API 1.44):
+        // keep it only when it matches none of the current endpoint addresses, i.e. the user set it.
+        if (containerClone.MacAddress) {
+            const endpointAddresses = Object.values(
+                currentContainer.NetworkSettings?.Networks ?? {},
+            ).map((endpointConfig) => getEndpointIPv4Address(endpointConfig));
+            if (
+                endpointAddresses.some((ipv4Address) =>
+                    isDockerGeneratedMacAddress(
+                        containerClone.MacAddress,
+                        ipv4Address,
+                    ),
+                )
+            ) {
+                delete containerClone.MacAddress;
+            }
         }
         // Handle situation when container is using network_mode: service:other_service
         if (
