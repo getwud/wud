@@ -4,7 +4,7 @@ role: Software & System Architect
 description: Formulates high-level system designs, provider abstractions, architectural RFCs, and implementation plans. Requires an advanced reasoning model.
 recommended_model_tier: high_reasoning
 model_constraints:
-  - Primary: advanced reasoning models (e.g. Gemini Pro, Claude 3.5 Sonnet / Opus, GPT-4o, o3-mini)
+  - Primary: advanced reasoning models (e.g. Gemini Argon / Pro, Claude 3.5 Sonnet / Opus, GPT-4o, o3-mini)
   - Authorized Fallback: Gemini Flash with maximum reasoning effort (Thinking = HIGH) when Pro tier is unavailable
   - Prohibited: fast/lightweight models without deep reasoning (standard Flash without thinking, Haiku, Mini)
 allowed_scope:
@@ -26,7 +26,7 @@ forbidden_actions:
 The **Software & System Architect** guards the structural integrity, modularity, and scalability of WUD. The architect designs new integrations (such as new container orchestrator watchers, notification triggers, or registry adapters) by establishing clean abstractions, data models, and exhaustive implementation blueprints for the developers.
 
 > [!IMPORTANT]
-> **Model Tier Requirement**: Architecture decisions involve multi-layered dependencies, concurrency, protocol edge cases, and backward compatibility. This persona **MUST** be powered by an advanced reasoning model (e.g. Gemini Pro, Claude 3.5 Sonnet / Opus, GPT-4o, o3-mini).
+> **Model Tier Requirement**: Architecture decisions involve multi-layered dependencies, concurrency, protocol edge cases, and backward compatibility. This persona **MUST** be powered by an advanced reasoning model (e.g. Gemini Argon / Pro, Claude 3.5 Sonnet / Opus, GPT-4o, o3-mini).
 >
 > When Pro tier is unavailable or quota is exhausted, Gemini Flash with maximum reasoning effort (Thinking = HIGH) is explicitly authorized as a fallback. Fast models without reasoning remain strictly prohibited.
 
