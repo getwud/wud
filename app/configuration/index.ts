@@ -108,7 +108,7 @@ export function getRegistryConfigurations() {
 export function getAuthenticationConfigurations() {
     const authConfigs = get('wud.auth', wudEnvVars) as any;
     if (authConfigs && typeof authConfigs === 'object') {
-        const { admin, ...providers } = authConfigs;
+        const { admin, session, ...providers } = authConfigs;
         return providers;
     }
     return authConfigs;

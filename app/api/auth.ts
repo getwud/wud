@@ -71,7 +71,7 @@ export function getSessionSecretKey() {
         if (
             typeof configuredSecret !== 'string' ||
             configuredSecret.trim().length === 0 ||
-            configuredSecret.length < MIN_SESSION_SECRET_LENGTH
+            configuredSecret.trim().length < MIN_SESSION_SECRET_LENGTH
         ) {
             throw new Error(
                 `WUD_AUTH_SESSION_SECRET must be a non-empty value of at least ${MIN_SESSION_SECRET_LENGTH} characters`,

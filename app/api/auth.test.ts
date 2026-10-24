@@ -272,6 +272,14 @@ describe('API Auth', () => {
             );
         });
 
+        test('should reject a short configured session secret padded with whitespace', () => {
+            wudEnvVars.WUD_AUTH_SESSION_SECRET = `${'a'.repeat(31)} `;
+
+            expect(() => auth.getSessionSecretKey()).toThrow(
+                'WUD_AUTH_SESSION_SECRET must be a non-empty value of at least 32 characters',
+            );
+        });
+
         test('should fall back to the version and MAC-bound secret when unset', () => {
             expect(auth.getSessionSecretKey()).toBe(
                 '12345678-1234-5678-1234-567812345678',
