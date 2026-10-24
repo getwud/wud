@@ -171,18 +171,51 @@ test('gauge must accept a container carrying a remote version and build date', a
     );
 });
 
-test("gauge must warn when data don't match expected labels", async () => {
-    event.registerContainerAdded.mockImplementation(() => jest.fn());
+test('gauge must filter out undeclared labels without crashing or dropping container', async () => {
+    let onAdded;
+    event.registerContainerAdded.mockImplementation((handler) => {
+        onAdded = handler;
+        return jest.fn();
+    });
     event.registerContainerUpdated.mockImplementation(() => jest.fn());
     event.registerContainerRemoved.mockImplementation(() => jest.fn());
-    store.getContainers = jest.fn(() => [
-        {
-            extra: 'extra',
-        },
-    ]);
+    const containerWithExtra = {
+        ...sampleContainers[0],
+        extra: 'extra',
+    };
+    store.getContainers = jest.fn(() => [containerWithExtra]);
     const spyLog = jest.spyOn(log, 'warn');
-    container.init();
-    expect(spyLog).toHaveBeenCalled();
+    const gauge = container.init();
+    const spySet = jest.spyOn(gauge, 'set');
+    spySet.mockClear();
+    onAdded(containerWithExtra);
+    container.populateGauge();
+    expect(spyLog).not.toHaveBeenCalled();
+    expect(spySet).toHaveBeenCalledTimes(1);
+    expect(spySet.mock.calls[0][0]).not.toHaveProperty('extra');
+});
+
+test('gauge must catch and warn when gauge.set throws an error', async () => {
+    let onAdded;
+    event.registerContainerAdded.mockImplementation((handler) => {
+        onAdded = handler;
+        return jest.fn();
+    });
+    event.registerContainerUpdated.mockImplementation(() => jest.fn());
+    event.registerContainerRemoved.mockImplementation(() => jest.fn());
+    store.getContainers = jest.fn(() => [sampleContainers[0]]);
+    const gauge = container.init();
+    jest.spyOn(gauge, 'set').mockImplementation(() => {
+        throw new Error('gauge error');
+    });
+    const spyLog = jest.spyOn(log, 'warn');
+    onAdded(sampleContainers[0]);
+    container.populateGauge();
+    expect(spyLog).toHaveBeenCalledWith(
+        expect.stringContaining(
+            'Error when adding container to the metrics (gauge error)',
+        ),
+    );
 });
 
 test('collect should skip full rebuild when metrics are clean', async () => {
@@ -294,6 +327,10 @@ test('gauge should register container with rich metadata labels without warning'
             architecture: 'amd64',
             os: 'linux',
         },
+        result: {
+            tag: '2.0.0',
+            changelogUrl: 'https://github.com/example/app/releases/tag/2.0.0',
+        },
     };
     store.getContainers = jest.fn(() => [richContainer]);
 
@@ -312,6 +349,8 @@ test('gauge should register container with rich metadata labels without warning'
             documentation_url: 'https://docs.example.com',
             changelog_url: 'https://github.com/example/app/releases',
             upstream_url: 'https://github.com/example/app',
+            result_changelog_url:
+                'https://github.com/example/app/releases/tag/2.0.0',
         }),
         1,
     );

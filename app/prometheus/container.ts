@@ -12,6 +12,63 @@ let gaugeContainer;
 let metricsDirty = true;
 let listenersRegistered = false;
 
+export const CONTAINER_METRIC_LABEL_NAMES = [
+    'changelog_url',
+    'cooling_down_until',
+    'delay',
+    'display_icon',
+    'display_name',
+    'documentation_url',
+    'error_message',
+    'exclude_tags',
+    'id',
+    'image_architecture',
+    'image_created',
+    'image_digest_repo',
+    'image_digest_value',
+    'image_digest_watch',
+    'image_id',
+    'image_name',
+    'image_os',
+    'image_registry_name',
+    'image_registry_url',
+    'image_tag_semver',
+    'image_tag_value',
+    'image_variant',
+    'include_tags',
+    'is_cooling_down',
+    'is_official',
+    'is_snoozed',
+    'labels',
+    'link_template',
+    'link',
+    'name',
+    'result_changelog_url',
+    'result_created',
+    'result_digest',
+    'result_link',
+    'result_tag',
+    'result_version',
+    'snoozed_until',
+    'snoozed_version',
+    'stack',
+    'status',
+    'transform_tags',
+    'trigger_exclude',
+    'trigger_include',
+    'update_available',
+    'update_kind_kind',
+    'update_kind_local_value',
+    'update_kind_remote_value',
+    'update_kind_semver_diff',
+    'upstream_url',
+    'watcher',
+] as const;
+
+const CONTAINER_METRIC_LABEL_NAMES_SET = new Set<string>(
+    CONTAINER_METRIC_LABEL_NAMES,
+);
+
 /**
  * Populate gauge.
  */
@@ -25,7 +82,11 @@ export function populateGauge() {
         try {
             const flatContainer = flatten(container);
             const flatContainerWithoutLabels = Object.keys(flatContainer)
-                .filter((key) => !key.startsWith('labels_'))
+                .filter(
+                    (key) =>
+                        !key.startsWith('labels_') &&
+                        CONTAINER_METRIC_LABEL_NAMES_SET.has(key),
+                )
                 .reduce((obj, key) => {
                     obj[key] = flatContainer[key];
                     return obj;
@@ -53,57 +114,7 @@ export function init() {
         collect() {
             populateGauge();
         },
-        labelNames: [
-            'changelog_url',
-            'cooling_down_until',
-            'delay',
-            'display_icon',
-            'display_name',
-            'documentation_url',
-            'error_message',
-            'exclude_tags',
-            'id',
-            'image_architecture',
-            'image_created',
-            'image_digest_repo',
-            'image_digest_value',
-            'image_digest_watch',
-            'image_id',
-            'image_name',
-            'image_os',
-            'image_registry_name',
-            'image_registry_url',
-            'image_tag_semver',
-            'image_tag_value',
-            'image_variant',
-            'include_tags',
-            'is_cooling_down',
-            'is_official',
-            'is_snoozed',
-            'labels',
-            'link_template',
-            'link',
-            'name',
-            'result_created',
-            'result_digest',
-            'result_link',
-            'result_tag',
-            'result_version',
-            'snoozed_until',
-            'snoozed_version',
-            'stack',
-            'status',
-            'transform_tags',
-            'trigger_exclude',
-            'trigger_include',
-            'update_available',
-            'update_kind_kind',
-            'update_kind_local_value',
-            'update_kind_remote_value',
-            'update_kind_semver_diff',
-            'upstream_url',
-            'watcher',
-        ],
+        labelNames: [...CONTAINER_METRIC_LABEL_NAMES],
     });
     log.debug('Init container metrics');
     metricsDirty = true;
