@@ -5496,5 +5496,98 @@ describe('Docker Watcher', () => {
                 expect(report.changed).toBe(false);
             });
         });
+
+        describe('destroyedContainers retention and eviction (#1442)', () => {
+            beforeEach(async () => {
+                await docker.register('watcher', 'docker', 'test', {});
+            });
+
+            test('recordDestroyedContainer should store destroyed container with timestamp', () => {
+                const now = 1000000;
+                docker.recordDestroyedContainer('c-1', now);
+                expect(docker.isContainerDestroyed('c-1', now)).toBe(true);
+            });
+
+            test('isContainerDestroyed should evict container after TTL has expired', () => {
+                const now = 1000000;
+                const ttl = 10 * 60 * 1000;
+                docker.recordDestroyedContainer('c-1', now);
+
+                // Within TTL
+                expect(docker.isContainerDestroyed('c-1', now + ttl - 1)).toBe(
+                    true,
+                );
+
+                // After TTL expires
+                expect(docker.isContainerDestroyed('c-1', now + ttl + 1)).toBe(
+                    false,
+                );
+                expect(docker.destroyedContainers.has('c-1')).toBe(false);
+            });
+
+            test('recordDestroyedContainer should enforce bounded FIFO cap', () => {
+                const now = 1000000;
+                // Add 1005 entries
+                for (let i = 1; i <= 1005; i++) {
+                    docker.recordDestroyedContainer(`c-${i}`, now + i);
+                }
+
+                expect(docker.destroyedContainers.size).toBe(1000);
+                // Oldest 5 entries (c-1 .. c-5) should have been evicted
+                for (let i = 1; i <= 5; i++) {
+                    expect(docker.destroyedContainers.has(`c-${i}`)).toBe(
+                        false,
+                    );
+                }
+                // Newer entries (c-6 .. c-1005) should remain
+                expect(docker.destroyedContainers.has('c-6')).toBe(true);
+                expect(docker.destroyedContainers.has('c-1005')).toBe(true);
+            });
+
+            test('onDockerEvent destroy should record destroyed container and prune from store', async () => {
+                storeContainer.getContainer.mockReturnValue({
+                    id: 'destroyed-123',
+                });
+                const chunk = Buffer.from(
+                    JSON.stringify({
+                        Action: 'destroy',
+                        Actor: {
+                            ID: 'destroyed-123',
+                            Attributes: { name: 'my-service' },
+                        },
+                    }),
+                );
+                await docker.onDockerEvent(chunk);
+                expect(docker.isContainerDestroyed('destroyed-123')).toBe(true);
+                expect(storeContainer.deleteContainer).toHaveBeenCalledWith(
+                    'destroyed-123',
+                );
+            });
+
+            test('onDockerEvent start should clear container from destroyedContainers', async () => {
+                docker.recordDestroyedContainer('restarted-123');
+                expect(docker.isContainerDestroyed('restarted-123')).toBe(true);
+
+                mockDockerApi.getContainer.mockReturnValue({
+                    inspect: jest.fn().mockResolvedValue({
+                        Config: { Labels: {} },
+                    }),
+                });
+
+                const chunk = Buffer.from(
+                    JSON.stringify({
+                        Action: 'start',
+                        Actor: {
+                            ID: 'restarted-123',
+                            Attributes: { name: 'my-service' },
+                        },
+                    }),
+                );
+                await docker.onDockerEvent(chunk);
+                expect(docker.destroyedContainers.has('restarted-123')).toBe(
+                    false,
+                );
+            });
+        });
     });
 });

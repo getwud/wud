@@ -70,6 +70,8 @@ export const EVENTS_INITIAL_BACKOFF_MS = 1000;
 export const EVENTS_MAX_BACKOFF_MS = 60000;
 export const EVENTS_BACKOFF_FACTOR = 2;
 export const EVENTS_JITTER_MS = 1000;
+export const DESTROYED_CONTAINERS_TTL_MS = 10 * 60 * 1000;
+export const DESTROYED_CONTAINERS_MAX_SIZE = 1000;
 
 export interface DockerWatcherConfiguration extends ComponentConfiguration {
     socket: string;
@@ -897,7 +899,55 @@ export class Docker extends Watcher {
         }, delay);
     }
 
-    protected readonly destroyedContainers = new Set<string>();
+    protected readonly destroyedContainers = new Map<string, number>();
+
+    /**
+     * Record a container as destroyed with timestamp, evicting expired entries and capping size.
+     */
+    protected recordDestroyedContainer(
+        containerId: string,
+        now = Date.now(),
+    ): void {
+        this.pruneExpiredDestroyedContainers(now);
+        while (this.destroyedContainers.size >= DESTROYED_CONTAINERS_MAX_SIZE) {
+            const oldestKey = this.destroyedContainers.keys().next().value;
+            if (oldestKey) {
+                this.destroyedContainers.delete(oldestKey);
+            } else {
+                break;
+            }
+        }
+        this.destroyedContainers.set(containerId, now);
+    }
+
+    /**
+     * Check if a container is recorded as destroyed and not expired.
+     */
+    protected isContainerDestroyed(
+        containerId: string,
+        now = Date.now(),
+    ): boolean {
+        const destroyedAt = this.destroyedContainers.get(containerId);
+        if (destroyedAt === undefined) {
+            return false;
+        }
+        if (now - destroyedAt > DESTROYED_CONTAINERS_TTL_MS) {
+            this.destroyedContainers.delete(containerId);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Prune expired entries from destroyedContainers.
+     */
+    protected pruneExpiredDestroyedContainers(now = Date.now()): void {
+        for (const [id, timestamp] of this.destroyedContainers.entries()) {
+            if (now - timestamp > DESTROYED_CONTAINERS_TTL_MS) {
+                this.destroyedContainers.delete(id);
+            }
+        }
+    }
 
     /**
      * Enqueue a task for a specific container to guarantee serialized execution.
@@ -983,7 +1033,7 @@ export class Docker extends Watcher {
         containerId: string,
         options?: ReconcileOptions,
     ): Promise<ContainerReport | undefined> {
-        if (this.destroyedContainers.has(containerId)) {
+        if (this.isContainerDestroyed(containerId)) {
             await this.pruneContainerFromStore(containerId);
             return undefined;
         }
@@ -1005,7 +1055,7 @@ export class Docker extends Watcher {
             return undefined;
         }
 
-        if (this.destroyedContainers.has(containerId)) {
+        if (this.isContainerDestroyed(containerId)) {
             await this.pruneContainerFromStore(containerId);
             return undefined;
         }
@@ -1067,7 +1117,7 @@ export class Docker extends Watcher {
             return undefined;
         }
 
-        if (this.destroyedContainers.has(containerId)) {
+        if (this.isContainerDestroyed(containerId)) {
             this.log.info(
                 `Container ${containerId} was destroyed while reconcile was in flight, pruning from store`,
             );
@@ -1077,7 +1127,7 @@ export class Docker extends Watcher {
 
         const containerReport = await this.checkContainer(containerWithImage);
 
-        if (this.destroyedContainers.has(containerId)) {
+        if (this.isContainerDestroyed(containerId)) {
             this.log.info(
                 `Container ${containerId} was destroyed while checkContainer was in flight, pruning from store`,
             );
@@ -1141,7 +1191,7 @@ export class Docker extends Watcher {
 
         // Targeted single-container reactions
         if (action === 'destroy') {
-            this.destroyedContainers.add(containerId);
+            this.recordDestroyedContainer(containerId);
             await this.pruneContainerFromStore(containerId);
             return;
         } else if (action === 'start') {
@@ -1149,7 +1199,7 @@ export class Docker extends Watcher {
             await this.reconcileContainer(containerId);
         } else {
             await this.enqueueContainerTask(containerId, async () => {
-                if (this.destroyedContainers.has(containerId)) {
+                if (this.isContainerDestroyed(containerId)) {
                     return;
                 }
                 // Update container state in db if so
