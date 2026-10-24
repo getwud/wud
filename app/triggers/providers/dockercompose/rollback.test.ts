@@ -642,3 +642,52 @@ test('should not fail the commit when the prune fails', async () => {
 
     expect(result).toBe(true);
 });
+
+test('should start the restored archive container using its inspected container ID after rename', async () => {
+    const { trigger, archives, newContainers, dockerApi } = buildTrigger({
+        services: [
+            {
+                container: {
+                    name: 'web',
+                    rollbackEnabled: true,
+                    id: 'web-old-id',
+                },
+                health: 'unhealthy',
+            },
+        ],
+    });
+
+    const archive = archives.web;
+    archive.inspect = jest.fn(() =>
+        Promise.resolve({
+            Id: 'web-inspected-id',
+        }),
+    );
+    const restoredContainer = {
+        id: 'web-inspected-id',
+        start: jest.fn(() => Promise.resolve()),
+    };
+
+    dockerApi.getContainer.mockImplementation((nameOrId) => {
+        if (nameOrId === 'web') {
+            return Promise.resolve(newContainers.web);
+        }
+        if (nameOrId === 'web-inspected-id') {
+            return Promise.resolve(restoredContainer);
+        }
+        if (nameOrId === 'web-archive-id') {
+            return Promise.resolve(archive);
+        }
+        throw new Error(`No such container: ${nameOrId}`);
+    });
+
+    await performProjectTransaction(
+        trigger,
+        composeFile,
+        [{ name: 'web', rollbackEnabled: true, id: 'web-old-id' }],
+        [{ current: 'app:1', update: 'app:2' }],
+    );
+
+    expect(archive.rename).toHaveBeenCalledWith({ name: 'web' });
+    expect(restoredContainer.start).toHaveBeenCalledTimes(1);
+});

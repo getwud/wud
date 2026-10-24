@@ -113,20 +113,25 @@ async function revertService(
         }
         await newContainer.remove({ force: true });
         const archive = await dockerApi.getContainer(service.archiveName);
-        await archive.rename({ name });
-        if (service.wasRunning) {
-            await archive.start();
-        }
-        service.reverted = true;
-        service.restoredContainerId = archive.id;
+        let archiveId: string | undefined;
         try {
             const spec = await archive.inspect();
             if (spec?.Id) {
-                service.restoredContainerId = spec.Id;
+                archiveId = spec.Id;
             }
         } catch {
-            // fallback to archive.id or service.container.id
+            // fallback to archive.id
+            archiveId = archive.id;
         }
+        await archive.rename({ name });
+        const restored = archiveId
+            ? await dockerApi.getContainer(archiveId)
+            : await dockerApi.getContainer(name);
+        if (service.wasRunning) {
+            await restored.start();
+        }
+        service.reverted = true;
+        service.restoredContainerId = archiveId || archive.id;
         return true;
     } catch (e: unknown) {
         const message = getErrorMessage(e);

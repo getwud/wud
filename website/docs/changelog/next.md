@@ -12,6 +12,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [PROMETHEUS] Add `result_changelog_url` to Prometheus container metrics gauge and filter undeclared labels to prevent container drop (fixes #1452).
 - 🐛 [REGISTRY] Accept Docker Distribution v1 notification Content-Type so GitLab registry webhook bodies are parsed instead of rejected as malformed.
 - 🐛 [TRIGGER] Clear the Home Assistant MQTT topics of a renamed container, so a self-update no longer leaves a stale `<name>-wud-self-update-<ts>` entity behind (fixes #1438)
+- 🐛 [TRIGGER] Start restored service by container ID during Compose rollback to prevent 404 error leaving container stopped (fixes #1450).
 - 🐛 [TRIGGER] Dispatch notifications on container update `success` and `failure` trigger events (fixes #1446, fixes #1453).
 - 🐛 [TRIGGER] Use `wud.link.changelog` as `release_url` in Home Assistant trigger entities and summary attributes (#1437).
 - 🐛 [WATCHER] Evict expired destroyed container records with TTL and bounded FIFO cap to prevent memory leak (fixes #1442).
