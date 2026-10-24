@@ -98,6 +98,7 @@ export interface Container {
     snoozedVersion?: string;
     snoozedUntil?: number;
     isSnoozed?: boolean;
+    updateEvent?: string;
 }
 
 /**
@@ -247,6 +248,7 @@ const schema = joi.object({
         .default({ kind: 'unknown' }),
     resultChanged: joi.function(),
     labels: joi.object(),
+    updateEvent: joi.string().optional(),
 });
 
 const CHANGELOG_LABEL_KEYS = [
