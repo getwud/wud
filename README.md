@@ -70,6 +70,7 @@ flowchart LR
 - 🔄 **Automated Container Updates**  
   Automatically pull new images and recreate containers on demand (Docker, Docker Compose, Nomad).
 - ⚡ **Registry Webhooks**: [Registry push notifications](website/docs/configuration/registries/webhooks.md), including GitLab Self-Managed, immediately check matching watched images while preserving existing labels and trigger policies.
+- 🔎 **Central Digest Configuration**: [Enable digest watching for selected Docker containers](website/docs/configuration/watchers/README.md#central-digest-configuration) by name from WUD, while preserving container label precedence.
 - 🏷️ **SemVer & Tag Filtering**  
   Flexible versioning strategies: target `semver` (major, minor, patch), match custom regular expressions, pin versions, or define include/exclude tag rules.
 - 🖥️ **Interactive Web UI & REST API**  

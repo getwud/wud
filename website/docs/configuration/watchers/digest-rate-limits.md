@@ -70,6 +70,8 @@ environment:
 
 ### Strategy 2: Customize Digest Watching per Container
 
+For Docker containers, you can also [configure digest watching centrally on WUD](README.md#central-digest-configuration) using exact container names, without changing container labels. Explicit `wud.watch.digest` labels take precedence.
+
 Use the `wud.watch.digest` container label to explicitly enable or disable digest polling for specific containers:
 
 <Tabs>
