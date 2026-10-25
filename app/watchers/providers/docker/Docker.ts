@@ -970,25 +970,27 @@ export class Docker extends Watcher {
     }
 
     /**
-     * Startup reconciliation: prune dead containers from store that no longer exist in Docker.
+     * Startup reconciliation: prune dead containers from store that no longer exist in Docker,
+     * and reconcile active containers that are missing from store (e.g. created while WUD was stopped).
      */
     async reconcileStoreContainers(): Promise<void> {
         if (isOneshot()) {
             return;
         }
         try {
-            const containersInStore = storeContainer.getContainers({
-                watcher: this.name,
-            });
-            if (!containersInStore || containersInStore.length === 0) {
-                return;
-            }
+            const containersInStore =
+                storeContainer.getContainers({
+                    watcher: this.name,
+                }) || [];
             const activeContainers = await this.dockerApi.listContainers({
                 all: this.configuration.all,
             });
             const activeIds = new Set(
                 (activeContainers || []).map((c: any) => c.Id || c.id),
             );
+            const storeIds = new Set(containersInStore.map((c) => c.id));
+
+            // Prune dead containers from store that no longer exist in Docker
             const toPrune = containersInStore.filter(
                 (c) => !activeIds.has(c.id),
             );
@@ -997,6 +999,19 @@ export class Docker extends Watcher {
                     `Pruning dead container ${container.name} (${container.id}) from store during startup reconciliation`,
                 );
                 await this.pruneContainerFromStore(container.id);
+            }
+
+            // Index active containers missing from store (e.g. created while WUD was stopped)
+            const toAdd = (activeContainers || []).filter((c: any) => {
+                const id = c.Id || c.id;
+                return id && !storeIds.has(id);
+            });
+            for (const container of toAdd) {
+                const containerId = container.Id || (container as any).id;
+                this.log.info(
+                    `Reconciling active container ${containerId} missing from store during startup reconciliation`,
+                );
+                await this.reconcileContainer(containerId);
             }
         } catch (e: any) {
             this.log.warn(

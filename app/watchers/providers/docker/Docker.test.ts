@@ -5452,6 +5452,77 @@ describe('Docker Watcher', () => {
                 );
             });
 
+            test('reconcileStoreContainers should reconcile active containers missing from store (#1466)', async () => {
+                await docker.register('watcher', 'docker', 'test', {});
+                docker.pruneContainerFromStore = jest
+                    .fn()
+                    .mockResolvedValue(undefined);
+                docker.reconcileContainer = jest
+                    .fn()
+                    .mockResolvedValue(undefined);
+                storeContainer.getContainers.mockReturnValue([
+                    { id: 'alive-1', name: 'app-alive' },
+                ]);
+                mockDockerApi.listContainers.mockResolvedValue([
+                    { Id: 'alive-1' },
+                    { Id: 'new-1' },
+                ]);
+
+                await docker.reconcileStoreContainers();
+
+                expect(docker.reconcileContainer).toHaveBeenCalledWith('new-1');
+                expect(docker.reconcileContainer).not.toHaveBeenCalledWith(
+                    'alive-1',
+                );
+                expect(docker.pruneContainerFromStore).not.toHaveBeenCalled();
+            });
+
+            test('reconcileStoreContainers should both prune dead containers and reconcile new containers (#1466)', async () => {
+                await docker.register('watcher', 'docker', 'test', {});
+                docker.pruneContainerFromStore = jest
+                    .fn()
+                    .mockResolvedValue(undefined);
+                docker.reconcileContainer = jest
+                    .fn()
+                    .mockResolvedValue(undefined);
+                storeContainer.getContainers.mockReturnValue([
+                    { id: 'alive-1', name: 'app-alive' },
+                    { id: 'dead-1', name: 'app-dead' },
+                ]);
+                mockDockerApi.listContainers.mockResolvedValue([
+                    { Id: 'alive-1' },
+                    { Id: 'new-1' },
+                ]);
+
+                await docker.reconcileStoreContainers();
+
+                expect(docker.pruneContainerFromStore).toHaveBeenCalledWith(
+                    'dead-1',
+                );
+                expect(docker.pruneContainerFromStore).not.toHaveBeenCalledWith(
+                    'alive-1',
+                );
+                expect(docker.reconcileContainer).toHaveBeenCalledWith('new-1');
+                expect(docker.reconcileContainer).not.toHaveBeenCalledWith(
+                    'alive-1',
+                );
+            });
+
+            test('reconcileStoreContainers should reconcile active containers when store is empty (#1466)', async () => {
+                await docker.register('watcher', 'docker', 'test', {});
+                docker.reconcileContainer = jest
+                    .fn()
+                    .mockResolvedValue(undefined);
+                storeContainer.getContainers.mockReturnValue([]);
+                mockDockerApi.listContainers.mockResolvedValue([
+                    { Id: 'new-1' },
+                ]);
+
+                await docker.reconcileStoreContainers();
+
+                expect(docker.reconcileContainer).toHaveBeenCalledWith('new-1');
+            });
+
             test('reconcileContainer should prune and return undefined if destroyed while in flight (#1442)', async () => {
                 await docker.register('watcher', 'docker', 'test', {});
                 mockContainer.inspect.mockImplementation(async () => {
