@@ -1,5 +1,8 @@
 // @ts-nocheck
 import * as configuration from './index';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 
 test('getVersion should return wud version', async () => {
     configuration.wudEnvVars.WUD_VERSION = 'x.y.z';
@@ -205,4 +208,23 @@ test('getAuthenticationConfigurations should return auth providers and exclude r
     delete configuration.wudEnvVars.WUD_AUTH_ADMIN_PASSWORD;
     delete configuration.wudEnvVars.WUD_AUTH_SESSION_SECRET;
     delete configuration.wudEnvVars.WUD_AUTH_OIDC_DISCOVERY;
+});
+
+test('watcher digest JSON is preserved through __FILE and environment parsing', () => {
+    const directory = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'wud-digest-options-'),
+    );
+    const file = path.join(directory, 'options.json');
+    const value =
+        '{"Service-A":{"watchdigest":true},"db":{"watchdigest":false}}';
+    try {
+        fs.writeFileSync(file, `${value}\n`);
+        const variables = { WUD_WATCHER_LOCAL_CONTAINEROPTIONS__FILE: file };
+        configuration.replaceSecrets(variables);
+        expect(configuration.get('wud.watcher', variables)).toEqual({
+            local: { containeroptions: value },
+        });
+    } finally {
+        fs.rmSync(directory, { recursive: true });
+    }
 });
