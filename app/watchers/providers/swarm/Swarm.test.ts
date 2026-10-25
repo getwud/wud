@@ -1219,5 +1219,39 @@ describe('Swarm Watcher - Version Lookup & Watch Cycle', () => {
             );
             expect(candidates).toEqual([]);
         });
+
+        test('should allow candidate tags with different number of version parts when includeTags is defined (fixes #1465)', () => {
+            const containerWithInclude = {
+                image: {
+                    tag: { value: '10.11.11-ls123', semver: true },
+                },
+                includeTags: '^(10\\.\\d+\\.\\d+|12\\.\\d+)-ls\\d+$',
+            };
+            const tags = [
+                '10.11.10-ls123',
+                '10.11.12-ls123',
+                '12.0-ls123',
+                '13.0.0-ls123',
+            ];
+            const logMock = { warn: jest.fn() };
+            const candidates = watcher['getTagCandidates'](
+                containerWithInclude as any,
+                tags,
+                logMock as any,
+            );
+            expect(candidates).toEqual(['12.0-ls123', '10.11.12-ls123']);
+
+            const containerWithoutInclude = {
+                image: {
+                    tag: { value: '10.11.11-ls123', semver: true },
+                },
+            };
+            const candidatesWithoutInclude = watcher['getTagCandidates'](
+                containerWithoutInclude as any,
+                ['10.11.12-ls123', '12.0-ls123'],
+                logMock as any,
+            );
+            expect(candidatesWithoutInclude).toEqual(['10.11.12-ls123']);
+        });
     });
 });

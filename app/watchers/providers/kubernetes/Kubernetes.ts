@@ -1140,8 +1140,8 @@ export class Kubernetes extends Watcher {
                     ) !== null,
             );
 
-            // Keep only tags with the same number of numeric segments
-            if (currentComponents.version) {
+            // Keep only tags with the same number of numeric segments (when no custom includeTags regex is specified)
+            if (!container.includeTags && currentComponents.version) {
                 const referenceGroups =
                     currentComponents.version.split('.').length;
 
