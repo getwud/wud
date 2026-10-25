@@ -46,7 +46,7 @@
     "@docusaurus/module-type-aliases": "3.10.2",
     "@docusaurus/types": "3.10.2",
     "cspell": "^10.3.6",
-    "markdownlint-cli2": "^0.23.3",
+    "markdownlint-cli2": "^0.24.0",
     "simple-icons": "^16.33.0"
   },
   "browserslist": {
