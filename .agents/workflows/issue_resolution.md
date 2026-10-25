@@ -51,6 +51,8 @@ flowchart TD
      - **Route immediately to the Product Manager (`pm`)**: Hand off the issue to the [New Feature Playbook](new_feature.md) to assess value, roadmap fit, and architectural scope.
    - **Scenario C: Confirmed Bug (Silent Triage)**
      - **DO NOT comment on the issue**: Avoid noisy or robotic comments during investigation.
+     - **Strict No-Upstream-Response Rule**: When an issue is confirmed and determined to be fixable, **DO NOT reply or comment to the user upstream**. No acknowledgment, no pre-announcement, no intermediate technical analysis. All investigation remains strictly internal.
+     - A response to the user will ONLY be formulated **AFTER** a fix is successfully implemented on a branch and a viable PR with passing checks has been opened.
      - Identify root cause file and line numbers.
      - Document minimal reproduction steps for the PR.
      - Proceed to Step 2 (if architectural) or Step 3.
@@ -132,6 +134,7 @@ flowchart TD
      ```
 4. **Report to Manfred**:
    - Provide PR URL, root cause explanation, and confirmation of green CI checks.
+   - Once a viable PR is opened and CI is green, a concise response referencing the PR may be drafted for Manfred's review, or deferred to post-merge closure.
    - **NEVER merge into `main` without Manfred's explicit authorization.**
 
 ---

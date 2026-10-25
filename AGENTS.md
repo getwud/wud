@@ -154,6 +154,7 @@ Whenever implementing a feature or bugfix, **strictly adhere to the following wo
 ### 8. GitHub Issues & Communication Standards
 - **Zero AI Fluff**: Never post verbose, corporate, or robot-like comments on GitHub issues or PRs. Keep all interactions short, direct, and human.
 - **Silent Triage for Bugs**: When an issue is confirmed as a bug, **do NOT post intermediate analysis comments on the issue**. All technical context, root causes, and diff rationale belong on the Pull Request.
+- **No Upstream Response on Fixable Issues**: When an issue is determined to be fixable, **do NOT respond to the user upstream** (no pre-announcements, promises, or intermediate analysis). Formulate a response only **AFTER** a fix has been implemented on a branch and a viable Pull Request with green CI checks exists.
 - **Post-Merge Closure**: Once the PR is merged, close the issue with a single, concise 1-2 sentence acknowledgement (e.g. *"Fix merged via #123. It will be included in the next release. Thanks for reporting!"*).
 - **Approval Required**: Never post comments or close issues directly without Manfred's prior review and approval.
 

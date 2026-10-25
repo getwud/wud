@@ -120,6 +120,7 @@ gh release view <version>
 4. **Human, Concise & Noise-Free GitHub Communication**  
    - **Zero AI Fluff / Corporate Jargon**: Never post verbose, robotic, or overly elaborate answers on GitHub. Keep all comments short, direct, and human.
    - **Silent Triage for Bugs**: When an issue is confirmed as a bug, do NOT comment on the issue during analysis. All technical context and root cause details belong in the Pull Request (`Fixes #...`).
+   - **No Upstream Response for Fixable Bugs**: When an issue can be corrected, never reply to the user beforehand. A response is formulated only after a viable PR has been implemented on a branch and verified.
    - **Post-Merge Closure**: Once the PR is merged, the issue is closed with a 1-2 sentence courteous acknowledgement (e.g., *"Fix merged via #123. It will be included in the next release. Thanks for reporting!"*).
    - **Approval Required**: Never post comments or close issues directly without Manfred's prior review and approval.
 
