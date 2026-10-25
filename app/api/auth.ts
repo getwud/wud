@@ -6,7 +6,7 @@ import { v5 as uuidV5 } from 'uuid';
 import getmac from 'getmac';
 import * as registry from '../registry';
 import log from '../log';
-import { getVersion } from '../configuration';
+import { getVersion, wudEnvVars } from '../configuration';
 import SqliteSessionStore from './SqliteSessionStore';
 import Authentication, {
     StrategyDescription,
@@ -21,6 +21,9 @@ const STRATEGY_IDS: string[] = [];
 
 // Constant WUD namespace for uuid v5 bound sessions.
 const WUD_NAMESPACE = 'dee41e92-5fc4-460e-beec-528c9ea7d760';
+
+// express-session recommends a secret with at least 32 characters.
+const MIN_SESSION_SECRET_LENGTH = 32;
 
 /**
  * Get all strategies id.
@@ -59,9 +62,24 @@ function getCookieMaxAge(days: number) {
 }
 
 /**
- * Get session secret key (bound to wud version).
+ * Get the configured session secret, or the version and MAC-bound fallback.
  */
-function getSessionSecretKey() {
+export function getSessionSecretKey() {
+    const configuredSecret = (wudEnvVars as Record<string, unknown>)
+        .WUD_AUTH_SESSION_SECRET;
+    if (configuredSecret !== undefined) {
+        if (
+            typeof configuredSecret !== 'string' ||
+            configuredSecret.trim().length === 0 ||
+            configuredSecret.trim().length < MIN_SESSION_SECRET_LENGTH
+        ) {
+            throw new Error(
+                `WUD_AUTH_SESSION_SECRET must be a non-empty value of at least ${MIN_SESSION_SECRET_LENGTH} characters`,
+            );
+        }
+        return configuredSecret;
+    }
+
     const stringToHash = `wud.${getVersion()}.${getmac()}`;
     return uuidV5(stringToHash, WUD_NAMESPACE);
 }
