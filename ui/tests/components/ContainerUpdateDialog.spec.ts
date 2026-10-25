@@ -257,6 +257,38 @@ describe('ContainerUpdateDialog.vue', () => {
     expect(wrapper.emitted('update:modelValue')![0]).toEqual([false]);
   });
 
+  it('passes overrideCooldown=true when confirming update for a container in cool-down', async () => {
+    (containerService.runTrigger as jest.Mock).mockResolvedValueOnce({ success: true });
+
+    const wrapper = mount(ContainerUpdateDialog, {
+      props: {
+        modelValue: true,
+        container: {
+          ...mockContainer,
+          isCoolingDown: true,
+        },
+      },
+      global: {
+        provide: {
+          eventBus: mockEventBus,
+        },
+      },
+    });
+
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain('Updating now will override the cooldown period');
+    await (wrapper.vm as any).confirmUpdate();
+
+    expect(containerService.runTrigger).toHaveBeenCalledWith({
+      containerId: 'c-123456',
+      triggerType: 'docker',
+      triggerName: 'local',
+      overrideCooldown: true,
+    });
+  });
+
   it('handles runTrigger error and emits error notification', async () => {
     (containerService.runTrigger as jest.Mock).mockRejectedValueOnce(new Error('Docker daemon error'));
 

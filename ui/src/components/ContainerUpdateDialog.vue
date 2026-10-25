@@ -52,6 +52,17 @@
           </div>
         </div>
 
+        <v-alert
+          v-if="container.isCoolingDown"
+          type="info"
+          variant="tonal"
+          density="compact"
+          icon="mdi-timer-sand"
+          class="mb-3 text-caption"
+        >
+          This container is currently in cool-down. Updating now will override the cooldown period and install the update immediately.
+        </v-alert>
+
         <div v-if="loadingTriggers" class="text-center py-4">
           <v-progress-circular
             indeterminate
@@ -121,10 +132,10 @@
           size="small"
           :loading="isUpdating"
           :disabled="!selectedTrigger || isUpdating || triggers.length === 0"
-          prepend-icon="mdi-package-down"
+          :prepend-icon="container.isCoolingDown ? 'mdi-lightning-bolt' : 'mdi-package-down'"
           @click="confirmUpdate"
         >
-          Update
+          {{ container.isCoolingDown ? 'Update now' : 'Update' }}
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -176,6 +187,8 @@ interface ContainerUpdateDialogProps {
     tag?: string;
     digest?: string;
   };
+  isCoolingDown?: boolean;
+  coolingDownUntil?: number;
 }
 
 export default defineComponent({
@@ -247,14 +260,24 @@ export default defineComponent({
           ? filters.dateTime(this.container.result.created)
           : this.container.result.created;
       }
+      if (this.container.result?.tag) {
+        version = this.container.result.tag;
+      }
       if (this.container.updateKind?.remoteValue) {
         version = this.container.updateKind.remoteValue;
       }
-      if (this.container.updateKind?.kind === "digest") {
+      if (
+        this.container.updateKind?.kind === "digest" ||
+        (!this.container.result?.tag && this.container.result?.digest)
+      ) {
+        const digest =
+          this.container.updateKind?.remoteValue ||
+          this.container.result?.digest ||
+          version;
         const filters = (this as unknown as { $filters?: { short: (v: string, l: number) => string } }).$filters;
         version = filters?.short
-          ? filters.short(version, 15)
-          : version.substring(0, 15);
+          ? filters.short(digest, 15)
+          : digest.substring(0, 15);
       }
       return version;
     },
@@ -339,6 +362,7 @@ export default defineComponent({
           containerId: this.container.id,
           triggerType: this.selectedTrigger.type,
           triggerName: this.selectedTrigger.name,
+          ...(this.container.isCoolingDown ? { overrideCooldown: true } : {}),
         });
         const bus = this.eventBus || (this as unknown as { $eventBus?: { emit: (e: string, ...a: unknown[]) => void } }).$eventBus;
         bus?.emit(

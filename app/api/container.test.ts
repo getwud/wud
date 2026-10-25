@@ -299,6 +299,84 @@ describe('API Container', () => {
         });
     });
 
+    test('should set overrideCooldown=true on container when running trigger with overrideCooldown query parameter', async () => {
+        const mockTrigger = jest.fn().mockResolvedValue(true);
+        const containerObj = {
+            id: 'container1',
+            isCoolingDown: true,
+            overrideCooldown: false,
+        };
+        (storeContainer.getContainer as jest.Mock).mockReturnValue(
+            containerObj,
+        );
+        (registry.getState as jest.Mock).mockReturnValue({
+            trigger: {
+                'mock.test': { trigger: mockTrigger },
+            },
+        });
+
+        const res = await request(app).post(
+            '/container1/triggers/mock/test?overrideCooldown=true',
+        );
+        expect(res.status).toBe(200);
+        expect(containerObj.overrideCooldown).toBe(true);
+        expect(mockTrigger).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: 'container1',
+                overrideCooldown: true,
+            }),
+        );
+    });
+
+    test('should set overrideCooldown=true on container when running trigger with overrideCooldown in request body', async () => {
+        const mockTrigger = jest.fn().mockResolvedValue(true);
+        const containerObj = {
+            id: 'container1',
+            isCoolingDown: true,
+            overrideCooldown: false,
+        };
+        (storeContainer.getContainer as jest.Mock).mockReturnValue(
+            containerObj,
+        );
+        (registry.getState as jest.Mock).mockReturnValue({
+            trigger: {
+                'mock.test': { trigger: mockTrigger },
+            },
+        });
+
+        const res = await request(app)
+            .post('/container1/triggers/mock/test')
+            .send({ overrideCooldown: true });
+        expect(res.status).toBe(200);
+        expect(containerObj.overrideCooldown).toBe(true);
+        expect(mockTrigger).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: 'container1',
+                overrideCooldown: true,
+            }),
+        );
+    });
+
+    test('should not set overrideCooldown when running trigger without overrideCooldown parameter', async () => {
+        const mockTrigger = jest.fn().mockResolvedValue(true);
+        const containerObj = {
+            id: 'container1',
+            isCoolingDown: true,
+        };
+        (storeContainer.getContainer as jest.Mock).mockReturnValue(
+            containerObj,
+        );
+        (registry.getState as jest.Mock).mockReturnValue({
+            trigger: {
+                'mock.test': { trigger: mockTrigger },
+            },
+        });
+
+        const res = await request(app).post('/container1/triggers/mock/test');
+        expect(res.status).toBe(200);
+        expect(containerObj).not.toHaveProperty('overrideCooldown', true);
+    });
+
     test('should return 500 if running trigger fails', async () => {
         const mockTrigger = jest
             .fn()

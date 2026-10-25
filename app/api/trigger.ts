@@ -22,6 +22,11 @@ export async function runTrigger(req, res) {
     const triggerType = req.params.type;
     const triggerName = req.params.name;
     const containerToTrigger = req.body;
+    const overrideCooldown =
+        req.query?.overrideCooldown === 'true' ||
+        req.query?.overrideCooldown === true ||
+        containerToTrigger?.overrideCooldown === true ||
+        containerToTrigger?.overrideCooldown === 'true';
 
     const triggerToRun =
         registry.getState().trigger[`${triggerType}.${triggerName}`];
@@ -45,6 +50,9 @@ export async function runTrigger(req, res) {
     }
 
     try {
+        if (overrideCooldown && typeof containerToTrigger === 'object') {
+            containerToTrigger.overrideCooldown = true;
+        }
         await triggerToRun.trigger(containerToTrigger);
         log.info(
             `Trigger executed with success (type=${triggerType}, name=${triggerName}, container=${JSON.stringify(containerToTrigger)})`,

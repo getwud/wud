@@ -80,6 +80,7 @@ export interface Container {
     delay?: string;
     isCoolingDown?: boolean;
     coolingDownUntil?: number;
+    overrideCooldown?: boolean;
     includeTags?: string;
     excludeTags?: string;
     transformTags?: string;
@@ -182,6 +183,7 @@ const schema = joi.object({
     delay: joi.string().allow('', null).optional(),
     isCoolingDown: joi.boolean().default(false),
     coolingDownUntil: joi.number().optional(),
+    overrideCooldown: joi.boolean().optional(),
     includeTags: joi.string(),
     excludeTags: joi.string(),
     transformTags: joi.string(),
@@ -612,7 +614,7 @@ function addUpdateAvailableProperty(container: Container) {
     Object.defineProperty(container, 'updateAvailable', {
         enumerable: true,
         get(this: Container) {
-            if (this.isCoolingDown) {
+            if (this.isCoolingDown && !this.overrideCooldown) {
                 return false;
             }
             if (this.isSnoozed) {

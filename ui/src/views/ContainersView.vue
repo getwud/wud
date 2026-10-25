@@ -248,9 +248,9 @@
                 </template>
                 <v-list density="compact">
                   <v-list-item
-                    v-if="(item.raw ? item.raw.updateAvailable : item.updateAvailable) && canWrite"
+                    v-if="((item.raw ? item.raw.updateAvailable : item.updateAvailable) || (item.raw ? item.raw.isCoolingDown : item.isCoolingDown)) && canWrite"
                     prepend-icon="mdi-package-down"
-                    title="Update container"
+                    :title="(item.raw ? item.raw.isCoolingDown : item.isCoolingDown) ? 'Override cooldown & update' : 'Update container'"
                     class="text-primary"
                     @click.stop="openUpdateDialog(item.raw || item)"
                   />
@@ -350,14 +350,14 @@
             </div>
           </div>
           <v-btn
-            v-if="selectedContainer.updateAvailable && canWrite"
+            v-if="(selectedContainer.updateAvailable || selectedContainer.isCoolingDown) && canWrite"
             icon="mdi-package-down"
-            color="primary"
+            :color="selectedContainer.isCoolingDown ? 'warning' : 'primary'"
             variant="text"
             size="small"
             class="mr-1"
             @click="openUpdateDialog(selectedContainer)"
-            title="Update container"
+            :title="selectedContainer.isCoolingDown ? 'Override cooldown and update' : 'Update container'"
           ></v-btn>
           <v-btn
             v-if="selectedContainer.updateAvailable && canWrite"
@@ -425,6 +425,8 @@
                 :is-snoozed="selectedContainer.isSnoozed"
                 :snoozed-version="selectedContainer.snoozedVersion"
                 :snoozed-until="selectedContainer.snoozedUntil"
+                :can-write="canWrite"
+                @override-cooldown="openUpdateDialog(selectedContainer)"
               />
             </v-window-item>
             <v-window-item value="triggers">

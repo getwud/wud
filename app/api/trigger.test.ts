@@ -3,6 +3,9 @@ import request from 'supertest';
 import * as trigger from './trigger';
 import * as registry from '../registry';
 
+const mockTestTrigger = jest.fn().mockResolvedValue(true);
+const mockFailTrigger = jest.fn().mockRejectedValue(new Error('fail error'));
+
 jest.mock('../registry', () => ({
     getState: jest.fn(() => ({
         trigger: {
@@ -10,13 +13,13 @@ jest.mock('../registry', () => ({
                 type: 'mock',
                 name: 'test',
                 maskConfiguration: () => ({ mockConfig: true }),
-                trigger: jest.fn().mockResolvedValue(true),
+                trigger: mockTestTrigger,
             },
             'mock.fail': {
                 type: 'mock',
                 name: 'fail',
                 maskConfiguration: () => ({ mockConfig: true }),
-                trigger: jest.fn().mockRejectedValue(new Error('fail error')),
+                trigger: mockFailTrigger,
             },
         },
     })),
@@ -74,6 +77,20 @@ describe('API Trigger', () => {
             .post('/mock/test')
             .send({ containerName: 'test-container' });
         expect(res.status).toBe(200);
+    });
+
+    test('should set overrideCooldown=true on container when running trigger with overrideCooldown query parameter', async () => {
+        const payload = { containerName: 'test-container' };
+        const res = await request(app)
+            .post('/mock/test?overrideCooldown=true')
+            .send(payload);
+        expect(res.status).toBe(200);
+        expect(mockTestTrigger).toHaveBeenCalledWith(
+            expect.objectContaining({
+                containerName: 'test-container',
+                overrideCooldown: true,
+            }),
+        );
     });
 
     test('should return 404 if trigger not found when running', async () => {
