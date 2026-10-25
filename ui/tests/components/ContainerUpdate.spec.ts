@@ -166,4 +166,21 @@ describe('ContainerUpdate', () => {
     expect(wrapper.text()).toContain('Update in cool-down');
     expect(wrapper.text()).toContain('held in cool-down period');
   });
+
+  it('emits override-cooldown when Update now button is clicked in cool-down alert', async () => {
+    const futureTime = Date.now() + 86400000;
+    await wrapper.setProps({
+      isCoolingDown: true,
+      coolingDownUntil: futureTime,
+      updateAvailable: false,
+      canWrite: true,
+    });
+
+    const buttons = wrapper.findAll('button');
+    const updateNowBtn = buttons.find((b: any) => b.text().includes('Update now'));
+    expect(updateNowBtn).toBeDefined();
+    await updateNowBtn.trigger('click');
+
+    expect(wrapper.emitted('override-cooldown')).toBeTruthy();
+  });
 });

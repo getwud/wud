@@ -57,20 +57,24 @@ async function runTrigger({
   containerId,
   triggerType,
   triggerName,
+  overrideCooldown,
 }: {
   containerId: string;
   triggerType: string;
   triggerName: string;
+  overrideCooldown?: boolean;
 }) {
   if (isDemoMode()) {
-    return mockService.runContainerTrigger({ containerId, triggerType, triggerName });
+    return mockService.runContainerTrigger({ containerId, triggerType, triggerName, overrideCooldown });
   }
+  const query = overrideCooldown ? "?overrideCooldown=true" : "";
   const response = await fetch(
-    url(`api/containers/${containerId}/triggers/${triggerType}/${triggerName}`),
+    url(`api/containers/${containerId}/triggers/${triggerType}/${triggerName}${query}`),
     {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
+      body: overrideCooldown !== undefined ? JSON.stringify({ overrideCooldown }) : undefined,
     },
   );
   if (!response.ok) {

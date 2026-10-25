@@ -206,11 +206,11 @@ export const mockService = {
     }));
   },
 
-  async runContainerTrigger({ containerId, triggerType, triggerName }: any) {
+  async runContainerTrigger({ containerId, triggerType, triggerName, overrideCooldown }: any) {
     await delay(500);
     return {
       status: 200,
-      message: `Trigger ${triggerType}.${triggerName} executed for container ${containerId}`,
+      message: `Trigger ${triggerType}.${triggerName} executed for container ${containerId}${overrideCooldown ? ' (cooldown overridden)' : ''}`,
     };
   },
 

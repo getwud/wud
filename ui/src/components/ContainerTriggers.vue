@@ -14,6 +14,7 @@
         <container-trigger
           :trigger="trigger"
           :update-available="container.updateAvailable"
+          :is-cooling-down="container.isCoolingDown"
           :container-id="container.id"
         />
       </v-col>

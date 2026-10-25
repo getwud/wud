@@ -169,12 +169,20 @@ export async function getContainerTriggers(req, res) {
  */
 export async function runTriggerForContainer(req, res) {
     const { id, triggerType, triggerName } = req.params;
+    const overrideCooldown =
+        req.query?.overrideCooldown === 'true' ||
+        req.query?.overrideCooldown === true ||
+        req.body?.overrideCooldown === true ||
+        req.body?.overrideCooldown === 'true';
 
     const containerToTrigger = storeContainer.getContainer(id);
     if (containerToTrigger) {
         const triggerToRun = getTriggers()[`${triggerType}.${triggerName}`];
         if (triggerToRun) {
             try {
+                if (overrideCooldown) {
+                    containerToTrigger.overrideCooldown = true;
+                }
                 await triggerToRun.trigger(containerToTrigger);
                 log.info(
                     `Trigger executed with success (type=${triggerType}, name=${triggerName}, container=${JSON.stringify(containerToTrigger)})`,

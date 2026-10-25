@@ -13,8 +13,24 @@
         (threshold {{ trigger.configuration.threshold }})
       </v-list-item-subtitle>
       <template v-slot:append>
+        <v-tooltip v-if="isCoolingDown && !updateAvailable" location="bottom">
+          <template v-slot:activator="{ props }">
+            <v-btn
+              v-if="canWrite"
+              variant="outlined"
+              color="warning"
+              @click="runTrigger"
+              :loading="isTriggering"
+              v-bind="props"
+            >
+              Run
+              <v-icon end>mdi-lightning-bolt</v-icon>
+            </v-btn>
+          </template>
+          <span>Override cool-down and run trigger immediately</span>
+        </v-tooltip>
         <v-btn
-          v-if="canWrite"
+          v-else-if="canWrite"
           variant="outlined"
           color="accent"
           :disabled="!updateAvailable"
@@ -49,6 +65,10 @@ export default defineComponent({
     updateAvailable: {
       type: Boolean,
       required: true,
+    },
+    isCoolingDown: {
+      type: Boolean,
+      default: false,
     },
     containerId: {
       type: String,
@@ -90,6 +110,9 @@ export default defineComponent({
           containerId: this.containerId,
           triggerType: this.trigger.type,
           triggerName: this.trigger.name,
+          ...(this.isCoolingDown && !this.updateAvailable
+            ? { overrideCooldown: true }
+            : {}),
         });
         (this as any).$eventBus?.emit("notify", "Trigger executed with success");
       } catch (err: any) {

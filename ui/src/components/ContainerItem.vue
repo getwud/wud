@@ -162,6 +162,8 @@
                 :update-available="container.updateAvailable"
                 :is-cooling-down="container.isCoolingDown"
                 :cooling-down-until="container.coolingDownUntil"
+                :can-write="canWrite"
+                @override-cooldown="dialogUpdate = true"
               />
             </v-window-item>
             <v-window-item>
@@ -182,16 +184,16 @@
             <v-row>
               <v-col class="text-center">
                 <v-btn
-                  v-if="container.updateAvailable && canWrite"
+                  v-if="(container.updateAvailable || container.isCoolingDown) && canWrite"
                   small
                   color="primary"
                   variant="flat"
                   class="mr-2"
-                  title="Update container"
+                  :title="container.isCoolingDown ? 'Override cooldown and update' : 'Update container'"
                   @click="dialogUpdate = true"
                 >
-                  Update
-                  <v-icon right>mdi-package-down</v-icon>
+                  {{ container.isCoolingDown ? 'Update now' : 'Update' }}
+                  <v-icon right>{{ container.isCoolingDown ? 'mdi-lightning-bolt' : 'mdi-package-down' }}</v-icon>
                 </v-btn>
 
                 <v-btn
@@ -296,7 +298,7 @@
                 </v-dialog>
 
                 <container-update-dialog
-                  v-if="container.updateAvailable && canWrite"
+                  v-if="(container.updateAvailable || container.isCoolingDown) && canWrite"
                   v-model="dialogUpdate"
                   :container="container"
                   :new-version="newVersion"
@@ -401,18 +403,30 @@ export default defineComponent({
     newVersion() {
       let newVersion = "unknown";
       if (
-        this.container.result.created &&
-        this.container.image.created !== this.container.result.created
+        this.container.result?.created &&
+        this.container.image?.created !== this.container.result?.created
       ) {
-        newVersion = (this as any).$filters.dateTime(
-          this.container.result.created,
-        );
+        newVersion = (this as any).$filters?.dateTime
+          ? (this as any).$filters.dateTime(this.container.result.created)
+          : this.container.result.created;
       }
-      if (this.container.updateKind) {
+      if (this.container.result?.tag) {
+        newVersion = this.container.result.tag;
+      }
+      if (this.container.updateKind?.remoteValue) {
         newVersion = this.container.updateKind.remoteValue;
       }
-      if (this.container.updateKind.kind === "digest") {
-        newVersion = (this as any).$filters.short(newVersion, 15);
+      if (
+        this.container.updateKind?.kind === "digest" ||
+        (!this.container.result?.tag && this.container.result?.digest)
+      ) {
+        const digest =
+          this.container.updateKind?.remoteValue ||
+          this.container.result?.digest ||
+          newVersion;
+        newVersion = (this as any).$filters?.short
+          ? (this as any).$filters.short(digest, 15)
+          : digest.substring(0, 15);
       }
       return newVersion;
     },

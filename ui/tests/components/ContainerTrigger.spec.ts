@@ -257,4 +257,39 @@ describe("ContainerTrigger.vue", () => {
     );
     expect(vm.isTriggering).toBe(false);
   });
+
+  it("calls runTrigger with overrideCooldown=true when container is cooling down", async () => {
+    (containerService.runTrigger as jest.Mock).mockResolvedValue({ status: 200 });
+    const emitMock = jest.fn();
+
+    const wrapper = mount(ContainerTrigger, {
+      props: {
+        trigger: defaultTrigger,
+        updateAvailable: false,
+        isCoolingDown: true,
+        containerId: "c1",
+      },
+      global: {
+        stubs: {
+          RouterLink: {
+            template: "<a><slot /></a>",
+          },
+        },
+        mocks: {
+          $eventBus: { emit: emitMock },
+        },
+      },
+    });
+
+    const vm = wrapper.vm as any;
+    await vm.runTrigger();
+
+    expect(containerService.runTrigger).toHaveBeenCalledWith({
+      containerId: "c1",
+      triggerType: "discord",
+      triggerName: "prod",
+      overrideCooldown: true,
+    });
+    expect(emitMock).toHaveBeenCalledWith("notify", "Trigger executed with success");
+  });
 });
