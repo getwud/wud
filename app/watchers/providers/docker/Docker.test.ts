@@ -2262,6 +2262,46 @@ describe('Docker Watcher', () => {
             expect(result).toEqual({ tag: '1.3' });
         });
 
+        test('should allow candidate tags with different number of semver parts when includeTags is defined (fixes #1465)', () => {
+            mockTag.parse.mockImplementation(
+                jest.requireActual('../../../tag').parse,
+            );
+            mockTag.isGreater.mockImplementation(
+                jest.requireActual('../../../tag').isGreater,
+            );
+            const containerWithInclude = {
+                image: {
+                    tag: { value: '10.11.11-ls123', semver: true },
+                },
+                includeTags: '^(10\\.\\d+\\.\\d+|12\\.\\d+)-ls\\d+$',
+            };
+            const tags = [
+                '10.11.10-ls123',
+                '10.11.12-ls123',
+                '12.0-ls123',
+                '13.0.0-ls123',
+            ];
+            const logMock = { warn: jest.fn() };
+            const candidates = getTagCandidates(
+                containerWithInclude,
+                tags,
+                logMock,
+            );
+            expect(candidates).toEqual(['12.0-ls123', '10.11.12-ls123']);
+
+            const containerWithoutInclude = {
+                image: {
+                    tag: { value: '10.11.11-ls123', semver: true },
+                },
+            };
+            const candidatesWithoutInclude = getTagCandidates(
+                containerWithoutInclude,
+                ['10.11.12-ls123', '12.0-ls123'],
+                logMock,
+            );
+            expect(candidatesWithoutInclude).toEqual(['10.11.12-ls123']);
+        });
+
         test('should not propose a tag that transforms to the same version as the current one', async () => {
             const container = {
                 includeTags: '^4.5.\\d+-ls\\d+$',

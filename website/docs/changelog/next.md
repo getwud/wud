@@ -11,5 +11,6 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [CONTAINER] Add option to override update cooldown and trigger update immediately (fixes #1463)
 - 🐛 [E2E] Update expected Home Assistant image version to 2026.10.4 in E2E scenarios
 - 🐛 [TRIGGER] Do not copy Docker-generated MAC address when recreating container (#1464)
+- 🐛 [WATCHER] Allow tag candidates with different version segment count when wud.tag.include is defined (fixes #1465)
 
 ---

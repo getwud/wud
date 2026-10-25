@@ -1194,6 +1194,46 @@ describe('Kubernetes Watcher', () => {
             expect(candidates).toEqual([]);
         });
 
+        test('getTagCandidates allows tags with different number of version parts when includeTags is defined (fixes #1465)', () => {
+            mockTag.parse.mockImplementation(
+                jest.requireActual('../../../tag').parse,
+            );
+            mockTag.isGreater.mockImplementation(
+                jest.requireActual('../../../tag').isGreater,
+            );
+            const containerWithInclude = {
+                image: {
+                    tag: { value: '10.11.11-ls123', semver: true },
+                },
+                includeTags: '^(10\\.\\d+\\.\\d+|12\\.\\d+)-ls\\d+$',
+            };
+            const tags = [
+                '10.11.10-ls123',
+                '10.11.12-ls123',
+                '12.0-ls123',
+                '13.0.0-ls123',
+            ];
+            const logMock = { warn: jest.fn() };
+            const candidates = kubernetes['getTagCandidates'](
+                containerWithInclude,
+                tags,
+                logMock,
+            );
+            expect(candidates).toEqual(['12.0-ls123', '10.11.12-ls123']);
+
+            const containerWithoutInclude = {
+                image: {
+                    tag: { value: '10.11.11-ls123', semver: true },
+                },
+            };
+            const candidatesWithoutInclude = kubernetes['getTagCandidates'](
+                containerWithoutInclude,
+                ['10.11.12-ls123', '12.0-ls123'],
+                logMock,
+            );
+            expect(candidatesWithoutInclude).toEqual(['10.11.12-ls123']);
+        });
+
         test('handles error and attaches it to container', async () => {
             registry.getState.mockReturnValue({ registry: {} });
             storeContainer.getContainer.mockReturnValue(undefined);
