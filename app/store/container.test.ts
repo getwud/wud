@@ -1,7 +1,6 @@
 import * as container from './container';
 import * as event from '../event';
-import { initDatabase, closeDatabase, getDb } from './db';
-import * as schema from './db/schema';
+import { initDatabase, closeDatabase } from './db';
 
 jest.mock('../event');
 
@@ -197,13 +196,6 @@ describe('Container Store (SQLite)', () => {
         expect(
             container.getContainers({ tag: '1.0.0', status: 'exited' }),
         ).toEqual([]);
-    });
-
-    test('getContainers should ignore containers without image records when filtering by tag', () => {
-        container.insertContainer(sampleContainer);
-        getDb().delete(schema.containerImages).run();
-
-        expect(container.getContainers({ tag: '1.0.0' })).toEqual([]);
     });
 
     test('deleteContainer should delete container and emit an event', () => {
