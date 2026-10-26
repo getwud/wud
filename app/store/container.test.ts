@@ -1,6 +1,7 @@
 import * as container from './container';
 import * as event from '../event';
-import { initDatabase, closeDatabase } from './db';
+import { initDatabase, closeDatabase, getDb } from './db';
+import * as schema from './db/schema';
 
 jest.mock('../event');
 
@@ -155,6 +156,54 @@ describe('Container Store (SQLite)', () => {
     test('getContainer should return undefined when not found', () => {
         const result = container.getContainer('non-existent-id');
         expect(result).toBeUndefined();
+    });
+
+    test('getContainers should filter by the installed image tag, not the update candidate', () => {
+        container.insertContainer(sampleContainer);
+        container.insertContainer({
+            ...sampleContainer,
+            id: 'other-tag',
+            image: {
+                ...sampleContainer.image,
+                tag: { value: '2.0.0', semver: true },
+            },
+        });
+
+        expect(
+            container.getContainers({ tag: '1.0.0' }).map((c) => c.id),
+        ).toEqual([sampleContainer.id]);
+        expect(container.getContainers({ tag: '1.1.0' })).toEqual([]);
+        expect(container.getContainers({ tag: 'missing' })).toEqual([]);
+    });
+
+    test('getContainers should combine image tag and existing query filters', () => {
+        container.insertContainer(sampleContainer);
+        container.insertContainer({
+            ...sampleContainer,
+            id: 'other-watcher',
+            watcher: 'remote',
+        });
+
+        expect(
+            container
+                .getContainers({
+                    tag: '1.0.0',
+                    watcher: 'docker-local',
+                    status: 'running',
+                    updateAvailable: true,
+                })
+                .map((c) => c.id),
+        ).toEqual([sampleContainer.id]);
+        expect(
+            container.getContainers({ tag: '1.0.0', status: 'exited' }),
+        ).toEqual([]);
+    });
+
+    test('getContainers should ignore containers without image records when filtering by tag', () => {
+        container.insertContainer(sampleContainer);
+        getDb().delete(schema.containerImages).run();
+
+        expect(container.getContainers({ tag: '1.0.0' })).toEqual([]);
     });
 
     test('deleteContainer should delete container and emit an event', () => {
