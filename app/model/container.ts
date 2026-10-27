@@ -101,6 +101,9 @@ export interface Container {
     snoozedUntil?: number;
     isSnoozed?: boolean;
     updateEvent?: string;
+    checkedAt?: string;
+    updatedAt?: string;
+    persistedUpdateAvailable?: boolean;
 }
 
 /**
@@ -253,6 +256,9 @@ const schema = joi.object({
     resultChanged: joi.function(),
     labels: joi.object(),
     updateEvent: joi.string().optional(),
+    checkedAt: joi.string().allow(null, '').optional(),
+    updatedAt: joi.string().allow(null, '').optional(),
+    persistedUpdateAvailable: joi.boolean().optional(),
 });
 
 const CHANGELOG_LABEL_KEYS = [
@@ -807,7 +813,80 @@ export function validate(container: any): Container {
 
     // Add computed functions
     addResultChangedFunction(containerValidated);
+
+    // Keep internal transition metadata properties non-enumerable
+    if (containerValidated.checkedAt !== undefined) {
+        Object.defineProperty(containerValidated, 'checkedAt', {
+            enumerable: false,
+            writable: true,
+            configurable: true,
+            value: containerValidated.checkedAt,
+        });
+    }
+    if (containerValidated.updatedAt !== undefined) {
+        Object.defineProperty(containerValidated, 'updatedAt', {
+            enumerable: false,
+            writable: true,
+            configurable: true,
+            value: containerValidated.updatedAt,
+        });
+    }
+    if (containerValidated.persistedUpdateAvailable !== undefined) {
+        Object.defineProperty(containerValidated, 'persistedUpdateAvailable', {
+            enumerable: false,
+            writable: true,
+            configurable: true,
+            value: containerValidated.persistedUpdateAvailable,
+        });
+    }
+
     return containerValidated;
+}
+
+/**
+ * Check whether a container transitioned out of cooldown.
+ * Handles dynamic getters by checking:
+ * 1. Explicit cooldown/update flags on containerInDb (e.g. from unit tests or mocks).
+ * 2. When containerInDb has dynamic getters, checking whether containerInDb was checked/updated
+ *    while cooldown was still active (checkedAt / updatedAt < coolingDownUntil).
+ * 3. Checking whether update was previously marked as unavailable in DB (persistedUpdateAvailable === false).
+ */
+export function hasTransitionedOutOfCooldown(
+    containerInDb: Container,
+    containerWithResult: Container,
+): boolean {
+    const isUpdateAvailable = Boolean(containerWithResult.updateAvailable);
+    if (!isUpdateAvailable) {
+        return false;
+    }
+
+    const lastCheckedStr = containerInDb.checkedAt || containerInDb.updatedAt;
+    const lastCheckedMs = lastCheckedStr
+        ? new Date(
+              lastCheckedStr.includes('T')
+                  ? lastCheckedStr
+                  : lastCheckedStr.replace(' ', 'T') +
+                    (lastCheckedStr.endsWith('Z') ? '' : 'Z'),
+          ).getTime()
+        : undefined;
+
+    const checkedDuringCooldown = Boolean(
+        containerInDb.coolingDownUntil !== undefined &&
+            lastCheckedMs !== undefined &&
+            !isNaN(lastCheckedMs) &&
+            lastCheckedMs < containerInDb.coolingDownUntil,
+    );
+
+    const wasCoolingDown =
+        Boolean(containerInDb.isCoolingDown) || checkedDuringCooldown;
+
+    const wasUpdateAvailable = checkedDuringCooldown
+        ? false
+        : containerInDb.persistedUpdateAvailable !== undefined
+          ? containerInDb.persistedUpdateAvailable
+          : Boolean(containerInDb.updateAvailable);
+
+    return (!wasUpdateAvailable || wasCoolingDown) && isUpdateAvailable;
 }
 
 /**
