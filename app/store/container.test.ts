@@ -542,4 +542,87 @@ describe('Container Store (SQLite)', () => {
             allContainers.some((c) => c.id === 'container-corrupt-doc'),
         ).toBe(true);
     });
+
+    test('cooldown transition in store should accurately reflect history and transition status (#1445)', async () => {
+        const { hasTransitionedOutOfCooldown } = await import(
+            '../model/container'
+        );
+
+        // 1. Insert container during cooldown (created 1 hour ago, delay 2 days)
+        const initialCreated = new Date(Date.now() - 3600 * 1000).toISOString();
+        const containerDuringCooldown = {
+            ...sampleContainer,
+            id: 'container-cooldown-transition',
+            delay: '2d',
+            result: {
+                tag: '2.0.0',
+                created: initialCreated,
+            },
+        };
+
+        container.insertContainer(containerDuringCooldown);
+        const inDb1 = container.getContainer('container-cooldown-transition');
+        expect(inDb1).toBeDefined();
+        expect(inDb1?.isCoolingDown).toBe(true);
+        expect(inDb1?.updateAvailable).toBe(false);
+        expect(inDb1?.persistedUpdateAvailable).toBe(false);
+        expect(inDb1?.checkedAt).toBeDefined();
+
+        // 2. Cooldown expires: remote created is shifted to 3 days ago
+        const expiredCreated = new Date(
+            Date.now() - 3 * 24 * 3600 * 1000,
+        ).toISOString();
+        const containerWithExpiredCooldown = {
+            ...sampleContainer,
+            id: 'container-cooldown-transition',
+            delay: '2d',
+            result: {
+                tag: '2.0.0',
+                created: expiredCreated,
+            },
+        };
+
+        // When container in DB is checked against expired created:
+        // Set the result in DB to the expired one (as if watcher discovered it 3 days ago)
+        // With checkedAt from earlier (during cooldown)
+        const containerInDbDuringCooldown = {
+            ...inDb1,
+            result: {
+                tag: '2.0.0',
+                created: expiredCreated,
+            },
+            // checkedAt was recorded during cooldown (e.g. 2.5 days ago)
+            checkedAt: new Date(
+                Date.now() - 2.5 * 24 * 3600 * 1000,
+            ).toISOString(),
+        };
+
+        const validatedWithResult = (
+            await import('../model/container')
+        ).validate(containerWithExpiredCooldown);
+        expect(validatedWithResult.isCoolingDown).toBe(false);
+        expect(validatedWithResult.updateAvailable).toBe(true);
+
+        expect(
+            hasTransitionedOutOfCooldown(
+                containerInDbDuringCooldown as any,
+                validatedWithResult,
+            ),
+        ).toBe(true);
+
+        // 3. Store updates the container with the new result
+        container.updateContainer(validatedWithResult);
+
+        // 4. On subsequent check, container in DB has updated checkedAt and updateAvailable: true
+        const inDbAfterUpdate = container.getContainer(
+            'container-cooldown-transition',
+        );
+        expect(inDbAfterUpdate?.persistedUpdateAvailable).toBe(true);
+        expect(
+            hasTransitionedOutOfCooldown(
+                inDbAfterUpdate as any,
+                validatedWithResult,
+            ),
+        ).toBe(false);
+    });
 });

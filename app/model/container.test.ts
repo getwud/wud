@@ -1150,4 +1150,228 @@ describe('rich container metadata', () => {
             );
         });
     });
+
+    describe('hasTransitionedOutOfCooldown (#1445)', () => {
+        test('should return true when container was checked during cooldown and watcher runs after cooldown expired (real dynamic getters)', () => {
+            const now = Date.now();
+            // result was created 3 days ago, delay is 2 days => coolingDownUntil was 1 day ago
+            const resultCreated = new Date(
+                now - 3 * 24 * 3600 * 1000,
+            ).toISOString();
+            // Container was last checked 2.5 days ago (during cooldown)
+            const lastChecked = new Date(
+                now - 2.5 * 24 * 3600 * 1000,
+            ).toISOString();
+
+            const containerInDb = container.validate({
+                id: 'c1',
+                name: 'test',
+                watcher: 'docker',
+                delay: '2d',
+                image: {
+                    id: 'img1',
+                    name: 'test',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                    created: resultCreated,
+                },
+                checkedAt: lastChecked,
+            });
+
+            // Verify real dynamic getters evaluate against present time
+            expect(containerInDb.isCoolingDown).toBe(false);
+            expect(containerInDb.updateAvailable).toBe(true);
+
+            const containerWithResult = container.validate({
+                id: 'c1',
+                name: 'test',
+                watcher: 'docker',
+                delay: '2d',
+                image: {
+                    id: 'img1',
+                    name: 'test',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                    created: resultCreated,
+                },
+            });
+
+            expect(containerWithResult.isCoolingDown).toBe(false);
+            expect(containerWithResult.updateAvailable).toBe(true);
+
+            expect(
+                container.hasTransitionedOutOfCooldown(
+                    containerInDb,
+                    containerWithResult,
+                ),
+            ).toBe(true);
+        });
+
+        test('should return false on subsequent runs after cooldown has already expired (real dynamic getters)', () => {
+            const now = Date.now();
+            const resultCreated = new Date(
+                now - 3 * 24 * 3600 * 1000,
+            ).toISOString();
+            // Container was checked 0.5 days ago (after cooldown already expired at now - 1 day)
+            const lastChecked = new Date(
+                now - 0.5 * 24 * 3600 * 1000,
+            ).toISOString();
+
+            const containerInDb = container.validate({
+                id: 'c1',
+                name: 'test',
+                watcher: 'docker',
+                delay: '2d',
+                image: {
+                    id: 'img1',
+                    name: 'test',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                    created: resultCreated,
+                },
+                checkedAt: lastChecked,
+                persistedUpdateAvailable: true,
+            });
+
+            const containerWithResult = container.validate({
+                id: 'c1',
+                name: 'test',
+                watcher: 'docker',
+                delay: '2d',
+                image: {
+                    id: 'img1',
+                    name: 'test',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                    created: resultCreated,
+                },
+            });
+
+            expect(
+                container.hasTransitionedOutOfCooldown(
+                    containerInDb,
+                    containerWithResult,
+                ),
+            ).toBe(false);
+        });
+
+        test('should return false when update is still in cooldown on containerWithResult', () => {
+            const now = Date.now();
+            // result was created 1 hour ago, delay is 2 days => still cooling down
+            const resultCreated = new Date(now - 3600 * 1000).toISOString();
+
+            const containerInDb = container.validate({
+                id: 'c1',
+                name: 'test',
+                watcher: 'docker',
+                delay: '2d',
+                image: {
+                    id: 'img1',
+                    name: 'test',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                    created: resultCreated,
+                },
+                checkedAt: new Date(now - 1800 * 1000).toISOString(),
+            });
+
+            const containerWithResult = container.validate({
+                id: 'c1',
+                name: 'test',
+                watcher: 'docker',
+                delay: '2d',
+                image: {
+                    id: 'img1',
+                    name: 'test',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                    created: resultCreated,
+                },
+            });
+
+            expect(containerWithResult.isCoolingDown).toBe(true);
+            expect(containerWithResult.updateAvailable).toBe(false);
+
+            expect(
+                container.hasTransitionedOutOfCooldown(
+                    containerInDb,
+                    containerWithResult,
+                ),
+            ).toBe(false);
+        });
+
+        test('should return true with explicit mock properties', () => {
+            const containerInDb = {
+                id: 'c1',
+                isCoolingDown: true,
+                updateAvailable: false,
+            };
+            const containerWithResult = {
+                id: 'c1',
+                isCoolingDown: false,
+                updateAvailable: true,
+            };
+            expect(
+                container.hasTransitionedOutOfCooldown(
+                    containerInDb as any,
+                    containerWithResult as any,
+                ),
+            ).toBe(true);
+        });
+
+        test('should return false with explicit mock properties when update was already available', () => {
+            const containerInDb = {
+                id: 'c1',
+                isCoolingDown: false,
+                updateAvailable: true,
+            };
+            const containerWithResult = {
+                id: 'c1',
+                isCoolingDown: false,
+                updateAvailable: true,
+            };
+            expect(
+                container.hasTransitionedOutOfCooldown(
+                    containerInDb as any,
+                    containerWithResult as any,
+                ),
+            ).toBe(false);
+        });
+    });
 });

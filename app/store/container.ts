@@ -19,6 +19,22 @@ export function createCollections() {
     log.debug('Using SQLite store: tables managed via DDL migrations');
 }
 
+/**
+ * Normalize SQLite CURRENT_TIMESTAMP string to standard ISO-8601 string.
+ */
+export function normalizeSqliteTimestamp(
+    ts?: string | null,
+): string | undefined {
+    if (!ts) {
+        return undefined;
+    }
+    const isoString = ts.includes('T')
+        ? ts
+        : ts.replace(' ', 'T') + (ts.endsWith('Z') ? '' : 'Z');
+    const parsed = new Date(isoString).getTime();
+    return isNaN(parsed) ? undefined : new Date(parsed).toISOString();
+}
+
 function buildContainerFromRows(
     containerRow: typeof schema.containers.$inferSelect,
     imageRow?: typeof schema.containerImages.$inferSelect,
@@ -43,6 +59,7 @@ function buildContainerFromRows(
         snoozedVersion: containerRow.snoozedVersion ?? undefined,
         snoozedUntil: containerRow.snoozedUntil ?? undefined,
         delay: containerRow.delay ?? undefined,
+        updatedAt: normalizeSqliteTimestamp(containerRow.updatedAt),
     };
 
     if (imageRow) {
@@ -83,11 +100,15 @@ function buildContainerFromRows(
                 message: historyRow.errorMessage,
             };
         }
+        if (historyRow.checkedAt) {
+            raw.checkedAt = normalizeSqliteTimestamp(historyRow.checkedAt);
+        }
         if (
             historyRow.updateAvailable !== undefined &&
             historyRow.updateAvailable !== null
         ) {
             raw.updateAvailable = Boolean(historyRow.updateAvailable);
+            raw.persistedUpdateAvailable = Boolean(historyRow.updateAvailable);
         }
         if (historyRow.updateKind) {
             raw.updateKind = {
@@ -187,6 +208,15 @@ export function completeContainerShapeForApi(container: Container): Container {
     }
 
     raw.updateAvailable = container.updateAvailable;
+    if (container.checkedAt) {
+        raw.checkedAt = container.checkedAt;
+    }
+    if (container.updatedAt) {
+        raw.updatedAt = container.updatedAt;
+    }
+    if (container.persistedUpdateAvailable !== undefined) {
+        raw.persistedUpdateAvailable = container.persistedUpdateAvailable;
+    }
     if (container.updateKind) {
         raw.updateKind = {
             kind: container.updateKind.kind,
@@ -402,9 +432,17 @@ export function updateContainer(container: any): Container {
                 (containerToReturn.error?.message ?? null);
 
         if (isSameAsLatest) {
-            // Simply update checked_at on the existing record
+            // Simply update checked_at on the existing record, and keep result metadata and updateAvailable in sync
             db.update(schema.containerResultsHistory)
-                .set({ checkedAt: sql`CURRENT_TIMESTAMP` })
+                .set({
+                    checkedAt: sql`CURRENT_TIMESTAMP`,
+                    created: containerToReturn.result?.created,
+                    updateAvailable: containerToReturn.updateAvailable,
+                    updateKind: containerToReturn.updateKind?.kind,
+                    localValue: containerToReturn.updateKind?.localValue,
+                    remoteValue: containerToReturn.updateKind?.remoteValue,
+                    semverDiff: containerToReturn.updateKind?.semverDiff,
+                })
                 .where(eq(schema.containerResultsHistory.id, latestHistory.id))
                 .run();
         } else {
