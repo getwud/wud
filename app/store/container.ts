@@ -560,9 +560,13 @@ export function getContainers(query: Record<string, any> = {}): Container[] {
     // In-memory filter for any query attributes
     if (query && Object.keys(query).length > 0) {
         containerList = containerList.filter((container) => {
-            return Object.entries(query).every(
-                ([k, v]) => (container as any)[k] === v,
-            );
+            return Object.entries(query).every(([key, value]) => {
+                const actual =
+                    key === 'tag'
+                        ? container.image?.tag?.value
+                        : container[key as keyof Container];
+                return actual === value;
+            });
         });
     }
 
