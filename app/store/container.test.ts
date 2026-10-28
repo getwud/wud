@@ -157,6 +157,47 @@ describe('Container Store (SQLite)', () => {
         expect(result).toBeUndefined();
     });
 
+    test('getContainers should filter by the installed image tag, not the update candidate', () => {
+        container.insertContainer(sampleContainer);
+        container.insertContainer({
+            ...sampleContainer,
+            id: 'other-tag',
+            image: {
+                ...sampleContainer.image,
+                tag: { value: '2.0.0', semver: true },
+            },
+        });
+
+        expect(
+            container.getContainers({ tag: '1.0.0' }).map((c) => c.id),
+        ).toEqual([sampleContainer.id]);
+        expect(container.getContainers({ tag: '1.1.0' })).toEqual([]);
+        expect(container.getContainers({ tag: 'missing' })).toEqual([]);
+    });
+
+    test('getContainers should combine image tag and existing query filters', () => {
+        container.insertContainer(sampleContainer);
+        container.insertContainer({
+            ...sampleContainer,
+            id: 'other-watcher',
+            watcher: 'remote',
+        });
+
+        expect(
+            container
+                .getContainers({
+                    tag: '1.0.0',
+                    watcher: 'docker-local',
+                    status: 'running',
+                    updateAvailable: true,
+                })
+                .map((c) => c.id),
+        ).toEqual([sampleContainer.id]);
+        expect(
+            container.getContainers({ tag: '1.0.0', status: 'exited' }),
+        ).toEqual([]);
+    });
+
     test('deleteContainer should delete container and emit an event', () => {
         container.insertContainer(sampleContainer);
         const spyEvent = jest.spyOn(event, 'emitContainerRemoved');
