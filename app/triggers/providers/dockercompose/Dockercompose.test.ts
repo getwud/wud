@@ -9,6 +9,7 @@ import Docker from '../docker/Docker';
 import { testTriggerProvider } from '../TriggerTestHelper';
 import { HookManager } from '../../hooks/HookManager';
 import { Container } from '../../../model/container';
+import * as event from '../../../event';
 
 jest.mock('../../../registry', () => ({
     getState() {
@@ -609,6 +610,7 @@ describe('Dockercompose Trigger - file operations', () => {
         expect(dockercompose.writeComposeFile).toHaveBeenCalled();
         expect(superTriggerSpy).toHaveBeenCalledWith(testContainer, {
             runHooks: false,
+            emitEvents: false,
         });
         expect(postSpy).toHaveBeenCalledTimes(1);
 
@@ -744,6 +746,7 @@ describe('Dockercompose Trigger - file operations', () => {
                 expect(superTriggerSpy).toHaveBeenCalledTimes(1);
                 expect(superTriggerSpy).toHaveBeenCalledWith(testContainer, {
                     runHooks: false,
+                    emitEvents: false,
                 });
                 expect(fs.writeFile).toHaveBeenCalledTimes(1);
                 expect(fs.writeFile).toHaveBeenCalledWith(
@@ -791,6 +794,7 @@ describe('Dockercompose Trigger - file operations', () => {
 
             expect(superTriggerSpy).toHaveBeenCalledWith(testContainer, {
                 runHooks: false,
+                emitEvents: false,
             });
             expect(fs.writeFile).toHaveBeenCalled();
         });
@@ -803,6 +807,7 @@ describe('Dockercompose Trigger - file operations', () => {
 
             expect(superTriggerSpy).toHaveBeenCalledWith(digestContainer, {
                 runHooks: false,
+                emitEvents: false,
             });
             expect(fs.writeFile).not.toHaveBeenCalled();
             expect(fs.copyFile).not.toHaveBeenCalled();
@@ -1720,6 +1725,186 @@ services:
 
             pullImageSpy.mockRestore();
             watcherSpy.mockRestore();
+        });
+    });
+
+    describe('Lifecycle update event emission (#1491)', () => {
+        let preSpy: jest.SpyInstance;
+        let successSpy: jest.SpyInstance;
+        let failureSpy: jest.SpyInstance;
+        let superTriggerSpy: jest.SpyInstance;
+
+        const composeYaml = yaml.stringify({
+            services: {
+                app: {
+                    image: 'test/app:1.0.0',
+                    container_name: 'app',
+                },
+                db: {
+                    image: 'test/db:1.0.0',
+                    container_name: 'db',
+                },
+            },
+        });
+
+        const appContainer: any = {
+            id: 'c-app',
+            name: 'app',
+            watcher: 'local',
+            updateAvailable: true,
+            labels: {
+                'com.docker.compose.service': 'app',
+            },
+            image: {
+                name: 'test/app',
+                tag: { value: '1.0.0', semver: true },
+                digest: { watch: false },
+                registry: { name: 'hub', url: 'hub.docker.com' },
+            },
+            updateKind: {
+                kind: 'tag',
+                localValue: '1.0.0',
+                remoteValue: '2.0.0',
+                semverDiff: 'major',
+            },
+            result: { tag: '2.0.0' },
+        };
+
+        const dbContainer: any = {
+            id: 'c-db',
+            name: 'db',
+            watcher: 'local',
+            updateAvailable: true,
+            labels: {
+                'com.docker.compose.service': 'db',
+            },
+            image: {
+                name: 'test/db',
+                tag: { value: '1.0.0', semver: true },
+                digest: { watch: false },
+                registry: { name: 'hub', url: 'hub.docker.com' },
+            },
+            updateKind: {
+                kind: 'tag',
+                localValue: '1.0.0',
+                remoteValue: '2.0.0',
+                semverDiff: 'major',
+            },
+            result: { tag: '2.0.0' },
+        };
+
+        beforeEach(() => {
+            preSpy = jest
+                .spyOn(event, 'emitContainerUpdatePre')
+                .mockImplementation(() => {});
+            successSpy = jest
+                .spyOn(event, 'emitContainerUpdateSuccess')
+                .mockImplementation(() => {});
+            failureSpy = jest
+                .spyOn(event, 'emitContainerUpdateFailure')
+                .mockImplementation(() => {});
+            dockercompose.configuration = {
+                ...configurationValid,
+                dryrun: false,
+                backup: false,
+            };
+            dockercompose.getComposeFileAsObject = jest
+                .fn()
+                .mockResolvedValue(yaml.parse(composeYaml));
+            dockercompose.getComposeFile = jest
+                .fn()
+                .mockResolvedValue(Buffer.from(composeYaml));
+            dockercompose.writeComposeFile = jest
+                .fn()
+                .mockResolvedValue(undefined);
+            dockercompose.getWatcher = jest.fn().mockReturnValue({
+                dockerApi: {},
+            });
+            superTriggerSpy = jest
+                .spyOn(
+                    Object.getPrototypeOf(Dockercompose.prototype),
+                    'trigger',
+                )
+                .mockResolvedValue(undefined);
+        });
+
+        afterEach(() => {
+            preSpy.mockRestore();
+            successSpy.mockRestore();
+            failureSpy.mockRestore();
+            superTriggerSpy.mockRestore();
+        });
+
+        test('should emit pre and success events exactly once per container on standard update', async () => {
+            await dockercompose.processComposeFile('/path/compose.yml', [
+                appContainer,
+            ]);
+
+            expect(preSpy).toHaveBeenCalledTimes(1);
+            expect(preSpy).toHaveBeenCalledWith(appContainer);
+
+            expect(successSpy).toHaveBeenCalledTimes(1);
+            expect(successSpy).toHaveBeenCalledWith(appContainer);
+
+            expect(failureSpy).not.toHaveBeenCalled();
+            expect(superTriggerSpy).toHaveBeenCalledWith(appContainer, {
+                runHooks: false,
+                emitEvents: false,
+            });
+        });
+
+        test('should emit pre and success events once per container for multiple updated containers in a stack', async () => {
+            await dockercompose.processComposeFile('/path/compose.yml', [
+                appContainer,
+                dbContainer,
+            ]);
+
+            expect(preSpy).toHaveBeenCalledTimes(2);
+            expect(preSpy).toHaveBeenNthCalledWith(1, appContainer);
+            expect(preSpy).toHaveBeenNthCalledWith(2, dbContainer);
+
+            expect(successSpy).toHaveBeenCalledTimes(2);
+            expect(successSpy).toHaveBeenNthCalledWith(1, appContainer);
+            expect(successSpy).toHaveBeenNthCalledWith(2, dbContainer);
+
+            expect(failureSpy).not.toHaveBeenCalled();
+        });
+
+        test('should emit pre and failure events exactly once per container when update throws', async () => {
+            superTriggerSpy.mockRejectedValue(
+                new Error('Container recreate failed'),
+            );
+
+            await expect(
+                dockercompose.processComposeFile('/path/compose.yml', [
+                    appContainer,
+                ]),
+            ).rejects.toThrow('Container recreate failed');
+
+            expect(preSpy).toHaveBeenCalledTimes(1);
+            expect(preSpy).toHaveBeenCalledWith(appContainer);
+
+            expect(successSpy).not.toHaveBeenCalled();
+
+            expect(failureSpy).toHaveBeenCalledTimes(1);
+            expect(failureSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: 'app',
+                    error: 'Container recreate failed',
+                }),
+            );
+        });
+
+        test('should not emit pre or success events in dry-run mode', async () => {
+            dockercompose.configuration.dryrun = true;
+
+            await dockercompose.processComposeFile('/path/compose.yml', [
+                appContainer,
+            ]);
+
+            expect(preSpy).not.toHaveBeenCalled();
+            expect(successSpy).not.toHaveBeenCalled();
+            expect(failureSpy).not.toHaveBeenCalled();
         });
     });
 });
