@@ -1374,4 +1374,268 @@ describe('rich container metadata', () => {
             ).toBe(false);
         });
     });
+
+    describe('safeInterpolate and template injection security (GHSA-rrhg-3h69-4fvf)', () => {
+        const dummyContext = {
+            major: '1',
+            minor: '2',
+            patch: '3',
+            prerelease: 'beta.1',
+            version: '1.2.3',
+            original: 'v1.2.3-beta.1',
+            raw: 'v1.2.3-beta.1',
+            transformed: '1.2.3-beta.1',
+            image: {
+                name: 'my-org/my-app',
+                registry: {
+                    name: 'hub',
+                    url: 'https://hub.docker.com',
+                },
+                tag: {
+                    value: '1.2.3',
+                    semver: true,
+                },
+            },
+            container: {
+                name: 'my-container',
+                watcher: 'docker',
+            },
+            result: {
+                tag: '2.0.0',
+            },
+        };
+
+        describe('safeInterpolate unit tests', () => {
+            test('should interpolate standard variables correctly', () => {
+                expect(
+                    container.safeInterpolate(
+                        'https://github.com/my-org/my-app/releases/tag/v${major}.${minor}.${patch}',
+                        dummyContext,
+                    ),
+                ).toBe('https://github.com/my-org/my-app/releases/tag/v1.2.3');
+
+                expect(
+                    container.safeInterpolate(
+                        'https://example.com/${image.name}/${version}',
+                        dummyContext,
+                    ),
+                ).toBe('https://example.com/my-org/my-app/1.2.3');
+
+                expect(
+                    container.safeInterpolate(
+                        'https://hub.docker.com/r/${image.name}/tags?name=${result.tag}',
+                        dummyContext,
+                    ),
+                ).toBe(
+                    'https://hub.docker.com/r/my-org/my-app/tags?name=2.0.0',
+                );
+
+                expect(
+                    container.safeInterpolate(
+                        'https://example.com/${container.name}/${container.watcher}',
+                        dummyContext,
+                    ),
+                ).toBe('https://example.com/my-container/docker');
+            });
+
+            test('should resolve null, undefined, objects and functions to empty string', () => {
+                const contextWithComplex = {
+                    ...dummyContext,
+                    image: {
+                        ...dummyContext.image,
+                        nullProp: null,
+                        undefinedProp: undefined,
+                        funcProp: () => 'malicious',
+                    },
+                };
+
+                // Non-primitive: image itself or nested object resolves to ''
+                expect(
+                    container.safeInterpolate(
+                        'https://example.com/${image}',
+                        contextWithComplex,
+                    ),
+                ).toBe('https://example.com/');
+
+                // Null property resolves to ''
+                expect(
+                    container.safeInterpolate(
+                        'https://example.com/${image.nullProp}',
+                        contextWithComplex,
+                    ),
+                ).toBe('https://example.com/');
+
+                // Undefined property resolves to ''
+                expect(
+                    container.safeInterpolate(
+                        'https://example.com/${image.undefinedProp}',
+                        contextWithComplex,
+                    ),
+                ).toBe('https://example.com/');
+
+                // Non-existent property resolves to ''
+                expect(
+                    container.safeInterpolate(
+                        'https://example.com/${image.nonExistent}',
+                        contextWithComplex,
+                    ),
+                ).toBe('https://example.com/');
+
+                // Function property resolves to ''
+                expect(
+                    container.safeInterpolate(
+                        'https://example.com/${image.funcProp}',
+                        contextWithComplex,
+                    ),
+                ).toBe('https://example.com/');
+            });
+
+            test('should throw on syntax errors in template expressions', () => {
+                // Function call / IIFE
+                expect(() =>
+                    container.safeInterpolate(
+                        '${(() => { return 1; })()}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Syntax violation/);
+
+                // Arithmetic expression
+                expect(() =>
+                    container.safeInterpolate('${1+1}', dummyContext),
+                ).toThrow(/Syntax violation/);
+
+                // Invalid characters / spaces / quotes
+                expect(() =>
+                    container.safeInterpolate(
+                        "${process.mainModule.require('child_process')}",
+                        dummyContext,
+                    ),
+                ).toThrow(/Syntax violation/);
+
+                // Empty expression
+                expect(() =>
+                    container.safeInterpolate('https://${}.com', dummyContext),
+                ).toThrow(/Syntax violation/);
+
+                // Unclosed expression
+                expect(() =>
+                    container.safeInterpolate(
+                        'https://example.com/${major',
+                        dummyContext,
+                    ),
+                ).toThrow(/Syntax violation/);
+            });
+
+            test('should throw on forbidden property access (prototype pollution)', () => {
+                expect(() =>
+                    container.safeInterpolate('${__proto__}', dummyContext),
+                ).toThrow();
+
+                expect(() =>
+                    container.safeInterpolate(
+                        '${container.__proto__.polluted}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Forbidden property access/);
+
+                expect(() =>
+                    container.safeInterpolate(
+                        '${image.constructor.name}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Forbidden property access/);
+
+                expect(() =>
+                    container.safeInterpolate(
+                        '${result.prototype.foo}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Forbidden property access/);
+            });
+
+            test('should throw on unauthorized root variables', () => {
+                expect(() =>
+                    container.safeInterpolate(
+                        '${process.env.SECRET}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Unauthorized root variable: 'process'/);
+
+                expect(() =>
+                    container.safeInterpolate(
+                        '${global.process}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Unauthorized root variable: 'global'/);
+
+                expect(() =>
+                    container.safeInterpolate('${require}', dummyContext),
+                ).toThrow(/Unauthorized root variable: 'require'/);
+
+                expect(() =>
+                    container.safeInterpolate('${dummyVar}', dummyContext),
+                ).toThrow(/Unauthorized root variable: 'dummyVar'/);
+            });
+        });
+
+        describe('renderLinkTemplate with malicious payloads', () => {
+            const testContainer = {
+                id: 'c-security-test',
+                name: 'sec-app',
+                watcher: 'local',
+                image: {
+                    id: 'img-sec',
+                    name: 'org/sec-app',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.2.3', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                },
+            } as any;
+
+            test('should not execute code and safely fall back to template string on RCE payload', () => {
+                const maliciousTemplates = [
+                    '${process.mainModule.require("child_process").execSync("id")}',
+                    '${(() => { process.exit(1); })()}',
+                    '${1+1}',
+                    'https://example.com/${process.env.PATH}',
+                    '${global.console.log("hacked")}',
+                ];
+
+                for (const payload of maliciousTemplates) {
+                    const rendered = container.renderLinkTemplate(
+                        payload,
+                        testContainer,
+                    );
+                    expect(rendered).toBe(payload);
+                }
+            });
+
+            test('should not pollute prototype and safely fall back to template string', () => {
+                const payload = "${__proto__.polluted = 'yes'}";
+                const rendered = container.renderLinkTemplate(
+                    payload,
+                    testContainer,
+                );
+                expect(rendered).toBe(payload);
+                expect((Object.prototype as any).polluted).toBeUndefined();
+            });
+
+            test('should render valid semver and container variables in renderLinkTemplate', () => {
+                const template =
+                    'https://release-${version}.acme.com/${image.name}';
+                const rendered = container.renderLinkTemplate(
+                    template,
+                    testContainer,
+                );
+                expect(rendered).toBe(
+                    'https://release-1.2.3.acme.com/org/sec-app',
+                );
+            });
+        });
+    });
 });

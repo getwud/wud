@@ -330,6 +330,96 @@ export function isDockerOfficialImage(image: ContainerImage): boolean {
     return cleanName.length > 0 && !cleanName.includes('/');
 }
 
+const TOKEN_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*$/;
+const FORBIDDEN_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+const ALLOWED_ROOTS = new Set([
+    'major',
+    'minor',
+    'patch',
+    'prerelease',
+    'version',
+    'original',
+    'raw',
+    'transformed',
+    'image',
+    'container',
+    'result',
+]);
+
+/**
+ * Safely interpolate a template string using a restricted context object,
+ * preventing arbitrary code execution and prototype pollution.
+ *
+ * @param template string
+ * @param context Record<string, unknown>
+ * @returns string
+ */
+export function safeInterpolate(
+    template: string,
+    context: Record<string, unknown>,
+): string {
+    if (!template.includes('${')) {
+        return template;
+    }
+
+    const openMatches = template.match(/\$\{/g);
+    const openCount = openMatches ? openMatches.length : 0;
+    let replacedCount = 0;
+
+    const result = template.replace(/\$\{([^}]*)\}/g, (_match, expr) => {
+        replacedCount++;
+
+        if (!TOKEN_REGEX.test(expr)) {
+            throw new Error(
+                `Syntax violation: invalid expression '\${${expr}}'`,
+            );
+        }
+
+        const segments = expr.split('.');
+        for (const segment of segments) {
+            if (FORBIDDEN_KEYS.has(segment)) {
+                throw new Error(`Forbidden property access: '${segment}'`);
+            }
+        }
+
+        const rootVar = segments[0];
+        if (!ALLOWED_ROOTS.has(rootVar)) {
+            throw new Error(`Unauthorized root variable: '${rootVar}'`);
+        }
+
+        let current: unknown = context[rootVar];
+        for (let i = 1; i < segments.length; i++) {
+            if (
+                current === null ||
+                current === undefined ||
+                typeof current !== 'object'
+            ) {
+                current = undefined;
+                break;
+            }
+            current = (current as Record<string, unknown>)[segments[i]];
+        }
+
+        if (
+            typeof current === 'string' ||
+            (typeof current === 'number' && !Number.isNaN(current)) ||
+            typeof current === 'boolean'
+        ) {
+            return String(current);
+        }
+
+        return '';
+    });
+
+    if (replacedCount !== openCount) {
+        throw new Error(
+            'Syntax violation: unclosed or malformed template expression',
+        );
+    }
+
+    return result;
+}
+
 /**
  * Render a link template string with container variables.
  *
@@ -356,10 +446,7 @@ export function renderLinkTemplate(
             ? originalTagValue
             : container.image?.tag?.value || '';
 
-    // Export vars for dynamic template interpolation
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const raw = currentTag; // deprecated, kept for backward compatibility
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const raw = currentTag;
     const original = currentTag;
     const transformed =
         container.transformTags && currentTag
@@ -369,28 +456,38 @@ export function renderLinkTemplate(
     let minor = '';
     let patch = '';
     let prerelease = '';
+    let version = '';
 
     if (container.image?.tag?.semver && transformed) {
         const versionSemver = parseSemver(transformed);
         if (versionSemver) {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             major = String(versionSemver.major);
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             minor = String(versionSemver.minor);
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             patch = String(versionSemver.patch);
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             prerelease =
                 versionSemver.prerelease && versionSemver.prerelease.length > 0
                     ? String(versionSemver.prerelease[0])
                     : '';
+            version = `${major}.${minor}.${patch}`;
         }
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const image = container.image;
+
+    const context: Record<string, unknown> = {
+        major,
+        minor,
+        patch,
+        prerelease,
+        version,
+        original,
+        raw,
+        transformed,
+        image: container.image,
+        container,
+        result: container.result,
+    };
 
     try {
-        return eval('`' + trimmed + '`');
+        return safeInterpolate(trimmed, context);
     } catch {
         return trimmed;
     }
@@ -916,4 +1013,5 @@ export function fullName(container: Container) {
 export {
     getLink as testable_getLink,
     addUpdateKindProperty as testable_addUpdateKindProperty,
+    safeInterpolate as testable_safeInterpolate,
 };
