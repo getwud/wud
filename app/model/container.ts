@@ -424,13 +424,13 @@ export function safeInterpolate(
  * Render a link template string with container variables.
  *
  * @param template string | undefined
- * @param container Container
+ * @param containerParam Container
  * @param originalTagValue string
  * @returns string | undefined
  */
 export function renderLinkTemplate(
     template: string | undefined,
-    container: Container,
+    containerParam: Container,
     originalTagValue?: string,
 ): string | undefined {
     if (!template || typeof template !== 'string') {
@@ -444,13 +444,17 @@ export function renderLinkTemplate(
     const currentTag =
         originalTagValue !== undefined
             ? originalTagValue
-            : container.image?.tag?.value || '';
+            : containerParam.image?.tag?.value || '';
 
     const raw = currentTag;
     const original = currentTag;
     const transformed =
-        container.transformTags && currentTag
-            ? transformTag(container.transformTags, currentTag, container)
+        containerParam.transformTags && currentTag
+            ? transformTag(
+                  containerParam.transformTags,
+                  currentTag,
+                  containerParam,
+              )
             : currentTag;
     let major = '';
     let minor = '';
@@ -458,7 +462,7 @@ export function renderLinkTemplate(
     let prerelease = '';
     let version = '';
 
-    if (container.image?.tag?.semver && transformed) {
+    if (containerParam.image?.tag?.semver && transformed) {
         const versionSemver = parseSemver(transformed);
         if (versionSemver) {
             major = String(versionSemver.major);
@@ -471,6 +475,37 @@ export function renderLinkTemplate(
             version = `${major}.${minor}.${patch}`;
         }
     }
+    // Export result for dynamic template interpolation (${result.tag}, etc.)
+    // Plain data properties copied to avoid triggering the result.link getter
+    const resultTag =
+        currentTag ||
+        containerParam.result?.tag ||
+        containerParam.image?.tag?.value ||
+        '';
+    const result: Record<string, unknown> = { tag: resultTag };
+    if (containerParam.result) {
+        if (containerParam.result.digest !== undefined) {
+            result.digest = containerParam.result.digest;
+        }
+        if (containerParam.result.created !== undefined) {
+            result.created = containerParam.result.created;
+        }
+        if (containerParam.result.version !== undefined) {
+            result.version = containerParam.result.version;
+        }
+        if (containerParam.result.changelogUrl !== undefined) {
+            result.changelogUrl = containerParam.result.changelogUrl;
+        }
+    }
+
+    const container = new Proxy(containerParam, {
+        get(target, prop, receiver) {
+            if (prop === 'result') {
+                return result;
+            }
+            return Reflect.get(target, prop, receiver);
+        },
+    });
 
     const context: Record<string, unknown> = {
         major,
@@ -481,9 +516,9 @@ export function renderLinkTemplate(
         original,
         raw,
         transformed,
-        image: container.image,
+        image: containerParam.image,
         container,
-        result: container.result,
+        result,
     };
 
     try {
@@ -515,9 +550,36 @@ export function resolveContainerMetadata(container: Container): Container {
     }
     container.isOfficial = isOfficial;
 
+    // Preserve templated URLs on container labels so re-validations retain raw templates
+    if (
+        container.changelogUrl &&
+        container.changelogUrl.includes('${') &&
+        !getFirstLabel(labels, CHANGELOG_LABEL_KEYS)
+    ) {
+        labels['wud.link.changelog'] = container.changelogUrl;
+        container.labels = labels;
+    }
+    if (
+        container.upstreamUrl &&
+        container.upstreamUrl.includes('${') &&
+        !getFirstLabel(labels, UPSTREAM_LABEL_KEYS)
+    ) {
+        labels['wud.link.upstream'] = container.upstreamUrl;
+        container.labels = labels;
+    }
+    if (
+        container.documentationUrl &&
+        container.documentationUrl.includes('${') &&
+        !getFirstLabel(labels, DOC_LABEL_KEYS) &&
+        !container.linkTemplate
+    ) {
+        labels['wud.link.doc'] = container.documentationUrl;
+        container.labels = labels;
+    }
+
     // 2. changelogUrl resolution
     const rawChangelog =
-        container.changelogUrl || getFirstLabel(labels, CHANGELOG_LABEL_KEYS);
+        getFirstLabel(labels, CHANGELOG_LABEL_KEYS) || container.changelogUrl;
     let resolvedChangelog = renderLinkTemplate(rawChangelog, container);
     if (resolvedChangelog && !isValidUri(resolvedChangelog)) {
         log.warn(
@@ -543,7 +605,7 @@ export function resolveContainerMetadata(container: Container): Container {
 
     // 3. upstreamUrl resolution
     const rawUpstream =
-        container.upstreamUrl || getFirstLabel(labels, UPSTREAM_LABEL_KEYS);
+        getFirstLabel(labels, UPSTREAM_LABEL_KEYS) || container.upstreamUrl;
     let resolvedUpstream = renderLinkTemplate(rawUpstream, container);
     if (resolvedUpstream && !isValidUri(resolvedUpstream)) {
         log.warn(
@@ -555,10 +617,10 @@ export function resolveContainerMetadata(container: Container): Container {
 
     // 4. documentationUrl resolution
     const rawDoc =
-        container.documentationUrl ||
         getFirstLabel(labels, DOC_LABEL_KEYS) ||
         getFirstLabel(labels, TEMPLATE_LABEL_KEYS) ||
-        container.linkTemplate;
+        container.linkTemplate ||
+        container.documentationUrl;
     let resolvedDoc = renderLinkTemplate(rawDoc, container);
     if (!resolvedDoc && container.isOfficial && image?.name) {
         const repoName = image.name.trim().replace(/^library\//, '');
