@@ -77,6 +77,30 @@ describe('Dockercompose Trigger', () => {
             dockercompose.validateConfiguration(configMissingContainer),
         ).toThrow();
     });
+
+    test('should validate configuration with strict_digest', () => {
+        const validatedDefault =
+            dockercompose.validateConfiguration(configurationValid);
+        expect(validatedDefault.strict_digest).toBe(false);
+
+        const validatedExplicit = dockercompose.validateConfiguration({
+            ...configurationValid,
+            strict_digest: true,
+        });
+        expect(validatedExplicit.strict_digest).toBe(true);
+
+        const validatedNested = dockercompose.validateConfiguration({
+            ...configurationValid,
+            strict: { digest: 'true' },
+        } as any);
+        expect(validatedNested.strict_digest).toBe(true);
+
+        const validatedFlat = dockercompose.validateConfiguration({
+            ...configurationValid,
+            strictdigest: 'true',
+        } as any);
+        expect(validatedFlat.strict_digest).toBe(true);
+    });
 });
 
 const container = {
@@ -810,6 +834,65 @@ describe('Dockercompose Trigger - file operations', () => {
         superTriggerSpy.mockRestore();
     });
 
+    test('processComposeFile should abort and emit failure event without modifying compose file when strict_digest is enabled and candidate lacks digest', async () => {
+        dockercompose.processComposeFile =
+            Dockercompose.prototype.processComposeFile;
+        dockercompose.configuration = {
+            ...configurationValid,
+            strict_digest: true,
+            dryrun: false,
+        };
+        const failureSpy = jest.spyOn(event, 'emitContainerUpdateFailure');
+        const composeFileStr =
+            'services:\n  test:\n    image: test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111';
+        dockercompose.getComposeFileAsObject = jest.fn().mockResolvedValue({
+            services: {
+                test: {
+                    image: 'test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                },
+            },
+        });
+        dockercompose.getComposeFile = jest
+            .fn()
+            .mockResolvedValue(Buffer.from(composeFileStr));
+        dockercompose.writeComposeFile = jest.fn();
+        dockercompose.getWatcher = jest.fn().mockReturnValue({
+            dockerApi: {},
+        });
+
+        const testContainer = {
+            name: 'test',
+            id: 'c1',
+            watcher: 'local',
+            updateAvailable: true,
+            labels: {
+                'com.docker.compose.service': 'test',
+            },
+            image: {
+                registry: { name: 'hub' },
+                name: 'test/test',
+                tag: { value: '1.2.3', semver: true },
+            },
+            updateKind: { kind: 'tag', remoteValue: '4.5.6' },
+            result: { tag: '4.5.6' },
+        } as unknown as Container;
+
+        await expect(
+            dockercompose.processComposeFile('/path/compose.yml', [
+                testContainer,
+            ]),
+        ).rejects.toThrow('strict_digest is enabled');
+
+        expect(dockercompose.writeComposeFile).not.toHaveBeenCalled();
+        expect(failureSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                name: 'test',
+                error: expect.stringContaining('strict_digest is enabled'),
+            }),
+        );
+        failureSpy.mockRestore();
+    });
+
     describe('Digest-only updates for floating tags (#1404)', () => {
         const currentDigest = `sha256:${'1'.repeat(64)}`;
         const remoteDigest = `sha256:${'2'.repeat(64)}`;
@@ -1532,6 +1615,253 @@ describe('Dockercompose Trigger - file operations', () => {
                     current:
                         'registry.example.com:5000/myorg/myapp:1.0.0@sha256:old1111111111111111111111111111111111111111111111111111111111111',
                     update: 'registry.example.com:5000/myorg/myapp:2.0.0@sha256:new2222222222222222222222222222222222222222222222222222222222222',
+                });
+            });
+        });
+
+        describe('strict_digest mode (#1497)', () => {
+            const composePinned = {
+                services: {
+                    test: {
+                        image: 'test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                    },
+                },
+            };
+            const composeUnpinned = {
+                services: {
+                    test: {
+                        image: 'test/test:1.2.3',
+                    },
+                },
+            };
+            const containerWithoutRemoteDigest = {
+                ...digestContainer,
+                result: {
+                    tag: '4.5.6',
+                },
+            } as unknown as Container;
+
+            test('isStrictDigestEnabled helper should correctly evaluate trigger and container label settings', () => {
+                dockercompose.type = 'dockercompose';
+                dockercompose.name = 'compose1';
+
+                // Default is false
+                dockercompose.configuration = {
+                    ...configurationValid,
+                    strict_digest: false,
+                };
+                expect(dockercompose.isStrictDigestEnabled()).toBe(false);
+                expect(dockercompose.isStrictDigestEnabled({} as any)).toBe(
+                    false,
+                );
+
+                // Config level true
+                dockercompose.configuration.strict_digest = true;
+                expect(dockercompose.isStrictDigestEnabled()).toBe(true);
+                expect(dockercompose.isStrictDigestEnabled({} as any)).toBe(
+                    true,
+                );
+
+                // Container label override: true
+                dockercompose.configuration.strict_digest = false;
+                expect(
+                    dockercompose.isStrictDigestEnabled({
+                        labels: {
+                            'wud.trigger.dockercompose.strict_digest': 'true',
+                        },
+                    } as any),
+                ).toBe(true);
+                expect(
+                    dockercompose.isStrictDigestEnabled({
+                        labels: {
+                            'wud.trigger.dockercompose.compose1.strict_digest':
+                                'true',
+                        },
+                    } as any),
+                ).toBe(true);
+                expect(
+                    dockercompose.isStrictDigestEnabled({
+                        labels: { 'wud.trigger.strict_digest': 'true' },
+                    } as any),
+                ).toBe(true);
+                expect(
+                    dockercompose.isStrictDigestEnabled({
+                        labels: {
+                            'wud.trigger.dockercompose.strict_digest': true,
+                        },
+                    } as any),
+                ).toBe(true);
+
+                // Container label override: false
+                dockercompose.configuration.strict_digest = true;
+                expect(
+                    dockercompose.isStrictDigestEnabled({
+                        labels: {
+                            'wud.trigger.dockercompose.strict_digest': 'false',
+                        },
+                    } as any),
+                ).toBe(false);
+                expect(
+                    dockercompose.isStrictDigestEnabled({
+                        labels: {
+                            'wud.trigger.dockercompose.compose1.strict_digest':
+                                'false',
+                        },
+                    } as any),
+                ).toBe(false);
+                expect(
+                    dockercompose.isStrictDigestEnabled({
+                        labels: { 'wud.trigger.strict_digest': 'false' },
+                    } as any),
+                ).toBe(false);
+            });
+
+            test('should throw error when strict_digest is enabled on trigger and candidate has no digest', () => {
+                dockercompose.configuration = {
+                    ...configurationValid,
+                    strict_digest: true,
+                };
+
+                expect(() =>
+                    dockercompose.mapCurrentVersionToUpdateVersion(
+                        composePinned as any,
+                        containerWithoutRemoteDigest,
+                        new Set(),
+                    ),
+                ).toThrow(
+                    'Image test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111 is pinned by digest, but no remote digest is available for test/test:4.5.6 and strict_digest is enabled',
+                );
+            });
+
+            test('should throw error when candidate update is digest kind but has no remote digest in strict_digest mode', () => {
+                dockercompose.configuration = {
+                    ...configurationValid,
+                    strict_digest: true,
+                };
+                const digestUpdateWithoutDigest = {
+                    ...digestContainer,
+                    updateKind: { kind: 'digest' },
+                    result: {},
+                } as unknown as Container;
+
+                expect(() =>
+                    dockercompose.mapCurrentVersionToUpdateVersion(
+                        composePinned as any,
+                        digestUpdateWithoutDigest,
+                        new Set(),
+                    ),
+                ).toThrow(
+                    'Image test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111 is pinned by digest, but no remote digest is available for test/test:1.2.3 and strict_digest is enabled',
+                );
+            });
+
+            test('should throw error when container has wud.trigger.dockercompose.strict_digest=true label override', () => {
+                dockercompose.configuration = {
+                    ...configurationValid,
+                    strict_digest: false,
+                };
+                const containerWithStrictLabel = {
+                    ...containerWithoutRemoteDigest,
+                    labels: {
+                        'wud.trigger.dockercompose.strict_digest': 'true',
+                    },
+                } as unknown as Container;
+
+                expect(() =>
+                    dockercompose.mapCurrentVersionToUpdateVersion(
+                        composePinned as any,
+                        containerWithStrictLabel,
+                        new Set(),
+                    ),
+                ).toThrow(
+                    'Image test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111 is pinned by digest, but no remote digest is available for test/test:4.5.6 and strict_digest is enabled',
+                );
+            });
+
+            test('should throw error when container has instance-specific wud.trigger.dockercompose.<name>.strict_digest=true label', () => {
+                dockercompose.name = 'mycompose';
+                dockercompose.configuration = {
+                    ...configurationValid,
+                    strict_digest: false,
+                };
+                const containerWithInstanceLabel = {
+                    ...containerWithoutRemoteDigest,
+                    labels: {
+                        'wud.trigger.dockercompose.mycompose.strict_digest':
+                            'true',
+                    },
+                } as unknown as Container;
+
+                expect(() =>
+                    dockercompose.mapCurrentVersionToUpdateVersion(
+                        composePinned as any,
+                        containerWithInstanceLabel,
+                        new Set(),
+                    ),
+                ).toThrow(
+                    'Image test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111 is pinned by digest, but no remote digest is available for test/test:4.5.6 and strict_digest is enabled',
+                );
+            });
+
+            test('should strip stale digest pin when trigger has strict_digest=true but container label opts out with false', () => {
+                dockercompose.configuration = {
+                    ...configurationValid,
+                    strict_digest: true,
+                };
+                const containerWithOptOutLabel = {
+                    ...containerWithoutRemoteDigest,
+                    labels: {
+                        'wud.trigger.dockercompose.strict_digest': 'false',
+                    },
+                } as unknown as Container;
+
+                const mapping = dockercompose.mapCurrentVersionToUpdateVersion(
+                    composePinned as any,
+                    containerWithOptOutLabel,
+                    new Set(),
+                );
+                expect(mapping).toEqual({
+                    service: 'test',
+                    current:
+                        'test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                    update: 'test/test:4.5.6',
+                });
+            });
+
+            test('should update normally when strict_digest is enabled and replacement has a remote digest', () => {
+                dockercompose.configuration = {
+                    ...configurationValid,
+                    strict_digest: true,
+                };
+
+                const mapping = dockercompose.mapCurrentVersionToUpdateVersion(
+                    composePinned as any,
+                    digestContainer,
+                    new Set(),
+                );
+                expect(mapping).toEqual({
+                    service: 'test',
+                    current:
+                        'test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                    update: 'test/test:4.5.6@sha256:new2222222222222222222222222222222222222222222222222222222222222',
+                });
+            });
+
+            test('should update unpinned image normally to mutable tag when strict_digest is enabled', () => {
+                dockercompose.configuration = {
+                    ...configurationValid,
+                    strict_digest: true,
+                };
+
+                const mapping = dockercompose.mapCurrentVersionToUpdateVersion(
+                    composeUnpinned as any,
+                    containerWithoutRemoteDigest,
+                    new Set(),
+                );
+                expect(mapping).toEqual({
+                    service: 'test',
+                    current: 'test/test:1.2.3',
+                    update: 'test/test:4.5.6',
                 });
             });
         });

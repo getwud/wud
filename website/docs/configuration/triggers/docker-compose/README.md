@@ -129,6 +129,14 @@ import TabItem from '@theme/TabItem';
     defaultValue="120000">
     How long (in milliseconds) to wait for the replacement WUD container to become healthy before rolling back
   </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_STRICT_DIGEST"
+    required={false}
+    type="boolean"
+    defaultValue="false">
+    When enabled, requires candidate updates for digest-pinned services (`image:tag@sha256:...`) to have a valid replacement digest. If no candidate digest is available from the registry, WUD fails closed: the service update is aborted or rejected and the existing pinned reference is preserved untouched, rather than stripping the pin and reverting to a mutable tag. Can also be overridden per container via label `wud.trigger.dockercompose.strict_digest=true` (or `wud.trigger.dockercompose.<trigger_name>.strict_digest=true`).
+  </ConfigOption>
 </ConfigList>
 
 :::info
@@ -429,3 +437,30 @@ services:
       - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_BACKUP=true
       - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_PRUNE=true
 ```
+
+### Fail-Closed Pinning with Strict Digest Mode
+
+When services in Docker Compose are pinned by digest (e.g. `image: myapp:1.0.0@sha256:...`), the default behavior when an upstream update does not provide a candidate digest is to remove the stale pin and update to the mutable tag (`myapp:1.1.0`).
+
+If your security policy enforces strict image immutability, enable `STRICT_DIGEST` globally or per container:
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud
+    environment:
+      # Fail closed if candidate digest is missing for digest-pinned services
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_STRICT_DIGEST=true
+```
+
+Or override per container via labels:
+
+```yaml
+services:
+  secure-service:
+    image: myapp:1.0.0@sha256:7b5d...
+    labels:
+      - wud.trigger.dockercompose.strict_digest=true
+```
+
+When strict digest mode is active, WUD aborts the update if no remote digest is available, leaving the existing pinned reference untouched and emitting a failure event.

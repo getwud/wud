@@ -9,6 +9,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 - 🚀 [AUTH] Support a configured session secret via `WUD_AUTH_SESSION_SECRET`, while preserving the version and MAC-bound fallback when unset.
 - 🚀 [CONTAINER] Add option to override update cooldown and trigger update immediately (fixes #1463)
+- 🚀 [TRIGGER] Add optional strict_digest mode to Docker Compose trigger (fixes #1497)
 - 🐛 [API] Match the installed image tag when filtering containers by tag.
 - 🐛 [CONTAINER] Fix link template variable resolution on update (fixes #1490)
 - 🐛 [CORE] Fix CWE-95 arbitrary code execution in workload link templates (GHSA-rrhg-3h69-4fvf)
