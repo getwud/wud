@@ -21,7 +21,15 @@ jest.mock('just-debounce');
 jest.mock('../../../event');
 jest.mock('../../../store/container');
 jest.mock('../../../registry');
-jest.mock('../../../model/container');
+jest.mock('../../../model/container', () => {
+    const actual = jest.requireActual('../../../model/container');
+    return {
+        ...actual,
+        validate: jest.fn(),
+        fullName: jest.fn(actual.fullName),
+        resolveContainerMetadata: jest.fn(actual.resolveContainerMetadata),
+    };
+});
 jest.mock('../../../tag', () => ({
     ...jest.requireActual('../../../tag'),
     parse: jest.fn(),
@@ -5624,6 +5632,142 @@ describe('Docker Watcher', () => {
                     updateAvailable: false,
                     isCoolingDown: true,
                 };
+
+                const report =
+                    docker.mapContainerToContainerReport(containerWithResult);
+                expect(report.changed).toBe(false);
+            });
+
+            test('mapContainerToContainerReport should evaluate changed to true when container in DB was in cooldown and watcher runs after cooldown expired (real dynamic getters) (#1445)', () => {
+                docker.register('watcher', 'docker', 'test', {});
+                const actualContainer = jest.requireActual(
+                    '../../../model/container',
+                );
+                const now = Date.now();
+                const resultCreated = new Date(
+                    now - 3 * 24 * 3600 * 1000,
+                ).toISOString();
+                const lastChecked = new Date(
+                    now - 2.5 * 24 * 3600 * 1000,
+                ).toISOString();
+
+                const containerInDb = actualContainer.validate({
+                    id: 'cool-id',
+                    name: 'test',
+                    watcher: 'docker',
+                    delay: '2d',
+                    image: {
+                        id: 'img1',
+                        name: 'test',
+                        registry: { name: 'hub', url: 'https://hub' },
+                        tag: { value: '1.0.0', semver: true },
+                        digest: { watch: false },
+                        architecture: 'amd64',
+                        os: 'linux',
+                    },
+                    result: {
+                        tag: '2.0.0',
+                        created: resultCreated,
+                    },
+                    checkedAt: lastChecked,
+                });
+
+                // Verify real dynamic getters evaluate dynamically
+                expect(containerInDb.isCoolingDown).toBe(false);
+                expect(containerInDb.updateAvailable).toBe(true);
+
+                const containerWithResult = actualContainer.validate({
+                    id: 'cool-id',
+                    name: 'test',
+                    watcher: 'docker',
+                    delay: '2d',
+                    image: {
+                        id: 'img1',
+                        name: 'test',
+                        registry: { name: 'hub', url: 'https://hub' },
+                        tag: { value: '1.0.0', semver: true },
+                        digest: { watch: false },
+                        architecture: 'amd64',
+                        os: 'linux',
+                    },
+                    result: {
+                        tag: '2.0.0',
+                        created: resultCreated,
+                    },
+                });
+
+                expect(containerWithResult.isCoolingDown).toBe(false);
+                expect(containerWithResult.updateAvailable).toBe(true);
+                // Candidate tag and digest are unchanged
+                expect(containerInDb.resultChanged(containerWithResult)).toBe(
+                    false,
+                );
+
+                storeContainer.getContainer.mockReturnValue(containerInDb);
+                storeContainer.updateContainer.mockImplementation((c) => c);
+
+                const report =
+                    docker.mapContainerToContainerReport(containerWithResult);
+                expect(report.changed).toBe(true);
+            });
+
+            test('mapContainerToContainerReport should evaluate changed to false on subsequent watcher run after cooldown has already expired (real dynamic getters) (#1445)', () => {
+                docker.register('watcher', 'docker', 'test', {});
+                const actualContainer = jest.requireActual(
+                    '../../../model/container',
+                );
+                const now = Date.now();
+                const resultCreated = new Date(
+                    now - 3 * 24 * 3600 * 1000,
+                ).toISOString();
+                const lastChecked = new Date(
+                    now - 0.5 * 24 * 3600 * 1000,
+                ).toISOString();
+
+                const containerInDb = actualContainer.validate({
+                    id: 'cool-id',
+                    name: 'test',
+                    watcher: 'docker',
+                    delay: '2d',
+                    image: {
+                        id: 'img1',
+                        name: 'test',
+                        registry: { name: 'hub', url: 'https://hub' },
+                        tag: { value: '1.0.0', semver: true },
+                        digest: { watch: false },
+                        architecture: 'amd64',
+                        os: 'linux',
+                    },
+                    result: {
+                        tag: '2.0.0',
+                        created: resultCreated,
+                    },
+                    checkedAt: lastChecked,
+                    persistedUpdateAvailable: true,
+                });
+
+                const containerWithResult = actualContainer.validate({
+                    id: 'cool-id',
+                    name: 'test',
+                    watcher: 'docker',
+                    delay: '2d',
+                    image: {
+                        id: 'img1',
+                        name: 'test',
+                        registry: { name: 'hub', url: 'https://hub' },
+                        tag: { value: '1.0.0', semver: true },
+                        digest: { watch: false },
+                        architecture: 'amd64',
+                        os: 'linux',
+                    },
+                    result: {
+                        tag: '2.0.0',
+                        created: resultCreated,
+                    },
+                });
+
+                storeContainer.getContainer.mockReturnValue(containerInDb);
+                storeContainer.updateContainer.mockImplementation((c) => c);
 
                 const report =
                     docker.mapContainerToContainerReport(containerWithResult);

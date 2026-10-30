@@ -1149,5 +1149,624 @@ describe('rich container metadata', () => {
                 'https://github.com/org/repo/releases/tag/v2.3.4',
             );
         });
+
+        test('should resolve container.result.changelogUrl properly in two-phase lifecycle (normalize without result, then update with result)', () => {
+            const raw = {
+                ...createBase(),
+                image: {
+                    ...createBase().image,
+                    tag: { value: '1.0.0', semver: true },
+                },
+                labels: {
+                    'wud.link.changelog':
+                        'https://github.com/org/repo/releases/tag/v${major}.${minor}.${patch}',
+                    'wud.link.upstream':
+                        'https://github.com/org/repo/tree/v${original}',
+                    'wud.link.doc': 'https://docs.org.com/v${major}.${minor}',
+                },
+            };
+
+            // Phase 1: normalization during initial discovery (no result)
+            const normalized = container.validate(raw as any);
+            expect(normalized.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v1.0.0',
+            );
+            expect(normalized.upstreamUrl).toBe(
+                'https://github.com/org/repo/tree/v1.0.0',
+            );
+            expect(normalized.documentationUrl).toBe(
+                'https://docs.org.com/v1.0',
+            );
+
+            // Phase 2: watcher checks update and attaches result
+            normalized.result = { tag: '2.3.4' };
+            const updated = container.validate(normalized);
+
+            expect(updated.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v1.0.0',
+            );
+            expect(updated.result?.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v2.3.4',
+            );
+            expect(updated.upstreamUrl).toBe(
+                'https://github.com/org/repo/tree/v1.0.0',
+            );
+            expect(updated.documentationUrl).toBe('https://docs.org.com/v1.0');
+        });
+
+        test('should resolve changelogUrl and result.changelogUrl when template contains ${result.tag}', () => {
+            const raw = {
+                ...createBase(),
+                image: {
+                    ...createBase().image,
+                    tag: { value: '1.0.0', semver: true },
+                },
+                labels: {
+                    'wud.link.changelog':
+                        'https://github.com/org/repo/releases/tag/v${result.tag}',
+                },
+            };
+
+            // Phase 1: normalization without result
+            const normalized = container.validate(raw as any);
+            expect(normalized.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v1.0.0',
+            );
+
+            // Phase 2: update with result
+            normalized.result = { tag: '2.3.4' };
+            const updated = container.validate(normalized);
+            expect(updated.result?.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v2.3.4',
+            );
+        });
+
+        test('should preserve raw template when changelogUrl is provided directly without labels', () => {
+            const raw = {
+                ...createBase(),
+                image: {
+                    ...createBase().image,
+                    tag: { value: '1.0.0', semver: true },
+                },
+                changelogUrl:
+                    'https://github.com/org/repo/releases/tag/v${major}.${minor}.${patch}',
+                upstreamUrl: 'https://github.com/org/repo/tree/v${original}',
+                documentationUrl: 'https://docs.org.com/v${major}.${minor}',
+            };
+
+            // Phase 1: normalization
+            const normalized = container.validate(raw as any);
+            expect(normalized.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v1.0.0',
+            );
+            expect(normalized.upstreamUrl).toBe(
+                'https://github.com/org/repo/tree/v1.0.0',
+            );
+            expect(normalized.documentationUrl).toBe(
+                'https://docs.org.com/v1.0',
+            );
+
+            // Phase 2: update with result
+            normalized.result = { tag: '2.5.0' };
+            const updated = container.validate(normalized);
+            expect(updated.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v1.0.0',
+            );
+            expect(updated.result?.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v2.5.0',
+            );
+            expect(updated.upstreamUrl).toBe(
+                'https://github.com/org/repo/tree/v1.0.0',
+            );
+            expect(updated.documentationUrl).toBe('https://docs.org.com/v1.0');
+        });
+
+        test('should ignore invalid candidate changelog URL and leave it undefined', () => {
+            const raw = {
+                ...createBase(),
+                image: {
+                    ...createBase().image,
+                    tag: { value: '1.0.0', semver: true },
+                },
+                labels: {
+                    'wud.link.changelog': 'not-a-valid-uri-${raw}',
+                },
+                result: {
+                    tag: '2.0.0',
+                },
+            };
+
+            const resolved = container.resolveContainerMetadata(raw as any);
+            expect(resolved.changelogUrl).toBeUndefined();
+            expect(resolved.result?.changelogUrl).toBeUndefined();
+        });
+    });
+
+    describe('hasTransitionedOutOfCooldown (#1445)', () => {
+        test('should return true when container was checked during cooldown and watcher runs after cooldown expired (real dynamic getters)', () => {
+            const now = Date.now();
+            // result was created 3 days ago, delay is 2 days => coolingDownUntil was 1 day ago
+            const resultCreated = new Date(
+                now - 3 * 24 * 3600 * 1000,
+            ).toISOString();
+            // Container was last checked 2.5 days ago (during cooldown)
+            const lastChecked = new Date(
+                now - 2.5 * 24 * 3600 * 1000,
+            ).toISOString();
+
+            const containerInDb = container.validate({
+                id: 'c1',
+                name: 'test',
+                watcher: 'docker',
+                delay: '2d',
+                image: {
+                    id: 'img1',
+                    name: 'test',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                    created: resultCreated,
+                },
+                checkedAt: lastChecked,
+            });
+
+            // Verify real dynamic getters evaluate against present time
+            expect(containerInDb.isCoolingDown).toBe(false);
+            expect(containerInDb.updateAvailable).toBe(true);
+
+            const containerWithResult = container.validate({
+                id: 'c1',
+                name: 'test',
+                watcher: 'docker',
+                delay: '2d',
+                image: {
+                    id: 'img1',
+                    name: 'test',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                    created: resultCreated,
+                },
+            });
+
+            expect(containerWithResult.isCoolingDown).toBe(false);
+            expect(containerWithResult.updateAvailable).toBe(true);
+
+            expect(
+                container.hasTransitionedOutOfCooldown(
+                    containerInDb,
+                    containerWithResult,
+                ),
+            ).toBe(true);
+        });
+
+        test('should return false on subsequent runs after cooldown has already expired (real dynamic getters)', () => {
+            const now = Date.now();
+            const resultCreated = new Date(
+                now - 3 * 24 * 3600 * 1000,
+            ).toISOString();
+            // Container was checked 0.5 days ago (after cooldown already expired at now - 1 day)
+            const lastChecked = new Date(
+                now - 0.5 * 24 * 3600 * 1000,
+            ).toISOString();
+
+            const containerInDb = container.validate({
+                id: 'c1',
+                name: 'test',
+                watcher: 'docker',
+                delay: '2d',
+                image: {
+                    id: 'img1',
+                    name: 'test',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                    created: resultCreated,
+                },
+                checkedAt: lastChecked,
+                persistedUpdateAvailable: true,
+            });
+
+            const containerWithResult = container.validate({
+                id: 'c1',
+                name: 'test',
+                watcher: 'docker',
+                delay: '2d',
+                image: {
+                    id: 'img1',
+                    name: 'test',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                    created: resultCreated,
+                },
+            });
+
+            expect(
+                container.hasTransitionedOutOfCooldown(
+                    containerInDb,
+                    containerWithResult,
+                ),
+            ).toBe(false);
+        });
+
+        test('should return false when update is still in cooldown on containerWithResult', () => {
+            const now = Date.now();
+            // result was created 1 hour ago, delay is 2 days => still cooling down
+            const resultCreated = new Date(now - 3600 * 1000).toISOString();
+
+            const containerInDb = container.validate({
+                id: 'c1',
+                name: 'test',
+                watcher: 'docker',
+                delay: '2d',
+                image: {
+                    id: 'img1',
+                    name: 'test',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                    created: resultCreated,
+                },
+                checkedAt: new Date(now - 1800 * 1000).toISOString(),
+            });
+
+            const containerWithResult = container.validate({
+                id: 'c1',
+                name: 'test',
+                watcher: 'docker',
+                delay: '2d',
+                image: {
+                    id: 'img1',
+                    name: 'test',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                    created: resultCreated,
+                },
+            });
+
+            expect(containerWithResult.isCoolingDown).toBe(true);
+            expect(containerWithResult.updateAvailable).toBe(false);
+
+            expect(
+                container.hasTransitionedOutOfCooldown(
+                    containerInDb,
+                    containerWithResult,
+                ),
+            ).toBe(false);
+        });
+
+        test('should return true with explicit mock properties', () => {
+            const containerInDb = {
+                id: 'c1',
+                isCoolingDown: true,
+                updateAvailable: false,
+            };
+            const containerWithResult = {
+                id: 'c1',
+                isCoolingDown: false,
+                updateAvailable: true,
+            };
+            expect(
+                container.hasTransitionedOutOfCooldown(
+                    containerInDb as any,
+                    containerWithResult as any,
+                ),
+            ).toBe(true);
+        });
+
+        test('should return false with explicit mock properties when update was already available', () => {
+            const containerInDb = {
+                id: 'c1',
+                isCoolingDown: false,
+                updateAvailable: true,
+            };
+            const containerWithResult = {
+                id: 'c1',
+                isCoolingDown: false,
+                updateAvailable: true,
+            };
+            expect(
+                container.hasTransitionedOutOfCooldown(
+                    containerInDb as any,
+                    containerWithResult as any,
+                ),
+            ).toBe(false);
+        });
+    });
+
+    describe('safeInterpolate and template injection security (GHSA-rrhg-3h69-4fvf)', () => {
+        const dummyContext = {
+            major: '1',
+            minor: '2',
+            patch: '3',
+            prerelease: 'beta.1',
+            version: '1.2.3',
+            original: 'v1.2.3-beta.1',
+            raw: 'v1.2.3-beta.1',
+            transformed: '1.2.3-beta.1',
+            image: {
+                name: 'my-org/my-app',
+                registry: {
+                    name: 'hub',
+                    url: 'https://hub.docker.com',
+                },
+                tag: {
+                    value: '1.2.3',
+                    semver: true,
+                },
+            },
+            container: {
+                name: 'my-container',
+                watcher: 'docker',
+            },
+            result: {
+                tag: '2.0.0',
+            },
+        };
+
+        describe('safeInterpolate unit tests', () => {
+            test('should interpolate standard variables correctly', () => {
+                expect(
+                    container.safeInterpolate(
+                        'https://github.com/my-org/my-app/releases/tag/v${major}.${minor}.${patch}',
+                        dummyContext,
+                    ),
+                ).toBe('https://github.com/my-org/my-app/releases/tag/v1.2.3');
+
+                expect(
+                    container.safeInterpolate(
+                        'https://example.com/${image.name}/${version}',
+                        dummyContext,
+                    ),
+                ).toBe('https://example.com/my-org/my-app/1.2.3');
+
+                expect(
+                    container.safeInterpolate(
+                        'https://hub.docker.com/r/${image.name}/tags?name=${result.tag}',
+                        dummyContext,
+                    ),
+                ).toBe(
+                    'https://hub.docker.com/r/my-org/my-app/tags?name=2.0.0',
+                );
+
+                expect(
+                    container.safeInterpolate(
+                        'https://example.com/${container.name}/${container.watcher}',
+                        dummyContext,
+                    ),
+                ).toBe('https://example.com/my-container/docker');
+            });
+
+            test('should resolve null, undefined, objects and functions to empty string', () => {
+                const contextWithComplex = {
+                    ...dummyContext,
+                    image: {
+                        ...dummyContext.image,
+                        nullProp: null,
+                        undefinedProp: undefined,
+                        funcProp: () => 'malicious',
+                    },
+                };
+
+                // Non-primitive: image itself or nested object resolves to ''
+                expect(
+                    container.safeInterpolate(
+                        'https://example.com/${image}',
+                        contextWithComplex,
+                    ),
+                ).toBe('https://example.com/');
+
+                // Null property resolves to ''
+                expect(
+                    container.safeInterpolate(
+                        'https://example.com/${image.nullProp}',
+                        contextWithComplex,
+                    ),
+                ).toBe('https://example.com/');
+
+                // Undefined property resolves to ''
+                expect(
+                    container.safeInterpolate(
+                        'https://example.com/${image.undefinedProp}',
+                        contextWithComplex,
+                    ),
+                ).toBe('https://example.com/');
+
+                // Non-existent property resolves to ''
+                expect(
+                    container.safeInterpolate(
+                        'https://example.com/${image.nonExistent}',
+                        contextWithComplex,
+                    ),
+                ).toBe('https://example.com/');
+
+                // Function property resolves to ''
+                expect(
+                    container.safeInterpolate(
+                        'https://example.com/${image.funcProp}',
+                        contextWithComplex,
+                    ),
+                ).toBe('https://example.com/');
+            });
+
+            test('should throw on syntax errors in template expressions', () => {
+                // Function call / IIFE
+                expect(() =>
+                    container.safeInterpolate(
+                        '${(() => { return 1; })()}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Syntax violation/);
+
+                // Arithmetic expression
+                expect(() =>
+                    container.safeInterpolate('${1+1}', dummyContext),
+                ).toThrow(/Syntax violation/);
+
+                // Invalid characters / spaces / quotes
+                expect(() =>
+                    container.safeInterpolate(
+                        "${process.mainModule.require('child_process')}",
+                        dummyContext,
+                    ),
+                ).toThrow(/Syntax violation/);
+
+                // Empty expression
+                expect(() =>
+                    container.safeInterpolate('https://${}.com', dummyContext),
+                ).toThrow(/Syntax violation/);
+
+                // Unclosed expression
+                expect(() =>
+                    container.safeInterpolate(
+                        'https://example.com/${major',
+                        dummyContext,
+                    ),
+                ).toThrow(/Syntax violation/);
+            });
+
+            test('should throw on forbidden property access (prototype pollution)', () => {
+                expect(() =>
+                    container.safeInterpolate('${__proto__}', dummyContext),
+                ).toThrow();
+
+                expect(() =>
+                    container.safeInterpolate(
+                        '${container.__proto__.polluted}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Forbidden property access/);
+
+                expect(() =>
+                    container.safeInterpolate(
+                        '${image.constructor.name}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Forbidden property access/);
+
+                expect(() =>
+                    container.safeInterpolate(
+                        '${result.prototype.foo}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Forbidden property access/);
+            });
+
+            test('should throw on unauthorized root variables', () => {
+                expect(() =>
+                    container.safeInterpolate(
+                        '${process.env.SECRET}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Unauthorized root variable: 'process'/);
+
+                expect(() =>
+                    container.safeInterpolate(
+                        '${global.process}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Unauthorized root variable: 'global'/);
+
+                expect(() =>
+                    container.safeInterpolate('${require}', dummyContext),
+                ).toThrow(/Unauthorized root variable: 'require'/);
+
+                expect(() =>
+                    container.safeInterpolate('${dummyVar}', dummyContext),
+                ).toThrow(/Unauthorized root variable: 'dummyVar'/);
+            });
+        });
+
+        describe('renderLinkTemplate with malicious payloads', () => {
+            const testContainer = {
+                id: 'c-security-test',
+                name: 'sec-app',
+                watcher: 'local',
+                image: {
+                    id: 'img-sec',
+                    name: 'org/sec-app',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.2.3', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                },
+            } as any;
+
+            test('should not execute code and safely fall back to template string on RCE payload', () => {
+                const maliciousTemplates = [
+                    '${process.mainModule.require("child_process").execSync("id")}',
+                    '${(() => { process.exit(1); })()}',
+                    '${1+1}',
+                    'https://example.com/${process.env.PATH}',
+                    '${global.console.log("hacked")}',
+                ];
+
+                for (const payload of maliciousTemplates) {
+                    const rendered = container.renderLinkTemplate(
+                        payload,
+                        testContainer,
+                    );
+                    expect(rendered).toBe(payload);
+                }
+            });
+
+            test('should not pollute prototype and safely fall back to template string', () => {
+                const payload = "${__proto__.polluted = 'yes'}";
+                const rendered = container.renderLinkTemplate(
+                    payload,
+                    testContainer,
+                );
+                expect(rendered).toBe(payload);
+                expect((Object.prototype as any).polluted).toBeUndefined();
+            });
+
+            test('should render valid semver and container variables in renderLinkTemplate', () => {
+                const template =
+                    'https://release-${version}.acme.com/${image.name}';
+                const rendered = container.renderLinkTemplate(
+                    template,
+                    testContainer,
+                );
+                expect(rendered).toBe(
+                    'https://release-1.2.3.acme.com/org/sec-app',
+                );
+            });
+        });
     });
 });

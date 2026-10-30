@@ -101,6 +101,9 @@ export interface Container {
     snoozedUntil?: number;
     isSnoozed?: boolean;
     updateEvent?: string;
+    checkedAt?: string;
+    updatedAt?: string;
+    persistedUpdateAvailable?: boolean;
 }
 
 /**
@@ -253,6 +256,9 @@ const schema = joi.object({
     resultChanged: joi.function(),
     labels: joi.object(),
     updateEvent: joi.string().optional(),
+    checkedAt: joi.string().allow(null, '').optional(),
+    updatedAt: joi.string().allow(null, '').optional(),
+    persistedUpdateAvailable: joi.boolean().optional(),
 });
 
 const CHANGELOG_LABEL_KEYS = [
@@ -324,17 +330,107 @@ export function isDockerOfficialImage(image: ContainerImage): boolean {
     return cleanName.length > 0 && !cleanName.includes('/');
 }
 
+const TOKEN_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*$/;
+const FORBIDDEN_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+const ALLOWED_ROOTS = new Set([
+    'major',
+    'minor',
+    'patch',
+    'prerelease',
+    'version',
+    'original',
+    'raw',
+    'transformed',
+    'image',
+    'container',
+    'result',
+]);
+
+/**
+ * Safely interpolate a template string using a restricted context object,
+ * preventing arbitrary code execution and prototype pollution.
+ *
+ * @param template string
+ * @param context Record<string, unknown>
+ * @returns string
+ */
+export function safeInterpolate(
+    template: string,
+    context: Record<string, unknown>,
+): string {
+    if (!template.includes('${')) {
+        return template;
+    }
+
+    const openMatches = template.match(/\$\{/g);
+    const openCount = openMatches ? openMatches.length : 0;
+    let replacedCount = 0;
+
+    const result = template.replace(/\$\{([^}]*)\}/g, (_match, expr) => {
+        replacedCount++;
+
+        if (!TOKEN_REGEX.test(expr)) {
+            throw new Error(
+                `Syntax violation: invalid expression '\${${expr}}'`,
+            );
+        }
+
+        const segments = expr.split('.');
+        for (const segment of segments) {
+            if (FORBIDDEN_KEYS.has(segment)) {
+                throw new Error(`Forbidden property access: '${segment}'`);
+            }
+        }
+
+        const rootVar = segments[0];
+        if (!ALLOWED_ROOTS.has(rootVar)) {
+            throw new Error(`Unauthorized root variable: '${rootVar}'`);
+        }
+
+        let current: unknown = context[rootVar];
+        for (let i = 1; i < segments.length; i++) {
+            if (
+                current === null ||
+                current === undefined ||
+                typeof current !== 'object'
+            ) {
+                current = undefined;
+                break;
+            }
+            current = (current as Record<string, unknown>)[segments[i]];
+        }
+
+        if (
+            typeof current === 'string' ||
+            (typeof current === 'number' && !Number.isNaN(current)) ||
+            typeof current === 'boolean'
+        ) {
+            return String(current);
+        }
+
+        return '';
+    });
+
+    if (replacedCount !== openCount) {
+        throw new Error(
+            'Syntax violation: unclosed or malformed template expression',
+        );
+    }
+
+    return result;
+}
+
 /**
  * Render a link template string with container variables.
  *
  * @param template string | undefined
- * @param container Container
+ * @param containerParam Container
  * @param originalTagValue string
  * @returns string | undefined
  */
 export function renderLinkTemplate(
     template: string | undefined,
-    container: Container,
+    containerParam: Container,
     originalTagValue?: string,
 ): string | undefined {
     if (!template || typeof template !== 'string') {
@@ -348,43 +444,85 @@ export function renderLinkTemplate(
     const currentTag =
         originalTagValue !== undefined
             ? originalTagValue
-            : container.image?.tag?.value || '';
+            : containerParam.image?.tag?.value || '';
 
-    // Export vars for dynamic template interpolation
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const raw = currentTag; // deprecated, kept for backward compatibility
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const raw = currentTag;
     const original = currentTag;
     const transformed =
-        container.transformTags && currentTag
-            ? transformTag(container.transformTags, currentTag, container)
+        containerParam.transformTags && currentTag
+            ? transformTag(
+                  containerParam.transformTags,
+                  currentTag,
+                  containerParam,
+              )
             : currentTag;
     let major = '';
     let minor = '';
     let patch = '';
     let prerelease = '';
+    let version = '';
 
-    if (container.image?.tag?.semver && transformed) {
+    if (containerParam.image?.tag?.semver && transformed) {
         const versionSemver = parseSemver(transformed);
         if (versionSemver) {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             major = String(versionSemver.major);
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             minor = String(versionSemver.minor);
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             patch = String(versionSemver.patch);
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             prerelease =
                 versionSemver.prerelease && versionSemver.prerelease.length > 0
                     ? String(versionSemver.prerelease[0])
                     : '';
+            version = `${major}.${minor}.${patch}`;
         }
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const image = container.image;
+    // Export result for dynamic template interpolation (${result.tag}, etc.)
+    // Plain data properties copied to avoid triggering the result.link getter
+    const resultTag =
+        currentTag ||
+        containerParam.result?.tag ||
+        containerParam.image?.tag?.value ||
+        '';
+    const result: Record<string, unknown> = { tag: resultTag };
+    if (containerParam.result) {
+        if (containerParam.result.digest !== undefined) {
+            result.digest = containerParam.result.digest;
+        }
+        if (containerParam.result.created !== undefined) {
+            result.created = containerParam.result.created;
+        }
+        if (containerParam.result.version !== undefined) {
+            result.version = containerParam.result.version;
+        }
+        if (containerParam.result.changelogUrl !== undefined) {
+            result.changelogUrl = containerParam.result.changelogUrl;
+        }
+    }
+
+    const container = new Proxy(containerParam, {
+        get(target, prop, receiver) {
+            if (prop === 'result') {
+                return result;
+            }
+            return Reflect.get(target, prop, receiver);
+        },
+    });
+
+    const context: Record<string, unknown> = {
+        major,
+        minor,
+        patch,
+        prerelease,
+        version,
+        original,
+        raw,
+        transformed,
+        image: containerParam.image,
+        container,
+        result,
+    };
 
     try {
-        return eval('`' + trimmed + '`');
+        return safeInterpolate(trimmed, context);
     } catch {
         return trimmed;
     }
@@ -412,9 +550,36 @@ export function resolveContainerMetadata(container: Container): Container {
     }
     container.isOfficial = isOfficial;
 
+    // Preserve templated URLs on container labels so re-validations retain raw templates
+    if (
+        container.changelogUrl &&
+        container.changelogUrl.includes('${') &&
+        !getFirstLabel(labels, CHANGELOG_LABEL_KEYS)
+    ) {
+        labels['wud.link.changelog'] = container.changelogUrl;
+        container.labels = labels;
+    }
+    if (
+        container.upstreamUrl &&
+        container.upstreamUrl.includes('${') &&
+        !getFirstLabel(labels, UPSTREAM_LABEL_KEYS)
+    ) {
+        labels['wud.link.upstream'] = container.upstreamUrl;
+        container.labels = labels;
+    }
+    if (
+        container.documentationUrl &&
+        container.documentationUrl.includes('${') &&
+        !getFirstLabel(labels, DOC_LABEL_KEYS) &&
+        !container.linkTemplate
+    ) {
+        labels['wud.link.doc'] = container.documentationUrl;
+        container.labels = labels;
+    }
+
     // 2. changelogUrl resolution
     const rawChangelog =
-        container.changelogUrl || getFirstLabel(labels, CHANGELOG_LABEL_KEYS);
+        getFirstLabel(labels, CHANGELOG_LABEL_KEYS) || container.changelogUrl;
     let resolvedChangelog = renderLinkTemplate(rawChangelog, container);
     if (resolvedChangelog && !isValidUri(resolvedChangelog)) {
         log.warn(
@@ -440,7 +605,7 @@ export function resolveContainerMetadata(container: Container): Container {
 
     // 3. upstreamUrl resolution
     const rawUpstream =
-        container.upstreamUrl || getFirstLabel(labels, UPSTREAM_LABEL_KEYS);
+        getFirstLabel(labels, UPSTREAM_LABEL_KEYS) || container.upstreamUrl;
     let resolvedUpstream = renderLinkTemplate(rawUpstream, container);
     if (resolvedUpstream && !isValidUri(resolvedUpstream)) {
         log.warn(
@@ -452,10 +617,10 @@ export function resolveContainerMetadata(container: Container): Container {
 
     // 4. documentationUrl resolution
     const rawDoc =
-        container.documentationUrl ||
         getFirstLabel(labels, DOC_LABEL_KEYS) ||
         getFirstLabel(labels, TEMPLATE_LABEL_KEYS) ||
-        container.linkTemplate;
+        container.linkTemplate ||
+        container.documentationUrl;
     let resolvedDoc = renderLinkTemplate(rawDoc, container);
     if (!resolvedDoc && container.isOfficial && image?.name) {
         const repoName = image.name.trim().replace(/^library\//, '');
@@ -807,7 +972,80 @@ export function validate(container: any): Container {
 
     // Add computed functions
     addResultChangedFunction(containerValidated);
+
+    // Keep internal transition metadata properties non-enumerable
+    if (containerValidated.checkedAt !== undefined) {
+        Object.defineProperty(containerValidated, 'checkedAt', {
+            enumerable: false,
+            writable: true,
+            configurable: true,
+            value: containerValidated.checkedAt,
+        });
+    }
+    if (containerValidated.updatedAt !== undefined) {
+        Object.defineProperty(containerValidated, 'updatedAt', {
+            enumerable: false,
+            writable: true,
+            configurable: true,
+            value: containerValidated.updatedAt,
+        });
+    }
+    if (containerValidated.persistedUpdateAvailable !== undefined) {
+        Object.defineProperty(containerValidated, 'persistedUpdateAvailable', {
+            enumerable: false,
+            writable: true,
+            configurable: true,
+            value: containerValidated.persistedUpdateAvailable,
+        });
+    }
+
     return containerValidated;
+}
+
+/**
+ * Check whether a container transitioned out of cooldown.
+ * Handles dynamic getters by checking:
+ * 1. Explicit cooldown/update flags on containerInDb (e.g. from unit tests or mocks).
+ * 2. When containerInDb has dynamic getters, checking whether containerInDb was checked/updated
+ *    while cooldown was still active (checkedAt / updatedAt < coolingDownUntil).
+ * 3. Checking whether update was previously marked as unavailable in DB (persistedUpdateAvailable === false).
+ */
+export function hasTransitionedOutOfCooldown(
+    containerInDb: Container,
+    containerWithResult: Container,
+): boolean {
+    const isUpdateAvailable = Boolean(containerWithResult.updateAvailable);
+    if (!isUpdateAvailable) {
+        return false;
+    }
+
+    const lastCheckedStr = containerInDb.checkedAt || containerInDb.updatedAt;
+    const lastCheckedMs = lastCheckedStr
+        ? new Date(
+              lastCheckedStr.includes('T')
+                  ? lastCheckedStr
+                  : lastCheckedStr.replace(' ', 'T') +
+                    (lastCheckedStr.endsWith('Z') ? '' : 'Z'),
+          ).getTime()
+        : undefined;
+
+    const checkedDuringCooldown = Boolean(
+        containerInDb.coolingDownUntil !== undefined &&
+            lastCheckedMs !== undefined &&
+            !isNaN(lastCheckedMs) &&
+            lastCheckedMs < containerInDb.coolingDownUntil,
+    );
+
+    const wasCoolingDown =
+        Boolean(containerInDb.isCoolingDown) || checkedDuringCooldown;
+
+    const wasUpdateAvailable = checkedDuringCooldown
+        ? false
+        : containerInDb.persistedUpdateAvailable !== undefined
+          ? containerInDb.persistedUpdateAvailable
+          : Boolean(containerInDb.updateAvailable);
+
+    return (!wasUpdateAvailable || wasCoolingDown) && isUpdateAvailable;
 }
 
 /**
@@ -837,4 +1075,5 @@ export function fullName(container: Container) {
 export {
     getLink as testable_getLink,
     addUpdateKindProperty as testable_addUpdateKindProperty,
+    safeInterpolate as testable_safeInterpolate,
 };

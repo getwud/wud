@@ -1,6 +1,6 @@
 services:
   nomad:
-    image: hashicorp/nomad:1.9
+    image: hashicorp/nomad:2.0.7
     container_name: nomad-server
     command: agent -server -bind 0.0.0.0 -data-dir /tmp/nomad -bootstrap-expect 1
     environment:

@@ -1484,4 +1484,137 @@ describe('Nomad Watcher - Task Image Change Detection (fixes #1341)', () => {
         );
         expect(dummyClient.interceptors.request.use).toHaveBeenCalled();
     });
+
+    describe('mapContainerToContainerReport (#1445)', () => {
+        test('should evaluate changed to true when container in DB was in cooldown and watcher runs after cooldown expired', () => {
+            const actualContainer = jest.requireActual(
+                '../../../model/container',
+            );
+            const now = Date.now();
+            const resultCreated = new Date(
+                now - 3 * 24 * 3600 * 1000,
+            ).toISOString();
+            const lastChecked = new Date(
+                now - 2.5 * 24 * 3600 * 1000,
+            ).toISOString();
+
+            const containerInDb = actualContainer.validate({
+                id: 'nomad-cool-id',
+                name: 'test',
+                watcher: 'nomad',
+                delay: '2d',
+                image: {
+                    id: 'img1',
+                    name: 'test',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                    created: resultCreated,
+                },
+                checkedAt: lastChecked,
+            });
+
+            const containerWithResult = actualContainer.validate({
+                id: 'nomad-cool-id',
+                name: 'test',
+                watcher: 'nomad',
+                delay: '2d',
+                image: {
+                    id: 'img1',
+                    name: 'test',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                    created: resultCreated,
+                },
+            });
+
+            (storeContainer.getContainer as jest.Mock).mockReturnValue(
+                containerInDb,
+            );
+            (storeContainer.updateContainer as jest.Mock).mockImplementation(
+                (c) => c,
+            );
+
+            const report =
+                watcher.mapContainerToContainerReport(containerWithResult);
+            expect(report.changed).toBe(true);
+        });
+
+        test('should evaluate changed to false on subsequent run after cooldown expired', () => {
+            const actualContainer = jest.requireActual(
+                '../../../model/container',
+            );
+            const now = Date.now();
+            const resultCreated = new Date(
+                now - 3 * 24 * 3600 * 1000,
+            ).toISOString();
+            const lastChecked = new Date(
+                now - 0.5 * 24 * 3600 * 1000,
+            ).toISOString();
+
+            const containerInDb = actualContainer.validate({
+                id: 'nomad-cool-id',
+                name: 'test',
+                watcher: 'nomad',
+                delay: '2d',
+                image: {
+                    id: 'img1',
+                    name: 'test',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                    created: resultCreated,
+                },
+                checkedAt: lastChecked,
+                persistedUpdateAvailable: true,
+            });
+
+            const containerWithResult = actualContainer.validate({
+                id: 'nomad-cool-id',
+                name: 'test',
+                watcher: 'nomad',
+                delay: '2d',
+                image: {
+                    id: 'img1',
+                    name: 'test',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+                result: {
+                    tag: '2.0.0',
+                    created: resultCreated,
+                },
+            });
+
+            (storeContainer.getContainer as jest.Mock).mockReturnValue(
+                containerInDb,
+            );
+            (storeContainer.updateContainer as jest.Mock).mockImplementation(
+                (c) => c,
+            );
+
+            const report =
+                watcher.mapContainerToContainerReport(containerWithResult);
+            expect(report.changed).toBe(false);
+        });
+    });
 });

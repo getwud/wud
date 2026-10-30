@@ -41,6 +41,7 @@ import {
     validate as validateContainer,
     fullName,
     Container,
+    hasTransitionedOutOfCooldown,
 } from '../../../model/container';
 import * as registry from '../../../registry';
 import {
@@ -1247,10 +1248,10 @@ export class Kubernetes extends Watcher {
             const isUpdateAvailable = Boolean(
                 containerWithResult.updateAvailable,
             );
-            const wasUpdateAvailable = Boolean(containerInDb.updateAvailable);
-            const wasCoolingDown = Boolean(containerInDb.isCoolingDown);
-            const transitionedOutOfCooldown =
-                (!wasUpdateAvailable || wasCoolingDown) && isUpdateAvailable;
+            const transitionedOutOfCooldown = hasTransitionedOutOfCooldown(
+                containerInDb,
+                containerWithResult,
+            );
             const resultChanged = Boolean(
                 containerInDb.resultChanged &&
                     containerInDb.resultChanged(containerReport.container),
