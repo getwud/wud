@@ -1280,6 +1280,127 @@ describe('rich container metadata', () => {
             expect(resolved.changelogUrl).toBeUndefined();
             expect(resolved.result?.changelogUrl).toBeUndefined();
         });
+
+        test('should populate container.result.link with changelogUrl when linkTemplate is not defined (#1501)', () => {
+            const raw = {
+                ...createBase(),
+                image: {
+                    ...createBase().image,
+                    tag: { value: '1.0.0', semver: true },
+                },
+                labels: {
+                    'wud.link.changelog':
+                        'https://github.com/org/repo/releases/tag/v${tag}',
+                },
+                result: {
+                    tag: '2.0.0',
+                },
+            };
+
+            const validated = container.validate(raw);
+            expect(validated.result?.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v2.0.0',
+            );
+            expect(validated.result?.link).toBe(
+                'https://github.com/org/repo/releases/tag/v2.0.0',
+            );
+        });
+
+        test('should fall back to container.changelogUrl for result.link when result.changelogUrl is absent (#1501)', () => {
+            const raw = {
+                ...createBase(),
+                labels: {
+                    'wud.link.changelog':
+                        'https://github.com/org/repo/releases',
+                },
+                result: {
+                    digest: 'sha256:1234567890abcdef',
+                },
+            };
+
+            const validated = container.validate(raw);
+            expect(validated.changelogUrl).toBe(
+                'https://github.com/org/repo/releases',
+            );
+            expect(validated.result?.link).toBe(
+                'https://github.com/org/repo/releases',
+            );
+        });
+
+        test('should prioritize linkTemplate over changelogUrl for container.result.link', () => {
+            const raw = {
+                ...createBase(),
+                linkTemplate: 'https://example.com/custom/${result.tag}',
+                labels: {
+                    'wud.link.changelog':
+                        'https://github.com/org/repo/releases/tag/v${tag}',
+                },
+                result: {
+                    tag: '3.0.0',
+                },
+            };
+
+            const validated = container.validate(raw);
+            expect(validated.result?.link).toBe(
+                'https://example.com/custom/3.0.0',
+            );
+            expect(validated.result?.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v3.0.0',
+            );
+        });
+
+        test('should fall back to changelogUrl when linkTemplate evaluates to empty', () => {
+            const raw = {
+                ...createBase(),
+                linkTemplate: '   ',
+                labels: {
+                    'wud.link.changelog':
+                        'https://github.com/org/repo/releases',
+                },
+                result: {
+                    tag: '2.0.0',
+                },
+            };
+
+            const validated = container.validate(raw);
+            expect(validated.result?.link).toBe(
+                'https://github.com/org/repo/releases',
+            );
+        });
+
+        test('should preserve raw container.result.link when linkTemplate and changelogUrl are absent', () => {
+            const raw = {
+                ...createBase(),
+                result: {
+                    tag: '2.0.0',
+                    link: 'https://explicit-result-link.com',
+                },
+            };
+
+            const validated = container.validate(raw);
+            expect(validated.result?.link).toBe(
+                'https://explicit-result-link.com',
+            );
+        });
+
+        test('should fall back container.link to changelogUrl when documentationUrl and upstreamUrl are absent (#1501)', () => {
+            const raw = {
+                ...createBase(),
+                image: {
+                    ...createBase().image,
+                    name: 'custom/image',
+                },
+                labels: {
+                    'wud.link.changelog':
+                        'https://github.com/custom/image/releases',
+                },
+            };
+
+            const validated = container.validate(raw);
+            expect(validated.link).toBe(
+                'https://github.com/custom/image/releases',
+            );
+        });
     });
 
     describe('hasTransitionedOutOfCooldown (#1445)', () => {

@@ -340,6 +340,7 @@ const ALLOWED_ROOTS = new Set([
     'version',
     'original',
     'raw',
+    'tag',
     'transformed',
     'image',
     'container',
@@ -515,6 +516,7 @@ export function renderLinkTemplate(
         version,
         original,
         raw,
+        tag: currentTag,
         transformed,
         image: containerParam.image,
         container,
@@ -804,28 +806,46 @@ function addLinkProperty(container: Container) {
                 return (
                     getLink(container, container.image?.tag?.value || '') ||
                     this.documentationUrl ||
-                    this.upstreamUrl
+                    this.upstreamUrl ||
+                    this.changelogUrl
                 );
             },
             set(_val: string) {
                 // No-op setter to avoid 'only a getter' errors
             },
         });
-
-        if (container.result) {
-            Object.defineProperty(container.result, 'link', {
-                enumerable: true,
-                configurable: true,
-                get() {
-                    return getLink(container, container.result?.tag ?? '');
-                },
-                set(_val: string) {
-                    // No-op setter to avoid 'only a getter' errors
-                },
-            });
-        }
     } else if (!container.link) {
-        container.link = container.documentationUrl || container.upstreamUrl;
+        container.link =
+            container.documentationUrl ||
+            container.upstreamUrl ||
+            container.changelogUrl;
+    }
+
+    if (container.result) {
+        const descriptor = Object.getOwnPropertyDescriptor(
+            container.result,
+            'link',
+        );
+        const rawResultLink =
+            descriptor && !descriptor.get ? descriptor.value : undefined;
+
+        Object.defineProperty(container.result, 'link', {
+            enumerable: true,
+            configurable: true,
+            get() {
+                return (
+                    (container.linkTemplate
+                        ? getLink(container, container.result?.tag ?? '')
+                        : undefined) ||
+                    container.result?.changelogUrl ||
+                    container.changelogUrl ||
+                    rawResultLink
+                );
+            },
+            set(_val: string) {
+                // No-op setter to avoid 'only a getter' errors
+            },
+        });
     }
 }
 
