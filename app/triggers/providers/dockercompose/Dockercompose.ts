@@ -820,7 +820,25 @@ class Dockercompose extends Docker {
             composeFileStr,
             mappings,
         );
-        await fs.writeFile(composeFile, updatedComposeFileStr);
+        const tmpFile = `${composeFile}.tmp.${Date.now()}`;
+        try {
+            await fs.writeFile(tmpFile, updatedComposeFileStr);
+            await fs.rename(tmpFile, composeFile);
+        } catch (error) {
+            try {
+                await fs.unlink(tmpFile);
+            } catch {
+                // Ignore failure if temp file was already removed or does not exist
+            }
+            try {
+                const backupFile = `${composeFile}.back`;
+                await fs.access(backupFile);
+                await fs.copyFile(backupFile, composeFile);
+            } catch {
+                // Ignore failure if backup does not exist or restore fails
+            }
+            throw error;
+        }
     }
 
     /**
