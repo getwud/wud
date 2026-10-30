@@ -1149,6 +1149,137 @@ describe('rich container metadata', () => {
                 'https://github.com/org/repo/releases/tag/v2.3.4',
             );
         });
+
+        test('should resolve container.result.changelogUrl properly in two-phase lifecycle (normalize without result, then update with result)', () => {
+            const raw = {
+                ...createBase(),
+                image: {
+                    ...createBase().image,
+                    tag: { value: '1.0.0', semver: true },
+                },
+                labels: {
+                    'wud.link.changelog':
+                        'https://github.com/org/repo/releases/tag/v${major}.${minor}.${patch}',
+                    'wud.link.upstream':
+                        'https://github.com/org/repo/tree/v${original}',
+                    'wud.link.doc': 'https://docs.org.com/v${major}.${minor}',
+                },
+            };
+
+            // Phase 1: normalization during initial discovery (no result)
+            const normalized = container.validate(raw as any);
+            expect(normalized.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v1.0.0',
+            );
+            expect(normalized.upstreamUrl).toBe(
+                'https://github.com/org/repo/tree/v1.0.0',
+            );
+            expect(normalized.documentationUrl).toBe(
+                'https://docs.org.com/v1.0',
+            );
+
+            // Phase 2: watcher checks update and attaches result
+            normalized.result = { tag: '2.3.4' };
+            const updated = container.validate(normalized);
+
+            expect(updated.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v1.0.0',
+            );
+            expect(updated.result?.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v2.3.4',
+            );
+            expect(updated.upstreamUrl).toBe(
+                'https://github.com/org/repo/tree/v1.0.0',
+            );
+            expect(updated.documentationUrl).toBe('https://docs.org.com/v1.0');
+        });
+
+        test('should resolve changelogUrl and result.changelogUrl when template contains ${result.tag}', () => {
+            const raw = {
+                ...createBase(),
+                image: {
+                    ...createBase().image,
+                    tag: { value: '1.0.0', semver: true },
+                },
+                labels: {
+                    'wud.link.changelog':
+                        'https://github.com/org/repo/releases/tag/v${result.tag}',
+                },
+            };
+
+            // Phase 1: normalization without result
+            const normalized = container.validate(raw as any);
+            expect(normalized.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v1.0.0',
+            );
+
+            // Phase 2: update with result
+            normalized.result = { tag: '2.3.4' };
+            const updated = container.validate(normalized);
+            expect(updated.result?.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v2.3.4',
+            );
+        });
+
+        test('should preserve raw template when changelogUrl is provided directly without labels', () => {
+            const raw = {
+                ...createBase(),
+                image: {
+                    ...createBase().image,
+                    tag: { value: '1.0.0', semver: true },
+                },
+                changelogUrl:
+                    'https://github.com/org/repo/releases/tag/v${major}.${minor}.${patch}',
+                upstreamUrl: 'https://github.com/org/repo/tree/v${original}',
+                documentationUrl: 'https://docs.org.com/v${major}.${minor}',
+            };
+
+            // Phase 1: normalization
+            const normalized = container.validate(raw as any);
+            expect(normalized.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v1.0.0',
+            );
+            expect(normalized.upstreamUrl).toBe(
+                'https://github.com/org/repo/tree/v1.0.0',
+            );
+            expect(normalized.documentationUrl).toBe(
+                'https://docs.org.com/v1.0',
+            );
+
+            // Phase 2: update with result
+            normalized.result = { tag: '2.5.0' };
+            const updated = container.validate(normalized);
+            expect(updated.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v1.0.0',
+            );
+            expect(updated.result?.changelogUrl).toBe(
+                'https://github.com/org/repo/releases/tag/v2.5.0',
+            );
+            expect(updated.upstreamUrl).toBe(
+                'https://github.com/org/repo/tree/v1.0.0',
+            );
+            expect(updated.documentationUrl).toBe('https://docs.org.com/v1.0');
+        });
+
+        test('should ignore invalid candidate changelog URL and leave it undefined', () => {
+            const raw = {
+                ...createBase(),
+                image: {
+                    ...createBase().image,
+                    tag: { value: '1.0.0', semver: true },
+                },
+                labels: {
+                    'wud.link.changelog': 'not-a-valid-uri-${raw}',
+                },
+                result: {
+                    tag: '2.0.0',
+                },
+            };
+
+            const resolved = container.resolveContainerMetadata(raw as any);
+            expect(resolved.changelogUrl).toBeUndefined();
+            expect(resolved.result?.changelogUrl).toBeUndefined();
+        });
     });
 
     describe('hasTransitionedOutOfCooldown (#1445)', () => {
