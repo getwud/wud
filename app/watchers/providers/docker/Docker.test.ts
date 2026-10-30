@@ -5531,6 +5531,72 @@ describe('Docker Watcher', () => {
                 expect(docker.reconcileContainer).toHaveBeenCalledWith('new-1');
             });
 
+            test('reconcileStoreContainers should pass { all: true } to listContainers and preserve stopped containers when watchall is true (#1503)', async () => {
+                await docker.register('watcher', 'docker', 'test', {
+                    watchall: true,
+                });
+                docker.pruneContainerFromStore = jest
+                    .fn()
+                    .mockResolvedValue(undefined);
+                docker.reconcileContainer = jest
+                    .fn()
+                    .mockResolvedValue(undefined);
+                storeContainer.getContainers.mockReturnValue([
+                    { id: 'running-1', name: 'app-running' },
+                    { id: 'stopped-1', name: 'app-stopped' },
+                    { id: 'dead-1', name: 'app-dead' },
+                ]);
+                mockDockerApi.listContainers.mockResolvedValue([
+                    { Id: 'running-1', State: 'running' },
+                    { Id: 'stopped-1', State: 'exited' },
+                ]);
+
+                await docker.reconcileStoreContainers();
+
+                expect(mockDockerApi.listContainers).toHaveBeenCalledWith({
+                    all: true,
+                });
+                expect(docker.pruneContainerFromStore).toHaveBeenCalledWith(
+                    'dead-1',
+                );
+                expect(docker.pruneContainerFromStore).not.toHaveBeenCalledWith(
+                    'running-1',
+                );
+                expect(docker.pruneContainerFromStore).not.toHaveBeenCalledWith(
+                    'stopped-1',
+                );
+            });
+
+            test('reconcileStoreContainers should pass { all: false } to listContainers when watchall is false or undefined (#1503)', async () => {
+                await docker.register('watcher', 'docker', 'test-false', {
+                    watchall: false,
+                });
+                mockDockerApi.listContainers.mockClear();
+                mockDockerApi.listContainers.mockResolvedValue([]);
+                storeContainer.getContainers.mockReturnValue([]);
+
+                await docker.reconcileStoreContainers();
+
+                expect(mockDockerApi.listContainers).toHaveBeenCalledWith({
+                    all: false,
+                });
+
+                await docker.register(
+                    'watcher',
+                    'docker',
+                    'test-undefined',
+                    {},
+                );
+                mockDockerApi.listContainers.mockClear();
+                mockDockerApi.listContainers.mockResolvedValue([]);
+
+                await docker.reconcileStoreContainers();
+
+                expect(mockDockerApi.listContainers).toHaveBeenCalledWith({
+                    all: false,
+                });
+            });
+
             test('reconcileContainer should prune and return undefined if destroyed while in flight (#1442)', async () => {
                 await docker.register('watcher', 'docker', 'test', {});
                 mockContainer.inspect.mockImplementation(async () => {

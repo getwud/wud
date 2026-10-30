@@ -984,7 +984,7 @@ export class Docker extends Watcher {
                     watcher: this.name,
                 }) || [];
             const activeContainers = await this.dockerApi.listContainers({
-                all: this.configuration.all,
+                all: Boolean(this.configuration.watchall),
             });
             const activeIds = new Set(
                 (activeContainers || []).map((c: any) => c.Id || c.id),
