@@ -1,7 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 import yaml, { isMap, isScalar, Scalar } from 'yaml';
-import Docker from '../docker/Docker';
+import Docker, { DockerConfiguration } from '../docker/Docker';
+import Trigger, { TriggerConfiguration } from '../Trigger';
 import { getState } from '../../../registry';
 import { fullName, Container } from '../../../model/container';
 import Registry from '../../../registries/Registry';
@@ -318,10 +319,23 @@ function doesContainerBelongToCompose(compose, container) {
     return Boolean(findServiceKeyForContainer(compose, container));
 }
 
+export interface DockercomposeConfiguration extends DockerConfiguration {
+    file?: string;
+    pathmapping?: {
+        host: string;
+        container: string;
+    };
+    backup?: boolean;
+    composeFileLabel?: string;
+    strict_digest?: boolean;
+}
+
 /**
  * Update a Docker compose stack with an updated one.
  */
 class Dockercompose extends Docker {
+    declare public configuration: DockercomposeConfiguration;
+
     constructor() {
         super();
         this.type = 'dockercompose';
@@ -345,7 +359,77 @@ class Dockercompose extends Docker {
             backup: this.joi.boolean().default(false),
             // Add configuration for the label name to look for
             composeFileLabel: this.joi.string().default('wud.compose.file'),
+            strict_digest: this.joi.boolean().default(false),
         });
+    }
+
+    validateConfiguration(
+        configuration: TriggerConfiguration,
+    ): DockercomposeConfiguration {
+        const conf = { ...configuration } as Record<string, unknown>;
+        const strictObj = conf.strict as Record<string, unknown> | undefined;
+        if (strictObj && strictObj.digest !== undefined) {
+            conf.strict_digest = strictObj.digest;
+            delete conf.strict;
+        } else if (conf.strictdigest !== undefined) {
+            conf.strict_digest = conf.strictdigest;
+            delete conf.strictdigest;
+        }
+        return super.validateConfiguration(
+            conf as TriggerConfiguration,
+        ) as DockercomposeConfiguration;
+    }
+
+    /**
+     * Return true if strict digest mode is enabled for this container.
+     * When enabled, updates to digest-pinned services will fail if no replacement digest is available.
+     */
+    isStrictDigestEnabled(container?: Container): boolean {
+        const defaultStrict = Boolean(this.configuration.strict_digest);
+        if (!container) {
+            return defaultStrict;
+        }
+        const labels = container.labels as Record<string, unknown> | undefined;
+        if (!labels) {
+            return defaultStrict;
+        }
+
+        const suffixes = ['strict_digest', 'strict-digest', 'strictdigest'];
+
+        for (const suffix of suffixes) {
+            if (this.type && this.name) {
+                const instanceVal = Trigger.parseBooleanLabel(
+                    Trigger.findLabelValue(
+                        labels,
+                        `trigger.${this.type}.${this.name}.${suffix}`,
+                    ),
+                );
+                if (instanceVal !== undefined) {
+                    return instanceVal;
+                }
+            }
+
+            if (this.type) {
+                const typeVal = Trigger.parseBooleanLabel(
+                    Trigger.findLabelValue(
+                        labels,
+                        `trigger.${this.type}.${suffix}`,
+                    ),
+                );
+                if (typeVal !== undefined) {
+                    return typeVal;
+                }
+            }
+
+            const genericVal = Trigger.parseBooleanLabel(
+                Trigger.findLabelValue(labels, `trigger.${suffix}`),
+            );
+            if (genericVal !== undefined) {
+                return genericVal;
+            }
+        }
+
+        return defaultStrict;
     }
 
     async initTrigger() {
@@ -567,52 +651,59 @@ class Dockercompose extends Docker {
             // (multiple containers can share the same image/service)
             const processedServices = new Set();
 
-            // [{ current: '1.0.0', update: '2.0.0' }, {...}]
-            const currentVersionToUpdateVersionArray =
-                containersFiltered.flatMap((container) => {
-                    const mapping = this.mapCurrentVersionToUpdateVersion(
-                        compose,
-                        container,
-                        processedServices,
-                    );
-                    const hasDigestUpdate =
-                        container.updateKind?.kind === 'digest' &&
-                        this.hasResolvableUpdate(container);
+            let currentVersionToUpdateVersionArray: {
+                current: string;
+                update: string;
+                service?: string;
+            }[];
+            let containersToUpdate: Container[] = [];
 
-                    return mapping &&
-                        (mapping.current !== mapping.update || hasDigestUpdate)
-                        ? [mapping]
-                        : [];
-                });
+            try {
+                // [{ current: '1.0.0', update: '2.0.0' }, {...}]
+                currentVersionToUpdateVersionArray = containersFiltered.flatMap(
+                    (container) => {
+                        const mapping = this.mapCurrentVersionToUpdateVersion(
+                            compose,
+                            container,
+                            processedServices,
+                        );
+                        const hasDigestUpdate =
+                            container.updateKind?.kind === 'digest' &&
+                            this.hasResolvableUpdate(container);
 
-            if (currentVersionToUpdateVersionArray.length === 0) {
-                this.log.info(
-                    `No updates to apply for containers in compose file ${composeFile}`,
+                        return mapping &&
+                            (mapping.current !== mapping.update ||
+                                hasDigestUpdate)
+                            ? [mapping]
+                            : [];
+                    },
                 );
-                return;
-            }
 
-            const updateServiceKeys = new Set(
-                currentVersionToUpdateVersionArray.map((m) => m.service),
-            );
-            const containersToUpdate = containersFiltered.filter(
-                (container) => {
+                if (currentVersionToUpdateVersionArray.length === 0) {
+                    this.log.info(
+                        `No updates to apply for containers in compose file ${composeFile}`,
+                    );
+                    return;
+                }
+
+                const updateServiceKeys = new Set(
+                    currentVersionToUpdateVersionArray.map((m) => m.service),
+                );
+                containersToUpdate = containersFiltered.filter((container) => {
                     const serviceKey = findServiceKeyForContainer(
                         compose,
                         container,
                     );
                     return serviceKey && updateServiceKeys.has(serviceKey);
-                },
-            );
+                });
 
-            if (containersToUpdate.length === 0) {
-                this.log.info(
-                    `No containers to update in compose file ${composeFile}`,
-                );
-                return;
-            }
+                if (containersToUpdate.length === 0) {
+                    this.log.info(
+                        `No containers to update in compose file ${composeFile}`,
+                    );
+                    return;
+                }
 
-            try {
                 if (!this.configuration.dryrun) {
                     for (const container of containersToUpdate) {
                         event.emitContainerUpdatePre(container);
@@ -750,7 +841,11 @@ class Dockercompose extends Docker {
                 }
             } catch (e: any) {
                 this.log.error(`Compose update failed: ${e.message}`);
-                for (const container of containersToUpdate) {
+                const failedContainers =
+                    containersToUpdate && containersToUpdate.length > 0
+                        ? containersToUpdate
+                        : containersFiltered;
+                for (const container of failedContainers) {
                     container.error = e.message;
                     const watcher = this.getWatcher(container);
                     try {
@@ -975,6 +1070,11 @@ class Dockercompose extends Docker {
             if (remoteDigest) {
                 return `${currentImageWithoutDigest}@${remoteDigest}`;
             }
+            if (this.isStrictDigestEnabled(container)) {
+                throw new Error(
+                    `Image ${currentImageInCompose} is pinned by digest, but no remote digest is available for ${currentImageWithoutDigest} and strict_digest is enabled`,
+                );
+            }
             return currentImageInCompose;
         }
 
@@ -1000,6 +1100,12 @@ class Dockercompose extends Docker {
 
         if (remoteDigest) {
             return `${newBaseImage}@${remoteDigest}`;
+        }
+
+        if (this.isStrictDigestEnabled(container)) {
+            throw new Error(
+                `Image ${currentImageInCompose} is pinned by digest, but no remote digest is available for ${newBaseImage} and strict_digest is enabled`,
+            );
         }
 
         this.log.info(
