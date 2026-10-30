@@ -258,6 +258,26 @@ export async function performProjectTransaction(
                 runHooks: false,
                 emitEvents: false,
             });
+            if (outcome?.rolledBack || outcome?.status !== 'succeeded') {
+                const failureReason =
+                    outcome?.reason ||
+                    outcome?.error?.message ||
+                    (outcome?.rolledBack ? 'rolled-back' : 'swap-failed');
+                log.warn(
+                    `Service ${service.serviceKey} update was rolled back or failed during swap (${failureReason})`,
+                );
+                service.verdict =
+                    (outcome?.reason as RollbackServiceVerdict) || 'crashed';
+                service.reason = String(failureReason);
+                await finalizeRevert(
+                    trigger,
+                    composeFile,
+                    services,
+                    'swap-failed',
+                    [service],
+                );
+                return false;
+            }
             service.archiveName = outcome?.archiveName;
         }
     } catch (e: unknown) {
