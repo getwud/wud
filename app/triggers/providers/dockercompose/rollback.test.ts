@@ -49,6 +49,7 @@ const buildTrigger = ({
     archiveMissingFor = null,
     archiveRemoveFailsFor = null,
     pruneFails = false,
+    performUpdateFailsFor = null,
 } = {}) => {
     const archives = {};
     const newContainers = {};
@@ -90,8 +91,13 @@ const buildTrigger = ({
         inspectContainer: jest.fn(() =>
             Promise.resolve({ State: { Running: true } }),
         ),
-        performUpdate: jest.fn((container) =>
-            Promise.resolve({
+        performUpdate: jest.fn((container) => {
+            if (container.name === performUpdateFailsFor) {
+                return Promise.reject(
+                    new Error(`Update failed for ${container.name}`),
+                );
+            }
+            return Promise.resolve({
                 rolledBack: false,
                 durationMs: 1,
                 status: 'succeeded',
@@ -99,8 +105,8 @@ const buildTrigger = ({
                     container.name === archiveMissingFor
                         ? undefined
                         : `${container.name}-archive-id`,
-            }),
-        ),
+            });
+        }),
         pruneImages: jest.fn(() =>
             pruneFails
                 ? Promise.reject(new Error('cannot prune'))
@@ -430,9 +436,11 @@ test('should revert the project when a service cannot be snapshotted', async () 
 
     expect(result).toBe(false);
     expect(trigger.performUpdate).not.toHaveBeenCalled();
+    expect(trigger.restoreComposeFileFromBackup).toHaveBeenCalledWith(
+        composeFile,
+    );
     expect(emitSpy).toHaveBeenCalledTimes(1);
-    expect(emitSpy.mock.calls[0][0].status).toEqual('failed');
-    expect(emitSpy.mock.calls[0][0].error.step).toEqual('swap-failed');
+    expect(emitSpy.mock.calls[0][0].status).toEqual('succeeded');
 });
 
 test('should treat a gate error as a crash and revert', async () => {
@@ -690,4 +698,146 @@ test('should start the restored archive container using its inspected container 
 
     expect(archive.rename).toHaveBeenCalledWith({ name: 'web' });
     expect(restoredContainer.start).toHaveBeenCalledTimes(1);
+});
+
+test('should restore compose file from backup when swap phase fails with an exception', async () => {
+    const { trigger } = buildTrigger({
+        services: [
+            {
+                container: { name: 'app', rollbackEnabled: true },
+                health: 'healthy',
+            },
+        ],
+        performUpdateFailsFor: 'app',
+    });
+    const emitSpy = jest.spyOn(event, 'emitContainerRollback');
+
+    const result = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [{ name: 'app', rollbackEnabled: true }],
+        [{ current: 'app:1.0.0', update: 'app:1.0.1' }],
+    );
+
+    expect(result).toBe(false);
+    expect(trigger.ensureComposeBackup).toHaveBeenCalledWith(composeFile);
+    expect(trigger.rewriteComposeFile).toHaveBeenCalledTimes(1);
+    expect(trigger.restoreComposeFileFromBackup).toHaveBeenCalledWith(
+        composeFile,
+    );
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+    expect(emitSpy.mock.calls[0][0].status).toEqual('succeeded');
+});
+
+test('should revert already-swapped services and restore compose file when swap phase fails on a later service', async () => {
+    const { trigger, archives } = buildTrigger({
+        services: [
+            {
+                container: { name: 'web', rollbackEnabled: true },
+                health: 'healthy',
+            },
+            {
+                container: { name: 'api', rollbackEnabled: true },
+                health: 'healthy',
+            },
+        ],
+        performUpdateFailsFor: 'api',
+    });
+    const emitSpy = jest.spyOn(event, 'emitContainerRollback');
+
+    const result = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [
+            { name: 'web', rollbackEnabled: true },
+            { name: 'api', rollbackEnabled: true },
+        ],
+        [
+            { current: 'web:1', update: 'web:2' },
+            { current: 'api:1', update: 'api:2' },
+        ],
+    );
+
+    expect(result).toBe(false);
+    expect(archives.web.rename).toHaveBeenCalledWith({ name: 'web' });
+    expect(trigger.restoreComposeFileFromBackup).toHaveBeenCalledWith(
+        composeFile,
+    );
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+    const report = emitSpy.mock.calls[0][0];
+    expect(report.status).toEqual('succeeded');
+    const webOutcome = report.services.find((s) => s.service === 'web');
+    expect(webOutcome.verdict).toEqual('project-revert');
+    expect(webOutcome.reason).toEqual('project-revert');
+    const apiOutcome = report.services.find((s) => s.service === 'api');
+    expect(apiOutcome.verdict).toEqual('project-revert');
+    expect(apiOutcome.reason).toEqual('swap-failed');
+});
+
+test('should abort restoring the compose file when reverting an already-swapped service fails during swap phase failure', async () => {
+    const { trigger } = buildTrigger({
+        services: [
+            {
+                container: { name: 'web', rollbackEnabled: true },
+                health: 'healthy',
+            },
+            {
+                container: { name: 'api', rollbackEnabled: true },
+                health: 'healthy',
+            },
+        ],
+        performUpdateFailsFor: 'api',
+        newRemoveFailsFor: 'web',
+    });
+    const emitSpy = jest.spyOn(event, 'emitContainerRollback');
+
+    const result = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [
+            { name: 'web', rollbackEnabled: true },
+            { name: 'api', rollbackEnabled: true },
+        ],
+        [
+            { current: 'web:1', update: 'web:2' },
+            { current: 'api:1', update: 'api:2' },
+        ],
+    );
+
+    expect(result).toBe(false);
+    expect(trigger.restoreComposeFileFromBackup).not.toHaveBeenCalled();
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+    const report = emitSpy.mock.calls[0][0];
+    expect(report.status).toEqual('failed');
+    expect(report.error.step).toEqual('swap-failed');
+});
+
+test('should report failed status when compose backup restoration fails after swap phase failure', async () => {
+    const { trigger } = buildTrigger({
+        services: [
+            {
+                container: { name: 'web', rollbackEnabled: true },
+                health: 'healthy',
+            },
+        ],
+        performUpdateFailsFor: 'web',
+        restoreBackupFails: true,
+    });
+    const emitSpy = jest.spyOn(event, 'emitContainerRollback');
+
+    const result = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [{ name: 'web', rollbackEnabled: true }],
+        [{ current: 'app:1', update: 'app:2' }],
+    );
+
+    expect(result).toBe(false);
+    expect(trigger.restoreComposeFileFromBackup).toHaveBeenCalledWith(
+        composeFile,
+    );
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+    const report = emitSpy.mock.calls[0][0];
+    expect(report.status).toEqual('failed');
+    expect(report.error.step).toEqual('swap-failed');
 });
