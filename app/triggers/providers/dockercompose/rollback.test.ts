@@ -248,6 +248,13 @@ test('should commit when all opted-in services are healthy', async () => {
     // No revert.
     expect(trigger.restoreComposeFileFromBackup).not.toHaveBeenCalled();
     expect(emitSpy).not.toHaveBeenCalled();
+    expect(trigger.performUpdate).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+            emitEvents: false,
+            runHooks: false,
+        }),
+    );
 });
 
 test('should revert the whole project when an opted-in service fails', async () => {

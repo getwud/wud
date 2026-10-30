@@ -256,6 +256,7 @@ export async function performProjectTransaction(
                 gateHealth: false,
                 deferPrune: true,
                 runHooks: false,
+                emitEvents: false,
             });
             service.archiveName = outcome?.archiveName;
         }

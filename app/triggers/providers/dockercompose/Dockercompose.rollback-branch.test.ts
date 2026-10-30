@@ -2,6 +2,7 @@ import yaml from 'yaml';
 import Dockercompose from './Dockercompose';
 import { performProjectTransaction } from './rollback';
 import { projectMutex } from './mutex';
+import * as event from '../../../event';
 
 jest.mock('./rollback', () => ({
     performProjectTransaction: jest.fn(() => Promise.resolve()),
@@ -235,5 +236,58 @@ describe('Dockercompose rollback branch', () => {
         await expect(p2).resolves.not.toThrow();
 
         expect(performProjectTransaction).toHaveBeenCalledTimes(2);
+    });
+
+    test('should emit pre and success events when the rollback transaction commits', async () => {
+        const preSpy = jest
+            .spyOn(event, 'emitContainerUpdatePre')
+            .mockImplementation(() => {});
+        const successSpy = jest
+            .spyOn(event, 'emitContainerUpdateSuccess')
+            .mockImplementation(() => {});
+        (performProjectTransaction as jest.Mock).mockResolvedValue(true);
+
+        dockercompose.configuration = {
+            ...configurationValid,
+            rollback: true,
+        };
+
+        await dockercompose.processComposeFile('/tmp/docker-compose.yml', [
+            container,
+        ]);
+
+        expect(preSpy).toHaveBeenCalledTimes(1);
+        expect(preSpy).toHaveBeenCalledWith(container);
+        expect(successSpy).toHaveBeenCalledTimes(1);
+        expect(successSpy).toHaveBeenCalledWith(container);
+
+        preSpy.mockRestore();
+        successSpy.mockRestore();
+    });
+
+    test('should emit pre event but NOT success event when the rollback transaction reverts', async () => {
+        const preSpy = jest
+            .spyOn(event, 'emitContainerUpdatePre')
+            .mockImplementation(() => {});
+        const successSpy = jest
+            .spyOn(event, 'emitContainerUpdateSuccess')
+            .mockImplementation(() => {});
+        (performProjectTransaction as jest.Mock).mockResolvedValue(false);
+
+        dockercompose.configuration = {
+            ...configurationValid,
+            rollback: true,
+        };
+
+        await dockercompose.processComposeFile('/tmp/docker-compose.yml', [
+            container,
+        ]);
+
+        expect(preSpy).toHaveBeenCalledTimes(1);
+        expect(preSpy).toHaveBeenCalledWith(container);
+        expect(successSpy).not.toHaveBeenCalled();
+
+        preSpy.mockRestore();
+        successSpy.mockRestore();
     });
 });

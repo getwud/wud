@@ -613,8 +613,10 @@ class Dockercompose extends Docker {
             }
 
             try {
-                for (const container of containersToUpdate) {
-                    event.emitContainerUpdatePre(container);
+                if (!this.configuration.dryrun) {
+                    for (const container of containersToUpdate) {
+                        event.emitContainerUpdatePre(container);
+                    }
                 }
 
                 // Dry-run?
@@ -723,7 +725,10 @@ class Dockercompose extends Docker {
                 // (super.notify will take care of the dry-run mode for each container as well)
                 await Promise.all(
                     containersToUpdate.map((container) =>
-                        super.trigger(container, { runHooks: false }),
+                        super.trigger(container, {
+                            runHooks: false,
+                            emitEvents: false,
+                        }),
                     ),
                 );
 
