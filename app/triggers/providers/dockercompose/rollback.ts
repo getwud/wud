@@ -332,13 +332,15 @@ async function finalizeRevert(
 ): Promise<void> {
     const log = trigger.log;
     const start = Date.now();
-    let allReverted = forcedError === undefined;
+    let allReverted = true;
 
     for (const service of services) {
-        const restored =
-            forcedError === undefined
-                ? await revertService(trigger, service)
-                : false;
+        // Services that were not yet swapped during an aborted swap phase
+        // require no container rollback as their original container is intact.
+        if (forcedError !== undefined && !service.archiveName) {
+            continue;
+        }
+        const restored = await revertService(trigger, service);
         if (!restored) {
             allReverted = false;
         } else {
