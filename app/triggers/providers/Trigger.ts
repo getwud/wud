@@ -953,7 +953,11 @@ class Trigger extends Component {
                 : '';
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const link =
-            (container.result && container.result.link) || container.link || '';
+            (container.result &&
+                (container.result.link || container.result.changelogUrl)) ||
+            container.changelogUrl ||
+            container.link ||
+            '';
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const changelogUrl =
             (container.result && container.result.changelogUrl) ||

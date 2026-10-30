@@ -675,6 +675,46 @@ test('renderTemplate should expose hostname and support container.link fallback'
     }
 });
 
+test('renderTemplate should fall back link to changelogUrl when link is absent (#1501)', () => {
+    const res = trigger.renderTemplate('${link}', {
+        name: 'app',
+        changelogUrl: 'https://example.com/changelog',
+    });
+    expect(res).toEqual('https://example.com/changelog');
+});
+
+test('renderSimpleBody should include changelogUrl from container.result.link in default simplebody template (#1501)', async () => {
+    const { validate: validateContainer } = await import(
+        '../../model/container'
+    );
+    const validated = validateContainer({
+        id: 'c-1',
+        name: 'my-service',
+        watcher: 'local',
+        image: {
+            id: 'img-1',
+            name: 'custom/my-service',
+            registry: { name: 'hub', url: 'https://hub' },
+            tag: { value: '1.0.0', semver: true },
+            digest: { watch: false },
+            architecture: 'amd64',
+            os: 'linux',
+        },
+        labels: {
+            'wud.link.changelog':
+                'https://github.com/my-org/my-service/releases/tag/v${tag}',
+        },
+        result: {
+            tag: '2.0.0',
+        },
+    });
+
+    const body = trigger.renderSimpleBody(validated);
+    expect(body).toEqual(
+        'Container my-service running with tag 1.0.0 can be updated to tag 2.0.0\nhttps://github.com/my-org/my-service/releases/tag/v2.0.0',
+    );
+});
+
 test('renderTemplate should expose rich container metadata variables', () => {
     const container = {
         name: 'postgres',

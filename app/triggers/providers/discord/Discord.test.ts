@@ -186,4 +186,57 @@ describe('Discord Trigger', () => {
             },
         });
     });
+
+    test('should include changelog URL in discord message when container has changelogUrl (#1501)', async () => {
+        const { default: axios } = await import('axios');
+        const { validate: validateContainer } = await import(
+            '../../../model/container'
+        );
+        discord.configuration = discord.validateConfiguration({
+            url: 'https://discord.com/api/webhooks/123/abc',
+        });
+
+        const testContainer = validateContainer({
+            id: 'c-1',
+            name: 'my-service',
+            watcher: 'local',
+            image: {
+                id: 'img-1',
+                name: 'custom/my-service',
+                registry: { name: 'hub', url: 'https://hub' },
+                tag: { value: '1.0.0', semver: true },
+                digest: { watch: false },
+                architecture: 'amd64',
+                os: 'linux',
+            },
+            labels: {
+                'wud.link.changelog':
+                    'https://github.com/my-org/my-service/releases/tag/v${tag}',
+            },
+            result: {
+                tag: '2.0.0',
+            },
+        });
+
+        await discord.trigger(testContainer);
+        expect(axios).toHaveBeenCalledWith(
+            expect.objectContaining({
+                method: 'POST',
+                url: 'https://discord.com/api/webhooks/123/abc',
+                data: expect.objectContaining({
+                    embeds: [
+                        expect.objectContaining({
+                            fields: [
+                                expect.objectContaining({
+                                    value: expect.stringContaining(
+                                        'https://github.com/my-org/my-service/releases/tag/v2.0.0',
+                                    ),
+                                }),
+                            ],
+                        }),
+                    ],
+                }),
+            }),
+        );
+    });
 });
