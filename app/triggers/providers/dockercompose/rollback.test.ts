@@ -50,6 +50,7 @@ const buildTrigger = ({
     archiveRemoveFailsFor = null,
     pruneFails = false,
     performUpdateFailsFor = null,
+    performUpdateRolledBackFor = null,
 } = {}) => {
     const archives = {};
     const newContainers = {};
@@ -96,6 +97,15 @@ const buildTrigger = ({
                 return Promise.reject(
                     new Error(`Update failed for ${container.name}`),
                 );
+            }
+            if (container.name === performUpdateRolledBackFor) {
+                return Promise.resolve({
+                    rolledBack: true,
+                    durationMs: 1,
+                    status: 'succeeded',
+                    reason: 'crashed',
+                    archiveName: `${container.name}-archive-id`,
+                });
             }
             return Promise.resolve({
                 rolledBack: false,
@@ -840,4 +850,82 @@ test('should report failed status when compose backup restoration fails after sw
     const report = emitSpy.mock.calls[0][0];
     expect(report.status).toEqual('failed');
     expect(report.error.step).toEqual('swap-failed');
+});
+
+test('should abort transaction and restore compose file from backup when performUpdate returns rolledBack: true', async () => {
+    const { trigger } = buildTrigger({
+        services: [
+            {
+                container: { name: 'app', rollbackEnabled: true },
+                health: 'healthy',
+            },
+        ],
+        performUpdateRolledBackFor: 'app',
+    });
+    const emitSpy = jest.spyOn(event, 'emitContainerRollback');
+
+    const result = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [{ name: 'app', rollbackEnabled: true }],
+        [{ current: 'app:1.0.0', update: 'app:1.0.1' }],
+    );
+
+    expect(result).toBe(false);
+    expect(trigger.ensureComposeBackup).toHaveBeenCalledWith(composeFile);
+    expect(trigger.rewriteComposeFile).toHaveBeenCalledTimes(1);
+    expect(trigger.restoreComposeFileFromBackup).toHaveBeenCalledWith(
+        composeFile,
+    );
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+    const report = emitSpy.mock.calls[0][0];
+    expect(report.status).toEqual('succeeded');
+    const appOutcome = report.services.find((s) => s.service === 'app');
+    expect(appOutcome.verdict).toEqual('crashed');
+    expect(appOutcome.reason).toEqual('crashed');
+});
+
+test('should revert previously swapped services and restore compose file when a subsequent service rolls back during swap', async () => {
+    const { trigger, archives } = buildTrigger({
+        services: [
+            {
+                container: { name: 'web', rollbackEnabled: true },
+                health: 'healthy',
+            },
+            {
+                container: { name: 'api', rollbackEnabled: true },
+                health: 'healthy',
+            },
+        ],
+        performUpdateRolledBackFor: 'api',
+    });
+    const emitSpy = jest.spyOn(event, 'emitContainerRollback');
+
+    const result = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [
+            { name: 'web', rollbackEnabled: true },
+            { name: 'api', rollbackEnabled: true },
+        ],
+        [
+            { current: 'web:1', update: 'web:2' },
+            { current: 'api:1', update: 'api:2' },
+        ],
+    );
+
+    expect(result).toBe(false);
+    expect(archives.web.rename).toHaveBeenCalledWith({ name: 'web' });
+    expect(trigger.restoreComposeFileFromBackup).toHaveBeenCalledWith(
+        composeFile,
+    );
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+    const report = emitSpy.mock.calls[0][0];
+    expect(report.status).toEqual('succeeded');
+    const webOutcome = report.services.find((s) => s.service === 'web');
+    expect(webOutcome.verdict).toEqual('project-revert');
+    expect(webOutcome.reason).toEqual('project-revert');
+    const apiOutcome = report.services.find((s) => s.service === 'api');
+    expect(apiOutcome.verdict).toEqual('crashed');
+    expect(apiOutcome.reason).toEqual('crashed');
 });
