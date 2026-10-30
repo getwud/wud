@@ -350,6 +350,8 @@ jest.mock('fs/promises');
 describe('Dockercompose Trigger - file operations', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        (fs.rename as jest.Mock).mockResolvedValue(undefined);
+        (fs.unlink as jest.Mock).mockResolvedValue(undefined);
         dockercompose.configuration = { ...configurationValid };
     });
 
@@ -412,13 +414,155 @@ describe('Dockercompose Trigger - file operations', () => {
             Buffer.from('services:\n  web:\n    image: app:1.0.0'),
         );
         (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
+        (fs.rename as jest.Mock).mockResolvedValue(undefined);
         await dockercompose.rewriteComposeFile('test.yml', [
             { current: 'app:1.0.0', update: 'app:2.0.0' },
         ]);
         expect(fs.writeFile).toHaveBeenCalledWith(
-            'test.yml',
+            expect.stringMatching(/^test\.yml\.tmp\./),
             expect.stringContaining('app:2.0.0'),
         );
+        expect(fs.rename).toHaveBeenCalledWith(
+            expect.stringMatching(/^test\.yml\.tmp\./),
+            'test.yml',
+        );
+    });
+
+    test('rewriteComposeFile should write atomically to a temporary file and not corrupt compose file on write failure (issue #1496)', async () => {
+        const originalContent = 'services:\n  web:\n    image: app:1.0.0';
+        (fs.readFile as jest.Mock).mockResolvedValue(
+            Buffer.from(originalContent),
+        );
+        const enospcError = Object.assign(
+            new Error('ENOSPC: no space left on device'),
+            { code: 'ENOSPC' },
+        );
+        (fs.writeFile as jest.Mock).mockRejectedValue(enospcError);
+        (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+
+        await expect(
+            dockercompose.rewriteComposeFile('test.yml', [
+                { current: 'app:1.0.0', update: 'app:2.0.0' },
+            ]),
+        ).rejects.toThrow('ENOSPC');
+
+        // Target compose file must NEVER be written to directly
+        expect(fs.writeFile).not.toHaveBeenCalledWith(
+            'test.yml',
+            expect.anything(),
+        );
+        // Temporary file should have been written to and cleaned up
+        expect(fs.writeFile).toHaveBeenCalledWith(
+            expect.stringMatching(/^test\.yml\.tmp\./),
+            expect.stringContaining('app:2.0.0'),
+        );
+        expect(fs.unlink).toHaveBeenCalledWith(
+            expect.stringMatching(/^test\.yml\.tmp\./),
+        );
+        expect(fs.rename).not.toHaveBeenCalled();
+    });
+
+    test('rewriteComposeFile should clean up temp file and restore backup when rename fails and backup exists', async () => {
+        (fs.readFile as jest.Mock).mockResolvedValue(
+            Buffer.from('services:\n  web:\n    image: app:1.0.0'),
+        );
+        (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
+        (fs.rename as jest.Mock).mockRejectedValue(
+            new Error('EACCES: permission denied'),
+        );
+        (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+        (fs.access as jest.Mock).mockResolvedValue(undefined);
+        (fs.copyFile as jest.Mock).mockResolvedValue(undefined);
+
+        await expect(
+            dockercompose.rewriteComposeFile('test.yml', [
+                { current: 'app:1.0.0', update: 'app:2.0.0' },
+            ]),
+        ).rejects.toThrow('EACCES');
+
+        expect(fs.unlink).toHaveBeenCalledWith(
+            expect.stringMatching(/^test\.yml\.tmp\./),
+        );
+        expect(fs.access).toHaveBeenCalledWith('test.yml.back');
+        expect(fs.copyFile).toHaveBeenCalledWith('test.yml.back', 'test.yml');
+    });
+
+    test('rewriteComposeFile should handle unlink or backup restore failure gracefully during error recovery', async () => {
+        (fs.readFile as jest.Mock).mockResolvedValue(
+            Buffer.from('services:\n  web:\n    image: app:1.0.0'),
+        );
+        (fs.writeFile as jest.Mock).mockRejectedValue(
+            new Error('Write failure'),
+        );
+        (fs.unlink as jest.Mock).mockRejectedValue(new Error('Unlink failure'));
+        (fs.access as jest.Mock).mockRejectedValue(
+            new Error('ENOENT: no such file'),
+        );
+
+        await expect(
+            dockercompose.rewriteComposeFile('test.yml', [
+                { current: 'app:1.0.0', update: 'app:2.0.0' },
+            ]),
+        ).rejects.toThrow('Write failure');
+    });
+
+    test('rewriteComposeFile should preserve original file content in simulated filesystem on write failure (reproduction #1496)', async () => {
+        const originalContent = 'services:\n  web:\n    image: app:1.0.0';
+        const fileStore: Record<string, string> = {
+            'docker-compose.yml': originalContent,
+            'docker-compose.yml.back': originalContent,
+        };
+
+        (fs.readFile as jest.Mock).mockImplementation(
+            async (filePath: string) => {
+                if (fileStore[filePath]) {
+                    return Buffer.from(fileStore[filePath]);
+                }
+                throw new Error(`ENOENT: ${filePath}`);
+            },
+        );
+
+        (fs.writeFile as jest.Mock).mockImplementation(
+            async (filePath: string, data: string) => {
+                // If writing to the active compose file directly, partial corruption occurs
+                if (filePath === 'docker-compose.yml') {
+                    fileStore[filePath] = String(data).slice(0, 10);
+                    throw Object.assign(new Error('ENOSPC'), {
+                        code: 'ENOSPC',
+                    });
+                }
+                // Sibling temporary file fails on ENOSPC before touching active file
+                if (filePath.startsWith('docker-compose.yml.tmp.')) {
+                    fileStore[filePath] = String(data).slice(0, 10);
+                    throw Object.assign(new Error('ENOSPC'), {
+                        code: 'ENOSPC',
+                    });
+                }
+                fileStore[filePath] = String(data);
+            },
+        );
+
+        (fs.unlink as jest.Mock).mockImplementation(
+            async (filePath: string) => {
+                delete fileStore[filePath];
+            },
+        );
+
+        await expect(
+            dockercompose.rewriteComposeFile('docker-compose.yml', [
+                { current: 'app:1.0.0', update: 'app:2.0.0' },
+            ]),
+        ).rejects.toThrow('ENOSPC');
+
+        // Target file must remain untouched with original content
+        expect(fileStore['docker-compose.yml']).toBe(originalContent);
+        // Backup file remains intact
+        expect(fileStore['docker-compose.yml.back']).toBe(originalContent);
+        // Temporary file is cleaned up
+        const tempFiles = Object.keys(fileStore).filter((k) =>
+            k.startsWith('docker-compose.yml.tmp.'),
+        );
+        expect(tempFiles).toHaveLength(0);
     });
 
     test('writeComposeFile should write data', async () => {
@@ -1589,6 +1733,7 @@ services:
                     Buffer.from(originalYaml),
                 );
                 (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
+                (fs.rename as jest.Mock).mockResolvedValue(undefined);
 
                 await dockercompose.rewriteComposeFile('docker-compose.yml', [
                     {
@@ -1606,8 +1751,12 @@ services:
     - 80:80
 `;
                 expect(fs.writeFile).toHaveBeenCalledWith(
-                    'docker-compose.yml',
+                    expect.stringMatching(/^docker-compose\.yml\.tmp\./),
                     expectedYaml,
+                );
+                expect(fs.rename).toHaveBeenCalledWith(
+                    expect.stringMatching(/^docker-compose\.yml\.tmp\./),
+                    'docker-compose.yml',
                 );
             });
         });
