@@ -21,6 +21,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [TRIGGER] Write Docker Compose files atomically to prevent truncation on write failure (fixes #1496)
 - 🐛 [WATCHER] Allow tag candidates with different version segment count when wud.tag.include is defined (fixes #1465)
 - 🐛 [WATCHER] Fix Docker startup reconciliation pruning stopped containers when watchall is enabled (fixes #1503)
+- 🐛 [WATCHER] Fix multi-arch image digest comparison loop on OCI index vs platform manifest digests (fixes #1500)
 - 🐛 [WATCHER] Fix update notification trigger after cooldown expiration (fixes #1445)
 - 🐛 [WATCHER] Index containers created while WUD was stopped during startup reconciliation (fixes #1466)
 

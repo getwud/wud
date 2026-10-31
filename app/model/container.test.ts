@@ -586,6 +586,110 @@ test('addUpdateKindProperty should return unknown when no update available', asy
     });
 });
 
+describe('multi-arch digest comparison (fixes #1500)', () => {
+    const baseContainer = {
+        id: 'c-multiarch',
+        name: 'immich-server',
+        watcher: 'docker',
+        image: {
+            id: 'img123',
+            registry: { name: 'ghcr.public', url: 'https://ghcr.io/v2' },
+            name: 'immich-app/immich-server',
+            tag: { value: 'release', semver: false },
+            architecture: 'amd64',
+            os: 'linux',
+            created: '2026-10-21T18:18:02.208Z',
+        },
+    };
+
+    test('updateAvailable should be false when image.digest.value matches result.digest', () => {
+        const validated = container.validate({
+            ...baseContainer,
+            image: {
+                ...baseContainer.image,
+                digest: {
+                    watch: true,
+                    repo: 'sha256:index485d546a',
+                    value: 'sha256:leaf1ab81816',
+                },
+            },
+            result: {
+                tag: 'release',
+                digest: 'sha256:leaf1ab81816',
+                indexDigest: 'sha256:index485d546a',
+            },
+        });
+        expect(validated.updateAvailable).toBe(false);
+        expect(validated.updateKind.kind).toBe('unknown');
+    });
+
+    test('updateAvailable should be false when image.digest.repo matches result.indexDigest even if value is index digest', () => {
+        const validated = container.validate({
+            ...baseContainer,
+            image: {
+                ...baseContainer.image,
+                digest: {
+                    watch: true,
+                    repo: 'sha256:index485d546a',
+                    value: 'sha256:index485d546a',
+                },
+            },
+            result: {
+                tag: 'release',
+                digest: 'sha256:leaf1ab81816',
+                indexDigest: 'sha256:index485d546a',
+            },
+        });
+        expect(validated.updateAvailable).toBe(false);
+        expect(validated.updateKind.kind).toBe('unknown');
+    });
+
+    test('updateAvailable should be false when image.digest.repo matches result.digest directly', () => {
+        const validated = container.validate({
+            ...baseContainer,
+            image: {
+                ...baseContainer.image,
+                digest: {
+                    watch: true,
+                    repo: 'sha256:leaf1ab81816',
+                    value: 'sha256:leaf1ab81816',
+                },
+            },
+            result: {
+                tag: 'release',
+                digest: 'sha256:leaf1ab81816',
+            },
+        });
+        expect(validated.updateAvailable).toBe(false);
+        expect(validated.updateKind.kind).toBe('unknown');
+    });
+
+    test('updateAvailable should be true when image digest does not match remote digest or indexDigest', () => {
+        const validated = container.validate({
+            ...baseContainer,
+            image: {
+                ...baseContainer.image,
+                digest: {
+                    watch: true,
+                    repo: 'sha256:oldIndex',
+                    value: 'sha256:oldIndex',
+                },
+            },
+            result: {
+                tag: 'release',
+                digest: 'sha256:newLeaf',
+                indexDigest: 'sha256:newIndex',
+            },
+        });
+        expect(validated.updateAvailable).toBe(true);
+        expect(validated.updateKind).toEqual({
+            kind: 'digest',
+            localValue: 'sha256:oldIndex',
+            remoteValue: 'sha256:newLeaf',
+        });
+    });
+});
+
 describe('snooze functionality', () => {
     const baseContainer = {
         id: 'c1',
