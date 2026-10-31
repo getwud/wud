@@ -47,6 +47,7 @@ export interface ContainerImage {
 export interface ContainerResult {
     tag?: string;
     digest?: string;
+    indexDigest?: string;
     created?: string;
     version?: string;
     link?: string;
@@ -229,6 +230,7 @@ const schema = joi.object({
     result: joi.object({
         tag: joi.string().min(1),
         digest: joi.string(),
+        indexDigest: joi.string(),
         created: joi.string().isoDate(),
         version: joi.string(),
         link: joi.string(),
@@ -705,7 +707,29 @@ function isCandidateUpdateAvailable(container: Container): boolean {
         container.image.digest.value !== undefined &&
         container.result.digest !== undefined
     ) {
-        return container.image.digest.value !== container.result.digest;
+        // Direct match with resolved leaf manifest digest
+        if (container.image.digest.value === container.result.digest) {
+            return false;
+        }
+
+        // Direct match between local repo digest and remote leaf manifest digest
+        if (
+            container.image.digest.repo &&
+            container.image.digest.repo === container.result.digest
+        ) {
+            return false;
+        }
+
+        // Symmetrical match between local repo/value digest and remote index digest
+        if (
+            container.result.indexDigest &&
+            (container.image.digest.value === container.result.indexDigest ||
+                container.image.digest.repo === container.result.indexDigest)
+        ) {
+            return false;
+        }
+
+        return true;
     }
 
     // Compare tags otherwise

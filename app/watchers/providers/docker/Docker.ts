@@ -1692,30 +1692,47 @@ export class Docker extends Watcher {
                 if (remoteDigest?.digest) {
                     result.digest = remoteDigest.digest;
                     result.created = remoteDigest.created;
+                    if (remoteDigest.indexDigest) {
+                        result.indexDigest = remoteDigest.indexDigest;
+                    }
                 }
 
                 if (remoteDigest?.version !== 1) {
-                    // Regular v2 manifest => Get manifest digest
-                    try {
-                        const digestV2 =
-                            await registryProvider.getImageManifestDigest(
-                                imageToGetDigestFrom,
-                                container.image.digest.repo,
-                            );
-                        container.image.digest.value =
-                            digestV2?.digest || container.image.digest.repo;
-                    } catch (e: any) {
-                        const errorDetail = formatErrorMessage(e);
-                        if (
-                            logContainer &&
-                            typeof logContainer.debug === 'function'
-                        ) {
-                            logContainer.debug(
-                                `Unable to resolve manifest digest for local repo digest ${container.image.digest.repo} (${errorDetail}), falling back to repo digest`,
-                            );
+                    // Symmetrical resolution for multi-arch images:
+                    // If local repo digest already matches the remote index digest OR remote leaf digest,
+                    // the local container is already running the exact same image content.
+                    if (
+                        remoteDigest?.indexDigest &&
+                        container.image.digest.repo === remoteDigest.indexDigest
+                    ) {
+                        container.image.digest.value = remoteDigest.digest;
+                    } else if (
+                        container.image.digest.repo === remoteDigest.digest
+                    ) {
+                        container.image.digest.value = remoteDigest.digest;
+                    } else {
+                        // Regular v2 manifest => Get manifest digest
+                        try {
+                            const digestV2 =
+                                await registryProvider.getImageManifestDigest(
+                                    imageToGetDigestFrom,
+                                    container.image.digest.repo,
+                                );
+                            container.image.digest.value =
+                                digestV2?.digest || container.image.digest.repo;
+                        } catch (e: any) {
+                            const errorDetail = formatErrorMessage(e);
+                            if (
+                                logContainer &&
+                                typeof logContainer.debug === 'function'
+                            ) {
+                                logContainer.debug(
+                                    `Unable to resolve manifest digest for local repo digest ${container.image.digest.repo} (${errorDetail}), falling back to repo digest`,
+                                );
+                            }
+                            container.image.digest.value =
+                                container.image.digest.repo;
                         }
-                        container.image.digest.value =
-                            container.image.digest.repo;
                     }
                 } else {
                     // Legacy v1 image => take Image digest as reference for comparison.

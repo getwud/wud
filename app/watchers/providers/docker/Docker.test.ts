@@ -2125,6 +2125,187 @@ describe('Docker Watcher', () => {
             expect(container.image.digest.value).toBe(result.digest);
         });
 
+        test('should not flag a false digest update for a multi-arch image whose local RepoDigest is an index digest matching remote index (regression for #1500, ghcr.io/immich-app/immich-server)', async () => {
+            const indexDigest =
+                'sha256:485d546a2e31d6a8b4db8423fcba5c109de8c218d93410af115fd1ccfc4352a6';
+            const amd64ManifestDigest =
+                'sha256:1ab81816384ce8e782fdbdb2b7703ab68fd12442bc311a53118dc0d74c2ced24';
+
+            const ghcrRegistry = new Registry();
+            ghcrRegistry.getTags = jest.fn().mockResolvedValue(['release']);
+            ghcrRegistry.callRegistry = jest.fn((options) => {
+                if (options.method === 'head') {
+                    return Promise.resolve({
+                        headers: {
+                            'docker-content-digest': amd64ManifestDigest,
+                        },
+                    });
+                }
+                if (options.url.endsWith('/manifests/release')) {
+                    return Promise.resolve({
+                        headers: {
+                            'docker-content-digest': indexDigest,
+                        },
+                        data: {
+                            schemaVersion: 2,
+                            mediaType:
+                                'application/vnd.oci.image.index.v1+json',
+                            manifests: [
+                                {
+                                    digest: amd64ManifestDigest,
+                                    mediaType:
+                                        'application/vnd.oci.image.manifest.v1+json',
+                                    platform: {
+                                        architecture: 'amd64',
+                                        os: 'linux',
+                                    },
+                                },
+                            ],
+                        },
+                    });
+                }
+                throw new Error(`Unexpected request to ${options.url}`);
+            });
+
+            const container: any = {
+                id: 'immich123',
+                name: 'immich_server',
+                image: {
+                    id: 'imageImmich',
+                    registry: {
+                        name: 'ghcr.public',
+                        url: 'https://ghcr.io/v2',
+                    },
+                    name: 'immich-app/immich-server',
+                    tag: { value: 'release', semver: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                    digest: { watch: true, repo: indexDigest },
+                },
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'ghcr.public': ghcrRegistry },
+            });
+            const mockLogChild = { error: jest.fn(), warn: jest.fn() };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(result.digest).toBe(amd64ManifestDigest);
+            expect(result.indexDigest).toBe(indexDigest);
+            expect(container.image.digest.value).toBe(amd64ManifestDigest);
+            expect(container.image.digest.value).toBe(result.digest);
+        });
+
+        test('should not flag false update when secondary resolution of local repo digest fails (regression for #1500)', async () => {
+            const indexDigest =
+                'sha256:485d546a2e31d6a8b4db8423fcba5c109de8c218d93410af115fd1ccfc4352a6';
+            const amd64ManifestDigest =
+                'sha256:1ab81816384ce8e782fdbdb2b7703ab68fd12442bc311a53118dc0d74c2ced24';
+
+            const ghcrRegistry = new Registry();
+            ghcrRegistry.getImageManifestDigest = jest
+                .fn()
+                .mockImplementation(async (img, digest) => {
+                    if (digest === indexDigest) {
+                        throw new Error('404 Not Found');
+                    }
+                    return {
+                        digest: amd64ManifestDigest,
+                        indexDigest,
+                        version: 2,
+                    };
+                });
+
+            const container: any = {
+                id: 'immich123',
+                name: 'immich_server',
+                image: {
+                    id: 'imageImmich',
+                    registry: {
+                        name: 'ghcr.public',
+                        url: 'https://ghcr.io/v2',
+                    },
+                    name: 'immich-app/immich-server',
+                    tag: { value: 'release', semver: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                    digest: { watch: true, repo: indexDigest },
+                },
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'ghcr.public': ghcrRegistry },
+            });
+            const mockLogChild = {
+                error: jest.fn(),
+                warn: jest.fn(),
+                debug: jest.fn(),
+            };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(result.digest).toBe(amd64ManifestDigest);
+            expect(result.indexDigest).toBe(indexDigest);
+            // Symmetrical check normalized it directly because indexDigest matched repo digest
+            expect(container.image.digest.value).toBe(amd64ManifestDigest);
+        });
+
+        test('should detect genuine digest update for multi-arch image when remote index changes', async () => {
+            const oldIndexDigest =
+                'sha256:oldIndexDigest000000000000000000000000000000000000000000000000000';
+            const oldLeafDigest =
+                'sha256:oldLeafDigest0000000000000000000000000000000000000000000000000000';
+            const newIndexDigest =
+                'sha256:newIndexDigest111111111111111111111111111111111111111111111111111';
+            const newLeafDigest =
+                'sha256:newLeafDigest1111111111111111111111111111111111111111111111111111';
+
+            const ghcrRegistry = new Registry();
+            ghcrRegistry.getImageManifestDigest = jest
+                .fn()
+                .mockImplementation(async (img, digest) => {
+                    if (digest === oldIndexDigest) {
+                        return {
+                            digest: oldLeafDigest,
+                            indexDigest: oldIndexDigest,
+                            version: 2,
+                        };
+                    }
+                    return {
+                        digest: newLeafDigest,
+                        indexDigest: newIndexDigest,
+                        version: 2,
+                    };
+                });
+
+            const container: any = {
+                id: 'immich123',
+                name: 'immich_server',
+                image: {
+                    id: 'imageImmich',
+                    registry: {
+                        name: 'ghcr.public',
+                        url: 'https://ghcr.io/v2',
+                    },
+                    name: 'immich-app/immich-server',
+                    tag: { value: 'release', semver: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                    digest: { watch: true, repo: oldIndexDigest },
+                },
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'ghcr.public': ghcrRegistry },
+            });
+            const mockLogChild = { error: jest.fn(), warn: jest.fn() };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(result.digest).toBe(newLeafDigest);
+            expect(result.indexDigest).toBe(newIndexDigest);
+            expect(container.image.digest.value).toBe(oldLeafDigest);
+            expect(container.image.digest.value).not.toBe(result.digest);
+        });
+
         test('should list tags for non-semver images if watch digest is true and includeTags is set', async () => {
             const arm64ManifestDigest =
                 'sha256:1234000000000000000000000000000000000000000000000000000000000000';
