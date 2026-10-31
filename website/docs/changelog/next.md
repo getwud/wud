@@ -11,6 +11,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [CONTAINER] Add option to override update cooldown and trigger update immediately (fixes #1463)
 - 🚀 [TRIGGER] Add optional strict_digest mode to Docker Compose trigger (fixes #1497)
 - 🐛 [API] Match the installed image tag when filtering containers by tag.
+- 🐛 [AUTH] Enforce API token scopes on user management, profile, and un-scoped routes (GHSA-xv5r-jpc4-8j2j)
 - 🐛 [CONTAINER] Fix link template variable resolution on update (fixes #1490)
 - 🐛 [CORE] Fix CWE-95 arbitrary code execution in workload link templates (GHSA-rrhg-3h69-4fvf)
 - 🐛 [TRIGGER] Abort Docker Compose transaction when service update was rolled back (fixes #1495)
