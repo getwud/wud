@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { UserRole } from '../store/user';
 import { ApiTokenScope } from '../store/token';
 
+const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
+
 /**
  * Middleware to require one of the specified roles,
  * and if an API token is used, enforce that the required scope is granted.
@@ -24,15 +26,20 @@ export function requireRole(
         }
 
         // 2. If request authenticated via an API token, verify scope
-        if (user.token && requiredScope) {
+        if (user.token) {
             const tokenScopes: ApiTokenScope[] = user.token.scopes || [];
-            if (requiredScope === 'write') {
+            const method = req.method ? req.method.toUpperCase() : '';
+            const isSafeMethod = SAFE_METHODS.includes(method);
+            const effectiveScope: ApiTokenScope =
+                requiredScope || (isSafeMethod ? 'read' : 'write');
+
+            if (effectiveScope === 'write') {
                 if (!tokenScopes.includes('write')) {
                     return res.status(403).json({
                         error: 'Forbidden: API token missing write scope',
                     });
                 }
-            } else if (requiredScope === 'read') {
+            } else if (effectiveScope === 'read') {
                 if (
                     !tokenScopes.includes('read') &&
                     !tokenScopes.includes('write')
