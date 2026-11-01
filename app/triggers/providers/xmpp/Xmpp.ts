@@ -21,6 +21,7 @@ class Xmpp extends Trigger {
             user: this.joi.string().required(),
             password: this.joi.string().required(),
             to: this.joi.string().required(),
+            timeout: this.joi.number().greater(0).default(10_000),
         });
     }
 
@@ -101,6 +102,25 @@ class Xmpp extends Trigger {
      */
     async sendMessage(title: string, body: string): Promise<void> {
         return new Promise((resolve, reject) => {
+            let settled = false;
+            let timeoutHandle: ReturnType<typeof setTimeout> | undefined =
+                undefined;
+
+            const settle = (err?: Error) => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                if (timeoutHandle) {
+                    clearTimeout(timeoutHandle);
+                }
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve();
+                }
+            };
+
             const xmpp = client({
                 service: this.configuration.service,
                 domain: this.configuration.domain,
@@ -110,7 +130,7 @@ class Xmpp extends Trigger {
 
             xmpp.on('error', (err) => {
                 this.log.error(`XMPP Error: ${err.message}`);
-                reject(err);
+                settle(err);
             });
 
             xmpp.on('online', async (address) => {
@@ -124,16 +144,29 @@ class Xmpp extends Trigger {
                     );
                     await xmpp.send(message);
                     await xmpp.stop();
-                    resolve();
+                    settle();
                 } catch (e) {
-                    reject(e);
+                    settle(e);
                 }
             });
 
             xmpp.start().catch((err) => {
                 this.log.error(`XMPP Start Error: ${err.message}`);
-                reject(err);
+                settle(err);
             });
+
+            timeoutHandle = setTimeout(() => {
+                const err = new Error(
+                    `XMPP session timed out after ${this.configuration.timeout}ms`,
+                );
+                this.log.error(err.message);
+                try {
+                    xmpp.stop().catch(() => undefined);
+                } catch {
+                    // The connection may not be initialized yet
+                }
+                settle(err);
+            }, this.configuration.timeout);
         });
     }
 }

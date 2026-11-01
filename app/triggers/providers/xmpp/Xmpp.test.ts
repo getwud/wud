@@ -37,6 +37,7 @@ const configurationValid = {
     user: 'user',
     password: 'password123',
     to: 'friend@example.com',
+    timeout: 10000,
     threshold: 'all',
     mode: 'simple',
     once: true,
@@ -134,6 +135,40 @@ test('trigger should send xmpp message as expected', async () => {
 
     const mockClientInstance = (client as jest.Mock).mock.results[0].value;
     expect(mockClientInstance.send).toHaveBeenCalled();
+});
+
+test('trigger should fail when the xmpp session hangs', async () => {
+    xmpp.configuration = { ...configurationValid, timeout: 5000 };
+
+    const hangingClient = {
+        on: jest.fn(),
+        start: jest.fn().mockResolvedValue(undefined),
+        stop: jest.fn().mockResolvedValue(undefined),
+        send: jest.fn().mockResolvedValue(undefined),
+    };
+    (client as jest.Mock).mockImplementationOnce(() => hangingClient);
+
+    jest.useFakeTimers();
+    try {
+        const promise = xmpp.trigger({
+            id: '31a61a8305ef1fc9a71fa4f20a68d7ec88b28e32303bbc4a5f192e851165b816',
+            name: 'homeassistant',
+            watcher: 'local',
+            updateKind: {
+                kind: 'tag',
+                localValue: '1.0.0',
+                remoteValue: '2.0.0',
+            },
+        });
+        const assertion = expect(promise).rejects.toThrow(
+            'XMPP session timed out after 5000ms',
+        );
+        jest.advanceTimersByTime(5000);
+        await assertion;
+        expect(hangingClient.stop).toHaveBeenCalled();
+    } finally {
+        jest.useRealTimers();
+    }
 });
 
 test('triggerRollback should send xmpp message as expected', async () => {

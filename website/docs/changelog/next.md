@@ -13,6 +13,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [TRIGGER] Support rollback notifications in the XMPP trigger
 - 🐛 [E2E] Update expected Home Assistant image version to 2026.10.4 in E2E scenarios
 - 🐛 [TRIGGER] Do not copy Docker-generated MAC address when recreating container (#1464)
+- 🐛 [TRIGGER] Fail fast when the XMPP server is unreachable instead of hanging forever (new `WUD_TRIGGER_XMPP_{trigger_name}_TIMEOUT` option)
 - 🐛 [WATCHER] Allow tag candidates with different version segment count when wud.tag.include is defined (fixes #1465)
 - 🐛 [WATCHER] Index containers created while WUD was stopped during startup reconciliation (fixes #1466)
 

@@ -56,6 +56,15 @@ import TabItem from '@theme/TabItem';
     supported="Valid JID, e.g. `recipient@example.com`">
     Recipient JID to send notifications to
   </ConfigOption>
+
+  <ConfigOption
+    name="WUD_TRIGGER_XMPP_{trigger_name}_TIMEOUT"
+    required={false}
+    type="integer"
+    defaultValue="10000"
+    supported="Positive integer (milliseconds)">
+    Maximum time in milliseconds to wait for the XMPP session (connect, authenticate and send) to complete before failing
+  </ConfigOption>
 </ConfigList>
 
 :::info
