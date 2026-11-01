@@ -53,6 +53,7 @@ import {
     validate as validateContainer,
     fullName,
     Container,
+    hasTransitionedOutOfCooldown,
 } from '../../../model/container';
 import * as registry from '../../../registry';
 import {
@@ -901,13 +902,34 @@ export class Nomad extends Watcher {
             }
             result.digest = remoteDigest.digest;
             result.created = remoteDigest.created;
+            if (remoteDigest.indexDigest) {
+                result.indexDigest = remoteDigest.indexDigest;
+            }
 
             if (remoteDigest.version === 2) {
-                const digestV2 = await registryProvider.getImageManifestDigest(
-                    imageToGetDigestFrom,
-                    container.image.digest.repo,
-                );
-                container.image.digest.value = digestV2.digest;
+                if (
+                    remoteDigest.indexDigest &&
+                    container.image.digest.repo === remoteDigest.indexDigest
+                ) {
+                    container.image.digest.value = remoteDigest.digest;
+                } else if (
+                    container.image.digest.repo === remoteDigest.digest
+                ) {
+                    container.image.digest.value = remoteDigest.digest;
+                } else {
+                    try {
+                        const digestV2 =
+                            await registryProvider.getImageManifestDigest(
+                                imageToGetDigestFrom,
+                                container.image.digest.repo,
+                            );
+                        container.image.digest.value =
+                            digestV2?.digest || container.image.digest.repo;
+                    } catch {
+                        container.image.digest.value =
+                            container.image.digest.repo;
+                    }
+                }
             } else {
                 container.image.digest.value = container.image.digest.repo;
             }
@@ -1104,10 +1126,10 @@ export class Nomad extends Watcher {
             const isUpdateAvailable = Boolean(
                 containerWithResult.updateAvailable,
             );
-            const wasUpdateAvailable = Boolean(containerInDb.updateAvailable);
-            const wasCoolingDown = Boolean(containerInDb.isCoolingDown);
-            const transitionedOutOfCooldown =
-                (!wasUpdateAvailable || wasCoolingDown) && isUpdateAvailable;
+            const transitionedOutOfCooldown = hasTransitionedOutOfCooldown(
+                containerInDb,
+                containerWithResult,
+            );
             const resultChanged = Boolean(
                 containerInDb.resultChanged &&
                     containerInDb.resultChanged(containerReport.container),

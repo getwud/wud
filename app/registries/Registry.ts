@@ -21,6 +21,7 @@ export interface RegistryPushHint {
 
 export interface RegistryManifest {
     digest?: string;
+    indexDigest?: string;
     version?: number;
     created?: string;
     /**
@@ -444,14 +445,21 @@ export class Registry extends Component {
         this.log.debug(
             `${this.getId()} - Get ${image.name}:${tagOrDigest} manifest`,
         );
-        const responseManifests =
-            await this.callRegistry<RegistryManifestResponse>({
-                image,
-                url: `${image.registry.url}/${image.name}/manifests/${tagOrDigest}`,
-                headers: {
-                    Accept: 'application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json',
-                },
-            });
+        let indexDigest: string | undefined;
+        const response = await this.callRegistry<any>({
+            image,
+            url: `${image.registry.url}/${image.name}/manifests/${tagOrDigest}`,
+            headers: {
+                Accept: 'application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json',
+            },
+            resolveWithFullResponse: true,
+        });
+        const responseManifests: RegistryManifestResponse =
+            response && response.data ? response.data : response;
+        const rootContentDigest =
+            response && response.headers
+                ? response.headers['docker-content-digest']
+                : undefined;
         if (responseManifests) {
             log.debug(`Found manifests [${JSON.stringify(responseManifests)}]`);
             if (isNonContainerArtifact(responseManifests)) {
@@ -473,6 +481,11 @@ export class Registry extends Component {
                     responseManifests.mediaType ===
                         'application/vnd.oci.image.index.v1+json'
                 ) {
+                    indexDigest =
+                        rootContentDigest ||
+                        (tagOrDigest.startsWith('sha256:')
+                            ? tagOrDigest
+                            : undefined);
                     log.debug(
                         `Filter manifest for [arch=${image.architecture}, os=${image.os}, variant=${image.variant}]`,
                     );
@@ -578,9 +591,13 @@ export class Registry extends Component {
                         },
                         resolveWithFullResponse: true,
                     });
-                const manifestFound = {
-                    digest: responseManifest.headers['docker-content-digest'],
+                const resolvedDigest =
+                    responseManifest?.headers?.['docker-content-digest'] ||
+                    manifestDigestFound;
+                const manifestFound: RegistryManifest = {
+                    digest: resolvedDigest,
                     version: 2,
+                    ...(indexDigest ? { indexDigest } : {}),
                     // Only present when the fetched manifest carried it, i.e.
                     // not for a multi-arch index.
                     ...(configDigestFound
@@ -588,7 +605,7 @@ export class Registry extends Component {
                         : {}),
                 };
                 log.debug(
-                    `Manifest found with [digest=${manifestFound.digest}, version=${manifestFound.version}]`,
+                    `Manifest found with [digest=${manifestFound.digest}, indexDigest=${manifestFound.indexDigest}, version=${manifestFound.version}]`,
                 );
                 return manifestFound;
             }

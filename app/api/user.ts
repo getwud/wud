@@ -22,7 +22,7 @@ export function init() {
     router.use(requireRole(['admin']));
 
     // List all users
-    router.get('/', async (req, res) => {
+    router.get('/', requireRole(['admin'], 'read'), async (req, res) => {
         try {
             const users = await listUsers();
             res.json(users);
@@ -32,7 +32,7 @@ export function init() {
     });
 
     // Create a new user
-    router.post('/', async (req, res) => {
+    router.post('/', requireRole(['admin'], 'write'), async (req, res) => {
         try {
             const { username, password, role } = req.body;
             if (!username || !password) {
@@ -68,9 +68,9 @@ export function init() {
     });
 
     // Update a user (role or password)
-    router.put('/:id', async (req, res) => {
+    router.put('/:id', requireRole(['admin'], 'write'), async (req, res) => {
         try {
-            const { id } = req.params;
+            const id = String(req.params.id);
             const { role, password } = req.body;
 
             const existing = await getUserById(id);
@@ -105,9 +105,9 @@ export function init() {
     });
 
     // Delete a user
-    router.delete('/:id', async (req, res) => {
+    router.delete('/:id', requireRole(['admin'], 'write'), async (req, res) => {
         try {
-            const { id } = req.params;
+            const id = String(req.params.id);
             const currentUser = (req as any).user;
 
             if (currentUser && currentUser.id === id) {

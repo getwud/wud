@@ -127,4 +127,103 @@ describe('User API Router', () => {
         expect(res.status).toBe(400);
         expect(res.body.error).toMatch(/Cannot delete your own account/);
     });
+
+    describe('API Token Scopes', () => {
+        let tokenApp: express.Express;
+
+        function createTokenApp(scopes: string[]) {
+            const a = express();
+            a.use(express.json());
+            a.use((req: any, _res, next) => {
+                req.user = {
+                    id: 'admin1',
+                    username: 'admin',
+                    role: 'admin',
+                    token: { scopes },
+                };
+                next();
+            });
+            a.use('/users', userRouter.init());
+            return a;
+        }
+
+        test('GET /users should allow read-scoped API token', async () => {
+            tokenApp = createTokenApp(['read']);
+            (userStore.listUsers as jest.Mock).mockResolvedValue([]);
+
+            const res = await request(tokenApp).get('/users');
+            expect(res.status).toBe(200);
+        });
+
+        test('POST /users should reject read-scoped API token with 403', async () => {
+            tokenApp = createTokenApp(['read']);
+
+            const res = await request(tokenApp).post('/users').send({
+                username: 'newuser',
+                password: 'password',
+                role: 'ro',
+            });
+
+            expect(res.status).toBe(403);
+            expect(res.body.error).toMatch(/missing write scope/);
+            expect(userStore.createUser).not.toHaveBeenCalled();
+        });
+
+        test('PUT /users/:id should reject read-scoped API token with 403', async () => {
+            tokenApp = createTokenApp(['read']);
+
+            const res = await request(tokenApp)
+                .put('/users/u1')
+                .send({ role: 'rw' });
+
+            expect(res.status).toBe(403);
+            expect(res.body.error).toMatch(/missing write scope/);
+            expect(userStore.updateUser).not.toHaveBeenCalled();
+        });
+
+        test('DELETE /users/:id should reject read-scoped API token with 403', async () => {
+            tokenApp = createTokenApp(['read']);
+
+            const res = await request(tokenApp).delete('/users/u2');
+
+            expect(res.status).toBe(403);
+            expect(res.body.error).toMatch(/missing write scope/);
+            expect(userStore.deleteUser).not.toHaveBeenCalled();
+        });
+
+        test('mutating endpoints should allow write-scoped API token', async () => {
+            tokenApp = createTokenApp(['write']);
+            (userStore.getUserByUsername as jest.Mock).mockResolvedValue(null);
+            (userStore.createUser as jest.Mock).mockResolvedValue({
+                id: 'new1',
+                username: 'newuser',
+                role: 'ro',
+            });
+            (userStore.getUserById as jest.Mock).mockResolvedValue({
+                id: 'u2',
+                username: 'other',
+                role: 'ro',
+            });
+            (userStore.updateUser as jest.Mock).mockResolvedValue({
+                id: 'u2',
+                username: 'other',
+                role: 'rw',
+            });
+
+            const postRes = await request(tokenApp).post('/users').send({
+                username: 'newuser',
+                password: 'password',
+                role: 'ro',
+            });
+            expect(postRes.status).toBe(201);
+
+            const putRes = await request(tokenApp)
+                .put('/users/u2')
+                .send({ role: 'rw' });
+            expect(putRes.status).toBe(200);
+
+            const delRes = await request(tokenApp).delete('/users/u2');
+            expect(delRes.status).toBe(204);
+        });
+    });
 });

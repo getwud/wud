@@ -256,7 +256,28 @@ export async function performProjectTransaction(
                 gateHealth: false,
                 deferPrune: true,
                 runHooks: false,
+                emitEvents: false,
             });
+            if (outcome?.rolledBack || outcome?.status !== 'succeeded') {
+                const failureReason =
+                    outcome?.reason ||
+                    outcome?.error?.message ||
+                    (outcome?.rolledBack ? 'rolled-back' : 'swap-failed');
+                log.warn(
+                    `Service ${service.serviceKey} update was rolled back or failed during swap (${failureReason})`,
+                );
+                service.verdict =
+                    (outcome?.reason as RollbackServiceVerdict) || 'crashed';
+                service.reason = String(failureReason);
+                await finalizeRevert(
+                    trigger,
+                    composeFile,
+                    services,
+                    'swap-failed',
+                    [service],
+                );
+                return false;
+            }
             service.archiveName = outcome?.archiveName;
         }
     } catch (e: unknown) {
@@ -332,13 +353,15 @@ async function finalizeRevert(
 ): Promise<void> {
     const log = trigger.log;
     const start = Date.now();
-    let allReverted = forcedError === undefined;
+    let allReverted = true;
 
     for (const service of services) {
-        const restored =
-            forcedError === undefined
-                ? await revertService(trigger, service)
-                : false;
+        // Services that were not yet swapped during an aborted swap phase
+        // require no container rollback as their original container is intact.
+        if (forcedError !== undefined && !service.archiveName) {
+            continue;
+        }
+        const restored = await revertService(trigger, service);
         if (!restored) {
             allReverted = false;
         } else {

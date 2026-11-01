@@ -413,6 +413,8 @@ export interface PerformUpdateOptions {
     deferPrune?: boolean;
     /** Run the pre/post update hooks (defaults to true). */
     runHooks?: boolean;
+    /** Emit container update lifecycle events (defaults to true). */
+    emitEvents?: boolean;
 }
 
 /**
@@ -1746,8 +1748,11 @@ class Docker extends Trigger {
 
         // Quality Gate Pre-update hooks
         const runHooks = opts.runHooks ?? true;
+        const emitEvents = opts.emitEvents ?? true;
         try {
-            event.emitContainerUpdatePre(container);
+            if (emitEvents) {
+                event.emitContainerUpdatePre(container);
+            }
             if (runHooks) {
                 await HookManager.runPreHooks(
                     container,
@@ -1810,7 +1815,9 @@ class Docker extends Trigger {
                             },
                         );
                     }
-                    event.emitContainerUpdateSuccess(container);
+                    if (emitEvents) {
+                        event.emitContainerUpdateSuccess(container);
+                    }
 
                     const newContainerId = outcome.containerId;
                     const oldContainerId = currentContainerSpec.Id;
@@ -1904,7 +1911,9 @@ class Docker extends Trigger {
                     },
                 );
             }
-            event.emitContainerUpdateSuccess(container);
+            if (emitEvents) {
+                event.emitContainerUpdateSuccess(container);
+            }
 
             // Remove previous image (only when updateKind is tag)
             if (this.configuration.prune) {
@@ -1935,7 +1944,9 @@ class Docker extends Trigger {
                 }
             }
             container.error = e.message;
-            event.emitContainerUpdateFailure(container);
+            if (emitEvents) {
+                event.emitContainerUpdateFailure(container);
+            }
             throw e;
         }
         return undefined;
@@ -2043,11 +2054,12 @@ class Docker extends Trigger {
      */
     async trigger(
         container: Container,
-        options?: { runHooks?: boolean },
+        options?: { runHooks?: boolean; emitEvents?: boolean },
     ): Promise<void> {
         await this.performUpdate(container, {
             gate: this.resolveRollback(container),
             runHooks: options?.runHooks,
+            emitEvents: options?.emitEvents,
         });
     }
 

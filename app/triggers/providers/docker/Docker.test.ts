@@ -15,6 +15,7 @@ import Docker, {
 import { HookManager } from '../../hooks/HookManager';
 import log from '../../../log';
 import Trigger from '../Trigger';
+import * as event from '../../../event';
 
 const configurationValid = {
     prune: false,
@@ -2746,6 +2747,103 @@ describe('performUpdate rollback branch', () => {
                 },
             );
 
+            watcherSpy.mockRestore();
+        });
+    });
+
+    describe('emitEvents option (#1491)', () => {
+        test('should suppress pre, success, and failure events when emitEvents is false', async () => {
+            const { dockerApi } = buildGatedMocks();
+            const watcherSpy = jest
+                .spyOn(docker, 'getWatcher')
+                .mockReturnValue({
+                    dockerApi,
+                    reconcileContainer: jest.fn(() => Promise.resolve()),
+                });
+            const preSpy = jest
+                .spyOn(event, 'emitContainerUpdatePre')
+                .mockImplementation(() => {});
+            const successSpy = jest
+                .spyOn(event, 'emitContainerUpdateSuccess')
+                .mockImplementation(() => {});
+            const failureSpy = jest
+                .spyOn(event, 'emitContainerUpdateFailure')
+                .mockImplementation(() => {});
+
+            await docker.performUpdate(gatedContainer(), { emitEvents: false });
+
+            expect(preSpy).not.toHaveBeenCalled();
+            expect(successSpy).not.toHaveBeenCalled();
+            expect(failureSpy).not.toHaveBeenCalled();
+
+            preSpy.mockRestore();
+            successSpy.mockRestore();
+            failureSpy.mockRestore();
+            watcherSpy.mockRestore();
+        });
+
+        test('should emit pre and success events by default when emitEvents is omitted', async () => {
+            const { dockerApi } = buildGatedMocks();
+            const watcherSpy = jest
+                .spyOn(docker, 'getWatcher')
+                .mockReturnValue({
+                    dockerApi,
+                    reconcileContainer: jest.fn(() => Promise.resolve()),
+                });
+            const preSpy = jest
+                .spyOn(event, 'emitContainerUpdatePre')
+                .mockImplementation(() => {});
+            const successSpy = jest
+                .spyOn(event, 'emitContainerUpdateSuccess')
+                .mockImplementation(() => {});
+            const failureSpy = jest
+                .spyOn(event, 'emitContainerUpdateFailure')
+                .mockImplementation(() => {});
+
+            await docker.performUpdate(gatedContainer());
+
+            expect(preSpy).toHaveBeenCalledTimes(1);
+            expect(successSpy).toHaveBeenCalledTimes(1);
+            expect(failureSpy).not.toHaveBeenCalled();
+
+            preSpy.mockRestore();
+            successSpy.mockRestore();
+            failureSpy.mockRestore();
+            watcherSpy.mockRestore();
+        });
+
+        test('should suppress failure event when emitEvents is false and update fails', async () => {
+            const { dockerApi } = buildGatedMocks();
+            dockerApi.createContainer = jest.fn(() =>
+                Promise.reject(new Error('create error')),
+            );
+            const watcherSpy = jest
+                .spyOn(docker, 'getWatcher')
+                .mockReturnValue({
+                    dockerApi,
+                    reconcileContainer: jest.fn(() => Promise.resolve()),
+                });
+            const preSpy = jest
+                .spyOn(event, 'emitContainerUpdatePre')
+                .mockImplementation(() => {});
+            const successSpy = jest
+                .spyOn(event, 'emitContainerUpdateSuccess')
+                .mockImplementation(() => {});
+            const failureSpy = jest
+                .spyOn(event, 'emitContainerUpdateFailure')
+                .mockImplementation(() => {});
+
+            await expect(
+                docker.performUpdate(gatedContainer(), { emitEvents: false }),
+            ).rejects.toThrow('create error');
+
+            expect(preSpy).not.toHaveBeenCalled();
+            expect(successSpy).not.toHaveBeenCalled();
+            expect(failureSpy).not.toHaveBeenCalled();
+
+            preSpy.mockRestore();
+            successSpy.mockRestore();
+            failureSpy.mockRestore();
             watcherSpy.mockRestore();
         });
     });

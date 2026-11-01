@@ -290,6 +290,105 @@ test('getImageManifestDigest should resolve a manifest fetched directly by its o
     ]);
 });
 
+test('getImageManifestDigest should return both leaf digest and indexDigest for a multi-arch index fetched by tag (fixes #1500)', async () => {
+    const registryMocked = new Registry();
+    registryMocked.log = log;
+    registryMocked.callRegistry = (options) => {
+        if (options.method === 'head') {
+            return {
+                headers: {
+                    'docker-content-digest': 'sha256:leafAmd64Digest',
+                },
+            };
+        }
+        return {
+            headers: {
+                'docker-content-digest': 'sha256:indexDigest123',
+            },
+            data: {
+                schemaVersion: 2,
+                mediaType: 'application/vnd.oci.image.index.v1+json',
+                manifests: [
+                    {
+                        digest: 'sha256:leafAmd64Digest',
+                        mediaType: 'application/vnd.oci.image.manifest.v1+json',
+                        platform: { architecture: 'amd64', os: 'linux' },
+                    },
+                    {
+                        digest: 'sha256:leafArm64Digest',
+                        mediaType: 'application/vnd.oci.image.manifest.v1+json',
+                        platform: { architecture: 'arm64', os: 'linux' },
+                    },
+                ],
+            },
+        };
+    };
+
+    await expect(
+        registryMocked.getImageManifestDigest({
+            name: 'image',
+            architecture: 'amd64',
+            os: 'linux',
+            tag: { value: 'latest' },
+            registry: { url: 'url' },
+        }),
+    ).resolves.toStrictEqual({
+        version: 2,
+        digest: 'sha256:leafAmd64Digest',
+        indexDigest: 'sha256:indexDigest123',
+    });
+});
+
+test('getImageManifestDigest should return both leaf digest and indexDigest when fetched directly by index digest (fixes #1500)', async () => {
+    const registryMocked = new Registry();
+    registryMocked.log = log;
+    registryMocked.callRegistry = (options) => {
+        if (options.method === 'head') {
+            return {
+                headers: {
+                    'docker-content-digest': 'sha256:leafArm64Digest',
+                },
+            };
+        }
+        return {
+            headers: {},
+            data: {
+                schemaVersion: 2,
+                mediaType: 'application/vnd.oci.image.index.v1+json',
+                manifests: [
+                    {
+                        digest: 'sha256:leafAmd64Digest',
+                        mediaType: 'application/vnd.oci.image.manifest.v1+json',
+                        platform: { architecture: 'amd64', os: 'linux' },
+                    },
+                    {
+                        digest: 'sha256:leafArm64Digest',
+                        mediaType: 'application/vnd.oci.image.manifest.v1+json',
+                        platform: { architecture: 'arm64', os: 'linux' },
+                    },
+                ],
+            },
+        };
+    };
+
+    await expect(
+        registryMocked.getImageManifestDigest(
+            {
+                name: 'image',
+                architecture: 'arm64',
+                os: 'linux',
+                tag: { value: 'latest' },
+                registry: { url: 'url' },
+            },
+            'sha256:indexDigestPassedDirectly',
+        ),
+    ).resolves.toStrictEqual({
+        version: 2,
+        digest: 'sha256:leafArm64Digest',
+        indexDigest: 'sha256:indexDigestPassedDirectly',
+    });
+});
+
 test('getImageManifestDigest should return digest for application/vnd.docker.container.image.v1+json', async () => {
     const registryMocked = new Registry();
     registryMocked.log = log;

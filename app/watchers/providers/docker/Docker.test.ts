@@ -21,7 +21,15 @@ jest.mock('just-debounce');
 jest.mock('../../../event');
 jest.mock('../../../store/container');
 jest.mock('../../../registry');
-jest.mock('../../../model/container');
+jest.mock('../../../model/container', () => {
+    const actual = jest.requireActual('../../../model/container');
+    return {
+        ...actual,
+        validate: jest.fn(),
+        fullName: jest.fn(actual.fullName),
+        resolveContainerMetadata: jest.fn(actual.resolveContainerMetadata),
+    };
+});
 jest.mock('../../../tag', () => ({
     ...jest.requireActual('../../../tag'),
     parse: jest.fn(),
@@ -2115,6 +2123,187 @@ describe('Docker Watcher', () => {
             expect(result.digest).toBe(arm64ManifestDigest);
             expect(container.image.digest.value).toBe(arm64ManifestDigest);
             expect(container.image.digest.value).toBe(result.digest);
+        });
+
+        test('should not flag a false digest update for a multi-arch image whose local RepoDigest is an index digest matching remote index (regression for #1500, ghcr.io/immich-app/immich-server)', async () => {
+            const indexDigest =
+                'sha256:485d546a2e31d6a8b4db8423fcba5c109de8c218d93410af115fd1ccfc4352a6';
+            const amd64ManifestDigest =
+                'sha256:1ab81816384ce8e782fdbdb2b7703ab68fd12442bc311a53118dc0d74c2ced24';
+
+            const ghcrRegistry = new Registry();
+            ghcrRegistry.getTags = jest.fn().mockResolvedValue(['release']);
+            ghcrRegistry.callRegistry = jest.fn((options) => {
+                if (options.method === 'head') {
+                    return Promise.resolve({
+                        headers: {
+                            'docker-content-digest': amd64ManifestDigest,
+                        },
+                    });
+                }
+                if (options.url.endsWith('/manifests/release')) {
+                    return Promise.resolve({
+                        headers: {
+                            'docker-content-digest': indexDigest,
+                        },
+                        data: {
+                            schemaVersion: 2,
+                            mediaType:
+                                'application/vnd.oci.image.index.v1+json',
+                            manifests: [
+                                {
+                                    digest: amd64ManifestDigest,
+                                    mediaType:
+                                        'application/vnd.oci.image.manifest.v1+json',
+                                    platform: {
+                                        architecture: 'amd64',
+                                        os: 'linux',
+                                    },
+                                },
+                            ],
+                        },
+                    });
+                }
+                throw new Error(`Unexpected request to ${options.url}`);
+            });
+
+            const container: any = {
+                id: 'immich123',
+                name: 'immich_server',
+                image: {
+                    id: 'imageImmich',
+                    registry: {
+                        name: 'ghcr.public',
+                        url: 'https://ghcr.io/v2',
+                    },
+                    name: 'immich-app/immich-server',
+                    tag: { value: 'release', semver: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                    digest: { watch: true, repo: indexDigest },
+                },
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'ghcr.public': ghcrRegistry },
+            });
+            const mockLogChild = { error: jest.fn(), warn: jest.fn() };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(result.digest).toBe(amd64ManifestDigest);
+            expect(result.indexDigest).toBe(indexDigest);
+            expect(container.image.digest.value).toBe(amd64ManifestDigest);
+            expect(container.image.digest.value).toBe(result.digest);
+        });
+
+        test('should not flag false update when secondary resolution of local repo digest fails (regression for #1500)', async () => {
+            const indexDigest =
+                'sha256:485d546a2e31d6a8b4db8423fcba5c109de8c218d93410af115fd1ccfc4352a6';
+            const amd64ManifestDigest =
+                'sha256:1ab81816384ce8e782fdbdb2b7703ab68fd12442bc311a53118dc0d74c2ced24';
+
+            const ghcrRegistry = new Registry();
+            ghcrRegistry.getImageManifestDigest = jest
+                .fn()
+                .mockImplementation(async (img, digest) => {
+                    if (digest === indexDigest) {
+                        throw new Error('404 Not Found');
+                    }
+                    return {
+                        digest: amd64ManifestDigest,
+                        indexDigest,
+                        version: 2,
+                    };
+                });
+
+            const container: any = {
+                id: 'immich123',
+                name: 'immich_server',
+                image: {
+                    id: 'imageImmich',
+                    registry: {
+                        name: 'ghcr.public',
+                        url: 'https://ghcr.io/v2',
+                    },
+                    name: 'immich-app/immich-server',
+                    tag: { value: 'release', semver: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                    digest: { watch: true, repo: indexDigest },
+                },
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'ghcr.public': ghcrRegistry },
+            });
+            const mockLogChild = {
+                error: jest.fn(),
+                warn: jest.fn(),
+                debug: jest.fn(),
+            };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(result.digest).toBe(amd64ManifestDigest);
+            expect(result.indexDigest).toBe(indexDigest);
+            // Symmetrical check normalized it directly because indexDigest matched repo digest
+            expect(container.image.digest.value).toBe(amd64ManifestDigest);
+        });
+
+        test('should detect genuine digest update for multi-arch image when remote index changes', async () => {
+            const oldIndexDigest =
+                'sha256:oldIndexDigest000000000000000000000000000000000000000000000000000';
+            const oldLeafDigest =
+                'sha256:oldLeafDigest0000000000000000000000000000000000000000000000000000';
+            const newIndexDigest =
+                'sha256:newIndexDigest111111111111111111111111111111111111111111111111111';
+            const newLeafDigest =
+                'sha256:newLeafDigest1111111111111111111111111111111111111111111111111111';
+
+            const ghcrRegistry = new Registry();
+            ghcrRegistry.getImageManifestDigest = jest
+                .fn()
+                .mockImplementation(async (img, digest) => {
+                    if (digest === oldIndexDigest) {
+                        return {
+                            digest: oldLeafDigest,
+                            indexDigest: oldIndexDigest,
+                            version: 2,
+                        };
+                    }
+                    return {
+                        digest: newLeafDigest,
+                        indexDigest: newIndexDigest,
+                        version: 2,
+                    };
+                });
+
+            const container: any = {
+                id: 'immich123',
+                name: 'immich_server',
+                image: {
+                    id: 'imageImmich',
+                    registry: {
+                        name: 'ghcr.public',
+                        url: 'https://ghcr.io/v2',
+                    },
+                    name: 'immich-app/immich-server',
+                    tag: { value: 'release', semver: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                    digest: { watch: true, repo: oldIndexDigest },
+                },
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'ghcr.public': ghcrRegistry },
+            });
+            const mockLogChild = { error: jest.fn(), warn: jest.fn() };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(result.digest).toBe(newLeafDigest);
+            expect(result.indexDigest).toBe(newIndexDigest);
+            expect(container.image.digest.value).toBe(oldLeafDigest);
+            expect(container.image.digest.value).not.toBe(result.digest);
         });
 
         test('should list tags for non-semver images if watch digest is true and includeTags is set', async () => {
@@ -5523,6 +5712,72 @@ describe('Docker Watcher', () => {
                 expect(docker.reconcileContainer).toHaveBeenCalledWith('new-1');
             });
 
+            test('reconcileStoreContainers should pass { all: true } to listContainers and preserve stopped containers when watchall is true (#1503)', async () => {
+                await docker.register('watcher', 'docker', 'test', {
+                    watchall: true,
+                });
+                docker.pruneContainerFromStore = jest
+                    .fn()
+                    .mockResolvedValue(undefined);
+                docker.reconcileContainer = jest
+                    .fn()
+                    .mockResolvedValue(undefined);
+                storeContainer.getContainers.mockReturnValue([
+                    { id: 'running-1', name: 'app-running' },
+                    { id: 'stopped-1', name: 'app-stopped' },
+                    { id: 'dead-1', name: 'app-dead' },
+                ]);
+                mockDockerApi.listContainers.mockResolvedValue([
+                    { Id: 'running-1', State: 'running' },
+                    { Id: 'stopped-1', State: 'exited' },
+                ]);
+
+                await docker.reconcileStoreContainers();
+
+                expect(mockDockerApi.listContainers).toHaveBeenCalledWith({
+                    all: true,
+                });
+                expect(docker.pruneContainerFromStore).toHaveBeenCalledWith(
+                    'dead-1',
+                );
+                expect(docker.pruneContainerFromStore).not.toHaveBeenCalledWith(
+                    'running-1',
+                );
+                expect(docker.pruneContainerFromStore).not.toHaveBeenCalledWith(
+                    'stopped-1',
+                );
+            });
+
+            test('reconcileStoreContainers should pass { all: false } to listContainers when watchall is false or undefined (#1503)', async () => {
+                await docker.register('watcher', 'docker', 'test-false', {
+                    watchall: false,
+                });
+                mockDockerApi.listContainers.mockClear();
+                mockDockerApi.listContainers.mockResolvedValue([]);
+                storeContainer.getContainers.mockReturnValue([]);
+
+                await docker.reconcileStoreContainers();
+
+                expect(mockDockerApi.listContainers).toHaveBeenCalledWith({
+                    all: false,
+                });
+
+                await docker.register(
+                    'watcher',
+                    'docker',
+                    'test-undefined',
+                    {},
+                );
+                mockDockerApi.listContainers.mockClear();
+                mockDockerApi.listContainers.mockResolvedValue([]);
+
+                await docker.reconcileStoreContainers();
+
+                expect(mockDockerApi.listContainers).toHaveBeenCalledWith({
+                    all: false,
+                });
+            });
+
             test('reconcileContainer should prune and return undefined if destroyed while in flight (#1442)', async () => {
                 await docker.register('watcher', 'docker', 'test', {});
                 mockContainer.inspect.mockImplementation(async () => {
@@ -5624,6 +5879,142 @@ describe('Docker Watcher', () => {
                     updateAvailable: false,
                     isCoolingDown: true,
                 };
+
+                const report =
+                    docker.mapContainerToContainerReport(containerWithResult);
+                expect(report.changed).toBe(false);
+            });
+
+            test('mapContainerToContainerReport should evaluate changed to true when container in DB was in cooldown and watcher runs after cooldown expired (real dynamic getters) (#1445)', () => {
+                docker.register('watcher', 'docker', 'test', {});
+                const actualContainer = jest.requireActual(
+                    '../../../model/container',
+                );
+                const now = Date.now();
+                const resultCreated = new Date(
+                    now - 3 * 24 * 3600 * 1000,
+                ).toISOString();
+                const lastChecked = new Date(
+                    now - 2.5 * 24 * 3600 * 1000,
+                ).toISOString();
+
+                const containerInDb = actualContainer.validate({
+                    id: 'cool-id',
+                    name: 'test',
+                    watcher: 'docker',
+                    delay: '2d',
+                    image: {
+                        id: 'img1',
+                        name: 'test',
+                        registry: { name: 'hub', url: 'https://hub' },
+                        tag: { value: '1.0.0', semver: true },
+                        digest: { watch: false },
+                        architecture: 'amd64',
+                        os: 'linux',
+                    },
+                    result: {
+                        tag: '2.0.0',
+                        created: resultCreated,
+                    },
+                    checkedAt: lastChecked,
+                });
+
+                // Verify real dynamic getters evaluate dynamically
+                expect(containerInDb.isCoolingDown).toBe(false);
+                expect(containerInDb.updateAvailable).toBe(true);
+
+                const containerWithResult = actualContainer.validate({
+                    id: 'cool-id',
+                    name: 'test',
+                    watcher: 'docker',
+                    delay: '2d',
+                    image: {
+                        id: 'img1',
+                        name: 'test',
+                        registry: { name: 'hub', url: 'https://hub' },
+                        tag: { value: '1.0.0', semver: true },
+                        digest: { watch: false },
+                        architecture: 'amd64',
+                        os: 'linux',
+                    },
+                    result: {
+                        tag: '2.0.0',
+                        created: resultCreated,
+                    },
+                });
+
+                expect(containerWithResult.isCoolingDown).toBe(false);
+                expect(containerWithResult.updateAvailable).toBe(true);
+                // Candidate tag and digest are unchanged
+                expect(containerInDb.resultChanged(containerWithResult)).toBe(
+                    false,
+                );
+
+                storeContainer.getContainer.mockReturnValue(containerInDb);
+                storeContainer.updateContainer.mockImplementation((c) => c);
+
+                const report =
+                    docker.mapContainerToContainerReport(containerWithResult);
+                expect(report.changed).toBe(true);
+            });
+
+            test('mapContainerToContainerReport should evaluate changed to false on subsequent watcher run after cooldown has already expired (real dynamic getters) (#1445)', () => {
+                docker.register('watcher', 'docker', 'test', {});
+                const actualContainer = jest.requireActual(
+                    '../../../model/container',
+                );
+                const now = Date.now();
+                const resultCreated = new Date(
+                    now - 3 * 24 * 3600 * 1000,
+                ).toISOString();
+                const lastChecked = new Date(
+                    now - 0.5 * 24 * 3600 * 1000,
+                ).toISOString();
+
+                const containerInDb = actualContainer.validate({
+                    id: 'cool-id',
+                    name: 'test',
+                    watcher: 'docker',
+                    delay: '2d',
+                    image: {
+                        id: 'img1',
+                        name: 'test',
+                        registry: { name: 'hub', url: 'https://hub' },
+                        tag: { value: '1.0.0', semver: true },
+                        digest: { watch: false },
+                        architecture: 'amd64',
+                        os: 'linux',
+                    },
+                    result: {
+                        tag: '2.0.0',
+                        created: resultCreated,
+                    },
+                    checkedAt: lastChecked,
+                    persistedUpdateAvailable: true,
+                });
+
+                const containerWithResult = actualContainer.validate({
+                    id: 'cool-id',
+                    name: 'test',
+                    watcher: 'docker',
+                    delay: '2d',
+                    image: {
+                        id: 'img1',
+                        name: 'test',
+                        registry: { name: 'hub', url: 'https://hub' },
+                        tag: { value: '1.0.0', semver: true },
+                        digest: { watch: false },
+                        architecture: 'amd64',
+                        os: 'linux',
+                    },
+                    result: {
+                        tag: '2.0.0',
+                        created: resultCreated,
+                    },
+                });
+
+                storeContainer.getContainer.mockReturnValue(containerInDb);
+                storeContainer.updateContainer.mockImplementation((c) => c);
 
                 const report =
                     docker.mapContainerToContainerReport(containerWithResult);
