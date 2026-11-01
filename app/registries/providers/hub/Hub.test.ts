@@ -47,6 +47,16 @@ describe('Docker Hub Registry tests', () => {
         expect(masked.token).toBe('s**********n');
     });
 
+    test('should mask proxy password in configuration', async () => {
+        hub.configuration = {
+            login: 'testuser',
+            password: 'testpass',
+            proxy: 'http://user:supersecret@proxy:8080',
+        };
+        const masked = hub.maskConfiguration();
+        expect(masked.proxy).toBe('http://user:***@proxy:8080/');
+    });
+
     test('should get image full name without registry prefix', async () => {
         const image = {
             name: 'library/nginx',

@@ -11,5 +11,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [TRIGGER] Support rollback notifications in the XMPP trigger
 - 🐛 [TRIGGER] Always close the XMPP connection when sending a message fails
 - 🐛 [TRIGGER] Fail fast when the XMPP server is unreachable instead of hanging forever (new `WUD_TRIGGER_XMPP_{trigger_name}_TIMEOUT` option)
+- 🐛 [REGISTRY] Mask proxy credentials in registry configurations
+- 🐛 [TRIGGER] Mask proxy credentials in HTTP trigger configurations
 
 ---

@@ -2,6 +2,7 @@ import axios, { AxiosRequestConfig } from 'axios';
 import Trigger, { RollbackReport } from '../Trigger';
 import { ComponentConfiguration } from '../../../registry/Component';
 import { Container } from '../../../model/container';
+import { maskProxy } from '../../../http/proxy';
 
 /**
  * HTTP Trigger implementation
@@ -38,7 +39,7 @@ class Http extends Trigger {
     }
 
     maskConfiguration(): ComponentConfiguration {
-        return {
+        const masked: ComponentConfiguration = {
             ...this.configuration,
             auth: {
                 ...this.configuration.auth,
@@ -46,6 +47,10 @@ class Http extends Trigger {
                 bearer: Http.mask(this.configuration.auth?.bearer),
             },
         };
+        if (masked.proxy) {
+            masked.proxy = maskProxy(masked.proxy);
+        }
+        return masked;
     }
 
     /**

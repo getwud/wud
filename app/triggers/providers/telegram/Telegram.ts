@@ -4,6 +4,7 @@ import { SocksProxyAgent } from 'socks-proxy-agent';
 import { Container } from '../../../model/container';
 import { ComponentConfiguration } from '../../../registry/Component';
 import Trigger, { RollbackReport } from '../Trigger';
+import { maskProxy } from '../../../http/proxy';
 
 function createProxyAgent(proxyUrl: string) {
     const { protocol } = new URL(proxyUrl);
@@ -14,21 +15,6 @@ function createProxyAgent(proxyUrl: string) {
         return new HttpsProxyAgent(proxyUrl);
     }
     throw new Error(`Unsupported proxy protocol (${protocol}) for proxy url`);
-}
-
-function maskProxy(proxyUrl?: string) {
-    if (!proxyUrl) {
-        return undefined;
-    }
-    try {
-        const url = new URL(proxyUrl);
-        if (url.password) {
-            url.password = '***';
-        }
-        return url.toString();
-    } catch {
-        return Telegram.mask(proxyUrl);
-    }
 }
 
 class Telegram extends Trigger {

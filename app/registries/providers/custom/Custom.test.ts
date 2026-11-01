@@ -100,6 +100,15 @@ test('maskConfiguration should mask bearer tokens', async () => {
     });
 });
 
+test('maskConfiguration should mask proxy password in configuration', async () => {
+    custom.configuration = {
+        url: 'http://localhost:5000',
+        proxy: 'http://user:supersecret@proxy:8080',
+    };
+    const masked = custom.maskConfiguration();
+    expect(masked.proxy).toBe('http://user:***@proxy:8080/');
+});
+
 test('match should return true when registry url is from custom', async () => {
     expect(custom.match('localhost:5000')).toBeTruthy();
 });
