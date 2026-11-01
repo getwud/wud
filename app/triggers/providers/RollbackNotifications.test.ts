@@ -36,6 +36,7 @@ import Smtp from './smtp/Smtp';
 import Telegram from './telegram/Telegram';
 import Uptimekuma from './uptimekuma/Uptimekuma';
 import Whatsapp from './whatsapp/Whatsapp';
+import Xmpp from './xmpp/Xmpp';
 import Zulip from './zulip/Zulip';
 
 const NOTIFIERS: [string, any][] = [
@@ -64,6 +65,7 @@ const NOTIFIERS: [string, any][] = [
     ['telegram', Telegram],
     ['uptimekuma', Uptimekuma],
     ['whatsapp', Whatsapp],
+    ['xmpp', Xmpp],
     ['zulip', Zulip],
 ];
 
@@ -78,8 +80,8 @@ const EXCLUDED: [string, any][] = [
 ];
 
 describe('rollback notification coverage matrix (§9.2)', () => {
-    test('declares exactly the 26 notification triggers as supporting rollback', () => {
-        expect(NOTIFIERS).toHaveLength(26);
+    test('declares exactly the 27 notification triggers as supporting rollback', () => {
+        expect(NOTIFIERS).toHaveLength(27);
         expect(EXCLUDED).toHaveLength(7);
     });
 

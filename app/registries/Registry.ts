@@ -4,7 +4,7 @@ import Component, { ComponentConfiguration } from '../registry/Component';
 import { getSummaryTags } from '../prometheus/registry';
 import { ContainerImage } from '../model/container';
 import { getVersion } from '../configuration';
-import { applyProxyConfig } from '../http/proxy';
+import { applyProxyConfig, maskProxy } from '../http/proxy';
 
 const DEFAULT_CONCURRENCY = 2;
 const DEFAULT_PULL_CONCURRENCY = 1;
@@ -333,6 +333,9 @@ export class Registry extends Component {
                 ...masked.webhook,
                 token: Registry.mask(masked.webhook.token),
             };
+        if (masked.proxy) {
+            masked.proxy = maskProxy(masked.proxy);
+        }
         return masked;
     }
 

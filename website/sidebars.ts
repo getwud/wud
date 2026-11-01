@@ -447,6 +447,11 @@ const sidebars = {
         },
         {
           type: 'doc',
+          id: 'configuration/triggers/xmpp/README',
+          label: 'XMPP',
+        },
+        {
+          type: 'doc',
           id: 'configuration/triggers/zulip/README',
           label: 'Zulip',
         },
