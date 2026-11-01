@@ -1,5 +1,5 @@
 ---
-title: Xmpp
+title: XMPP
 description: Send container update notifications to XMPP (Jabber) recipients in WUD (What's Up Docker?).
 ---
 

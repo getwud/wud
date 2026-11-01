@@ -135,6 +135,7 @@ test('trigger should send xmpp message as expected', async () => {
 
     const mockClientInstance = (client as jest.Mock).mock.results[0].value;
     expect(mockClientInstance.send).toHaveBeenCalled();
+    expect(mockClientInstance.stop).toHaveBeenCalled();
 });
 
 test('trigger should fail when the xmpp session hangs', async () => {
@@ -169,6 +170,37 @@ test('trigger should fail when the xmpp session hangs', async () => {
     } finally {
         jest.useRealTimers();
     }
+});
+
+test('trigger should fail and still close the connection when xmpp send fails', async () => {
+    xmpp.configuration = configurationValid;
+
+    const failingClient = {
+        on: jest.fn((event, cb) => {
+            if (event === 'online') {
+                cb({ toString: () => 'user@domain.com' });
+            }
+        }),
+        start: jest.fn().mockResolvedValue(undefined),
+        stop: jest.fn().mockResolvedValue(undefined),
+        send: jest.fn().mockRejectedValue(new Error('send failed')),
+    };
+    (client as jest.Mock).mockImplementationOnce(() => failingClient);
+
+    await expect(
+        xmpp.trigger({
+            id: '31a61a8305ef1fc9a71fa4f20a68d7ec88b28e32303bbc4a5f192e851165b816',
+            name: 'homeassistant',
+            watcher: 'local',
+            updateKind: {
+                kind: 'tag',
+                localValue: '1.0.0',
+                remoteValue: '2.0.0',
+            },
+        }),
+    ).rejects.toThrow('send failed');
+
+    expect(failingClient.stop).toHaveBeenCalled();
 });
 
 test('triggerRollback should send xmpp message as expected', async () => {

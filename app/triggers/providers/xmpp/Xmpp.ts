@@ -143,10 +143,11 @@ class Xmpp extends Trigger {
                         xml('body', {}, `${title}\n\n${body}`),
                     );
                     await xmpp.send(message);
-                    await xmpp.stop();
                     settle();
                 } catch (e) {
                     settle(e);
+                } finally {
+                    await xmpp.stop().catch(() => undefined);
                 }
             });
 
