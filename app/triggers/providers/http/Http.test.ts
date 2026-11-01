@@ -58,6 +58,16 @@ describe('HTTP Trigger', () => {
         });
     });
 
+    test('should mask proxy password in configuration', async () => {
+        http.configuration = {
+            url: 'https://example.com/webhook',
+            proxy: 'http://user:supersecret@proxy:8080',
+        };
+
+        const masked = http.maskConfiguration();
+        expect(masked.proxy).toBe('http://user:***@proxy:8080/');
+    });
+
     test('should trigger with container', async () => {
         const { default: axios } = await import('axios');
         axios.mockResolvedValue({ data: {} });

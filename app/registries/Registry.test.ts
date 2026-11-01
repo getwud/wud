@@ -805,6 +805,17 @@ describe('registry request throttling', () => {
         ).toThrow();
     });
 
+    test('maskConfiguration should mask proxy password and webhook token', () => {
+        const registryMocked = new Registry();
+        registryMocked.configuration = {
+            webhook: { token: 'my-secret-token' },
+            proxy: 'http://user:supersecret@proxy.example.com:8080',
+        };
+        const masked = registryMocked.maskConfiguration();
+        expect(masked.webhook.token).toBe('m*************n');
+        expect(masked.proxy).toBe('http://user:***@proxy.example.com:8080/');
+    });
+
     test('should limit concurrent requests', async () => {
         const registryMocked = new Registry();
         await registryMocked.register('registry', 'test', 'test', {

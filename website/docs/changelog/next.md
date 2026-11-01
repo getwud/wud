@@ -7,4 +7,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 > Changes below are merged on `main` and will be included in the upcoming release.
 
+- 🐛 [REGISTRY] Mask proxy credentials in registry configurations
+- 🐛 [TRIGGER] Mask proxy credentials in HTTP trigger configurations
+
 ---

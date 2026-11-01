@@ -44,7 +44,7 @@ class Custom extends DockerRegistryV2 {
     }
 
     maskConfiguration() {
-        return this.maskSensitiveFields(['password', 'token', 'auth']);
+        return super.maskConfiguration();
     }
 
     /**
