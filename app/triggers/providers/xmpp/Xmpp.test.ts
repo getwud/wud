@@ -136,6 +136,38 @@ test('trigger should send xmpp message as expected', async () => {
     expect(mockClientInstance.send).toHaveBeenCalled();
 });
 
+test('triggerRollback should send xmpp message as expected', async () => {
+    xmpp.configuration = configurationValid;
+    await xmpp.triggerRollback({
+        scope: 'container',
+        container: { name: 'homeassistant' },
+        reason: 'unhealthy',
+        status: 'succeeded',
+    });
+
+    expect(client).toHaveBeenCalledWith({
+        service: configurationValid.service,
+        domain: configurationValid.domain,
+        username: configurationValid.user,
+        password: configurationValid.password,
+    });
+
+    expect(xml).toHaveBeenCalledWith(
+        'body',
+        {},
+        expect.stringContaining('homeassistant'),
+    );
+
+    expect(xml).toHaveBeenCalledWith(
+        'message',
+        { type: 'chat', to: configurationValid.to },
+        expect.anything(),
+    );
+
+    const mockClientInstance = (client as jest.Mock).mock.results[0].value;
+    expect(mockClientInstance.send).toHaveBeenCalled();
+});
+
 test('triggerBatch should send xmpp message as expected', async () => {
     xmpp.configuration = configurationValid;
     await xmpp.triggerBatch([

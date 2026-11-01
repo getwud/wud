@@ -74,6 +74,26 @@ class Xmpp extends Trigger {
     }
 
     /**
+     * This trigger supports rollback notifications.
+     */
+    supportsRollbackNotifications(): boolean {
+        return true;
+    }
+
+    /**
+     * Send an XMPP message with rollback details.
+     *
+     * @param rollbackReport the rollback report
+     * @returns {Promise<void>}
+     */
+    async triggerRollback(rollbackReport) {
+        await this.sendMessage(
+            this.renderRollbackTitle(rollbackReport),
+            this.renderRollbackBody(rollbackReport),
+        );
+    }
+
+    /**
      * Post a message to an XMPP recipient.
      * @param title the title to post
      * @param body the body to post
