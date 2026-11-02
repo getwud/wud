@@ -5,6 +5,8 @@ import Hass from './Hass';
 import {
     registerContainerAdded,
     registerContainerUpdated,
+    unregisterContainerAdded,
+    unregisterContainerUpdated,
 } from '../../../event';
 import { Container, flatten } from '../../../model/container';
 import { isOneshot } from '../../../runtime/mode';
@@ -220,9 +222,35 @@ class Mqtt extends Trigger {
         if (this.hass) {
             this.hass.init(this.client);
         }
-        registerContainerAdded((container) => this.trigger(container));
-        registerContainerUpdated((container) => this.trigger(container));
+        registerContainerAdded(this.onContainerAdded);
+        registerContainerUpdated(this.onContainerUpdated);
     }
+
+    private onContainerAdded = async (container: Container): Promise<void> => {
+        try {
+            await this.trigger(container);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            this.log.warn(
+                `Cannot publish container added to MQTT (${message})`,
+            );
+            this.log.debug(e);
+        }
+    };
+
+    private onContainerUpdated = async (
+        container: Container,
+    ): Promise<void> => {
+        try {
+            await this.trigger(container);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            this.log.warn(
+                `Cannot publish container updated to MQTT (${message})`,
+            );
+            this.log.debug(e);
+        }
+    };
 
     /**
      * Send an MQTT message with new image version details.
@@ -286,10 +314,14 @@ class Mqtt extends Trigger {
      * Deregister the component
      */
     async deregisterComponent(): Promise<void> {
+        unregisterContainerAdded(this.onContainerAdded);
+        unregisterContainerUpdated(this.onContainerUpdated);
         if (this.hass && !isOneshot()) {
             this.hass.updateConnectionStatusSensor(false);
         }
-        this.client.end(true);
+        if (this.client && typeof this.client.end === 'function') {
+            this.client.end(true);
+        }
     }
 }
 
