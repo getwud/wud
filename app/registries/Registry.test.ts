@@ -13,6 +13,7 @@ jest.mock('../prometheus/registry', () => ({
 
 import Registry, {
     getUserAgent,
+    getHeaderContentType,
     UnsupportedArtifactError,
     isNonContainerArtifact,
     isNonContainerArtifactError,
@@ -387,6 +388,229 @@ test('getImageManifestDigest should return both leaf digest and indexDigest when
         digest: 'sha256:leafArm64Digest',
         indexDigest: 'sha256:indexDigestPassedDirectly',
     });
+});
+
+test('getImageManifestDigest should resolve multi-arch index when mediaType is missing in payload body but present in Content-Type header (fixes #1530)', async () => {
+    const registryMocked = new Registry();
+    registryMocked.log = log;
+    registryMocked.callRegistry = (options) => {
+        if (options.method === 'head') {
+            return {
+                headers: {
+                    'docker-content-digest': 'sha256:leafAmd64Digest',
+                },
+            };
+        }
+        return {
+            headers: {
+                'content-type': 'application/vnd.oci.image.index.v1+json',
+                'docker-content-digest': 'sha256:rootIndexDigest',
+            },
+            data: {
+                schemaVersion: 2,
+                // mediaType intentionally omitted in payload (per OCI image index spec / Passbolt issue #1530)
+                manifests: [
+                    {
+                        digest: 'sha256:leafAmd64Digest',
+                        mediaType: 'application/vnd.oci.image.manifest.v1+json',
+                        platform: { architecture: 'amd64', os: 'linux' },
+                    },
+                    {
+                        digest: 'sha256:leafArm64Digest',
+                        mediaType: 'application/vnd.oci.image.manifest.v1+json',
+                        platform: { architecture: 'arm64', os: 'linux' },
+                    },
+                ],
+            },
+        };
+    };
+
+    await expect(
+        registryMocked.getImageManifestDigest({
+            name: 'passbolt/passbolt',
+            architecture: 'amd64',
+            os: 'linux',
+            tag: { value: '5.17.0-1-ce' },
+            registry: { url: 'url' },
+        }),
+    ).resolves.toStrictEqual({
+        version: 2,
+        digest: 'sha256:leafAmd64Digest',
+        indexDigest: 'sha256:rootIndexDigest',
+    });
+});
+
+test('getImageManifestDigest should resolve multi-arch index by structural inference when mediaType is missing in payload body and header is generic/missing', async () => {
+    const registryMocked = new Registry();
+    registryMocked.log = log;
+    registryMocked.callRegistry = (options) => {
+        if (options.method === 'head') {
+            return {
+                headers: {
+                    'docker-content-digest': 'sha256:leafAmd64Digest',
+                },
+            };
+        }
+        return {
+            headers: {
+                'content-type': 'application/json',
+            },
+            data: {
+                schemaVersion: 2,
+                // mediaType omitted, manifests array present
+                manifests: [
+                    {
+                        digest: 'sha256:leafAmd64Digest',
+                        mediaType: 'application/vnd.oci.image.manifest.v1+json',
+                        platform: { architecture: 'amd64', os: 'linux' },
+                    },
+                ],
+            },
+        };
+    };
+
+    await expect(
+        registryMocked.getImageManifestDigest({
+            name: 'image',
+            architecture: 'amd64',
+            os: 'linux',
+            tag: { value: 'latest' },
+            registry: { url: 'url' },
+        }),
+    ).resolves.toStrictEqual({
+        version: 2,
+        digest: 'sha256:leafAmd64Digest',
+    });
+});
+
+test('getImageManifestDigest should fallback child manifest mediaType when missing in index manifest descriptor', async () => {
+    const registryMocked = new Registry();
+    registryMocked.log = log;
+    let headAcceptHeader: string | undefined;
+    registryMocked.callRegistry = (options) => {
+        if (options.method === 'head') {
+            headAcceptHeader = options.headers?.Accept;
+            return {
+                headers: {
+                    'docker-content-digest': 'sha256:leafAmd64Digest',
+                },
+            };
+        }
+        return {
+            headers: {
+                'content-type': 'application/vnd.oci.image.index.v1+json',
+            },
+            data: {
+                schemaVersion: 2,
+                manifests: [
+                    {
+                        digest: 'sha256:leafAmd64Digest',
+                        // mediaType omitted on child descriptor
+                        platform: { architecture: 'amd64', os: 'linux' },
+                    },
+                ],
+            },
+        };
+    };
+
+    await expect(
+        registryMocked.getImageManifestDigest({
+            name: 'image',
+            architecture: 'amd64',
+            os: 'linux',
+            tag: { value: 'latest' },
+            registry: { url: 'url' },
+        }),
+    ).resolves.toStrictEqual({
+        version: 2,
+        digest: 'sha256:leafAmd64Digest',
+    });
+    expect(headAcceptHeader).toBe('application/vnd.oci.image.manifest.v1+json');
+});
+
+test('getImageManifestDigest should resolve single-platform manifest when mediaType is missing in payload body but present in Content-Type header', async () => {
+    const registryMocked = new Registry();
+    registryMocked.log = log;
+    let headAcceptHeader: string | undefined;
+    registryMocked.callRegistry = (options) => {
+        if (options.method === 'head') {
+            headAcceptHeader = options.headers?.Accept;
+            return {
+                headers: {
+                    'docker-content-digest': 'sha256:singlePlatformDigest',
+                },
+            };
+        }
+        return {
+            headers: {
+                'content-type': 'application/vnd.oci.image.manifest.v1+json',
+            },
+            data: {
+                schemaVersion: 2,
+                // mediaType omitted in body
+                config: {
+                    digest: 'sha256:configDigest',
+                    mediaType: 'application/vnd.oci.image.config.v1+json',
+                },
+                layers: [],
+            },
+        };
+    };
+
+    await expect(
+        registryMocked.getImageManifestDigest({
+            name: 'image',
+            architecture: 'amd64',
+            os: 'linux',
+            tag: { value: 'latest' },
+            registry: { url: 'url' },
+        }),
+    ).resolves.toStrictEqual({
+        version: 2,
+        digest: 'sha256:singlePlatformDigest',
+        configDigest: 'sha256:configDigest',
+    });
+    expect(headAcceptHeader).toBe('application/vnd.oci.image.manifest.v1+json');
+});
+
+test('getImageManifestDigest should resolve single-platform manifest by structural inference when mediaType is missing in payload body and headers', async () => {
+    const registryMocked = new Registry();
+    registryMocked.log = log;
+    let headAcceptHeader: string | undefined;
+    registryMocked.callRegistry = (options) => {
+        if (options.method === 'head') {
+            headAcceptHeader = options.headers?.Accept;
+            return {
+                headers: {
+                    'docker-content-digest': 'sha256:singlePlatformDigest',
+                },
+            };
+        }
+        // Direct object payload with no headers
+        return {
+            schemaVersion: 2,
+            config: {
+                digest: 'sha256:configDigest',
+                mediaType: 'application/vnd.oci.image.config.v1+json',
+            },
+            layers: [],
+        };
+    };
+
+    await expect(
+        registryMocked.getImageManifestDigest({
+            name: 'image',
+            architecture: 'amd64',
+            os: 'linux',
+            tag: { value: 'latest' },
+            registry: { url: 'url' },
+        }),
+    ).resolves.toStrictEqual({
+        version: 2,
+        digest: 'sha256:singlePlatformDigest',
+        configDigest: 'sha256:configDigest',
+    });
+    expect(headAcceptHeader).toBe('application/vnd.oci.image.manifest.v1+json');
 });
 
 test('getImageManifestDigest should return digest for application/vnd.docker.container.image.v1+json', async () => {
@@ -1613,5 +1837,50 @@ describe('registry pull throttling', () => {
         await expect(
             registryMocked.withPullPermit(async () => 'next'),
         ).resolves.toBe('next');
+    });
+});
+
+describe('getHeaderContentType', () => {
+    test('should return undefined when headers is not provided or not an object', () => {
+        expect(getHeaderContentType(undefined)).toBeUndefined();
+        expect(getHeaderContentType(null)).toBeUndefined();
+        expect(getHeaderContentType('string')).toBeUndefined();
+    });
+
+    test('should return undefined when Content-Type header is missing', () => {
+        expect(getHeaderContentType({})).toBeUndefined();
+        expect(
+            getHeaderContentType({ 'x-other-header': 'val' }),
+        ).toBeUndefined();
+    });
+
+    test('should extract lowercase content type regardless of header casing', () => {
+        expect(
+            getHeaderContentType({
+                'content-type': 'application/vnd.oci.image.index.v1+json',
+            }),
+        ).toBe('application/vnd.oci.image.index.v1+json');
+        expect(
+            getHeaderContentType({
+                'Content-Type': 'APPLICATION/VND.OCI.IMAGE.INDEX.V1+JSON',
+            }),
+        ).toBe('application/vnd.oci.image.index.v1+json');
+    });
+
+    test('should strip parameters like charset from content type', () => {
+        expect(
+            getHeaderContentType({
+                'content-type':
+                    'application/vnd.oci.image.index.v1+json; charset=utf-8',
+            }),
+        ).toBe('application/vnd.oci.image.index.v1+json');
+    });
+
+    test('should handle array header values', () => {
+        expect(
+            getHeaderContentType({
+                'content-type': ['application/vnd.oci.image.manifest.v1+json'],
+            }),
+        ).toBe('application/vnd.oci.image.manifest.v1+json');
     });
 });
