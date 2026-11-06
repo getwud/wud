@@ -280,42 +280,56 @@ class Trigger extends Component {
      * @returns {Promise<void>}
      */
     async handleContainerReport(containerReport: ContainerReport) {
-        // Filter on changed containers with update available and passing trigger threshold
-        if (
-            (containerReport.changed || !this.configuration.once) &&
-            containerReport.container.error === undefined &&
-            containerReport.container.updateAvailable
-        ) {
-            const logContainer =
-                this.log.child({
-                    container: fullName(containerReport.container),
-                }) || this.log;
-            let status = 'error';
-            try {
-                if (
-                    !Trigger.isThresholdReached(
-                        containerReport.container,
-                        (this.configuration.threshold || 'all').toLowerCase(),
-                    )
-                ) {
-                    logContainer.debug('Threshold not reached => ignore');
-                } else if (!this.isDigestAllowed(containerReport.container)) {
-                    logContainer.debug(
-                        'Digest update ignored because ondigest is disabled',
-                    );
-                } else if (!this.mustTrigger(containerReport.container)) {
-                    logContainer.debug('Trigger conditions not met => ignore');
-                } else {
-                    logContainer.debug('Run');
-                    await this.trigger(containerReport.container);
+        try {
+            // Filter on changed containers with update available and passing trigger threshold
+            if (
+                containerReport?.container &&
+                (containerReport.changed || !this.configuration.once) &&
+                containerReport.container.error === undefined &&
+                containerReport.container.updateAvailable
+            ) {
+                const logContainer =
+                    this.log.child({
+                        container: fullName(containerReport.container),
+                    }) || this.log;
+                let status = 'error';
+                try {
+                    if (
+                        !Trigger.isThresholdReached(
+                            containerReport.container,
+                            (
+                                this.configuration.threshold || 'all'
+                            ).toLowerCase(),
+                        )
+                    ) {
+                        logContainer.debug('Threshold not reached => ignore');
+                    } else if (
+                        !this.isDigestAllowed(containerReport.container)
+                    ) {
+                        logContainer.debug(
+                            'Digest update ignored because ondigest is disabled',
+                        );
+                    } else if (!this.mustTrigger(containerReport.container)) {
+                        logContainer.debug(
+                            'Trigger conditions not met => ignore',
+                        );
+                    } else {
+                        logContainer.debug('Run');
+                        await this.trigger(containerReport.container);
+                    }
+                    status = 'success';
+                } catch (e: unknown) {
+                    const message = e instanceof Error ? e.message : String(e);
+                    logContainer.warn(`Error (${message})`);
+                    logContainer.debug(e);
+                } finally {
+                    this.increasePrometheusTriggerCounter(status);
                 }
-                status = 'success';
-            } catch (e: any) {
-                logContainer.warn(`Error (${e.message})`);
-                logContainer.debug(e);
-            } finally {
-                this.increasePrometheusTriggerCounter(status);
             }
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            this.log.warn(`Error handling container report (${message})`);
+            this.log.debug(e);
         }
     }
 
@@ -366,8 +380,9 @@ class Trigger extends Component {
                 this.log.debug('Run batch');
                 await this.triggerBatch(containersFiltered);
             }
-        } catch (e: any) {
-            this.log.warn(`Error (${e.message})`);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            this.log.warn(`Error (${message})`);
             this.log.debug(e);
         }
     }
@@ -401,10 +416,16 @@ class Trigger extends Component {
     }
 
     async handleContainerUpdatePre(container: Container) {
-        if (!this.mustTrigger(container)) return;
-        if (!this.getSubscribedEvents(container).includes('pre')) return;
-        this.log.debug(`Handling pre-update event for ${container.name}`);
-        // Base logic for pre-update triggers can be added here or in overriding classes
+        try {
+            if (!this.mustTrigger(container)) return;
+            if (!this.getSubscribedEvents(container).includes('pre')) return;
+            this.log.debug(`Handling pre-update event for ${container.name}`);
+            // Base logic for pre-update triggers can be added here or in overriding classes
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            this.log.warn(`Error handling pre-update event (${message})`);
+            this.log.debug(e);
+        }
     }
 
     isMutating(): boolean {
@@ -430,8 +451,9 @@ class Trigger extends Component {
                 await this.trigger(containerWithEvent);
             }
             status = 'success';
-        } catch (e: any) {
-            this.log.warn(`Error (${e.message})`);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            this.log.warn(`Error (${message})`);
             this.log.debug(e);
         } finally {
             this.increasePrometheusTriggerCounter(status);
@@ -455,8 +477,9 @@ class Trigger extends Component {
                 await this.trigger(containerWithEvent);
             }
             status = 'success';
-        } catch (e: any) {
-            this.log.warn(`Error (${e.message})`);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            this.log.warn(`Error (${message})`);
             this.log.debug(e);
         } finally {
             this.increasePrometheusTriggerCounter(status);
@@ -676,35 +699,42 @@ class Trigger extends Component {
      * Handle container preload report.
      */
     async handleContainerPreload(report: ContainerReport) {
-        const container = report?.container;
-        if (!container) {
-            return;
-        }
-        if (container.error !== undefined) {
-            return;
-        }
-        if (!container.updateAvailable) {
-            return;
-        }
-        if (!this.isTriggerContainerMatch(container)) {
-            return;
-        }
-        if (!this.isPreloadEnabled(container)) {
-            return;
-        }
-        if (container.result && !container.result.preloaded) {
-            const logContainer =
-                this.log.child({
-                    container: fullName(container),
-                }) || this.log;
-            try {
-                logContainer.debug('Preload image');
-                await this.preload(container);
-                container.result.preloaded = true;
-            } catch (e: any) {
-                logContainer.warn(`Preload error (${e.message})`);
-                logContainer.debug(e);
+        try {
+            const container = report?.container;
+            if (!container) {
+                return;
             }
+            if (container.error !== undefined) {
+                return;
+            }
+            if (!container.updateAvailable) {
+                return;
+            }
+            if (!this.isTriggerContainerMatch(container)) {
+                return;
+            }
+            if (!this.isPreloadEnabled(container)) {
+                return;
+            }
+            if (container.result && !container.result.preloaded) {
+                const logContainer =
+                    this.log.child({
+                        container: fullName(container),
+                    }) || this.log;
+                try {
+                    logContainer.debug('Preload image');
+                    await this.preload(container);
+                    container.result.preloaded = true;
+                } catch (e: unknown) {
+                    const message = e instanceof Error ? e.message : String(e);
+                    logContainer.warn(`Preload error (${message})`);
+                    logContainer.debug(e);
+                }
+            }
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            this.log.warn(`Preload error (${message})`);
+            this.log.debug(e);
         }
     }
 
@@ -722,37 +752,92 @@ class Trigger extends Component {
                     this.configuration.mode &&
                     this.configuration.mode.toLowerCase() === 'simple'
                 ) {
-                    event.registerContainerReport(async (containerReport) =>
-                        this.handleContainerReport(containerReport),
-                    );
+                    event.registerContainerReport(async (containerReport) => {
+                        try {
+                            await this.handleContainerReport(containerReport);
+                        } catch (e: unknown) {
+                            const message =
+                                e instanceof Error ? e.message : String(e);
+                            this.log.warn(
+                                `Error in container report handler (${message})`,
+                            );
+                            this.log.debug(e);
+                        }
+                    });
                 }
                 if (
                     this.configuration.mode &&
                     this.configuration.mode.toLowerCase() === 'batch'
                 ) {
-                    event.registerContainerReports(async (containersReports) =>
-                        this.handleContainerReports(containersReports),
+                    event.registerContainerReports(
+                        async (containersReports) => {
+                            try {
+                                await this.handleContainerReports(
+                                    containersReports,
+                                );
+                            } catch (e: unknown) {
+                                const message =
+                                    e instanceof Error ? e.message : String(e);
+                                this.log.warn(
+                                    `Error in container reports handler (${message})`,
+                                );
+                                this.log.debug(e);
+                            }
+                        },
                     );
                 }
             }
-            event.registerContainerUpdatePre(async (container) =>
-                this.handleContainerUpdatePre(container),
-            );
-            event.registerContainerUpdateSuccess(async (container) =>
-                this.handleContainerUpdateSuccess(container),
-            );
-            event.registerContainerUpdateFailure(async (container) =>
-                this.handleContainerUpdateFailure(container),
-            );
+            event.registerContainerUpdatePre(async (container) => {
+                try {
+                    await this.handleContainerUpdatePre(container);
+                } catch (e: unknown) {
+                    const message = e instanceof Error ? e.message : String(e);
+                    this.log.warn(
+                        `Error in container update pre handler (${message})`,
+                    );
+                    this.log.debug(e);
+                }
+            });
+            event.registerContainerUpdateSuccess(async (container) => {
+                try {
+                    await this.handleContainerUpdateSuccess(container);
+                } catch (e: unknown) {
+                    const message = e instanceof Error ? e.message : String(e);
+                    this.log.warn(
+                        `Error in container update success handler (${message})`,
+                    );
+                    this.log.debug(e);
+                }
+            });
+            event.registerContainerUpdateFailure(async (container) => {
+                try {
+                    await this.handleContainerUpdateFailure(container);
+                } catch (e: unknown) {
+                    const message = e instanceof Error ? e.message : String(e);
+                    this.log.warn(
+                        `Error in container update failure handler (${message})`,
+                    );
+                    this.log.debug(e);
+                }
+            });
         } else {
             this.log.info(`Registering for manual execution`);
             if (this.configuration.preload && this.supportsPreload()) {
                 this.log.info(
                     'Preload mode enabled: listening for container updates to pre-cache images',
                 );
-                event.registerContainerReport(async (containerReport) =>
-                    this.handleContainerPreload(containerReport),
-                );
+                event.registerContainerReport(async (containerReport) => {
+                    try {
+                        await this.handleContainerPreload(containerReport);
+                    } catch (e: unknown) {
+                        const message =
+                            e instanceof Error ? e.message : String(e);
+                        this.log.warn(
+                            `Error in container preload handler (${message})`,
+                        );
+                        this.log.debug(e);
+                    }
+                });
             }
         }
 
@@ -761,9 +846,17 @@ class Trigger extends Component {
         // (docker, dockercompose, nomad) keep the base `false` so a rollback can
         // never re-enter the update loop (PM §7, blueprint §9).
         if (this.supportsRollbackNotifications()) {
-            event.registerContainerRollback(async (rollbackReport) =>
-                this.handleContainerRollback(rollbackReport),
-            );
+            event.registerContainerRollback(async (rollbackReport) => {
+                try {
+                    await this.handleContainerRollback(rollbackReport);
+                } catch (e: unknown) {
+                    const message = e instanceof Error ? e.message : String(e);
+                    this.log.warn(
+                        `Error in container rollback handler (${message})`,
+                    );
+                    this.log.debug(e);
+                }
+            });
         }
     }
 
@@ -784,8 +877,9 @@ class Trigger extends Component {
             if (this.shouldNotifyRollback(rollbackReport)) {
                 await this.triggerRollback(rollbackReport);
             }
-        } catch (e: any) {
-            this.log.warn(`Error (${e.message})`);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            this.log.warn(`Error (${message})`);
             this.log.debug(e);
         }
     }

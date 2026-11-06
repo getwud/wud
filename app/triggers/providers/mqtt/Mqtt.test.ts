@@ -3,6 +3,7 @@ import mqttClient from 'mqtt';
 import log from '../../../log';
 import { get } from '../../../configuration';
 import { flatten } from '../../../model/container';
+import { emitContainerAdded, emitContainerUpdated } from '../../../event';
 
 jest.mock('mqtt');
 import Mqtt from './Mqtt';
@@ -80,6 +81,10 @@ beforeEach(async () => {
     };
     mqtt.client = mockClient;
     mqttClient.connect = jest.fn(() => mockClient);
+});
+
+afterEach(async () => {
+    await mqtt.deregisterComponent();
 });
 
 // generic tests removed in favor of testTriggerProvider
@@ -429,4 +434,81 @@ test('configuration parsed from env vars with HASS_ENTITIES=summary should pass 
     expect(validated.hass.enabled).toBe(true);
     expect(validated.hass.discovery).toBe(true);
     expect(validated.hass.entities).toEqual('summary');
+});
+
+test('containerAdded event handler should handle disconnection gracefully without crashing', async () => {
+    const trigger = new Mqtt();
+    trigger.log = log;
+    trigger.configuration = { ...configurationValid };
+    const warnSpy = jest
+        .spyOn(trigger.log, 'warn')
+        .mockImplementation(() => {});
+    await trigger.initTrigger();
+
+    trigger.client.connected = false;
+    const container = {
+        name: 'test-added',
+        watcher: 'local',
+    };
+
+    expect(() => emitContainerAdded(container)).not.toThrow();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(warnSpy).toHaveBeenCalledWith(
+        'Cannot publish container added to MQTT (MQTT client is not connected)',
+    );
+    await trigger.deregisterComponent();
+});
+
+test('containerUpdated event handler should handle disconnection gracefully without crashing', async () => {
+    const trigger = new Mqtt();
+    trigger.log = log;
+    trigger.configuration = { ...configurationValid };
+    const warnSpy = jest
+        .spyOn(trigger.log, 'warn')
+        .mockImplementation(() => {});
+    await trigger.initTrigger();
+
+    trigger.client.connected = false;
+    const container = {
+        name: 'test-updated',
+        watcher: 'local',
+    };
+
+    expect(() => emitContainerUpdated(container)).not.toThrow();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(warnSpy).toHaveBeenCalledWith(
+        'Cannot publish container updated to MQTT (MQTT client is not connected)',
+    );
+    await trigger.deregisterComponent();
+});
+
+test('deregisterComponent should unregister containerAdded and containerUpdated event listeners', async () => {
+    const trigger = new Mqtt();
+    trigger.log = log;
+    trigger.configuration = { ...configurationValid };
+    const customClient = {
+        connected: true,
+        on: jest.fn(),
+        publish: jest.fn(),
+        subscribe: jest.fn(),
+        unsubscribe: jest.fn(),
+        end: jest.fn(),
+        connect: jest.fn(),
+    };
+    mqttClient.connect = jest.fn(() => customClient);
+    await trigger.initTrigger();
+
+    await trigger.deregisterComponent();
+
+    const container = {
+        name: 'test-deregistered',
+        watcher: 'local',
+    };
+    emitContainerAdded(container);
+    emitContainerUpdated(container);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(customClient.publish).not.toHaveBeenCalled();
 });
