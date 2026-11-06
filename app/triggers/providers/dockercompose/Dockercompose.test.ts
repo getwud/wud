@@ -366,6 +366,249 @@ describe('Dockercompose - template and path resolution', () => {
             }),
         ).toBeNull();
     });
+
+    describe('Windows pathmapping and separator normalization (#1527)', () => {
+        test('mapPath translates Windows backslashes with forward-slash host mapping', () => {
+            dockercompose.configuration = {
+                pathmapping: {
+                    host: 'D:/Containers',
+                    container: '/stacks',
+                },
+            };
+
+            expect(
+                dockercompose.mapPath(
+                    'D:\\Containers\\dashboard\\homarr\\compose.yml',
+                ),
+            ).toBe('/stacks/dashboard/homarr/compose.yml');
+        });
+
+        test('mapPath translates Windows backslashes with backslash host mapping', () => {
+            dockercompose.configuration = {
+                pathmapping: {
+                    host: 'D:\\Containers',
+                    container: '/stacks',
+                },
+            };
+
+            expect(
+                dockercompose.mapPath(
+                    'D:\\Containers\\dashboard\\homarr\\compose.yml',
+                ),
+            ).toBe('/stacks/dashboard/homarr/compose.yml');
+        });
+
+        test('mapPath handles case-insensitive Windows drive letters and directory names', () => {
+            dockercompose.configuration = {
+                pathmapping: {
+                    host: 'd:/containers',
+                    container: '/stacks',
+                },
+            };
+
+            // Uppercase drive in filePath, lowercase in host
+            expect(
+                dockercompose.mapPath(
+                    'D:\\Containers\\dashboard\\homarr\\compose.yml',
+                ),
+            ).toBe('/stacks/dashboard/homarr/compose.yml');
+
+            dockercompose.configuration = {
+                pathmapping: {
+                    host: 'D:\\Containers',
+                    container: '/stacks',
+                },
+            };
+
+            // Lowercase drive in filePath, uppercase in host
+            expect(
+                dockercompose.mapPath(
+                    'd:\\Containers\\dashboard\\homarr\\compose.yml',
+                ),
+            ).toBe('/stacks/dashboard/homarr/compose.yml');
+        });
+
+        test('mapPath handles trailing slashes and backslashes cleanly with Windows paths', () => {
+            dockercompose.configuration = {
+                pathmapping: {
+                    host: 'D:/Containers/',
+                    container: '/stacks/',
+                },
+            };
+
+            expect(
+                dockercompose.mapPath(
+                    'D:\\Containers\\dashboard\\homarr\\compose.yml',
+                ),
+            ).toBe('/stacks/dashboard/homarr/compose.yml');
+
+            dockercompose.configuration = {
+                pathmapping: {
+                    host: 'D:\\Containers\\',
+                    container: '/stacks',
+                },
+            };
+
+            expect(
+                dockercompose.mapPath(
+                    'D:\\Containers\\dashboard\\homarr\\compose.yml',
+                ),
+            ).toBe('/stacks/dashboard/homarr/compose.yml');
+        });
+
+        test('mapPath handles root drive mapping on Windows', () => {
+            dockercompose.configuration = {
+                pathmapping: {
+                    host: 'D:/',
+                    container: '/mnt/d',
+                },
+            };
+
+            expect(
+                dockercompose.mapPath('D:\\Containers\\dashboard\\compose.yml'),
+            ).toBe('/mnt/d/Containers/dashboard/compose.yml');
+        });
+
+        test('mapPath returns path unchanged when Windows drive letter does not match', () => {
+            dockercompose.configuration = {
+                pathmapping: {
+                    host: 'D:/Containers',
+                    container: '/stacks',
+                },
+            };
+
+            expect(
+                dockercompose.mapPath(
+                    'C:\\Containers\\dashboard\\homarr\\compose.yml',
+                ),
+            ).toBe('C:\\Containers\\dashboard\\homarr\\compose.yml');
+        });
+
+        test('mapPath does not match partial directory prefix on Windows paths', () => {
+            dockercompose.configuration = {
+                pathmapping: {
+                    host: 'D:/Containers',
+                    container: '/stacks',
+                },
+            };
+
+            expect(
+                dockercompose.mapPath(
+                    'D:\\Containers_backup\\dashboard\\compose.yml',
+                ),
+            ).toBe('D:\\Containers_backup\\dashboard\\compose.yml');
+        });
+
+        test('getComposeFileForContainer translates Windows com.docker.compose.project.config_files label', () => {
+            dockercompose.configuration = {
+                composeFileLabel: 'wud.compose.file',
+                pathmapping: {
+                    host: 'D:/Containers',
+                    container: '/stacks',
+                },
+            };
+
+            expect(
+                dockercompose.getComposeFileForContainer({
+                    labels: {
+                        'com.docker.compose.project.config_files':
+                            'D:\\Containers\\dashboard\\homarr\\compose.yml',
+                    },
+                }),
+            ).toBe('/stacks/dashboard/homarr/compose.yml');
+        });
+
+        test('getComposeFileForContainer translates first file from comma-separated Windows config_files', () => {
+            dockercompose.configuration = {
+                composeFileLabel: 'wud.compose.file',
+                pathmapping: {
+                    host: 'D:/Containers',
+                    container: '/stacks',
+                },
+            };
+
+            expect(
+                dockercompose.getComposeFileForContainer({
+                    labels: {
+                        'com.docker.compose.project.config_files':
+                            'D:\\Containers\\app\\compose.yml, D:\\Containers\\app\\docker-compose.override.yml',
+                    },
+                }),
+            ).toBe('/stacks/app/compose.yml');
+        });
+
+        test('getComposeFileForContainer translates Windows com.docker.compose.project.working_dir label', () => {
+            dockercompose.configuration = {
+                composeFileLabel: 'wud.compose.file',
+                pathmapping: {
+                    host: 'D:/Containers',
+                    container: '/stacks',
+                },
+            };
+
+            expect(
+                dockercompose.getComposeFileForContainer({
+                    labels: {
+                        'com.docker.compose.project.working_dir':
+                            'D:\\Containers\\dashboard\\homarr',
+                    },
+                }),
+            ).toBe('/stacks/dashboard/homarr/docker-compose.yml');
+        });
+
+        test('getComposeFileForContainer handles Windows working_dir with trailing backslash', () => {
+            dockercompose.configuration = {
+                composeFileLabel: 'wud.compose.file',
+                pathmapping: {
+                    host: 'D:/Containers',
+                    container: '/stacks',
+                },
+            };
+
+            expect(
+                dockercompose.getComposeFileForContainer({
+                    labels: {
+                        'com.docker.compose.project.working_dir':
+                            'D:\\Containers\\dashboard\\homarr\\',
+                    },
+                }),
+            ).toBe('/stacks/dashboard/homarr/docker-compose.yml');
+        });
+
+        test('getComposeFileForContainer preserves Windows path in custom composeFileLabel without path.resolve cwd corruption', () => {
+            dockercompose.configuration = {
+                composeFileLabel: 'wud.compose.file',
+                pathmapping: {
+                    host: 'D:/Containers',
+                    container: '/stacks',
+                },
+            };
+
+            expect(
+                dockercompose.getComposeFileForContainer({
+                    labels: {
+                        'wud.compose.file':
+                            'D:\\Containers\\dashboard\\homarr\\custom-compose.yml',
+                    },
+                }),
+            ).toBe('/stacks/dashboard/homarr/custom-compose.yml');
+        });
+
+        test('getComposeFileForContainer normalizes working_dir fallback when pathmapping is not configured', () => {
+            dockercompose.configuration = {
+                composeFileLabel: 'wud.compose.file',
+            };
+
+            expect(
+                dockercompose.getComposeFileForContainer({
+                    labels: {
+                        'com.docker.compose.project.working_dir':
+                            'D:\\Containers\\dashboard\\homarr',
+                    },
+                }),
+            ).toBe('D:/Containers/dashboard/homarr/docker-compose.yml');
+        });
+    });
 });
 
 import fs from 'fs/promises';
@@ -698,6 +941,31 @@ describe('Dockercompose Trigger - file operations', () => {
         ).resolves.toBeUndefined();
 
         expect(dockercompose.processComposeFile).toHaveBeenCalled();
+    });
+
+    test('triggerBatch should warn and skip containers when compose file does not exist on disk', async () => {
+        (fs.access as jest.Mock).mockRejectedValue(
+            new Error('ENOENT: no such file or directory'),
+        );
+        const warnSpy = jest
+            .spyOn(dockercompose.log, 'warn')
+            .mockImplementation(() => {});
+        dockercompose.getWatcher = jest.fn().mockReturnValue({
+            dockerApi: { modem: { socketPath: '/var/run/docker.sock' } },
+        });
+        dockercompose.processComposeFile = jest.fn();
+
+        await expect(
+            dockercompose.triggerBatch([container as any]),
+        ).resolves.toBeUndefined();
+
+        expect(dockercompose.processComposeFile).not.toHaveBeenCalled();
+        expect(warnSpy).toHaveBeenCalledWith(
+            expect.stringContaining(
+                `Compose file ${configurationValid.file} for container ${container.name} does not exist (ENOENT: no such file or directory)`,
+            ),
+        );
+        warnSpy.mockRestore();
     });
 
     test('trigger should skip container when watcher is not found without throwing', async () => {
