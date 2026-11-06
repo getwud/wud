@@ -455,20 +455,73 @@ class Dockercompose extends Docker {
 
     /**
      * Map host path to container path if pathmapping is configured.
+     * Handles Windows backslashes and case-insensitive Windows drive letters.
      * @param filePath
      * @returns {string}
      */
-    mapPath(filePath) {
+    mapPath(filePath: string): string {
         if (!this.configuration.pathmapping || !filePath) {
             return filePath;
         }
         const { host, container } = this.configuration.pathmapping;
-        if (filePath.startsWith(host)) {
-            const relativePath = filePath
-                .substring(host.length)
-                .replace(/^[/\\]+/, '');
-            return path.join(container, relativePath);
+
+        const normalizedFilePath = filePath.replace(/\\/g, '/');
+        const normalizedHost = host.replace(/\\/g, '/');
+        const normalizedContainer = container.replace(/\\/g, '/');
+
+        // Check if both paths start with a Windows drive letter (e.g. C: or D:)
+        const isWindowsPath = /^[a-zA-Z]:(\/|$)/.test(normalizedFilePath);
+        const isWindowsHost = /^[a-zA-Z]:(\/|$)/.test(normalizedHost);
+
+        let cleanHost = normalizedHost.replace(/\/+$/, '');
+        if (cleanHost === '' && normalizedHost.startsWith('/')) {
+            cleanHost = '/';
         }
+
+        let match = false;
+        let matchLength = cleanHost.length;
+
+        if (isWindowsPath && isWindowsHost) {
+            // Compare Windows drive letter and path case-insensitively
+            const driveMatch =
+                normalizedFilePath[0].toLowerCase() ===
+                cleanHost[0].toLowerCase();
+            if (driveMatch) {
+                const restFilePath = normalizedFilePath.substring(2);
+                const restHost = cleanHost.substring(2);
+
+                if (restFilePath.toLowerCase() === restHost.toLowerCase()) {
+                    match = true;
+                } else if (
+                    restFilePath
+                        .toLowerCase()
+                        .startsWith(restHost.toLowerCase() + '/')
+                ) {
+                    match = true;
+                } else if (restHost === '' && restFilePath.startsWith('/')) {
+                    match = true;
+                }
+            }
+        } else {
+            if (normalizedFilePath === cleanHost) {
+                match = true;
+            } else if (cleanHost === '/') {
+                if (normalizedFilePath.startsWith('/')) {
+                    match = true;
+                    matchLength = 1;
+                }
+            } else if (normalizedFilePath.startsWith(cleanHost + '/')) {
+                match = true;
+            }
+        }
+
+        if (match) {
+            const relativePath = normalizedFilePath
+                .substring(matchLength)
+                .replace(/^\/+/, '');
+            return path.posix.join(normalizedContainer, relativePath);
+        }
+
         return filePath;
     }
 
@@ -488,7 +541,10 @@ class Dockercompose extends Docker {
         if (container.labels && container.labels[composeFileLabel]) {
             const labelValue = container.labels[composeFileLabel];
             // Convert relative paths to absolute paths
-            const resolvedPath = path.isAbsolute(labelValue)
+            const isAbsolute =
+                path.isAbsolute(labelValue) ||
+                path.win32.isAbsolute(labelValue);
+            const resolvedPath = isAbsolute
                 ? labelValue
                 : path.resolve(labelValue);
             return this.mapPath(resolvedPath);
@@ -532,9 +588,11 @@ class Dockercompose extends Docker {
                     'com.docker.compose.project.working_dir'
                 ].trim();
             if (workingDir) {
-                return this.mapPath(
-                    path.join(workingDir, 'docker-compose.yml'),
-                );
+                const normalizedWorkingDir = workingDir
+                    .replace(/\\/g, '/')
+                    .replace(/\/+$/, '');
+                const composePath = `${normalizedWorkingDir}/docker-compose.yml`;
+                return this.mapPath(composePath);
             }
         }
 
@@ -604,9 +662,9 @@ class Dockercompose extends Docker {
             // Check if compose file exists
             try {
                 await fs.access(composeFile);
-            } catch {
+            } catch (e: any) {
                 this.log.warn(
-                    `Compose file ${composeFile} for container ${container.name} does not exist`,
+                    `Compose file ${composeFile} for container ${container.name} does not exist (${e.message})`,
                 );
                 continue;
             }

@@ -13,6 +13,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [REGISTRY] Support Bearer token authentication for Alibaba ACR (fixes #1519)
 - 🐛 [TRIGGER] Always close the XMPP connection when sending a message fails
 - 🐛 [TRIGGER] Fail fast when the XMPP server is unreachable instead of hanging forever (new `WUD_TRIGGER_XMPP_{trigger_name}_TIMEOUT` option)
+- 🐛 [TRIGGER] Fix Windows path separator normalization for docker-compose trigger path mapping (#1527)
 - 🐛 [TRIGGER] Mask proxy credentials in HTTP trigger configurations
 - 🐛 [TRIGGER] Prevent MQTT trigger from crashing process when broker is disconnected (fixes #1520)
 
