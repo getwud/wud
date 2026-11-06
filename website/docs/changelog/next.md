@@ -15,5 +15,6 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [TRIGGER] Always close the XMPP connection when sending a message fails
 - 🐛 [TRIGGER] Fail fast when the XMPP server is unreachable instead of hanging forever (new `WUD_TRIGGER_XMPP_{trigger_name}_TIMEOUT` option)
 - 🐛 [TRIGGER] Mask proxy credentials in HTTP trigger configurations
+- 🐛 [TRIGGER] Prevent MQTT trigger from crashing process when broker is disconnected (fixes #1520)
 
 ---

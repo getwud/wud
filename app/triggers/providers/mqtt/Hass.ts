@@ -153,25 +153,71 @@ class Hass {
         this.client = client;
 
         // Subscribe to container events to sync HA
-        registerContainerAdded((container) =>
-            this.addContainerSensor(container),
-        );
-        registerContainerUpdated((container, previousContainer) =>
-            this.onContainerUpdated(container, previousContainer),
-        );
-        registerContainerRemoved((container) =>
-            this.removeContainerSensor(container),
-        );
+        registerContainerAdded(async (container) => {
+            try {
+                await this.addContainerSensor(container);
+            } catch (e: unknown) {
+                const message = e instanceof Error ? e.message : String(e);
+                this.log.warn(
+                    `Cannot add Home Assistant container sensor (${message})`,
+                );
+                this.log.debug(e);
+            }
+        });
+        registerContainerUpdated(async (container, previousContainer) => {
+            try {
+                await this.onContainerUpdated(container, previousContainer);
+            } catch (e: unknown) {
+                const message = e instanceof Error ? e.message : String(e);
+                this.log.warn(
+                    `Cannot update Home Assistant container sensor (${message})`,
+                );
+                this.log.debug(e);
+            }
+        });
+        registerContainerRemoved(async (container) => {
+            try {
+                await this.removeContainerSensor(container);
+            } catch (e: unknown) {
+                const message = e instanceof Error ? e.message : String(e);
+                this.log.warn(
+                    `Cannot remove Home Assistant container sensor (${message})`,
+                );
+                this.log.debug(e);
+            }
+        });
         // Subscribe to watcher events to sync HA
         if (!isOneshot()) {
-            registerWatcherStart((watcher) =>
-                this.updateWatcherSensors({ watcher, isRunning: true }),
-            );
+            registerWatcherStart(async (watcher) => {
+                try {
+                    await this.updateWatcherSensors({
+                        watcher,
+                        isRunning: true,
+                    });
+                } catch (e: unknown) {
+                    const message = e instanceof Error ? e.message : String(e);
+                    this.log.warn(
+                        `Cannot update Home Assistant watcher start sensors (${message})`,
+                    );
+                    this.log.debug(e);
+                }
+            });
             registerWatcherStop(async (watcher) => {
-                await this.updateWatcherSensors({ watcher, isRunning: false });
-                await this.updateContainerSensors({
-                    watcher: watcher.name,
-                } as Container);
+                try {
+                    await this.updateWatcherSensors({
+                        watcher,
+                        isRunning: false,
+                    });
+                    await this.updateContainerSensors({
+                        watcher: watcher.name,
+                    } as Container);
+                } catch (e: unknown) {
+                    const message = e instanceof Error ? e.message : String(e);
+                    this.log.warn(
+                        `Cannot update Home Assistant watcher stop sensors (${message})`,
+                    );
+                    this.log.debug(e);
+                }
             });
 
             // Subscribe to install command pattern
@@ -182,22 +228,31 @@ class Hass {
             }
             if (typeof this.client.on === 'function') {
                 this.client.on('message', async (topic, message) => {
-                    const prefix = `${this.configuration.topic}/`;
-                    const suffix = '/install';
-                    if (
-                        topic.startsWith(prefix) &&
-                        topic.endsWith(suffix) &&
-                        message &&
-                        message.toString() === 'INSTALL'
-                    ) {
-                        const middle = topic.substring(
-                            prefix.length,
-                            topic.length - suffix.length,
-                        );
-                        const parts = middle.split('/');
-                        if (parts.length === 2) {
-                            await this.handleInstallCommand(topic);
+                    try {
+                        const prefix = `${this.configuration.topic}/`;
+                        const suffix = '/install';
+                        if (
+                            topic.startsWith(prefix) &&
+                            topic.endsWith(suffix) &&
+                            message &&
+                            message.toString() === 'INSTALL'
+                        ) {
+                            const middle = topic.substring(
+                                prefix.length,
+                                topic.length - suffix.length,
+                            );
+                            const parts = middle.split('/');
+                            if (parts.length === 2) {
+                                await this.handleInstallCommand(topic);
+                            }
                         }
+                    } catch (e: unknown) {
+                        const errMessage =
+                            e instanceof Error ? e.message : String(e);
+                        this.log.warn(
+                            `Cannot handle Home Assistant install command (${errMessage})`,
+                        );
+                        this.log.debug(e);
                     }
                 });
             }
@@ -205,7 +260,15 @@ class Hass {
             // Publish global sensors once at startup if containers exist
             const containers = containerStore.getContainers();
             if (containers && containers.length > 0) {
-                await this.updateContainerSensors(containers[0]);
+                try {
+                    await this.updateContainerSensors(containers[0]);
+                } catch (e: unknown) {
+                    const message = e instanceof Error ? e.message : String(e);
+                    this.log.warn(
+                        `Cannot update Home Assistant startup container sensors (${message})`,
+                    );
+                    this.log.debug(e);
+                }
             }
         }
     }
