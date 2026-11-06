@@ -156,6 +156,26 @@ export function isNonContainerArtifact(
     return false;
 }
 
+export function getHeaderContentType(
+    headers?: Record<string, any>,
+): string | undefined {
+    if (!headers || typeof headers !== 'object') {
+        return undefined;
+    }
+    const contentTypeKey = Object.keys(headers).find(
+        (key) => key.toLowerCase() === 'content-type',
+    );
+    if (!contentTypeKey) {
+        return undefined;
+    }
+    const rawValue = headers[contentTypeKey];
+    const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
+    if (typeof value === 'string') {
+        return value.split(';')[0].trim().toLowerCase();
+    }
+    return undefined;
+}
+
 export interface CandidateTagResolution {
     tag?: string;
     remoteDigest?: RegistryManifest;
@@ -475,13 +495,44 @@ export class Registry extends Component {
             }
             if (responseManifests.schemaVersion === 2) {
                 log.debug('Manifests found with schemaVersion = 2');
+                const headerContentType = getHeaderContentType(
+                    response && response.headers ? response.headers : undefined,
+                );
+                let effectiveMediaType =
+                    (responseManifests.mediaType &&
+                        responseManifests.mediaType.trim().toLowerCase()) ||
+                    headerContentType;
+
+                const isKnownMediaType =
+                    effectiveMediaType ===
+                        'application/vnd.docker.distribution.manifest.list.v2+json' ||
+                    effectiveMediaType ===
+                        'application/vnd.oci.image.index.v1+json' ||
+                    effectiveMediaType ===
+                        'application/vnd.docker.distribution.manifest.v2+json' ||
+                    effectiveMediaType ===
+                        'application/vnd.oci.image.manifest.v1+json';
+
+                if (!isKnownMediaType) {
+                    if (Array.isArray(responseManifests.manifests)) {
+                        effectiveMediaType =
+                            'application/vnd.oci.image.index.v1+json';
+                    } else if (
+                        responseManifests.config ||
+                        Array.isArray(responseManifests.layers)
+                    ) {
+                        effectiveMediaType =
+                            'application/vnd.oci.image.manifest.v1+json';
+                    }
+                }
+
                 log.debug(
-                    `Manifests media type detected [${responseManifests.mediaType}]`,
+                    `Manifests media type detected [${effectiveMediaType}]`,
                 );
                 if (
-                    responseManifests.mediaType ===
+                    effectiveMediaType ===
                         'application/vnd.docker.distribution.manifest.list.v2+json' ||
-                    responseManifests.mediaType ===
+                    effectiveMediaType ===
                         'application/vnd.oci.image.index.v1+json'
                 ) {
                     indexDigest =
@@ -535,12 +586,14 @@ export class Registry extends Component {
                             `Manifest found with [digest=${manifestFound.digest}, mediaType=${manifestFound.mediaType}]`,
                         );
                         manifestDigestFound = manifestFound.digest;
-                        manifestMediaType = manifestFound.mediaType;
+                        manifestMediaType =
+                            manifestFound.mediaType ||
+                            'application/vnd.oci.image.manifest.v1+json';
                     }
                 } else if (
-                    responseManifests.mediaType ===
+                    effectiveMediaType ===
                         'application/vnd.docker.distribution.manifest.v2+json' ||
-                    responseManifests.mediaType ===
+                    effectiveMediaType ===
                         'application/vnd.oci.image.manifest.v1+json'
                 ) {
                     // Single-platform manifest (no list/index) => the reference
@@ -549,10 +602,10 @@ export class Registry extends Component {
                     // that's the digest of the config blob, not of the manifest,
                     // and is not a valid value to re-request a manifest with.
                     log.debug(
-                        `Manifest found with [reference=${tagOrDigest}, mediaType=${responseManifests.mediaType}]`,
+                        `Manifest found with [reference=${tagOrDigest}, mediaType=${effectiveMediaType}]`,
                     );
                     manifestDigestFound = tagOrDigest;
-                    manifestMediaType = responseManifests.mediaType;
+                    manifestMediaType = effectiveMediaType;
                     // This response IS the platform manifest, so its config
                     // digest is already known; remember it so callers wanting
                     // the config blob need not re-fetch the manifest.
