@@ -1014,4 +1014,147 @@ describe('OIDC state and session handling (Issue #896)', () => {
             'http://localhost:3000/#/login?error=Unhandled%20boom',
         );
     });
+
+    describe('id_token_signed_response_alg configuration and discovery', () => {
+        test('validateConfiguration should accept idtokensignedresponsealg', () => {
+            const config = {
+                ...configurationValid,
+                idtokensignedresponsealg: 'ES256',
+            };
+            const validated = oidc.validateConfiguration(config);
+            expect(validated.idtokensignedresponsealg).toEqual('ES256');
+        });
+
+        test('validateConfiguration should accept idTokenSignedResponseAlg', () => {
+            const config = {
+                ...configurationValid,
+                idTokenSignedResponseAlg: 'ES256',
+            };
+            const validated = oidc.validateConfiguration(config);
+            expect(validated.idTokenSignedResponseAlg).toEqual('ES256');
+        });
+
+        test('validateConfiguration should accept nested client.idtokensignedresponsealg', () => {
+            const config = {
+                ...configurationValid,
+                client: {
+                    idtokensignedresponsealg: 'ES256',
+                },
+            };
+            const validated = oidc.validateConfiguration(config);
+            expect(validated.client?.idtokensignedresponsealg).toEqual('ES256');
+        });
+
+        test('validateConfiguration should accept nested client.idTokenSignedResponseAlg', () => {
+            const config = {
+                ...configurationValid,
+                client: {
+                    idTokenSignedResponseAlg: 'ES256',
+                },
+            };
+            const validated = oidc.validateConfiguration(config);
+            expect(validated.client?.idTokenSignedResponseAlg).toEqual('ES256');
+        });
+
+        test('getIdTokenSignedResponseAlg should return undefined when not configured', () => {
+            oidc.configuration = { ...configurationValid };
+            expect(oidc.getIdTokenSignedResponseAlg()).toBeUndefined();
+        });
+
+        test('getIdTokenSignedResponseAlg should normalize standard algorithms to uppercase', () => {
+            oidc.configuration = {
+                ...configurationValid,
+                idtokensignedresponsealg: '  es256  ',
+            };
+            expect(oidc.getIdTokenSignedResponseAlg()).toEqual('ES256');
+
+            oidc.configuration = {
+                ...configurationValid,
+                idtokensignedresponsealg: 'rs256',
+            };
+            expect(oidc.getIdTokenSignedResponseAlg()).toEqual('RS256');
+
+            oidc.configuration = {
+                ...configurationValid,
+                idtokensignedresponsealg: 'ps512',
+            };
+            expect(oidc.getIdTokenSignedResponseAlg()).toEqual('PS512');
+
+            oidc.configuration = {
+                ...configurationValid,
+                idtokensignedresponsealg: 'eddsa',
+            };
+            expect(oidc.getIdTokenSignedResponseAlg()).toEqual('EdDSA');
+        });
+
+        test('getIdTokenSignedResponseAlg should preserve custom algorithm name', () => {
+            oidc.configuration = {
+                ...configurationValid,
+                idtokensignedresponsealg: 'HS256',
+            };
+            expect(oidc.getIdTokenSignedResponseAlg()).toEqual('HS256');
+        });
+
+        test('getIdTokenSignedResponseAlg should read from nested client property', () => {
+            oidc.configuration = {
+                ...configurationValid,
+                client: {
+                    idtokensignedresponsealg: 'es384',
+                },
+            };
+            expect(oidc.getIdTokenSignedResponseAlg()).toEqual('ES384');
+        });
+
+        test('discoverConfiguration should pass id_token_signed_response_alg in clientMetadata when configured', async () => {
+            oidc.configuration = {
+                ...configurationValid,
+                idtokensignedresponsealg: 'ES256',
+                ttl: 60,
+            };
+            (oidc as any).cachedConfig = undefined;
+            (client.discovery as jest.Mock).mockResolvedValue(mockConfig);
+
+            await oidc.initAuthentication();
+
+            expect(client.discovery).toHaveBeenCalledWith(
+                new URL('https://idp/.well-known/openid-configuration'),
+                '123465798',
+                {
+                    client_id: '123465798',
+                    client_secret: 'secret',
+                    id_token_signed_response_alg: 'ES256',
+                },
+                undefined,
+                {
+                    timeout: 5000,
+                    execute: undefined,
+                },
+            );
+        });
+
+        test('discoverConfiguration should omit id_token_signed_response_alg when not configured', async () => {
+            oidc.configuration = {
+                ...configurationValid,
+                ttl: 60,
+            };
+            (oidc as any).cachedConfig = undefined;
+            (client.discovery as jest.Mock).mockResolvedValue(mockConfig);
+
+            await oidc.initAuthentication();
+
+            expect(client.discovery).toHaveBeenCalledWith(
+                new URL('https://idp/.well-known/openid-configuration'),
+                '123465798',
+                {
+                    client_id: '123465798',
+                    client_secret: 'secret',
+                },
+                undefined,
+                {
+                    timeout: 5000,
+                    execute: undefined,
+                },
+            );
+        });
+    });
 });
