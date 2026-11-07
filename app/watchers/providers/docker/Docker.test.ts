@@ -5,6 +5,7 @@ import Docker, {
     getTagCandidates,
     formatErrorMessage,
     getRepoDigest,
+    isDockerRecreateTempName,
 } from './Docker';
 import Registry, {
     UnsupportedArtifactError,
@@ -1159,6 +1160,46 @@ describe('Docker Watcher', () => {
                     displayName: 'Custom App',
                 }),
             );
+        });
+
+        test('should ignore temporary Docker recreate container rename event (#539, #294)', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const mockChildLog = { info: jest.fn() };
+            const mockLog = {
+                child: jest.fn().mockReturnValue(mockChildLog),
+                debug: jest.fn(),
+            };
+            docker.log = mockLog;
+            mockContainer.inspect.mockResolvedValue({
+                Name: '/a1b2c3d4e5f6_old-container-name',
+                Config: { Labels: {} },
+                State: { Status: 'running' },
+            });
+            const existingContainer = {
+                id: 'container123',
+                name: 'old-container-name',
+                displayName: 'old-container-name',
+                status: 'running',
+            };
+            storeContainer.getContainer.mockReturnValue(existingContainer);
+
+            // Docker/Portainer recreate rename: Actor name is prefixed with 12 hex chars
+            const event = JSON.stringify({
+                Action: 'rename',
+                Actor: {
+                    ID: 'container123',
+                    Attributes: {
+                        name: 'a1b2c3d4e5f6_old-container-name',
+                        oldName: 'old-container-name',
+                    },
+                },
+            });
+            await docker.onDockerEvent(Buffer.from(event));
+
+            // Name and displayName must NOT be corrupted by the temporary rename
+            expect(existingContainer.name).toBe('old-container-name');
+            expect(existingContainer.displayName).toBe('old-container-name');
+            expect(storeContainer.updateContainer).not.toHaveBeenCalled();
         });
 
         test('should update container displayName on event when explicit wud.display.name label is updated', async () => {
@@ -6605,6 +6646,93 @@ describe('Docker Watcher', () => {
                 await docker.onDockerEvent(chunk);
                 expect(docker.destroyedContainers.has('restarted-123')).toBe(
                     false,
+                );
+            });
+        });
+
+        describe('Docker Recreate Temporary Name Handling (#539, #294)', () => {
+            test('isDockerRecreateTempName should identify recreate hash-prefixed names', () => {
+                expect(
+                    isDockerRecreateTempName('a1b2c3d4e5f6_my-container'),
+                ).toBe(true);
+                expect(isDockerRecreateTempName('1234567890ab_nginx_1')).toBe(
+                    true,
+                );
+                expect(isDockerRecreateTempName('000000000000_service')).toBe(
+                    true,
+                );
+                expect(isDockerRecreateTempName('my-container')).toBe(false);
+                expect(isDockerRecreateTempName('a1b2c3_short_hash')).toBe(
+                    false,
+                );
+                expect(
+                    isDockerRecreateTempName('a1b2c3d4e5f6g7_invalid_hex'),
+                ).toBe(false);
+                expect(isDockerRecreateTempName(undefined)).toBe(false);
+                expect(isDockerRecreateTempName('')).toBe(false);
+            });
+
+            test('isContainerToWatch should return false for temporary recreate container names', () => {
+                expect(
+                    isContainerToWatch(
+                        undefined,
+                        true,
+                        'a1b2c3d4e5f6_my-service',
+                    ),
+                ).toBe(false);
+                expect(
+                    isContainerToWatch(undefined, true, 'legitimate-service'),
+                ).toBe(true);
+            });
+
+            test('addImageDetailsToContainer should not adopt temporary recreate container name or update displayName', async () => {
+                await docker.register('watcher', 'docker', 'test', {});
+                mockImage.inspect.mockResolvedValue({
+                    Architecture: 'amd64',
+                    Os: 'linux',
+                    Config: { Labels: {} },
+                });
+                storeContainer.getContainer.mockReturnValue({
+                    id: 'c123',
+                    name: 'my-service',
+                    displayName: 'my-service',
+                    labels: {},
+                });
+                const containerInspect = {
+                    Id: 'c123',
+                    Image: 'sha256:img123',
+                    Name: '/a1b2c3d4e5f6_my-service',
+                    Config: {
+                        Image: 'test-image:latest',
+                        Labels: {},
+                    },
+                };
+
+                const res =
+                    await docker.addImageDetailsToContainer(containerInspect);
+
+                expect(res.name).toBe('my-service');
+                expect(res.displayName).toBe('my-service');
+            });
+
+            test('runReconcileContainer should prune container from store and return undefined when name is temporary recreate name', async () => {
+                docker.register('watcher', 'docker', 'test', {});
+                mockContainer.inspect.mockResolvedValue({
+                    Id: 'c123',
+                    Name: '/a1b2c3d4e5f6_my-service',
+                    Config: { Labels: {} },
+                    State: { Status: 'running' },
+                });
+                storeContainer.getContainer.mockReturnValue({
+                    id: 'c123',
+                    name: 'a1b2c3d4e5f6_my-service',
+                });
+
+                const result = await docker.runReconcileContainer('c123');
+
+                expect(result).toBeUndefined();
+                expect(storeContainer.deleteContainer).toHaveBeenCalledWith(
+                    'c123',
                 );
             });
         });

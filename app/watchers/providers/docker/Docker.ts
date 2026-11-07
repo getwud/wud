@@ -482,10 +482,23 @@ export function getRepoDigest(containerImage: any): string | undefined {
 export const ROLLBACK_ARCHIVE_REGEX = /-wud-old-\d+$/;
 
 /**
+ * Docker / Portainer recreate temporary rename regex pattern:
+ * e.g., "a1b2c3d4e5f6_my-container" (12 hex chars followed by underscore)
+ */
+export const DOCKER_RECREATE_TEMP_REGEX = /^[0-9a-f]{12}_/;
+
+/**
  * Return true if container is a rollback archive container.
  */
 export function isRollbackArchive(name?: string): boolean {
     return Boolean(name && ROLLBACK_ARCHIVE_REGEX.test(name));
+}
+
+/**
+ * Return true if container name matches Docker's recreate temporary name pattern.
+ */
+export function isDockerRecreateTempName(name?: string): boolean {
+    return Boolean(name && DOCKER_RECREATE_TEMP_REGEX.test(name));
 }
 
 /**
@@ -530,7 +543,7 @@ function matchFilter(
 /**
  * Return true if container must be watched.
  * Priority order:
- * 0. If container name matches rollback archive pattern (/-wud-old-\d+$/), container is NEVER watched (return false).
+ * 0. If container name matches rollback archive pattern (/-wud-old-\d+$/) or Docker recreate temporary name pattern (/^[0-9a-f]{12}_/), container is NEVER watched (return false).
  * 1. If container label wud.watch is defined and not empty, its value takes precedence (wud.watch.toLowerCase() === 'true').
  * 2. Else, if an exclude filter is configured on the watcher and the container matches it, container is NOT watched (return false).
  * 3. Else, if an include filter is configured on the watcher, container is watched if it matches (return true), otherwise NOT watched (return false).
@@ -552,7 +565,11 @@ export function isContainerToWatch(
     includeFilter?: string,
     log?: Pick<Logger, 'warn'>,
 ) {
-    if (containerName && ROLLBACK_ARCHIVE_REGEX.test(containerName)) {
+    if (
+        containerName &&
+        (ROLLBACK_ARCHIVE_REGEX.test(containerName) ||
+            isDockerRecreateTempName(containerName))
+    ) {
         return false;
     }
     if (wudWatchLabelValue !== undefined && wudWatchLabelValue !== '') {
@@ -1113,6 +1130,7 @@ export class Docker extends Watcher {
         if (
             containerName &&
             (ROLLBACK_ARCHIVE_REGEX.test(containerName) ||
+                isDockerRecreateTempName(containerName) ||
                 containerName === 'wud-self-update')
         ) {
             await this.pruneContainerFromStore(containerId);
@@ -1215,10 +1233,11 @@ export class Docker extends Watcher {
             ? dockerEvent.Actor.Attributes.name.replace(/\//, '')
             : undefined;
 
-        // Rollback archive containers and self-update helper should never be processed or indexed
+        // Rollback archive containers, recreate temporary containers, and self-update helper should never be processed or indexed
         if (
             eventName &&
             (ROLLBACK_ARCHIVE_REGEX.test(eventName) ||
+                isDockerRecreateTempName(eventName) ||
                 eventName === 'wud-self-update')
         ) {
             return;
@@ -1261,7 +1280,11 @@ export class Docker extends Watcher {
                               )
                             : undefined);
 
-                    if (newName && ROLLBACK_ARCHIVE_REGEX.test(newName)) {
+                    if (
+                        newName &&
+                        (ROLLBACK_ARCHIVE_REGEX.test(newName) ||
+                            isDockerRecreateTempName(newName))
+                    ) {
                         return;
                     }
                     const containerFound =
@@ -1965,7 +1988,11 @@ export class Docker extends Watcher {
                 const currentContainerName = this.getContainerName(container);
                 const oldName = containerInStore.name;
                 const oldDisplayName = containerInStore.displayName;
-                if (currentContainerName && oldName !== currentContainerName) {
+                if (
+                    currentContainerName &&
+                    oldName !== currentContainerName &&
+                    !isDockerRecreateTempName(currentContainerName)
+                ) {
                     if (this.log && typeof this.log.info === 'function') {
                         this.log.info(
                             `Container ${containerInStore.id} renamed from ${oldName} to ${currentContainerName}`,
@@ -1989,7 +2016,10 @@ export class Docker extends Watcher {
                         containerInStore.displayName = explicitDisplayName;
                         isUpdated = true;
                     }
-                } else if (currentContainerName) {
+                } else if (
+                    currentContainerName &&
+                    !isDockerRecreateTempName(currentContainerName)
+                ) {
                     if (
                         oldName !== currentContainerName ||
                         oldDisplayName === oldName ||

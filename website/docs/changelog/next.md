@@ -22,5 +22,6 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [TRIGGER] Fix Windows path separator normalization for docker-compose trigger path mapping (#1527)
 - 🐛 [TRIGGER] Mask proxy credentials in HTTP trigger configurations
 - 🐛 [TRIGGER] Prevent MQTT trigger from crashing process when broker is disconnected (fixes #1520)
+- 🐛 [WATCHER] Ignore Docker temporary recreate container rename events (#539, #294)
 
 ---
