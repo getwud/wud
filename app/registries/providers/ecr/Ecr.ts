@@ -19,6 +19,8 @@ export interface EcrConfiguration {
  * Elastic Container Registry integration.
  */
 export class Ecr extends DockerRegistryV2 {
+    declare public configuration: EcrConfiguration;
+
     async init() {
         if (this.configuration.public === undefined) {
             this.configuration.public =
@@ -88,6 +90,51 @@ export class Ecr extends DockerRegistryV2 {
         expiresAt: Date;
     };
 
+    /**
+     * Get or refresh ECR authorization data.
+     */
+    private async getAuthorizationData(accountId?: string): Promise<{
+        token: string;
+        expiresAt: Date;
+    }> {
+        if (this.tokenCache && this.tokenCache.expiresAt > new Date()) {
+            return this.tokenCache;
+        }
+
+        const effectiveAccountId = accountId || this.configuration.accountid;
+        const ecr = new ECRClient({
+            credentials: {
+                accessKeyId: this.configuration.accesskeyid!,
+                secretAccessKey: this.configuration.secretaccesskey!,
+                ...(effectiveAccountId
+                    ? { accountId: effectiveAccountId }
+                    : {}),
+            },
+            region: this.configuration.region,
+        });
+
+        const authorizationToken = await ecr.send(
+            new GetAuthorizationTokenCommand(),
+        );
+
+        const authData = authorizationToken.authorizationData?.[0];
+        if (!authData || !authData.authorizationToken) {
+            throw new Error('Unable to obtain ECR authorization token');
+        }
+
+        const tokenValue = authData.authorizationToken;
+        const expiresAt = authData.expiresAt
+            ? new Date(authData.expiresAt)
+            : new Date(Date.now() + 12 * 60 * 60 * 1000);
+
+        this.tokenCache = {
+            token: tokenValue,
+            expiresAt,
+        };
+
+        return this.tokenCache;
+    }
+
     async authenticate(
         image: ContainerImage,
         requestOptions: AxiosRequestConfig,
@@ -108,38 +155,60 @@ export class Ecr extends DockerRegistryV2 {
             requestOptionsWithAuth.headers.Authorization = `Bearer ${response.data.token}`;
             // Private registry
         } else if (this.configuration.accesskeyid) {
-            if (this.tokenCache && this.tokenCache.expiresAt > new Date()) {
-                requestOptionsWithAuth.headers =
-                    requestOptionsWithAuth.headers || {};
-                requestOptionsWithAuth.headers.Authorization = `Basic ${this.tokenCache.token}`;
-            } else {
-                const ecr = new ECRClient({
-                    credentials: {
-                        accessKeyId: this.configuration.accesskeyid,
-                        secretAccessKey: this.configuration.secretaccesskey,
-                        accountId: image.registry.url.split('.')[0], // Extract account ID from the URL
-                    },
-                    region: this.configuration.region,
-                });
-                const authorizationToken = await ecr.send(
-                    new GetAuthorizationTokenCommand(),
-                );
-
-                const tokenValue =
-                    authorizationToken.authorizationData[0].authorizationToken;
-                this.tokenCache = {
-                    token: tokenValue!,
-                    expiresAt: new Date(
-                        authorizationToken.authorizationData[0].expiresAt!,
-                    ),
-                };
-
-                requestOptionsWithAuth.headers =
-                    requestOptionsWithAuth.headers || {};
-                requestOptionsWithAuth.headers.Authorization = `Basic ${tokenValue}`;
-            }
+            const accountId = image.registry.url.split('.')[0];
+            const authData = await this.getAuthorizationData(accountId);
+            requestOptionsWithAuth.headers =
+                requestOptionsWithAuth.headers || {};
+            requestOptionsWithAuth.headers.Authorization = `Basic ${authData.token}`;
         }
         return requestOptionsWithAuth;
+    }
+
+    /**
+     * Return credentials required for Docker pull on ECR.
+     */
+    async getAuthPull(): Promise<
+        { username?: string; password?: string } | undefined
+    > {
+        // Public registry or no AWS credentials configured
+        if (
+            !this.configuration ||
+            !this.configuration.accesskeyid ||
+            !this.configuration.secretaccesskey
+        ) {
+            return undefined;
+        }
+
+        try {
+            const authData = await this.getAuthorizationData();
+            const decoded = Buffer.from(authData.token, 'base64').toString(
+                'utf-8',
+            );
+            const colonIndex = decoded.indexOf(':');
+            if (colonIndex !== -1) {
+                return {
+                    username: decoded.substring(0, colonIndex),
+                    password: decoded.substring(colonIndex + 1),
+                };
+            }
+            if (authData.token.includes(':')) {
+                const tokenColonIndex = authData.token.indexOf(':');
+                return {
+                    username: authData.token.substring(0, tokenColonIndex),
+                    password: authData.token.substring(tokenColonIndex + 1),
+                };
+            }
+            return {
+                username: 'AWS',
+                password: authData.token,
+            };
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            this.log?.error(
+                `Failed to get ECR authorization token for pull: ${message}`,
+            );
+            throw e;
+        }
     }
 
     getTagsPage(
