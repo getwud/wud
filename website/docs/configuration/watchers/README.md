@@ -55,6 +55,15 @@ To customize how WUD monitors specific containers or workloads (opt-in/opt-out, 
   </ConfigOption>
 
   <ConfigOption
+    name="WUD_WATCHER_{watcher_name}_CONTAINERDIGESTS"
+    type="JSON string or object"
+    required={false}
+    defaultValue="Unset (existing defaults)"
+    supported="Exact Docker container names mapped to objects with an optional boolean `watchdigest`">
+    Configure digest watching centrally for selected Docker containers. Explicit `wud.watch.digest` labels take precedence. See [Central Digest Configuration](#central-digest-configuration).
+  </ConfigOption>
+
+  <ConfigOption
     name="WUD_WATCHER_{watcher_name}_CRON"
     required={false}
     type="url"
@@ -180,6 +189,57 @@ You can configure multiple watchers to monitor both local and remote Docker host
 - **Per-Container Rules**: To configure tag filtering and routing per container, see [**Container Labels**](labels.md).
 
 :::
+
+---
+
+## Central Digest Configuration
+
+Set `WUD_WATCHER_{watcher_name}_CONTAINERDIGESTS` on WUD to enable or disable digest watching for selected Docker containers without changing their labels. Keys are exact, case-sensitive Docker container names without the leading `/`, such as `postgres-db`; Compose service names, display names, and regular expressions are not matching rules. The setting only applies to containers already monitored by that watcher.
+
+```yaml title="compose.yaml"
+services:
+  whatsupdocker:
+    image: getwud/wud
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      WUD_WATCHER_LOCAL_CONTAINERDIGESTS: '{"postgres-db":{"watchdigest":true},"cache":{"watchdigest":false}}'
+```
+
+The setting accepts a JSON string or a native configuration object, with the same strict validation for both formats. Each entry accepts only the optional `watchdigest` field, with a boolean (`true` or `false`). Strings such as `"true"`, numbers, unknown fields, invalid JSON, and non-object values are rejected during watcher configuration validation; values are not coerced. Omitting the setting, leaving out a container, or using an empty object for its options preserves the existing digest defaults.
+
+An explicit, non-empty `wud.watch.digest` label keeps its existing precedence and parsing: `true` enables digest watching and `false` disables it, regardless of the central value. An absent or empty label falls back to the matching central `watchdigest` value, then to the existing registry and watcher defaults. Numeric version tags still have digest watching disabled by default unless explicitly enabled.
+
+You can also use the existing `__FILE` mechanism. Save the same JSON object in `./container-digests.json`:
+
+```json title="container-digests.json"
+{"postgres-db":{"watchdigest":true},"cache":{"watchdigest":false}}
+```
+
+Replace the inline environment variable with the file reference and mount the file into WUD:
+
+```yaml title="compose.yaml"
+services:
+  whatsupdocker:
+    image: getwud/wud
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./container-digests.json:/config/container-digests.json:ro
+    environment:
+      WUD_WATCHER_LOCAL_CONTAINERDIGESTS__FILE: /config/container-digests.json
+```
+
+The file is read when WUD starts. Restart or recreate WUD after changing the configuration; monitored containers do not need to be restarted or recreated to apply it.
+
+Enabling digest watching uses WUD's existing SHA-256 digest comparison. WUD's existing manifest/index equivalence checks still apply, so different raw hashes do not necessarily mean different images. When both the local and selected remote digests are available, the following rules apply:
+
+| Local tag | Selected remote tag | Digest comparison | Candidate update |
+| :--- | :--- | :--- | :--- |
+| `18.6` | `18.6` (rebuilt) | Different | Yes |
+| `18.6` | `18.6.0` (alias) | Same | No |
+| `18.6` | `18.7` or `19.0` | Different | Yes |
+
+Normal tag discovery and tag filters still select the remote candidate, including newer major versions. If either digest is unavailable, WUD uses its existing fallback behavior. Setting `watchdigest` to `false` disables digest watching for that container; tag-based update checks continue. Detected updates still follow the configured cooldowns and notification or update triggers. Digest polling makes registry requests; see [Digest Watching & Rate Limits](digest-rate-limits.md).
 
 ---
 
