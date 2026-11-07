@@ -109,3 +109,43 @@ describe('waitForPendingEvents', () => {
         expect(reportsHandler).not.toHaveBeenCalled();
     });
 });
+
+describe('maxListeners', () => {
+    test('should have maxListeners configured to 0 (unlimited)', () => {
+        expect(event.getMaxListeners()).toBe(0);
+    });
+
+    test('should allow setting maxListeners', () => {
+        const original = event.getMaxListeners();
+        try {
+            event.setMaxListeners(42);
+            expect(event.getMaxListeners()).toBe(42);
+        } finally {
+            event.setMaxListeners(original);
+        }
+    });
+
+    test('should allow registering more than 10 listeners without emitting MaxListenersExceededWarning', async () => {
+        const warningListener = jest.fn();
+        process.on('warning', warningListener);
+
+        const handlers = [];
+        try {
+            for (let i = 0; i < 15; i++) {
+                const handler = jest.fn();
+                handlers.push(handler);
+                event.registerContainerReports(handler);
+            }
+
+            // Yield event loop to allow any potential warning to be processed
+            await new Promise((resolve) => setImmediate(resolve));
+
+            expect(warningListener).not.toHaveBeenCalled();
+        } finally {
+            process.off('warning', warningListener);
+            for (const handler of handlers) {
+                event.unregisterContainerReports(handler);
+            }
+        }
+    });
+});
