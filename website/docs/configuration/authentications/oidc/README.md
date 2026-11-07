@@ -119,6 +119,14 @@ WUD supports any compliant OpenID Connect Identity Provider. Step-by-step guides
     defaultValue="openid email profile">
     OpenID Connect scopes to request during authorization flow. Automatically appends `groups` when `ADMINGROUP`, `RWGROUP`, or `ROGROUP` is configured unless overridden.
   </ConfigOption>
+
+  <ConfigOption
+    name="WUD_AUTH_OIDC_{auth_name}_IDTOKENSIGNEDRESPONSEALG"
+    required={false}
+    type="string"
+    supported="e.g. `RS256`, `ES256`, `ES384`, `ES512`">
+    Algorithm required for signing the ID Token issued to this client (defaults to the IdP discovery metadata or `RS256`). Set to `ES256` if your identity provider (such as Authentik with an ECDSA certificate) signs ID tokens using ES256.
+  </ConfigOption>
 </ConfigList>
 
 :::tip[Automatic User Onboarding & Role Sync]
@@ -331,6 +339,10 @@ docker run \
 
 </TabItem>
 </Tabs>
+
+:::tip[Authentik with ECDSA / Let's Encrypt Certificate]
+If your Authentik instance uses an ECDSA certificate (e.g. Let's Encrypt ECDSA P-256) for signing ID tokens instead of RSA, Authentik will sign ID tokens using `ES256`. Set `WUD_AUTH_OIDC_AUTHENTIK_IDTOKENSIGNEDRESPONSEALG=ES256` so WUD validates `ES256` signatures cleanly.
+:::
 
 ![WUD login with Authentik](./authentik_02.png)
 

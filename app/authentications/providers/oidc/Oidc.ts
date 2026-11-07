@@ -164,7 +164,41 @@ class Oidc extends Authentication {
             defaultrole: this.joi.string().valid('ro', 'none').default('ro'),
             groupsclaim: this.joi.string().default('groups'),
             scope: this.joi.string().optional(),
+            idtokensignedresponsealg: this.joi.string().optional(),
+            idTokenSignedResponseAlg: this.joi.string().optional(),
+            client: this.joi
+                .object()
+                .keys({
+                    idtokensignedresponsealg: this.joi.string().optional(),
+                    idTokenSignedResponseAlg: this.joi.string().optional(),
+                })
+                .optional(),
         });
+    }
+
+    /**
+     * Get the configured ID token signed response algorithm.
+     */
+    getIdTokenSignedResponseAlg(): string | undefined {
+        const alg =
+            this.configuration.idtokensignedresponsealg ||
+            this.configuration.idTokenSignedResponseAlg ||
+            this.configuration.client?.idtokensignedresponsealg ||
+            this.configuration.client?.idTokenSignedResponseAlg;
+        if (!alg || typeof alg !== 'string') {
+            return undefined;
+        }
+        const trimmed = alg.trim();
+        if (!trimmed) {
+            return undefined;
+        }
+        if (/^(rs|es|ps)(256|384|512)$/i.test(trimmed)) {
+            return trimmed.toUpperCase();
+        }
+        if (/^eddsa$/i.test(trimmed)) {
+            return 'EdDSA';
+        }
+        return trimmed;
     }
 
     /**
@@ -192,10 +226,25 @@ class Oidc extends Authentication {
         const isHttp = discoveryUrl.protocol === 'http:';
         const execute = isHttp ? [client.allowInsecureRequests] : undefined;
 
+        const idTokenSignedResponseAlg = this.getIdTokenSignedResponseAlg();
+        if (idTokenSignedResponseAlg) {
+            this.log.debug(
+                `Using configured ID token signature algorithm: ${idTokenSignedResponseAlg}`,
+            );
+        }
+
+        const clientMetadata: client.ClientMetadata = {
+            client_id: this.configuration.clientid,
+            client_secret: this.configuration.clientsecret,
+            ...(idTokenSignedResponseAlg && {
+                id_token_signed_response_alg: idTokenSignedResponseAlg,
+            }),
+        };
+
         this.cachedConfig = await client.discovery(
             discoveryUrl,
             this.configuration.clientid,
-            this.configuration.clientsecret,
+            clientMetadata,
             undefined,
             {
                 timeout: this.configuration.timeout,
