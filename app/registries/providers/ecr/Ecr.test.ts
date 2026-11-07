@@ -1,11 +1,10 @@
+const mockEcrSend = jest.fn();
+
 jest.mock('@aws-sdk/client-ecr', () => {
     return {
-        ECRClient: jest.fn().mockImplementation(() => ({
-            send: jest.fn().mockResolvedValue({
-                authorizationData: [
-                    { authorizationToken: 'xxxxx', expiresAt: new Date() },
-                ],
-            }),
+        ECRClient: jest.fn().mockImplementation((config: unknown) => ({
+            config,
+            send: (...args: unknown[]) => mockEcrSend(...args),
         })),
         GetAuthorizationTokenCommand: jest.fn(),
     };
@@ -23,7 +22,7 @@ ecr.log = {
     warn: jest.fn(),
     error: jest.fn(),
     debug: jest.fn(),
-} as any as Logger;
+} as unknown as Logger;
 
 ecr.configuration = {
     accesskeyid: 'accesskeyid',
@@ -31,6 +30,18 @@ ecr.configuration = {
     region: 'region',
     public: false,
 };
+
+beforeEach(() => {
+    mockEcrSend.mockReset();
+    mockEcrSend.mockResolvedValue({
+        authorizationData: [
+            {
+                authorizationToken: 'xxxxx',
+                expiresAt: new Date(Date.now() + 3600 * 1000),
+            },
+        ],
+    });
+});
 
 jest.mock('axios');
 
@@ -244,10 +255,253 @@ test('getTagsPage should use proper baseUrl for public and private ecr paginatio
     );
 });
 
-test('getAuthPull should call ecr auth endpoint and get token', async () => {
-    await expect(ecr.getAuthPull()).resolves.toEqual({
-        username: 'accesskeyid',
-        password: 'secretaccesskey',
+describe('getAuthPull', () => {
+    let testEcr: Ecr;
+
+    beforeEach(() => {
+        testEcr = new Ecr();
+        testEcr.log = {
+            info: jest.fn(),
+            warn: jest.fn(),
+            error: jest.fn(),
+            debug: jest.fn(),
+        } as unknown as Logger;
+        testEcr.configuration = {
+            accesskeyid: 'my-access-key',
+            secretaccesskey: 'my-secret-key',
+            region: 'eu-west-1',
+            public: false,
+        };
+    });
+
+    test('should return undefined when configuration is undefined', async () => {
+        testEcr.configuration =
+            undefined as unknown as typeof testEcr.configuration;
+        await expect(testEcr.getAuthPull()).resolves.toBeUndefined();
+    });
+
+    test('should return undefined when accesskeyid is missing', async () => {
+        testEcr.configuration = {
+            secretaccesskey: 'my-secret-key',
+            region: 'eu-west-1',
+            public: false,
+        };
+        await expect(testEcr.getAuthPull()).resolves.toBeUndefined();
+    });
+
+    test('should return undefined when secretaccesskey is missing', async () => {
+        testEcr.configuration = {
+            accesskeyid: 'my-access-key',
+            region: 'eu-west-1',
+            public: false,
+        };
+        await expect(testEcr.getAuthPull()).resolves.toBeUndefined();
+    });
+
+    test('should return undefined for public registry without AWS keys', async () => {
+        testEcr.configuration = {
+            public: true,
+            region: 'us-east-1',
+        };
+        await expect(testEcr.getAuthPull()).resolves.toBeUndefined();
+    });
+
+    test('should decode base64 authorizationToken into username AWS and decoded password', async () => {
+        const rawPassword = 'my-super-secret-ecr-token-password';
+        const base64Token = Buffer.from(`AWS:${rawPassword}`).toString(
+            'base64',
+        );
+        mockEcrSend.mockResolvedValueOnce({
+            authorizationData: [
+                {
+                    authorizationToken: base64Token,
+                    expiresAt: new Date(Date.now() + 3600 * 1000),
+                },
+            ],
+        });
+
+        const auth = await testEcr.getAuthPull();
+        expect(auth).toEqual({
+            username: 'AWS',
+            password: rawPassword,
+        });
+    });
+
+    test('should handle base64 authorizationToken when password contains colons', async () => {
+        const rawPassword = 'part1:part2:part3:special';
+        const base64Token = Buffer.from(`AWS:${rawPassword}`).toString(
+            'base64',
+        );
+        mockEcrSend.mockResolvedValueOnce({
+            authorizationData: [
+                {
+                    authorizationToken: base64Token,
+                    expiresAt: new Date(Date.now() + 3600 * 1000),
+                },
+            ],
+        });
+
+        const auth = await testEcr.getAuthPull();
+        expect(auth).toEqual({
+            username: 'AWS',
+            password: rawPassword,
+        });
+    });
+
+    test('should handle already formatted user:password token without base64', async () => {
+        mockEcrSend.mockResolvedValueOnce({
+            authorizationData: [
+                {
+                    authorizationToken: 'AWS:plain-password',
+                    expiresAt: new Date(Date.now() + 3600 * 1000),
+                },
+            ],
+        });
+
+        const auth = await testEcr.getAuthPull();
+        expect(auth).toEqual({
+            username: 'AWS',
+            password: 'plain-password',
+        });
+    });
+
+    test('should fallback to username AWS when authorizationToken is not user:password', async () => {
+        mockEcrSend.mockResolvedValueOnce({
+            authorizationData: [
+                {
+                    authorizationToken: 'raw-unencoded-token',
+                    expiresAt: new Date(Date.now() + 3600 * 1000),
+                },
+            ],
+        });
+
+        const auth = await testEcr.getAuthPull();
+        expect(auth).toEqual({
+            username: 'AWS',
+            password: 'raw-unencoded-token',
+        });
+    });
+
+    test('should reuse cached token when it has not expired', async () => {
+        const base64Token = Buffer.from('AWS:cached-token').toString('base64');
+        mockEcrSend.mockResolvedValueOnce({
+            authorizationData: [
+                {
+                    authorizationToken: base64Token,
+                    expiresAt: new Date(Date.now() + 3600 * 1000),
+                },
+            ],
+        });
+
+        const firstAuth = await testEcr.getAuthPull();
+        expect(firstAuth).toEqual({
+            username: 'AWS',
+            password: 'cached-token',
+        });
+        expect(mockEcrSend).toHaveBeenCalledTimes(1);
+
+        // Second call should hit the cache without calling AWS again
+        const secondAuth = await testEcr.getAuthPull();
+        expect(secondAuth).toEqual({
+            username: 'AWS',
+            password: 'cached-token',
+        });
+        expect(mockEcrSend).toHaveBeenCalledTimes(1);
+    });
+
+    test('should refresh token when cached token has expired', async () => {
+        const expiredToken =
+            Buffer.from('AWS:expired-token').toString('base64');
+        const refreshedToken = Buffer.from('AWS:refreshed-token').toString(
+            'base64',
+        );
+
+        mockEcrSend
+            .mockResolvedValueOnce({
+                authorizationData: [
+                    {
+                        authorizationToken: expiredToken,
+                        // Expired 10 seconds ago
+                        expiresAt: new Date(Date.now() - 10 * 1000),
+                    },
+                ],
+            })
+            .mockResolvedValueOnce({
+                authorizationData: [
+                    {
+                        authorizationToken: refreshedToken,
+                        expiresAt: new Date(Date.now() + 3600 * 1000),
+                    },
+                ],
+            });
+
+        const firstAuth = await testEcr.getAuthPull();
+        expect(firstAuth).toEqual({
+            username: 'AWS',
+            password: 'expired-token',
+        });
+        expect(mockEcrSend).toHaveBeenCalledTimes(1);
+
+        // Second call should notice expiration and refresh
+        const secondAuth = await testEcr.getAuthPull();
+        expect(secondAuth).toEqual({
+            username: 'AWS',
+            password: 'refreshed-token',
+        });
+        expect(mockEcrSend).toHaveBeenCalledTimes(2);
+    });
+
+    test('should pass configured accountid to ECRClient', async () => {
+        testEcr.configuration.accountid = '123456789012';
+        const base64Token = Buffer.from('AWS:account-token').toString('base64');
+        mockEcrSend.mockResolvedValueOnce({
+            authorizationData: [
+                {
+                    authorizationToken: base64Token,
+                    expiresAt: new Date(Date.now() + 3600 * 1000),
+                },
+            ],
+        });
+
+        await testEcr.getAuthPull();
+        expect(mockEcrSend).toHaveBeenCalledTimes(1);
+    });
+
+    test('should throw error when authorizationData is empty', async () => {
+        mockEcrSend.mockResolvedValueOnce({
+            authorizationData: [],
+        });
+
+        await expect(testEcr.getAuthPull()).rejects.toThrow(
+            'Unable to obtain ECR authorization token',
+        );
+        expect(testEcr.log.error).toHaveBeenCalled();
+    });
+
+    test('should throw error when authorizationToken is missing in authorizationData', async () => {
+        mockEcrSend.mockResolvedValueOnce({
+            authorizationData: [{ expiresAt: new Date() }],
+        });
+
+        await expect(testEcr.getAuthPull()).rejects.toThrow(
+            'Unable to obtain ECR authorization token',
+        );
+        expect(testEcr.log.error).toHaveBeenCalled();
+    });
+
+    test('should throw error and log when ECRClient.send fails', async () => {
+        mockEcrSend.mockRejectedValueOnce(
+            new Error('The security token included in the request is invalid'),
+        );
+
+        await expect(testEcr.getAuthPull()).rejects.toThrow(
+            'The security token included in the request is invalid',
+        );
+        expect(testEcr.log.error).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'Failed to get ECR authorization token for pull: The security token included in the request is invalid',
+            ),
+        );
     });
 });
 
