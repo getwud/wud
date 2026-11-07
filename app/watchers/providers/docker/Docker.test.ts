@@ -5618,6 +5618,52 @@ describe('Docker Watcher', () => {
                 expect(res.labels).toEqual(inspectObj.Config.Labels);
             });
 
+            test('addImageDetailsToContainer should extract org.opencontainers.image.version from image labels', async () => {
+                await docker.register('watcher', 'docker', 'test', {});
+                mockDockerApi.getImage.mockReturnValue({
+                    inspect: jest.fn().mockResolvedValue({
+                        Id: 'sha256:image123',
+                        Architecture: 'amd64',
+                        Os: 'linux',
+                        Config: {
+                            Labels: {
+                                'org.opencontainers.image.version': '1.2.3',
+                            },
+                        },
+                    }),
+                });
+                const res = await docker.addImageDetailsToContainer({
+                    Id: 'container-version-test',
+                    Name: '/versioned-app',
+                    Image: 'myorg/versioned:latest',
+                    State: { Status: 'running' },
+                });
+                expect(res).toBeDefined();
+                expect(res.image.version).toBe('1.2.3');
+
+                // When label is empty string
+                mockDockerApi.getImage.mockReturnValue({
+                    inspect: jest.fn().mockResolvedValue({
+                        Id: 'sha256:image456',
+                        Architecture: 'amd64',
+                        Os: 'linux',
+                        Config: {
+                            Labels: {
+                                'org.opencontainers.image.version': '   ',
+                            },
+                        },
+                    }),
+                });
+                const resEmpty = await docker.addImageDetailsToContainer({
+                    Id: 'container-empty-version',
+                    Name: '/empty-version-app',
+                    Image: 'myorg/empty:latest',
+                    State: { Status: 'running' },
+                });
+                expect(resEmpty).toBeDefined();
+                expect(resEmpty.image.version).toBeUndefined();
+            });
+
             test('reconcileStoreContainers should prune dead containers from store that no longer exist in Docker (#1440)', async () => {
                 await docker.register('watcher', 'docker', 'test', {});
                 docker.pruneContainerFromStore = jest

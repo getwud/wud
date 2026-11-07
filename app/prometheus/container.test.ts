@@ -171,6 +171,49 @@ test('gauge must accept a container carrying a remote version and build date', a
     );
 });
 
+test('gauge must accept a container carrying a local image version and semverDiff rebuild', async () => {
+    let onAdded;
+    event.registerContainerAdded.mockImplementation((handler) => {
+        onAdded = handler;
+        return jest.fn();
+    });
+    event.registerContainerUpdated.mockImplementation(() => jest.fn());
+    event.registerContainerRemoved.mockImplementation(() => jest.fn());
+
+    const withImageVersion = {
+        ...sampleContainers[0],
+        image: {
+            ...sampleContainers[0].image,
+            version: '2.3.7',
+        },
+        updateKind: {
+            kind: 'digest',
+            localValue: 'sha256:1111',
+            remoteValue: 'sha256:2222',
+            semverDiff: 'rebuild',
+        },
+    };
+    store.getContainers = jest.fn(() => [withImageVersion]);
+
+    const spyLog = jest.spyOn(log, 'warn');
+    const gauge = container.init();
+    const spySet = jest.spyOn(gauge, 'set');
+    spySet.mockClear();
+    spyLog.mockClear();
+
+    onAdded(withImageVersion);
+    container.populateGauge();
+
+    expect(spyLog).not.toHaveBeenCalled();
+    expect(spySet).toHaveBeenCalledWith(
+        expect.objectContaining({
+            image_version: '2.3.7',
+            update_kind_semver_diff: 'rebuild',
+        }),
+        1,
+    );
+});
+
 test('gauge must filter out undeclared labels without crashing or dropping container', async () => {
     let onAdded;
     event.registerContainerAdded.mockImplementation((handler) => {

@@ -66,6 +66,7 @@ export const containerImages = sqliteTable('container_images', {
     os: text('os').notNull(),
     variant: text('variant'),
     created: text('created'),
+    version: text('version'),
 });
 
 // Container results history table (One-to-Many with container)
@@ -79,6 +80,7 @@ export const containerResultsHistory = sqliteTable(
         tag: text('tag'),
         digest: text('digest'),
         created: text('created'),
+        version: text('version'),
         link: text('link'),
         updateAvailable: integer('update_available', { mode: 'boolean' })
             .notNull()

@@ -808,6 +808,12 @@ export class Nomad extends Watcher {
                 },
                 architecture,
                 os: 'linux',
+                version:
+                    typeof mergedMeta?.['org.opencontainers.image.version'] ===
+                        'string' &&
+                    mergedMeta['org.opencontainers.image.version'].trim() !== ''
+                        ? mergedMeta['org.opencontainers.image.version'].trim()
+                        : undefined,
             },
             labels: mergedMeta,
             snoozedVersion: containerInStore?.snoozedVersion,

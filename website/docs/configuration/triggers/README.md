@@ -186,6 +186,10 @@ In addition to provider-specific settings, all triggers support the following co
 - **`minor-only`**: Executes the trigger only for `minor` semver updates.
 - **`patch`**: Executes the trigger only for `patch` semver updates.
 
+:::tip[SemVer Evaluation for Digest Updates]
+When both the local image and remote image expose OCI version metadata (`org.opencontainers.image.version`), digest updates are also evaluated against SemVer thresholds. Equal versions detected by digest are classified as `rebuild` updates (matching `all`, `major`, `minor`, and `patch` thresholds, while excluded by `*-only` thresholds).
+:::
+
 ---
 
 ## 📝 Template Placeholders & Variables

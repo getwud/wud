@@ -50,6 +50,15 @@
         {{ image.tag.value }}
       </v-list-item-subtitle>
     </v-list-item>
+    <v-list-item v-if="image.version">
+      <template v-slot:prepend>
+        <v-icon color="secondary">mdi-package-variant</v-icon>
+      </template>
+      <v-list-item-title>Version</v-list-item-title>
+      <v-list-item-subtitle>
+        {{ image.version }}
+      </v-list-item-subtitle>
+    </v-list-item>
     <v-list-item v-if="image.digest.value">
       <template v-slot:prepend>
         <v-icon color="secondary">mdi-function-variant</v-icon>

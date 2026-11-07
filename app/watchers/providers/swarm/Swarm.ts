@@ -565,6 +565,17 @@ export class Swarm extends Watcher {
                     },
                     architecture,
                     os: 'linux',
+                    version:
+                        typeof mergedLabels?.[
+                            'org.opencontainers.image.version'
+                        ] === 'string' &&
+                        mergedLabels[
+                            'org.opencontainers.image.version'
+                        ].trim() !== ''
+                            ? mergedLabels[
+                                  'org.opencontainers.image.version'
+                              ].trim()
+                            : undefined,
                 },
                 labels: mergedLabels,
                 stack: stack || undefined,

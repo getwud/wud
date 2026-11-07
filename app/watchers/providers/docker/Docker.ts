@@ -2019,6 +2019,13 @@ export class Docker extends Watcher {
         const variant = image.Variant;
         const created = image.Created;
         const imageId = image.Id;
+        const rawVersion =
+            image.Config?.Labels?.['org.opencontainers.image.version'] ||
+            image.ContainerConfig?.Labels?.['org.opencontainers.image.version'];
+        const version =
+            typeof rawVersion === 'string' && rawVersion.trim() !== ''
+                ? rawVersion.trim()
+                : undefined;
 
         // Parse image to get registry, organization...
         let imageNameToParse = container.Config?.Image || container.Image;
@@ -2176,6 +2183,7 @@ export class Docker extends Watcher {
                 os,
                 variant,
                 created,
+                version,
             },
             labels: containerLabels,
             snoozedVersion: containerInStore?.snoozedVersion,

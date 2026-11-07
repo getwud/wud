@@ -625,4 +625,61 @@ describe('Container Store (SQLite)', () => {
             ),
         ).toBe(false);
     });
+
+    test('insertContainer and updateContainer should persist and retrieve version on image and result', () => {
+        const containerWithVersion = {
+            ...sampleContainer,
+            id: 'container-version-store-test',
+            image: {
+                ...sampleContainer.image,
+                version: '1.2.3',
+            },
+            result: {
+                tag: 'latest',
+                digest: 'sha256:new',
+                version: '1.2.4',
+            },
+        };
+
+        const inserted = container.insertContainer(containerWithVersion);
+        expect(inserted.image.version).toBe('1.2.3');
+        expect(inserted.result?.version).toBe('1.2.4');
+
+        const fetched = container.getContainer('container-version-store-test');
+        expect(fetched?.image.version).toBe('1.2.3');
+        expect(fetched?.result?.version).toBe('1.2.4');
+
+        const history = container.getContainerHistory(
+            'container-version-store-test',
+        );
+        expect(history[0].version).toBe('1.2.4');
+
+        // Update container with new version
+        const updated = container.updateContainer({
+            ...containerWithVersion,
+            image: {
+                ...containerWithVersion.image,
+                version: '1.2.4',
+            },
+            result: {
+                tag: 'latest',
+                digest: 'sha256:newer',
+                version: '2.0.0',
+            },
+        });
+        expect(updated.image.version).toBe('1.2.4');
+        expect(updated.result?.version).toBe('2.0.0');
+
+        const fetchedUpdated = container.getContainer(
+            'container-version-store-test',
+        );
+        expect(fetchedUpdated?.image.version).toBe('1.2.4');
+        expect(fetchedUpdated?.result?.version).toBe('2.0.0');
+
+        const historyUpdated = container.getContainerHistory(
+            'container-version-store-test',
+        );
+        expect(historyUpdated.length).toBe(2);
+        expect(historyUpdated[0].version).toBe('2.0.0');
+    });
 });

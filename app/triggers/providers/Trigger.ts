@@ -118,22 +118,21 @@ class Trigger extends Component {
         if (
             normalizedThreshold !== 'all' &&
             containerResult.updateKind &&
-            containerResult.updateKind.kind === 'tag' &&
             containerResult.updateKind.semverDiff &&
             containerResult.updateKind.semverDiff !== 'unknown'
         ) {
             switch (normalizedThreshold) {
                 case 'major-only':
                     thresholdPassing =
-                        containerResult.updateKind.semverDiff == 'major';
+                        containerResult.updateKind.semverDiff === 'major';
                     break;
                 case 'minor-only':
                     thresholdPassing =
-                        containerResult.updateKind.semverDiff == 'minor';
+                        containerResult.updateKind.semverDiff === 'minor';
                     break;
                 case 'patch-only':
                     thresholdPassing =
-                        containerResult.updateKind.semverDiff == 'patch';
+                        containerResult.updateKind.semverDiff === 'patch';
                     break;
                 case 'major':
                     thresholdPassing = true;
@@ -170,7 +169,6 @@ class Trigger extends Component {
         }
         if (
             !containerResult.updateKind ||
-            containerResult.updateKind.kind !== 'tag' ||
             !containerResult.updateKind.semverDiff ||
             containerResult.updateKind.semverDiff === 'unknown'
         ) {

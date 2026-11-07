@@ -106,6 +106,44 @@ describe('ContainerItem', () => {
     expect(wrapper.vm.newVersionClass).toBe('success');
   });
 
+  it('displays correct update severity color for digest updates with semverDiff', async () => {
+    // digest major
+    await wrapper.setProps({
+      container: {
+        ...mockContainer,
+        updateKind: { kind: 'digest', semverDiff: 'major', remoteValue: 'sha256:1111222233334444' }
+      }
+    });
+    expect(wrapper.vm.newVersionClass).toBe('error');
+
+    // digest minor
+    await wrapper.setProps({
+      container: {
+        ...mockContainer,
+        updateKind: { kind: 'digest', semverDiff: 'minor', remoteValue: 'sha256:1111222233334444' }
+      }
+    });
+    expect(wrapper.vm.newVersionClass).toBe('warning');
+
+    // digest patch
+    await wrapper.setProps({
+      container: {
+        ...mockContainer,
+        updateKind: { kind: 'digest', semverDiff: 'patch', remoteValue: 'sha256:1111222233334444' }
+      }
+    });
+    expect(wrapper.vm.newVersionClass).toBe('success');
+
+    // digest rebuild
+    await wrapper.setProps({
+      container: {
+        ...mockContainer,
+        updateKind: { kind: 'digest', semverDiff: 'rebuild', remoteValue: 'sha256:1111222233334444' }
+      }
+    });
+    expect(wrapper.vm.newVersionClass).toBe('info');
+  });
+
   it('shows grouping header when grouping label changes', async () => {
     const previousContainer = {
       ...mockContainer,
