@@ -12,6 +12,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🚀 [TRIGGER] Support rollback notifications in the XMPP trigger
 - 🚀 [WATCHER] Configure Docker digest watching centrally per container name with `CONTAINERDIGESTS`, preserving label precedence and existing defaults.
 - 🐛 [AUTH] Support customizable ID token signature algorithm (e.g. ES256 with Authentik) (fixes #332)
+- 🐛 [CORE] Increase EventEmitter maxListeners to avoid memory leak warning with many triggers (#306)
 - 🐛 [REGISTRY] Fix Docker pull authentication failure on AWS private ECR registries (fixes #726)
 - 🐛 [REGISTRY] Fix resolution of OCI manifests missing mediaType property in payload (fixes #1530)
 - 🐛 [REGISTRY] Mask proxy credentials in registry configurations

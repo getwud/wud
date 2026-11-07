@@ -3,6 +3,7 @@ import events from 'events';
 
 // Build EventEmitter
 const eventEmitter = new events.EventEmitter();
+eventEmitter.setMaxListeners(0);
 
 // Container related events
 const WUD_CONTAINER_ADDED = 'wud:container-added';
@@ -266,4 +267,19 @@ export function unregisterWatchProgress(handler) {
 }
 export function unregisterWatchStop(handler) {
     eventEmitter.off(WUD_WATCH_STOP, handler);
+}
+
+/**
+ * Set max listeners for the event emitter (0 for unlimited).
+ * @param maxListeners
+ */
+export function setMaxListeners(maxListeners: number): void {
+    eventEmitter.setMaxListeners(maxListeners);
+}
+
+/**
+ * Get max listeners for the event emitter (0 means unlimited).
+ */
+export function getMaxListeners(): number {
+    return eventEmitter.getMaxListeners();
 }
