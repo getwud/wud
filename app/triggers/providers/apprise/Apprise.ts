@@ -39,36 +39,51 @@ class Apprise extends Trigger {
 
     /**
      * Send an HTTP Request to Apprise.
-     * @param container the container
-     * @returns {Promise<void>}
+     * @param title the title
+     * @param body the body
+     * @param type the notification type ('info' | 'warning' etc.)
+     * @returns {Promise<*>}
      */
-    async trigger(container) {
+    async sendNotification(title, body, type = 'info') {
         let uri = `${this.configuration.url}/notify`;
-        const body = {
-            title: this.renderSimpleTitle(container),
-            body: this.renderSimpleBody(container),
+        const data = {
+            title,
+            body,
             format: 'text',
-            type: 'info',
+            type,
         };
 
         // Persistent storage usage (target apprise yml config file and tags)
         if (this.configuration.config) {
             uri += `/${this.configuration.config}`;
             if (this.configuration.tag) {
-                body.tag = this.configuration.tag;
+                data.tag = this.configuration.tag;
             }
 
             // Standard usage
         } else {
-            body.urls = this.configuration.urls;
+            data.urls = this.configuration.urls;
         }
         const options = {
             method: 'POST',
             url: uri,
-            data: body,
+            data,
         };
         const response = await axios(options);
         return response.data;
+    }
+
+    /**
+     * Send an HTTP Request to Apprise.
+     * @param container the container
+     * @returns {Promise<void>}
+     */
+    async trigger(container) {
+        return this.sendNotification(
+            this.renderSimpleTitle(container),
+            this.renderSimpleBody(container),
+            'info',
+        );
     }
 
     /**
@@ -77,19 +92,11 @@ class Apprise extends Trigger {
      * @returns {Promise<*>}
      */
     async triggerBatch(containers) {
-        const options = {
-            method: 'POST',
-            url: `${this.configuration.url}/notify`,
-            data: {
-                urls: this.configuration.urls,
-                title: this.renderBatchTitle(containers),
-                body: this.renderBatchBody(containers),
-                format: 'text',
-                type: 'info',
-            },
-        };
-        const response = await axios(options);
-        return response.data;
+        return this.sendNotification(
+            this.renderBatchTitle(containers),
+            this.renderBatchBody(containers),
+            'info',
+        );
     }
 
     /**
@@ -105,30 +112,11 @@ class Apprise extends Trigger {
      * @returns {Promise<*>}
      */
     async triggerRollback(rollbackReport) {
-        let uri = `${this.configuration.url}/notify`;
-        const body = {
-            title: this.renderRollbackTitle(rollbackReport),
-            body: this.renderRollbackBody(rollbackReport),
-            format: 'text',
-            type: 'warning',
-        };
-
-        if (this.configuration.config) {
-            uri += `/${this.configuration.config}`;
-            if (this.configuration.tag) {
-                body.tag = this.configuration.tag;
-            }
-        } else {
-            body.urls = this.configuration.urls;
-        }
-
-        const options = {
-            method: 'POST',
-            url: uri,
-            data: body,
-        };
-        const response = await axios(options);
-        return response.data;
+        return this.sendNotification(
+            this.renderRollbackTitle(rollbackReport),
+            this.renderRollbackBody(rollbackReport),
+            'warning',
+        );
     }
 }
 
