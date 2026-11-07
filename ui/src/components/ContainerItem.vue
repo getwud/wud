@@ -433,10 +433,7 @@ export default defineComponent({
 
     newVersionClass() {
       let color = "warning";
-      if (
-        this.container.updateKind &&
-        this.container.updateKind.kind === "tag"
-      ) {
+      if (this.container.updateKind?.semverDiff) {
         switch (this.container.updateKind.semverDiff) {
           case "major":
             color = "error";
@@ -446,6 +443,10 @@ export default defineComponent({
             break;
           case "patch":
             color = "success";
+            break;
+          case "rebuild":
+          case "same":
+            color = "info";
             break;
         }
       }

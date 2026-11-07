@@ -35,6 +35,7 @@ export const CONTAINER_METRIC_LABEL_NAMES = [
     'image_tag_semver',
     'image_tag_value',
     'image_variant',
+    'image_version',
     'include_tags',
     'is_cooling_down',
     'is_official',

@@ -1,4 +1,5 @@
 import joi from 'joi';
+import semver from 'semver';
 import flat from 'flat';
 import { snakeCase } from 'snake-case';
 import logger from '../log';
@@ -42,6 +43,7 @@ export interface ContainerImage {
     os: string;
     variant?: string;
     created?: string;
+    version?: string;
 }
 
 export interface ContainerResult {
@@ -63,7 +65,14 @@ export interface ContainerUpdateKind {
     kind: 'tag' | 'digest' | 'unknown';
     localValue?: string;
     remoteValue?: string;
-    semverDiff?: 'major' | 'minor' | 'patch' | 'prerelease' | 'unknown';
+    semverDiff?:
+        | 'major'
+        | 'minor'
+        | 'patch'
+        | 'prerelease'
+        | 'rebuild'
+        | 'same'
+        | 'unknown';
 }
 
 export interface Container {
@@ -225,6 +234,7 @@ const schema = joi.object({
             os: joi.string().min(1).required(),
             variant: joi.string(),
             created: joi.string().isoDate(),
+            version: joi.string().optional().allow(null, ''),
         })
         .required(),
     result: joi.object({
@@ -252,7 +262,15 @@ const schema = joi.object({
             remoteValue: joi.string(),
             semverDiff: joi
                 .string()
-                .allow('major', 'minor', 'patch', 'prerelease', 'unknown'),
+                .allow(
+                    'major',
+                    'minor',
+                    'patch',
+                    'prerelease',
+                    'rebuild',
+                    'same',
+                    'unknown',
+                ),
         })
         .default({ kind: 'unknown' }),
     resultChanged: joi.function(),
@@ -956,6 +974,55 @@ function addUpdateKindProperty(container: Container) {
                     updateKind.kind = 'digest';
                     updateKind.localValue = container.image.digest.value;
                     updateKind.remoteValue = container.result.digest;
+                    if (
+                        container.image.version !== undefined &&
+                        container.image.version !== null &&
+                        container.image.version !== '' &&
+                        container.result.version !== undefined &&
+                        container.result.version !== null &&
+                        container.result.version !== ''
+                    ) {
+                        try {
+                            const v1 = parseSemver(container.image.version);
+                            const v2 = parseSemver(container.result.version);
+                            if (!v1 || !v2) {
+                                updateKind.semverDiff = 'unknown';
+                            } else {
+                                const rawDiff = diffSemver(
+                                    container.image.version,
+                                    container.result.version,
+                                );
+                                if (rawDiff) {
+                                    switch (rawDiff) {
+                                        case 'major':
+                                        case 'premajor':
+                                            updateKind.semverDiff = 'major';
+                                            break;
+                                        case 'minor':
+                                        case 'preminor':
+                                            updateKind.semverDiff = 'minor';
+                                            break;
+                                        case 'patch':
+                                        case 'prepatch':
+                                            updateKind.semverDiff = 'patch';
+                                            break;
+                                        case 'prerelease':
+                                            updateKind.semverDiff =
+                                                'prerelease';
+                                            break;
+                                        default:
+                                            updateKind.semverDiff = 'unknown';
+                                    }
+                                } else if (semver.eq(v1, v2)) {
+                                    updateKind.semverDiff = 'rebuild';
+                                } else {
+                                    updateKind.semverDiff = 'unknown';
+                                }
+                            }
+                        } catch {
+                            updateKind.semverDiff = 'unknown';
+                        }
+                    }
                 }
             }
             return updateKind;

@@ -801,6 +801,12 @@ components:
                 image:
                     type: object
                     additionalProperties: true
+                    properties:
+                        version:
+                            type: string
+                            description: |
+                                The local image's `org.opencontainers.image.version` label, when it
+                                carries one.
                 updateAvailable:
                     type: boolean
                 isSnoozed:
@@ -817,10 +823,27 @@ components:
                     properties:
                         kind:
                             type: string
+                            enum: [tag, digest, unknown]
                         localValue:
                             type: string
                         remoteValue:
                             type: string
+                        semverDiff:
+                            type: string
+                            enum:
+                                [
+                                    major,
+                                    minor,
+                                    patch,
+                                    prerelease,
+                                    rebuild,
+                                    same,
+                                    unknown,
+                                ]
+                            description: |
+                                The SemVer difference between local and target versions. When an update is
+                                detected by digest and both images expose OCI version metadata, semverDiff
+                                is computed from their versions (or 'rebuild' when versions are equal).
                 result:
                     type: object
                     description: |

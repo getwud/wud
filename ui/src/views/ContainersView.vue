@@ -711,18 +711,20 @@ export default defineComponent({
       return [...new Set(allStacks)].sort();
     },
     updateKinds() {
-      const kinds = this.containers
+      const kinds: string[] = [];
+      this.containers
         .filter((c) => c.updateAvailable)
-        .map((c) => {
+        .forEach((c) => {
           if (c.updateKind?.kind === "digest") {
-            return "digest";
+            kinds.push("digest");
           }
-          if (c.updateKind?.kind === "tag" && c.updateKind?.semverDiff) {
-            return c.updateKind.semverDiff;
+          if (
+            c.updateKind?.semverDiff &&
+            c.updateKind.semverDiff !== "unknown"
+          ) {
+            kinds.push(c.updateKind.semverDiff);
           }
-          return null;
-        })
-        .filter((k): k is string => Boolean(k));
+        });
       return [...new Set(kinds)].sort();
     },
     containersFiltered() {
@@ -806,11 +808,17 @@ export default defineComponent({
     },
 
     getNewVersionClass(container: any) {
-      if (container.updateKind?.kind === "tag") {
+      if (container.updateKind?.semverDiff) {
         switch (container.updateKind.semverDiff) {
-          case "major": return "error";
-          case "minor": return "warning";
-          case "patch": return "success";
+          case "major":
+            return "error";
+          case "minor":
+            return "warning";
+          case "patch":
+            return "success";
+          case "rebuild":
+          case "same":
+            return "info";
         }
       }
       return "info";

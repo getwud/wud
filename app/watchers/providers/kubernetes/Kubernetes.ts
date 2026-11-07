@@ -914,6 +914,18 @@ export class Kubernetes extends Watcher {
                 },
                 architecture,
                 os: 'linux',
+                version:
+                    typeof annotations?.['org.opencontainers.image.version'] ===
+                        'string' &&
+                    annotations['org.opencontainers.image.version'].trim() !==
+                        ''
+                        ? annotations['org.opencontainers.image.version'].trim()
+                        : typeof annotations?.['app.kubernetes.io/version'] ===
+                                'string' &&
+                            annotations['app.kubernetes.io/version'].trim() !==
+                                ''
+                          ? annotations['app.kubernetes.io/version'].trim()
+                          : undefined,
             },
             labels: annotations,
             snoozedVersion: containerInStore?.snoozedVersion,

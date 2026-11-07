@@ -83,6 +83,7 @@ function buildContainerFromRows(
             os: imageRow.os,
             variant: imageRow.variant ?? undefined,
             created: imageRow.created ?? undefined,
+            version: imageRow.version ?? undefined,
         };
     }
 
@@ -92,6 +93,7 @@ function buildContainerFromRows(
                 tag: historyRow.tag ?? undefined,
                 digest: historyRow.digest ?? undefined,
                 created: historyRow.created ?? undefined,
+                version: historyRow.version ?? undefined,
                 link: historyRow.link ?? undefined,
             };
         }
@@ -189,6 +191,7 @@ export function completeContainerShapeForApi(container: Container): Container {
             os: container.image.os,
             variant: container.image.variant ?? undefined,
             created: container.image.created ?? undefined,
+            version: container.image.version ?? undefined,
         };
     }
 
@@ -197,6 +200,7 @@ export function completeContainerShapeForApi(container: Container): Container {
             tag: container.result.tag ?? undefined,
             digest: container.result.digest ?? undefined,
             created: container.result.created ?? undefined,
+            version: container.result.version ?? undefined,
             link: container.result.link ?? undefined,
         };
     }
@@ -278,6 +282,7 @@ export function insertContainer(container: any): Container {
                 os: containerToSave.image.os,
                 variant: containerToSave.image.variant,
                 created: containerToSave.image.created,
+                version: containerToSave.image.version,
             })
             .run();
     }
@@ -290,6 +295,7 @@ export function insertContainer(container: any): Container {
                 tag: containerToSave.result?.tag,
                 digest: containerToSave.result?.digest,
                 created: containerToSave.result?.created,
+                version: containerToSave.result?.version,
                 link: containerToSave.result?.link,
                 updateAvailable: containerToSave.updateAvailable,
                 updateKind: containerToSave.updateKind?.kind,
@@ -386,6 +392,7 @@ export function updateContainer(container: any): Container {
                 os: containerToReturn.image.os,
                 variant: containerToReturn.image.variant,
                 created: containerToReturn.image.created,
+                version: containerToReturn.image.version,
             })
             .onConflictDoUpdate({
                 target: schema.containerImages.containerId,
@@ -403,6 +410,7 @@ export function updateContainer(container: any): Container {
                     os: containerToReturn.image.os,
                     variant: containerToReturn.image.variant,
                     created: containerToReturn.image.created,
+                    version: containerToReturn.image.version,
                 },
             })
             .run();
@@ -437,6 +445,7 @@ export function updateContainer(container: any): Container {
                 .set({
                     checkedAt: sql`CURRENT_TIMESTAMP`,
                     created: containerToReturn.result?.created,
+                    version: containerToReturn.result?.version,
                     updateAvailable: containerToReturn.updateAvailable,
                     updateKind: containerToReturn.updateKind?.kind,
                     localValue: containerToReturn.updateKind?.localValue,
@@ -453,6 +462,7 @@ export function updateContainer(container: any): Container {
                     tag: containerToReturn.result?.tag,
                     digest: containerToReturn.result?.digest,
                     created: containerToReturn.result?.created,
+                    version: containerToReturn.result?.version,
                     link: containerToReturn.result?.link,
                     updateAvailable: containerToReturn.updateAvailable,
                     updateKind: containerToReturn.updateKind?.kind,

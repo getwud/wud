@@ -140,6 +140,14 @@ export const migrations: Migration[] = [
         name: '0004_container_delay',
         sql: [`ALTER TABLE containers ADD COLUMN delay TEXT;`],
     },
+    {
+        id: 5,
+        name: '0005_image_and_result_version',
+        sql: [
+            `ALTER TABLE container_images ADD COLUMN version TEXT;`,
+            `ALTER TABLE container_results_history ADD COLUMN version TEXT;`,
+        ],
+    },
 ];
 
 export function runMigrations(sqlite: Database.Database) {

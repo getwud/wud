@@ -564,6 +564,55 @@ test('addUpdateKindProperty should detect digest update', async () => {
     });
 });
 
+test('addUpdateKindProperty should compute semverDiff for digest update when versions present', async () => {
+    const { testable_addUpdateKindProperty: addUpdateKindProperty } = container;
+
+    const cases = [
+        { v1: '1.0.0', v2: '2.0.0', expected: 'major' },
+        { v1: '1.0.0', v2: '1.2.0', expected: 'minor' },
+        { v1: '1.0.0', v2: '1.0.1', expected: 'patch' },
+        { v1: '1.0.0-rc.1', v2: '1.0.0-rc.2', expected: 'prerelease' },
+        { v1: '1.0.0', v2: '1.0.0', expected: 'rebuild' },
+        { v1: 'invalid-alpha', v2: 'invalid-beta', expected: 'unknown' },
+    ];
+
+    for (const c of cases) {
+        const obj: any = {
+            updateAvailable: true,
+            image: {
+                tag: { value: 'latest', semver: false },
+                digest: { value: 'sha256:old' },
+                version: c.v1,
+            },
+            result: {
+                tag: 'latest',
+                digest: 'sha256:new',
+                version: c.v2,
+            },
+        };
+        addUpdateKindProperty(obj);
+        expect(obj.updateKind.kind).toBe('digest');
+        expect(obj.updateKind.semverDiff).toBe(c.expected);
+    }
+
+    // Missing version on one side leaves semverDiff undefined
+    const missingOne: any = {
+        updateAvailable: true,
+        image: {
+            tag: { value: 'latest', semver: false },
+            digest: { value: 'sha256:old' },
+            version: '1.0.0',
+        },
+        result: {
+            tag: 'latest',
+            digest: 'sha256:new',
+        },
+    };
+    addUpdateKindProperty(missingOne);
+    expect(missingOne.updateKind.kind).toBe('digest');
+    expect(missingOne.updateKind.semverDiff).toBeUndefined();
+});
+
 test('addUpdateKindProperty should return unknown when no image or result', async () => {
     const { testable_addUpdateKindProperty: addUpdateKindProperty } = container;
     const containerObject = {};

@@ -150,6 +150,30 @@ describe('ContainersView', () => {
     expect(filtered[0].id).toBe('2');
   });
 
+  it('filters containers by update kind when updateKindSelected is rebuild for digest update', async () => {
+    wrapper.vm.containers = [
+      {
+        id: '1',
+        displayName: 'Rebuild Digest Container',
+        updateAvailable: true,
+        updateKind: { kind: 'digest', semverDiff: 'rebuild' },
+      },
+      {
+        id: '2',
+        displayName: 'Minor Tag Container',
+        updateAvailable: true,
+        updateKind: { kind: 'tag', semverDiff: 'minor' },
+      },
+    ];
+    wrapper.vm.updateKindSelected = 'rebuild';
+    await wrapper.vm.$nextTick();
+
+    const filtered = wrapper.vm.containersFiltered;
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].id).toBe('1');
+    expect(wrapper.vm.getNewVersionClass(filtered[0])).toBe('info');
+  });
+
   it('computes all container labels correctly', () => {
     const labels = wrapper.vm.allContainerLabels;
     expect(labels).toContain('app');

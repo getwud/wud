@@ -365,6 +365,66 @@ const isThresholdReachedTestCases = [
         change: 'unknown',
         kind: 'digest',
     },
+    {
+        result: true,
+        threshold: 'major',
+        change: 'major',
+        kind: 'digest',
+    },
+    {
+        result: true,
+        threshold: 'minor',
+        change: 'minor',
+        kind: 'digest',
+    },
+    {
+        result: false,
+        threshold: 'minor',
+        change: 'major',
+        kind: 'digest',
+    },
+    {
+        result: true,
+        threshold: 'patch',
+        change: 'patch',
+        kind: 'digest',
+    },
+    {
+        result: true,
+        threshold: 'patch',
+        change: 'rebuild',
+        kind: 'digest',
+    },
+    {
+        result: true,
+        threshold: 'minor',
+        change: 'rebuild',
+        kind: 'digest',
+    },
+    {
+        result: true,
+        threshold: 'major',
+        change: 'rebuild',
+        kind: 'digest',
+    },
+    {
+        result: false,
+        threshold: 'major-only',
+        change: 'rebuild',
+        kind: 'digest',
+    },
+    {
+        result: false,
+        threshold: 'minor-only',
+        change: 'rebuild',
+        kind: 'digest',
+    },
+    {
+        result: false,
+        threshold: 'patch-only',
+        change: 'rebuild',
+        kind: 'digest',
+    },
 ];
 
 test.each(isThresholdReachedTestCases)(
@@ -442,6 +502,15 @@ const isExcludeThresholdReachedTestCases = [
     { threshold: 'patch-only', kind: 'tag', change: 'major', expected: false },
     { threshold: 'patch-only', kind: 'tag', change: 'minor', expected: false },
     { threshold: 'patch-only', kind: 'tag', change: 'patch', expected: true },
+
+    // digest updates with semverDiff
+    { threshold: 'major', kind: 'digest', change: 'major', expected: true },
+    { threshold: 'major', kind: 'digest', change: 'minor', expected: false },
+    { threshold: 'minor', kind: 'digest', change: 'minor', expected: true },
+    { threshold: 'minor', kind: 'digest', change: 'patch', expected: false },
+    { threshold: 'patch', kind: 'digest', change: 'patch', expected: true },
+    { threshold: 'patch', kind: 'digest', change: 'rebuild', expected: false },
+    { threshold: 'all', kind: 'digest', change: 'rebuild', expected: true },
 ];
 
 test.each(isExcludeThresholdReachedTestCases)(
