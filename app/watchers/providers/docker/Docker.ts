@@ -55,6 +55,7 @@ import Registry, {
 } from '../../../registries/Registry';
 import { getWatchContainerGauge } from '../../../prometheus/watcher';
 import Watcher, { ReconcileOptions, ContainerReport } from '../../Watcher';
+import { resolveCandidateConfig, resolveDigestConfig } from '../../imageConfig';
 import { ComponentConfiguration } from '../../../registry/Component';
 import { Logger } from 'pino';
 
@@ -1732,6 +1733,14 @@ export class Docker extends Watcher {
                         result.indexDigest = candidateRemoteDigest.indexDigest;
                     }
                 }
+                await resolveCandidateConfig({
+                    registryProvider,
+                    container,
+                    candidateTag,
+                    candidateRemoteDigest,
+                    result,
+                    logContainer,
+                });
             }
 
             // Must watch digest? => Find local/remote digests on registry
@@ -1859,46 +1868,14 @@ export class Docker extends Watcher {
                 // A digest-only update is unreadable on its own ("sha A -> sha B"),
                 // but the remote version label and build date both live in the
                 // image config blob.
-                if (
-                    remoteDigest?.version !== 1 &&
-                    result.digest !== undefined &&
-                    container.image.digest.value !== result.digest
-                ) {
-                    // A pending update stays pending until the user applies it,
-                    // so resolve each remote digest ONCE and reuse it afterwards.
-                    // Without this, every scan would re-request the config of an
-                    // update that is already known -- unwanted traffic against
-                    // registries that rate limit anonymous pulls (Docker Hub
-                    // allows 100 per 6h per IP, and manifest GETs count).
-                    const previousResult = storeContainer.getContainer(
-                        container.id,
-                    )?.result;
-                    if (previousResult?.digest === result.digest) {
-                        result.created = previousResult.created;
-                        result.version = previousResult.version;
-                    } else {
-                        try {
-                            const remoteConfig =
-                                await registryProvider.getImageConfig(
-                                    imageToGetDigestFrom,
-                                    result.digest,
-                                    remoteDigest.configDigest,
-                                );
-                            result.created =
-                                remoteConfig.created ?? result.created;
-                            result.version = remoteConfig.version;
-                        } catch (e: any) {
-                            if (
-                                logContainer &&
-                                typeof logContainer.debug === 'function'
-                            ) {
-                                logContainer.debug(
-                                    `Cannot get remote image config (${e.message})`,
-                                );
-                            }
-                        }
-                    }
-                }
+                await resolveDigestConfig({
+                    registryProvider,
+                    container,
+                    imageToGetDigestFrom,
+                    remoteDigest,
+                    result,
+                    logContainer,
+                });
             }
         }
         return result;

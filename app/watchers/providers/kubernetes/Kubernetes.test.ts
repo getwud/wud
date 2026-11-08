@@ -1190,6 +1190,141 @@ describe('Kubernetes Watcher', () => {
             );
         });
 
+        test('findNewVersion populates result.created and respects cooldown delay when candidate tag is found and watch_digest is false (#1543)', async () => {
+            mockTag.isGreater.mockImplementation((t1, t2) => t1 > t2);
+            const candidateCreated = new Date(
+                Date.now() - 30 * 60 * 1000,
+            ).toISOString();
+            const mockRegistryProvider = {
+                shouldWatchDigest: jest.fn().mockReturnValue(false),
+                getTags: jest.fn().mockResolvedValue(['1.0.0', '1.1.0']),
+                getImageManifestDigest: jest.fn().mockResolvedValue({
+                    digest: 'sha256:remote-digest-110',
+                    configDigest: 'sha256:config-110',
+                    version: 2,
+                }),
+                getImageConfig: jest.fn().mockResolvedValue({
+                    created: candidateCreated,
+                    version: '1.1.0',
+                }),
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'hub.public': mockRegistryProvider },
+            });
+
+            const container: any = {
+                id: 'c1',
+                name: 'test-k8s',
+                watcher: 'kubernetes',
+                delay: '2h',
+                image: {
+                    id: 'sha256:abc',
+                    name: 'test/image',
+                    registry: {
+                        name: 'hub.public',
+                        url: 'https://registry-1.docker.io/v2',
+                    },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+            };
+
+            const mockLogChild = {
+                error: jest.fn(),
+                debug: jest.fn(),
+                warn: jest.fn(),
+                info: jest.fn(),
+            };
+            const result = await kubernetes.findNewVersion(
+                container,
+                mockLogChild,
+            );
+
+            expect(result.tag).toBe('1.1.0');
+            expect(result.digest).toBe('sha256:remote-digest-110');
+            expect(result.created).toBe(candidateCreated);
+            expect(result.version).toBe('1.1.0');
+            expect(mockRegistryProvider.getImageConfig).toHaveBeenCalledTimes(
+                1,
+            );
+
+            const { validate: actualValidate } = jest.requireActual(
+                '../../../model/container',
+            );
+            const validated = actualValidate({
+                ...container,
+                result,
+            });
+            expect(validated.isCoolingDown).toBe(true);
+            expect(validated.coolingDownUntil).toBe(
+                new Date(candidateCreated).getTime() + 2 * 60 * 60 * 1000,
+            );
+            expect(validated.updateAvailable).toBe(false);
+        });
+
+        test('findNewVersion reuses cached result.created for candidate tag when watch_digest is false (#1543)', async () => {
+            mockTag.isGreater.mockImplementation((t1, t2) => t1 > t2);
+            const candidateCreated = '2026-11-08T09:00:00.000Z';
+            const mockRegistryProvider = {
+                shouldWatchDigest: jest.fn().mockReturnValue(false),
+                getTags: jest.fn().mockResolvedValue(['1.0.0', '1.1.0']),
+                getImageManifestDigest: jest.fn().mockResolvedValue({
+                    digest: 'sha256:remote-digest-110',
+                    configDigest: 'sha256:config-110',
+                    version: 2,
+                }),
+                getImageConfig: jest.fn(),
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'hub.public': mockRegistryProvider },
+            });
+            storeContainer.getContainer.mockReturnValueOnce({
+                id: 'c1',
+                result: {
+                    tag: '1.1.0',
+                    created: candidateCreated,
+                    version: '1.1.0',
+                },
+            });
+
+            const container: any = {
+                id: 'c1',
+                name: 'test-k8s',
+                watcher: 'kubernetes',
+                delay: '2h',
+                image: {
+                    id: 'sha256:abc',
+                    name: 'test/image',
+                    registry: {
+                        name: 'hub.public',
+                        url: 'https://registry-1.docker.io/v2',
+                    },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+            };
+
+            const mockLogChild = {
+                error: jest.fn(),
+                debug: jest.fn(),
+                warn: jest.fn(),
+                info: jest.fn(),
+            };
+            const result = await kubernetes.findNewVersion(
+                container,
+                mockLogChild,
+            );
+
+            expect(mockRegistryProvider.getImageConfig).not.toHaveBeenCalled();
+            expect(result.tag).toBe('1.1.0');
+            expect(result.created).toBe(candidateCreated);
+            expect(result.version).toBe('1.1.0');
+        });
+
         test('getTagCandidates interpolates dynamic variables in includeTags and excludeTags', () => {
             mockTag.parse.mockImplementation(
                 jest.requireActual('../../../tag').parse,

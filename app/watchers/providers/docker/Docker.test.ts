@@ -2439,6 +2439,173 @@ describe('Docker Watcher', () => {
             );
         });
 
+        test('should populate result.created and respect cooldown delay when candidate tag is found and watch_digest is false (#1543)', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            mockTag.isGreater.mockImplementation((t1, t2) => t1 > t2);
+            const container = {
+                id: 'container123',
+                name: 'test-app',
+                watcher: 'docker',
+                delay: '2h',
+                image: {
+                    id: 'image123',
+                    name: 'test/image',
+                    registry: {
+                        name: 'hub',
+                        url: 'https://registry-1.docker.io/v2',
+                    },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+            };
+            const candidateCreated = new Date(
+                Date.now() - 30 * 60 * 1000,
+            ).toISOString();
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['1.0.0', '1.1.0']),
+                getImageManifestDigest: jest.fn().mockResolvedValue({
+                    digest: 'sha256:candidate-digest-110',
+                    configDigest: 'sha256:config-110',
+                    version: 2,
+                }),
+                getImageConfig: jest.fn().mockResolvedValue({
+                    created: candidateCreated,
+                    version: '1.1.0',
+                }),
+                shouldWatchDigest: jest.fn(() => false),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const mockLogChild = {
+                error: jest.fn(),
+                debug: jest.fn(),
+                warn: jest.fn(),
+            };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(result.tag).toBe('1.1.0');
+            expect(result.digest).toBe('sha256:candidate-digest-110');
+            expect(result.created).toBe(candidateCreated);
+            expect(result.version).toBe('1.1.0');
+            expect(mockRegistry.getImageConfig).toHaveBeenCalledTimes(1);
+
+            // Verify container cool-down delay behavior using actual container model validation
+            const { validate: actualValidate } = jest.requireActual(
+                '../../../model/container',
+            );
+            const validated = actualValidate({
+                ...container,
+                result,
+            });
+            expect(validated.isCoolingDown).toBe(true);
+            expect(validated.coolingDownUntil).toBe(
+                new Date(candidateCreated).getTime() + 2 * 60 * 60 * 1000,
+            );
+            expect(validated.updateAvailable).toBe(false);
+        });
+
+        test('should reuse cached result.created for candidate tag when watch_digest is false (#1543)', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            mockTag.isGreater.mockImplementation((t1, t2) => t1 > t2);
+            const candidateCreated = '2026-11-08T09:00:00.000Z';
+            const container = {
+                id: 'container123',
+                image: {
+                    id: 'image123',
+                    name: 'test/image',
+                    registry: {
+                        name: 'hub',
+                        url: 'https://registry-1.docker.io/v2',
+                    },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['1.0.0', '1.1.0']),
+                getImageManifestDigest: jest.fn().mockResolvedValue({
+                    digest: 'sha256:candidate-digest-110',
+                    configDigest: 'sha256:config-110',
+                    version: 2,
+                }),
+                getImageConfig: jest.fn(),
+                shouldWatchDigest: jest.fn(() => false),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            storeContainer.getContainer.mockReturnValueOnce({
+                id: 'container123',
+                result: {
+                    tag: '1.1.0',
+                    created: candidateCreated,
+                    version: '1.1.0',
+                },
+            });
+            const mockLogChild = {
+                error: jest.fn(),
+                debug: jest.fn(),
+                warn: jest.fn(),
+            };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(mockRegistry.getImageConfig).not.toHaveBeenCalled();
+            expect(result.tag).toBe('1.1.0');
+            expect(result.created).toBe(candidateCreated);
+            expect(result.version).toBe('1.1.0');
+        });
+
+        test('should set result.created from v1 manifest for candidate tag when watch_digest is false (#1543)', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            mockTag.isGreater.mockImplementation((t1, t2) => t1 > t2);
+            const container = {
+                id: 'container123',
+                image: {
+                    id: 'image123',
+                    name: 'test/image',
+                    registry: {
+                        name: 'hub',
+                        url: 'https://registry-1.docker.io/v2',
+                    },
+                    tag: { value: '1.0.0', semver: true },
+                    digest: { watch: false },
+                    architecture: 'amd64',
+                    os: 'linux',
+                },
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['1.0.0', '1.1.0']),
+                getImageManifestDigest: jest.fn().mockResolvedValue({
+                    digest: 'sha256:legacy-candidate',
+                    created: '2026-01-01T00:00:00Z',
+                    version: 1,
+                }),
+                getImageConfig: jest.fn(),
+                shouldWatchDigest: jest.fn(() => false),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const mockLogChild = {
+                error: jest.fn(),
+                debug: jest.fn(),
+                warn: jest.fn(),
+            };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(mockRegistry.getImageConfig).not.toHaveBeenCalled();
+            expect(result.tag).toBe('1.1.0');
+            expect(result.created).toBe('2026-01-01T00:00:00Z');
+        });
+
         test('should handle digest watching with v1 manifest', async () => {
             await docker.register('watcher', 'docker', 'test', {});
             const container = {

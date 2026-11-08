@@ -56,6 +56,7 @@ import {
 import { isOneshot } from '../../../runtime/mode';
 import { getWatchContainerGauge } from '../../../prometheus/watcher';
 import Watcher from '../../Watcher';
+import { resolveCandidateConfig, resolveDigestConfig } from '../../imageConfig';
 import { ComponentConfiguration } from '../../../registry/Component';
 
 export interface SwarmWatcherConfiguration extends ComponentConfiguration {
@@ -689,6 +690,14 @@ export class Swarm extends Watcher {
                     result.indexDigest = candidateRemoteDigest.indexDigest;
                 }
             }
+            await resolveCandidateConfig({
+                registryProvider,
+                container,
+                candidateTag,
+                candidateRemoteDigest,
+                result,
+                logContainer,
+            });
         }
 
         if (watchDigest && container.image.digest.repo) {
@@ -748,6 +757,15 @@ export class Swarm extends Watcher {
             } else {
                 container.image.digest.value = container.image.digest.repo;
             }
+
+            await resolveDigestConfig({
+                registryProvider,
+                container,
+                imageToGetDigestFrom,
+                remoteDigest,
+                result,
+                logContainer,
+            });
         }
 
         return result;
