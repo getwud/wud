@@ -67,6 +67,7 @@ import {
 } from '../../../registries/Registry';
 import { getWatchContainerGauge } from '../../../prometheus/watcher';
 import Watcher from '../../Watcher';
+import { resolveCandidateConfig, resolveDigestConfig } from '../../imageConfig';
 import Component, { ComponentConfiguration } from '../../../registry/Component';
 
 // ─── Types & constants ────────────────────────────────────────────────────────
@@ -891,6 +892,14 @@ export class Nomad extends Watcher {
                     result.indexDigest = candidateRemoteDigest.indexDigest;
                 }
             }
+            await resolveCandidateConfig({
+                registryProvider,
+                container,
+                candidateTag,
+                candidateRemoteDigest,
+                result,
+                logContainer,
+            });
         }
 
         if (watchDigest && container.image.digest.repo) {
@@ -950,6 +959,15 @@ export class Nomad extends Watcher {
             } else {
                 container.image.digest.value = container.image.digest.repo;
             }
+
+            await resolveDigestConfig({
+                registryProvider,
+                container,
+                imageToGetDigestFrom,
+                remoteDigest,
+                result,
+                logContainer,
+            });
         }
 
         return result;

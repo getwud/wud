@@ -799,6 +799,8 @@ describe('Swarm Watcher - Version Lookup & Watch Cycle', () => {
 
     beforeEach(async () => {
         jest.clearAllMocks();
+        (storeContainer.getContainers as jest.Mock).mockReturnValue([]);
+        (storeContainer.getContainer as jest.Mock).mockReturnValue(undefined);
         watcher = new Swarm();
         await watcher.register('watcher', 'swarm', 'test', {});
     });
@@ -1025,6 +1027,117 @@ describe('Swarm Watcher - Version Lookup & Watch Cycle', () => {
         const result = await watcher.findNewVersion(container, watcher.log);
         expect(mockRegistry.getImageManifestDigest).toHaveBeenCalledTimes(1);
         expect(result.tag).toBe('1.0.0');
+    });
+
+    test('findNewVersion should populate result.created and respect cooldown delay when candidate tag is found and watch_digest is false (#1543)', async () => {
+        const candidateCreated = new Date(
+            Date.now() - 30 * 60 * 1000,
+        ).toISOString();
+        const mockRegistry = {
+            getId: () => 'hub',
+            getTags: jest.fn().mockResolvedValue(['1.0.0', '1.1.0']),
+            getImageManifestDigest: jest.fn().mockResolvedValue({
+                digest: 'sha256:remote-digest-110',
+                configDigest: 'sha256:config-110',
+                version: 2,
+            }),
+            getImageConfig: jest.fn().mockResolvedValue({
+                created: candidateCreated,
+                version: '1.1.0',
+            }),
+            shouldWatchDigest: jest.fn().mockReturnValue(false),
+        };
+
+        (registry.getState as jest.Mock).mockReturnValue({
+            registry: { hub: mockRegistry },
+        });
+
+        const container: any = {
+            id: 'c1',
+            name: 'test-swarm',
+            watcher: 'swarm',
+            delay: '2h',
+            labels: {},
+            image: {
+                id: 'sha256:abc',
+                registry: { name: 'hub', url: 'registry-1.docker.io' },
+                name: 'test/image',
+                tag: { value: '1.0.0', semver: true },
+                digest: { watch: false },
+                architecture: 'amd64',
+                os: 'linux',
+            },
+        };
+
+        const result = await watcher.findNewVersion(container, watcher.log);
+        expect(result.tag).toBe('1.1.0');
+        expect(result.digest).toBe('sha256:remote-digest-110');
+        expect(result.created).toBe(candidateCreated);
+        expect(result.version).toBe('1.1.0');
+        expect(mockRegistry.getImageConfig).toHaveBeenCalledTimes(1);
+
+        const { validate: actualValidate } = jest.requireActual(
+            '../../../model/container',
+        );
+        const validated = actualValidate({
+            ...container,
+            result,
+        });
+        expect(validated.isCoolingDown).toBe(true);
+        expect(validated.coolingDownUntil).toBe(
+            new Date(candidateCreated).getTime() + 2 * 60 * 60 * 1000,
+        );
+        expect(validated.updateAvailable).toBe(false);
+    });
+
+    test('findNewVersion should reuse cached result.created for candidate tag when watch_digest is false (#1543)', async () => {
+        const candidateCreated = '2026-11-08T09:00:00.000Z';
+        const mockRegistry = {
+            getId: () => 'hub',
+            getTags: jest.fn().mockResolvedValue(['1.0.0', '1.1.0']),
+            getImageManifestDigest: jest.fn().mockResolvedValue({
+                digest: 'sha256:remote-digest-110',
+                configDigest: 'sha256:config-110',
+                version: 2,
+            }),
+            getImageConfig: jest.fn(),
+            shouldWatchDigest: jest.fn().mockReturnValue(false),
+        };
+
+        (registry.getState as jest.Mock).mockReturnValue({
+            registry: { hub: mockRegistry },
+        });
+        (storeContainer.getContainer as jest.Mock).mockReturnValueOnce({
+            id: 'c1',
+            result: {
+                tag: '1.1.0',
+                created: candidateCreated,
+                version: '1.1.0',
+            },
+        });
+
+        const container: any = {
+            id: 'c1',
+            name: 'test-swarm',
+            watcher: 'swarm',
+            delay: '2h',
+            labels: {},
+            image: {
+                id: 'sha256:abc',
+                registry: { name: 'hub', url: 'registry-1.docker.io' },
+                name: 'test/image',
+                tag: { value: '1.0.0', semver: true },
+                digest: { watch: false },
+                architecture: 'amd64',
+                os: 'linux',
+            },
+        };
+
+        const result = await watcher.findNewVersion(container, watcher.log);
+        expect(mockRegistry.getImageConfig).not.toHaveBeenCalled();
+        expect(result.tag).toBe('1.1.0');
+        expect(result.created).toBe(candidateCreated);
+        expect(result.version).toBe('1.1.0');
     });
 
     test('watch cycle updates container and store when service image changes', async () => {
