@@ -2155,6 +2155,42 @@ describe('Docker Watcher', () => {
             expect(container.image.digest.watch).toBe(false);
         });
 
+        test('should populate result.digest when resolving a SemVer candidate tag even when digest watching is disabled (fixes #1542)', async () => {
+            mockTag.isGreater.mockImplementation((t1, t2) => t1 > t2);
+            const container: any = {
+                image: {
+                    id: 'image123',
+                    name: 'library/nginx',
+                    registry: { name: 'hub' },
+                    tag: { value: '1.25.0', semver: true },
+                    digest: { watch: false, repo: 'sha256:abc123' },
+                },
+                labels: {},
+            };
+            const mockRegistry = {
+                getTags: jest.fn().mockResolvedValue(['1.25.0', '1.26.0']),
+                getImageManifestDigest: jest.fn().mockResolvedValue({
+                    digest: 'sha256:remote-digest-126',
+                    version: 2,
+                }),
+                shouldWatchDigest: jest.fn(() => false),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const mockLogChild = {
+                error: jest.fn(),
+                debug: jest.fn(),
+                warn: jest.fn(),
+            };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(result.tag).toBe('1.26.0');
+            expect(result.digest).toBe('sha256:remote-digest-126');
+            expect(container.image.digest.watch).toBe(false);
+        });
+
         test('should resolve the remote version and build date when the digest moved', async () => {
             const container = {
                 image: {
@@ -3038,7 +3074,10 @@ describe('Docker Watcher', () => {
             expect(mockRegistry.getImageManifestDigest).toHaveBeenCalledTimes(
                 2,
             );
-            expect(result).toEqual({ tag: '1.9.0' });
+            expect(result).toEqual({
+                tag: '1.9.0',
+                digest: 'sha256:validContainer190',
+            });
             expect(mockLogChild.info).toHaveBeenCalledWith(
                 'Candidate tag 2.0.0 is a non-container OCI artifact, skipping',
             );

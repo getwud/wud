@@ -1053,6 +1053,45 @@ describe('Kubernetes Watcher', () => {
             expect(container.image.digest.watch).toBe(false);
         });
 
+        test('findNewVersion should populate result.digest when resolving a SemVer candidate tag even when digest watching is disabled (fixes #1542)', async () => {
+            mockTag.isGreater.mockImplementation((t1, t2) => t1 > t2);
+            const mockRegistryProvider = {
+                shouldWatchDigest: jest.fn().mockReturnValue(false),
+                getTags: jest.fn().mockResolvedValue(['1.25.0', '1.26.0']),
+                getImageManifestDigest: jest.fn().mockResolvedValue({
+                    digest: 'sha256:remote-digest-126',
+                    version: 2,
+                }),
+            };
+            registry.getState.mockReturnValue({
+                registry: { 'hub.public': mockRegistryProvider },
+            });
+
+            const container: any = {
+                id: 'c1',
+                image: {
+                    registry: { name: 'hub.public' },
+                    tag: { value: '1.25.0', semver: true },
+                    digest: { watch: false, repo: 'sha256:local-repo-digest' },
+                },
+            };
+
+            const mockLogChild = {
+                error: jest.fn(),
+                debug: jest.fn(),
+                warn: jest.fn(),
+            };
+
+            const result = await kubernetes.findNewVersion(
+                container,
+                mockLogChild,
+            );
+
+            expect(result.tag).toBe('1.26.0');
+            expect(result.digest).toBe('sha256:remote-digest-126');
+            expect(container.image.digest.watch).toBe(false);
+        });
+
         test('findNewVersion skips Helm chart candidate tags and selects the next container candidate tag', async () => {
             mockTag.isGreater.mockImplementation((t1, t2) => t1 > t2);
             const mockRegistryProvider = {

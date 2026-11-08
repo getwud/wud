@@ -692,6 +692,38 @@ describe('Nomad Watcher - Version Lookup & Watch Cycle', () => {
         expect(container.image.digest.watch).toBe(false);
     });
 
+    test('findNewVersion should populate result.digest when resolving a SemVer candidate tag even when digest watching is disabled (fixes #1542)', async () => {
+        const mockRegistry = {
+            getId: () => 'hub',
+            getTags: jest.fn().mockResolvedValue(['1.25.0', '1.26.0']),
+            getImageManifestDigest: jest.fn().mockResolvedValue({
+                digest: 'sha256:remote-digest-126',
+                version: 2,
+            }),
+            shouldWatchDigest: jest.fn().mockReturnValue(false),
+        };
+
+        (registry.getState as jest.Mock).mockReturnValue({
+            registry: { hub: mockRegistry },
+        });
+
+        const container: any = {
+            id: 'c1',
+            labels: {},
+            image: {
+                registry: { name: 'hub', url: 'registry-1.docker.io' },
+                name: 'library/nginx',
+                tag: { value: '1.25.0', semver: true },
+                digest: { watch: false, repo: 'sha256:local-repo-digest' },
+            },
+        };
+
+        const result = await watcher.findNewVersion(container, watcher.log);
+        expect(result.tag).toBe('1.26.0');
+        expect(result.digest).toBe('sha256:remote-digest-126');
+        expect(container.image.digest.watch).toBe(false);
+    });
+
     test('findNewVersion should skip Helm chart candidate tags and select next container candidate tag', async () => {
         const mockRegistry = {
             getId: () => 'hub',

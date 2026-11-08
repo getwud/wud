@@ -2115,6 +2115,48 @@ describe('Dockercompose Trigger - file operations', () => {
                 });
             });
 
+            test('should update digest-pinned SemVer image when strict_digest is enabled and digest watching is disabled (watch: false) (fixes #1542)', () => {
+                dockercompose.configuration = {
+                    ...configurationValid,
+                    strict_digest: true,
+                };
+
+                const semverContainerWithWatchDisabled = {
+                    name: 'my-service',
+                    updateAvailable: true,
+                    image: {
+                        registry: { name: 'hub' },
+                        name: 'test/test',
+                        tag: { value: '1.2.3', semver: true },
+                        digest: {
+                            watch: false,
+                            repo: 'sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                        },
+                    },
+                    updateKind: {
+                        kind: 'tag',
+                        localValue: '1.2.3',
+                        remoteValue: '4.5.6',
+                    },
+                    result: {
+                        tag: '4.5.6',
+                        digest: 'sha256:new2222222222222222222222222222222222222222222222222222222222222',
+                    },
+                } as unknown as Container;
+
+                const mapping = dockercompose.mapCurrentVersionToUpdateVersion(
+                    composePinned as any,
+                    semverContainerWithWatchDisabled,
+                    new Set(),
+                );
+                expect(mapping).toEqual({
+                    service: 'test',
+                    current:
+                        'test/test:1.2.3@sha256:old1111111111111111111111111111111111111111111111111111111111111',
+                    update: 'test/test:4.5.6@sha256:new2222222222222222222222222222222222222222222222222222222222222',
+                });
+            });
+
             test('should update unpinned image normally to mutable tag when strict_digest is enabled', () => {
                 dockercompose.configuration = {
                     ...configurationValid,
