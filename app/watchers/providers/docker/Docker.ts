@@ -1723,6 +1723,17 @@ export class Docker extends Watcher {
                 }
             }
 
+            if (candidateTag) {
+                result.tag = candidateTag;
+                if (candidateRemoteDigest?.digest) {
+                    result.digest = candidateRemoteDigest.digest;
+                    result.created = candidateRemoteDigest.created;
+                    if (candidateRemoteDigest.indexDigest) {
+                        result.indexDigest = candidateRemoteDigest.indexDigest;
+                    }
+                }
+            }
+
             // Must watch digest? => Find local/remote digests on registry
             if (watchDigest && container.image.digest?.repo) {
                 // If we have a tag candidate BUT we also watch digest
@@ -1888,10 +1899,6 @@ export class Docker extends Watcher {
                         }
                     }
                 }
-            }
-
-            if (candidateTag) {
-                result.tag = candidateTag;
             }
         }
         return result;

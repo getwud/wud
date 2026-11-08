@@ -1003,6 +1003,17 @@ export class Kubernetes extends Watcher {
                 logContainer,
             );
 
+        if (candidateTag) {
+            result.tag = candidateTag;
+            if (candidateRemoteDigest?.digest) {
+                result.digest = candidateRemoteDigest.digest;
+                result.created = candidateRemoteDigest.created;
+                if (candidateRemoteDigest.indexDigest) {
+                    result.indexDigest = candidateRemoteDigest.indexDigest;
+                }
+            }
+        }
+
         if (watchDigest && container.image.digest.repo) {
             const imageToGetDigestFrom = JSON.parse(
                 JSON.stringify(container.image),
@@ -1062,9 +1073,6 @@ export class Kubernetes extends Watcher {
             }
         }
 
-        if (candidateTag) {
-            result.tag = candidateTag;
-        }
         return result;
     }
 
