@@ -531,3 +531,60 @@ export function interpolateTagFilter(
         },
     );
 }
+
+export type UpdateCandidateKind = 'major' | 'minor' | 'patch';
+
+export type UpdateCandidates = Partial<Record<UpdateCandidateKind, string>>;
+
+/**
+ * Group candidate tags by semver diff kind (major / minor / patch).
+ * Candidate order is preserved within each group.
+ * @param currentTag the current (local) tag
+ * @param candidates candidate tags, sorted by semver desc
+ * @param transformFormula optional transform formula
+ * @param container optional container context (for transform errors)
+ * @returns the candidate tags per kind (kinds without candidates are omitted)
+ */
+export function groupCandidatesByKind(
+    currentTag: string,
+    candidates: string[],
+    transformFormula?: string,
+    container?: Container,
+): Partial<Record<UpdateCandidateKind, string[]>> {
+    const groups: Partial<Record<UpdateCandidateKind, string[]>> = {};
+    const currentTransformed = transform(
+        transformFormula,
+        currentTag,
+        container,
+    );
+    for (const candidate of candidates || []) {
+        let kind: UpdateCandidateKind | undefined;
+        try {
+            switch (
+                diff(
+                    currentTransformed,
+                    transform(transformFormula, candidate, container),
+                )
+            ) {
+                case 'major':
+                case 'premajor':
+                    kind = 'major';
+                    break;
+                case 'minor':
+                case 'preminor':
+                    kind = 'minor';
+                    break;
+                case 'patch':
+                case 'prepatch':
+                    kind = 'patch';
+                    break;
+            }
+        } catch {
+            kind = undefined;
+        }
+        if (kind) {
+            (groups[kind] ??= []).push(candidate);
+        }
+    }
+    return groups;
+}

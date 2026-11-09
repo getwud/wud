@@ -31,6 +31,7 @@ export const mockContainers = [
       digest: "sha256:9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c",
       created: "2024-12-18T10:15:00.000Z",
       link: "https://github.com/traefik/traefik/releases/tag/v3.3.1",
+      candidates: { minor: "v3.3.1", patch: "v3.2.5" },
     },
     updateAvailable: true,
     updateKind: {
@@ -81,6 +82,7 @@ export const mockContainers = [
       digest: "sha256:1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
       created: "2024-12-05T16:20:00.000Z",
       link: "https://github.com/pi-hole/docker-pi-hole/releases/tag/2024.12.1",
+      candidates: { minor: "2024.12.1", patch: "2024.07.3" },
     },
     updateAvailable: true,
     updateKind: {

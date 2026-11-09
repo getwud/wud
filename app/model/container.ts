@@ -60,6 +60,11 @@ export interface ContainerResult {
     link?: string;
     changelogUrl?: string;
     preloaded?: boolean;
+    candidates?: {
+        major?: string;
+        minor?: string;
+        patch?: string;
+    };
     hook?: {
         phase: string;
         parentTrigger: string;
@@ -251,6 +256,13 @@ const schema = joi.object({
         link: joi.string(),
         changelogUrl: joi.string().uri().optional().allow(''),
         preloaded: joi.boolean().optional(),
+        candidates: joi
+            .object({
+                major: joi.string(),
+                minor: joi.string(),
+                patch: joi.string(),
+            })
+            .optional(),
         hook: joi.object({
             phase: joi.string().valid('pre', 'post'),
             parentTrigger: joi.string(),
