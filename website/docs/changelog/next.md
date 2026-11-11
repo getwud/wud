@@ -8,6 +8,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 > Changes below are merged on `main` and will be included in the upcoming release.
 
 - 🐛 [WATCHER] Fix cool-down delay ignored for tag updates when digest watching is disabled (#1543)
+- 🐛 [WATCHER] Fix Swarm service label update when image is unchanged (fixes #1549)
 - 🐛 [WATCHER] Populate candidate digest on SemVer updates when digest watching is disabled (fixes #1542)
 
 ---
