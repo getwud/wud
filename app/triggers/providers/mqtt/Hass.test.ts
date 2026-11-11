@@ -327,12 +327,148 @@ test('onContainerUpdated must not clear anything when the name is unchanged', as
         watcher: 'watcher-name',
         displayIcon: 'mdi:docker',
     };
+    jest.spyOn(containerStore, 'getContainers').mockReturnValue([container]);
     await hass.onContainerUpdated(container, { ...container });
     await hass.onContainerUpdated(container);
     const emptyPublishes = mqttClientMock.publish.mock.calls.filter(
         ([, payload]) => payload === '',
     );
     expect(emptyPublishes).toEqual([]);
+});
+
+test('addContainerSensor must refresh summary topics when entities is all (#1550)', async () => {
+    const container = {
+        name: 'my-container',
+        watcher: 'watcher-name',
+        displayIcon: 'mdi:docker',
+        updateAvailable: true,
+    };
+    jest.spyOn(containerStore, 'getContainers').mockImplementation((query) => {
+        if (query?.updateAvailable) {
+            return [container];
+        }
+        if (query?.watcher === 'watcher-name') {
+            return [container];
+        }
+        return [container];
+    });
+
+    await hass.addContainerSensor(container);
+
+    expect(mqttClientMock.publish).toHaveBeenCalledWith(
+        'topic/total_count',
+        '1',
+        { retain: true },
+    );
+    expect(mqttClientMock.publish).toHaveBeenCalledWith(
+        'topic/update_count',
+        '1',
+        { retain: true },
+    );
+    expect(mqttClientMock.publish).toHaveBeenCalledWith(
+        'topic/update_status',
+        'true',
+        { retain: true },
+    );
+    expect(mqttClientMock.publish).toHaveBeenCalledWith(
+        'topic/watcher-name/total_count',
+        '1',
+        { retain: true },
+    );
+    expect(mqttClientMock.publish).toHaveBeenCalledWith(
+        'topic/watcher-name/update_count',
+        '1',
+        { retain: true },
+    );
+    expect(mqttClientMock.publish).toHaveBeenCalledWith(
+        'topic/watcher-name/update_status',
+        'true',
+        { retain: true },
+    );
+});
+
+test('onContainerUpdated must refresh summary topics on container update (#1550)', async () => {
+    const updatedContainer = {
+        name: 'my-container',
+        watcher: 'watcher-name',
+        displayIcon: 'mdi:docker',
+        updateAvailable: false,
+    };
+    const previousContainer = {
+        ...updatedContainer,
+        updateAvailable: true,
+    };
+
+    // Container has been updated, no pending updates remaining
+    jest.spyOn(containerStore, 'getContainers').mockImplementation((query) => {
+        if (query?.updateAvailable) {
+            return [];
+        }
+        if (query?.watcher === 'watcher-name') {
+            return [updatedContainer];
+        }
+        return [updatedContainer];
+    });
+
+    await hass.onContainerUpdated(updatedContainer, previousContainer);
+
+    expect(mqttClientMock.publish).toHaveBeenCalledWith(
+        'topic/total_count',
+        '1',
+        { retain: true },
+    );
+    expect(mqttClientMock.publish).toHaveBeenCalledWith(
+        'topic/update_count',
+        '0',
+        { retain: true },
+    );
+    expect(mqttClientMock.publish).toHaveBeenCalledWith(
+        'topic/update_status',
+        'false',
+        { retain: true },
+    );
+    expect(mqttClientMock.publish).toHaveBeenCalledWith(
+        'topic/watcher-name/total_count',
+        '1',
+        { retain: true },
+    );
+    expect(mqttClientMock.publish).toHaveBeenCalledWith(
+        'topic/watcher-name/update_count',
+        '0',
+        { retain: true },
+    );
+    expect(mqttClientMock.publish).toHaveBeenCalledWith(
+        'topic/watcher-name/update_status',
+        'false',
+        { retain: true },
+    );
+});
+
+test('removeContainerSensor must refresh summary topics when entities is all (#1550)', async () => {
+    const container = {
+        name: 'my-container',
+        watcher: 'watcher-name',
+        displayIcon: 'mdi:docker',
+    };
+    jest.spyOn(containerStore, 'getContainers').mockReturnValue([]);
+
+    await hass.removeContainerSensor(container);
+
+    expect(mqttClientMock.publish).toHaveBeenCalledWith(
+        'topic/total_count',
+        '0',
+        { retain: true },
+    );
+    expect(mqttClientMock.publish).toHaveBeenCalledWith(
+        'topic/update_count',
+        '0',
+        { retain: true },
+    );
+    expect(mqttClientMock.publish).toHaveBeenCalledWith(
+        'topic/update_status',
+        'false',
+        { retain: true },
+    );
 });
 
 test.each(containerData)(
@@ -1080,6 +1216,41 @@ describe('entities: summary', () => {
                 topic.includes('homeassistant/update/') && payload !== '',
         );
         expect(updateConfigCalls).toHaveLength(0);
+    });
+
+    test('addContainerSensor in summary mode must refresh summary topics (#1550)', async () => {
+        const container = {
+            name: 'my-app',
+            displayName: 'My App',
+            watcher: 'local',
+            updateAvailable: true,
+        };
+        jest.spyOn(containerStore, 'getContainers').mockReturnValue([
+            container,
+        ]);
+
+        await summaryHass.addContainerSensor(container);
+
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'topic/total_count',
+            '1',
+            { retain: true },
+        );
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'topic/update_count',
+            '1',
+            { retain: true },
+        );
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'topic/update_status',
+            'true',
+            { retain: true },
+        );
+        expect(mqttClientMock.publish).toHaveBeenCalledWith(
+            'topic/updates',
+            expect.stringContaining('"name":"my-app"'),
+            { retain: true },
+        );
     });
 
     test('removeContainerSensor in summary mode must clear container state and discovery topic and update summary', async () => {

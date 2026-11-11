@@ -360,46 +360,47 @@ class Hass {
                         this.getDiscoveryTopic(containerStateSensor),
                 });
             }
-            await this.publishSummaryUpdates();
-            await this.updateContainerSensors(container);
-            return;
+        } else {
+            this.log.info(
+                `Add hass container update sensor [${containerStateSensor.topic}]`,
+            );
+            if (this.configuration.hass.discovery) {
+                await this.publishDiscoveryMessage({
+                    discoveryTopic:
+                        this.getDiscoveryTopic(containerStateSensor),
+                    kind: containerStateSensor.kind,
+                    stateTopic: containerStateSensor.topic,
+                    name: container.displayName,
+                    icon: sanitizeIcon(container.displayIcon || 'mdi:docker'),
+                    watcherName: container.watcher,
+                    options: {
+                        // Home Assistant's "Updates" page prints the DEVICE name as
+                        // the headline and falls back to the entity name only when
+                        // the entity has no device. Every wud container shares one
+                        // device, so without a title every row reads "wud" followed
+                        // by a bare version. `title` puts the container name into
+                        // the supporting text, making the rows distinguishable.
+                        title: container.displayName,
+                        force_update: true,
+                        value_template: HASS_ENTITY_VALUE_TEMPLATE,
+                        latest_version_topic: containerStateSensor.topic,
+                        latest_version_template: HASS_LATEST_VERSION_TEMPLATE,
+                        command_topic: this.getContainerCommandTopic({
+                            container,
+                        }),
+                        payload_install: 'INSTALL',
+                        in_progress_template:
+                            '{{ value_json.in_progress | default(false) }}',
+                        release_url: container.result
+                            ? (container.result.changelogUrl ??
+                              container.result.link)
+                            : undefined,
+                        json_attributes_topic: containerStateSensor.topic,
+                    },
+                });
+            }
         }
-
-        this.log.info(
-            `Add hass container update sensor [${containerStateSensor.topic}]`,
-        );
-        if (this.configuration.hass.discovery) {
-            await this.publishDiscoveryMessage({
-                discoveryTopic: this.getDiscoveryTopic(containerStateSensor),
-                kind: containerStateSensor.kind,
-                stateTopic: containerStateSensor.topic,
-                name: container.displayName,
-                icon: sanitizeIcon(container.displayIcon || 'mdi:docker'),
-                watcherName: container.watcher,
-                options: {
-                    // Home Assistant's "Updates" page prints the DEVICE name as
-                    // the headline and falls back to the entity name only when
-                    // the entity has no device. Every wud container shares one
-                    // device, so without a title every row reads "wud" followed
-                    // by a bare version. `title` puts the container name into
-                    // the supporting text, making the rows distinguishable.
-                    title: container.displayName,
-                    force_update: true,
-                    value_template: HASS_ENTITY_VALUE_TEMPLATE,
-                    latest_version_topic: containerStateSensor.topic,
-                    latest_version_template: HASS_LATEST_VERSION_TEMPLATE,
-                    command_topic: this.getContainerCommandTopic({ container }),
-                    payload_install: 'INSTALL',
-                    in_progress_template:
-                        '{{ value_json.in_progress | default(false) }}',
-                    release_url: container.result
-                        ? (container.result.changelogUrl ??
-                          container.result.link)
-                        : undefined,
-                    json_attributes_topic: containerStateSensor.topic,
-                },
-            });
-        }
+        await this.updateContainerSensors(container);
     }
 
     /**
@@ -418,7 +419,7 @@ class Hass {
             this.getContainerStateTopic({ container: previousContainer }) !==
                 this.getContainerStateTopic({ container })
         ) {
-            await this.removeContainerSensor(previousContainer);
+            await this.removeContainerSensor(previousContainer, false);
         }
         await this.addContainerSensor(container);
     }
@@ -426,7 +427,7 @@ class Hass {
     /**
      * Remove container sensor.
      */
-    async removeContainerSensor(container: Container) {
+    async removeContainerSensor(container: Container, updateSensors = true) {
         const containerStateSensor: HassSensor = {
             kind: 'update',
             topic: this.getContainerStateTopic({ container }),
@@ -442,8 +443,7 @@ class Hass {
                 discoveryTopic: this.getDiscoveryTopic(containerStateSensor),
             });
         }
-        if (this.isSummary()) {
-            await this.publishSummaryUpdates();
+        if (updateSensors) {
             await this.updateContainerSensors(container);
         }
     }
