@@ -39,6 +39,30 @@ WUD limits requests independently for each configured registry instance. Request
     supported="Any integer greater than or equal to 1">
     Maximum number of image pulls the Docker trigger runs at once against this registry instance. Pulls are queued in FIFO order. An invalid value prevents the registry from registering.
   </ConfigOption>
+  <ConfigOption
+    name="WUD_REGISTRY_{REGISTRY_TYPE}_{REGISTRY_NAME}_MAXPAGES"
+    required={false}
+    type="integer"
+    defaultValue="undefined (unlimited)"
+    supported="Any integer greater than or equal to 1">
+    Maximum number of tag pagination pages to fetch when querying repository tags. Acts as a safety ceiling for registries with very large tag catalogs.
+  </ConfigOption>
+  <ConfigOption
+    name="WUD_REGISTRY_{REGISTRY_TYPE}_{REGISTRY_NAME}_PAGETHROTTLE"
+    required={false}
+    type="integer"
+    defaultValue="0"
+    supported="Any integer greater than or equal to 0">
+    Delay in milliseconds between consecutive tag page requests. Useful to pace pagination and avoid triggering registry rate limit thresholds.
+  </ConfigOption>
+  <ConfigOption
+    name="WUD_REGISTRY_{REGISTRY_TYPE}_{REGISTRY_NAME}_TAGCACHETTL"
+    required={false}
+    type="integer"
+    defaultValue="300"
+    supported="Any integer greater than or equal to 0">
+    Duration in seconds to cache fetched tags in memory per repository. Set to 0 to disable caching.
+  </ConfigOption>
 </ConfigList>
 
 When a registry returns HTTP 429, WUD retries twice. It honors `Retry-After` values up to 60 seconds; otherwise it waits for a jittered 1–2 seconds before the first retry and 2–4 seconds before the second. Request slots are released during these delays. Longer retry windows are deferred to the next normal scan, and non-429 failures are not retried.

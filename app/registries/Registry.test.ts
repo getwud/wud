@@ -18,6 +18,8 @@ import Registry, {
     isNonContainerArtifact,
     isNonContainerArtifactError,
     resolveCandidateTag,
+    parseNextLink,
+    resolveNextPageUrl,
 } from './Registry';
 
 const registry = new Registry();
@@ -1882,5 +1884,412 @@ describe('getHeaderContentType', () => {
                 'content-type': ['application/vnd.oci.image.manifest.v1+json'],
             }),
         ).toBe('application/vnd.oci.image.manifest.v1+json');
+    });
+});
+
+describe('parseNextLink', () => {
+    test('should return undefined when link header is not provided or not a string', () => {
+        expect(parseNextLink(undefined)).toBeUndefined();
+        expect(parseNextLink(null as any)).toBeUndefined();
+        expect(parseNextLink('')).toBeUndefined();
+        expect(parseNextLink(123 as any)).toBeUndefined();
+    });
+
+    test('should parse standard RFC 5988 link header with rel="next"', () => {
+        const link = '</v2/org/repo/tags/list?last=v1.0.0&n=1000>; rel="next"';
+        expect(parseNextLink(link)).toBe(
+            '/v2/org/repo/tags/list?last=v1.0.0&n=1000',
+        );
+    });
+
+    test('should parse unquoted rel=next attribute', () => {
+        const link = '<https://ghcr.io/v2/tags?last=abc>; rel=next';
+        expect(parseNextLink(link)).toBe('https://ghcr.io/v2/tags?last=abc');
+    });
+
+    test('should extract rel="next" when multiple comma-separated links exist', () => {
+        const link =
+            '<https://example.com/v2/tags?page=1>; rel="first", <https://example.com/v2/tags?page=3>; rel="next", <https://example.com/v2/tags?page=5>; rel="last"';
+        expect(parseNextLink(link)).toBe('https://example.com/v2/tags?page=3');
+    });
+
+    test('should return undefined when link header has no rel="next"', () => {
+        const link =
+            '<https://example.com/v2/tags?page=1>; rel="first", <https://example.com/v2/tags?page=1>; rel="prev"';
+        expect(parseNextLink(link)).toBeUndefined();
+    });
+
+    test('should return undefined for malformed link header', () => {
+        expect(parseNextLink('malformed header')).toBeUndefined();
+        expect(parseNextLink('<https://example.com/tags>')).toBeUndefined();
+    });
+
+    test('should handle array of link headers', () => {
+        const links = [
+            '<https://example.com/prev>; rel="prev"',
+            '<https://example.com/next>; rel="next"',
+        ];
+        expect(parseNextLink(links)).toBe('https://example.com/next');
+    });
+
+    test('should handle link with additional parameters', () => {
+        const link =
+            '</v2/tags?last=v2>; rel="next"; title="Next Page"; type="application/json"';
+        expect(parseNextLink(link)).toBe('/v2/tags?last=v2');
+    });
+});
+
+describe('resolveNextPageUrl', () => {
+    const registryBaseUrl = 'https://ghcr.io/v2';
+    const imageName = 'org/app';
+
+    test('should resolve absolute http and https URLs', () => {
+        expect(
+            resolveNextPageUrl(
+                registryBaseUrl,
+                imageName,
+                'https://ghcr.io/v2/org/app/tags/list?last=v1.0.0',
+            ),
+        ).toBe('https://ghcr.io/v2/org/app/tags/list?last=v1.0.0');
+
+        expect(
+            resolveNextPageUrl(
+                'http://localhost:5000/v2',
+                imageName,
+                'http://localhost:5000/v2/org/app/tags/list?last=v1.0.0',
+            ),
+        ).toBe('http://localhost:5000/v2/org/app/tags/list?last=v1.0.0');
+    });
+
+    test('should resolve absolute paths with registry origin', () => {
+        expect(
+            resolveNextPageUrl(
+                registryBaseUrl,
+                imageName,
+                '/v2/org/app/tags/list?last=v1.0.0&n=1000',
+            ),
+        ).toBe('https://ghcr.io/v2/org/app/tags/list?last=v1.0.0&n=1000');
+    });
+
+    test('should resolve query string parameters', () => {
+        expect(
+            resolveNextPageUrl(
+                registryBaseUrl,
+                imageName,
+                '?last=v1.0.0&n=1000',
+            ),
+        ).toBe('https://ghcr.io/v2/org/app/tags/list?last=v1.0.0&n=1000');
+    });
+
+    test('should extract and resolve Link header wrapped in angle brackets', () => {
+        expect(
+            resolveNextPageUrl(
+                registryBaseUrl,
+                imageName,
+                '</v2/org/app/tags/list?last=v1.0.0>; rel="next"',
+            ),
+        ).toBe('https://ghcr.io/v2/org/app/tags/list?last=v1.0.0');
+    });
+
+    test('should resolve relative path suffix', () => {
+        expect(resolveNextPageUrl(registryBaseUrl, imageName, 'page2')).toBe(
+            'https://ghcr.io/v2/org/app/tags/list/page2',
+        );
+    });
+});
+
+describe('hasTag', () => {
+    let registryMocked: Registry;
+    const testImage = {
+        name: 'test/repo',
+        registry: { url: 'https://registry.example.com/v2' },
+    };
+
+    beforeEach(() => {
+        registryMocked = new Registry();
+        registryMocked.log = log;
+    });
+
+    test('should return true when HEAD request succeeds with 200', async () => {
+        registryMocked.callRegistry = jest.fn().mockResolvedValue({
+            status: 200,
+            headers: {},
+        });
+
+        const exists = await registryMocked.hasTag(testImage as any, 'v1.2.3');
+        expect(exists).toBe(true);
+        expect(registryMocked.callRegistry).toHaveBeenCalledWith(
+            expect.objectContaining({
+                method: 'head',
+                url: 'https://registry.example.com/v2/test/repo/manifests/v1.2.3',
+            }),
+        );
+    });
+
+    test('should return false when HEAD request returns 404', async () => {
+        const notFoundError: any = new Error('Not Found');
+        notFoundError.response = { status: 404 };
+        registryMocked.callRegistry = jest
+            .fn()
+            .mockRejectedValue(notFoundError);
+
+        const exists = await registryMocked.hasTag(
+            testImage as any,
+            'unknown-tag',
+        );
+        expect(exists).toBe(false);
+    });
+
+    test('should rethrow on unexpected errors (e.g. 500, network error)', async () => {
+        const serverError: any = new Error('Internal Server Error');
+        serverError.response = { status: 500 };
+        registryMocked.callRegistry = jest.fn().mockRejectedValue(serverError);
+
+        await expect(
+            registryMocked.hasTag(testImage as any, 'v1.0.0'),
+        ).rejects.toThrow('Internal Server Error');
+    });
+});
+
+describe('validateConfiguration for pagination, throttle, and cache options', () => {
+    let registryMocked: Registry;
+
+    beforeEach(() => {
+        registryMocked = new Registry();
+    });
+
+    test('should validate valid maxpages, pagethrottle, and tagcachettl', () => {
+        const validated = registryMocked.validateConfiguration({
+            maxpages: 10,
+            pagethrottle: 200,
+            tagcachettl: 600,
+        });
+
+        expect(validated).toEqual({
+            concurrency: 2,
+            maxpages: 10,
+            pagethrottle: 200,
+            tagcachettl: 600,
+        });
+    });
+
+    test('should allow zero for pagethrottle and tagcachettl', () => {
+        const validated = registryMocked.validateConfiguration({
+            pagethrottle: 0,
+            tagcachettl: 0,
+        });
+
+        expect(validated).toEqual({
+            concurrency: 2,
+            pagethrottle: 0,
+            tagcachettl: 0,
+        });
+    });
+
+    test.each([0, -1, 1.5, 'invalid'])(
+        'should reject invalid maxpages %s',
+        (maxpages) => {
+            expect(() =>
+                registryMocked.validateConfiguration({ maxpages }),
+            ).toThrow();
+        },
+    );
+
+    test.each([-1, 1.5, 'invalid'])(
+        'should reject invalid pagethrottle %s',
+        (pagethrottle) => {
+            expect(() =>
+                registryMocked.validateConfiguration({ pagethrottle }),
+            ).toThrow();
+        },
+    );
+
+    test.each([-1, 1.5, 'invalid'])(
+        'should reject invalid tagcachettl %s',
+        (tagcachettl) => {
+            expect(() =>
+                registryMocked.validateConfiguration({ tagcachettl }),
+            ).toThrow();
+        },
+    );
+});
+
+describe('getTags resilient pagination, caching, and rate limiting', () => {
+    let registryMocked: Registry;
+    const testImage = {
+        name: 'test/repo',
+        registry: { url: 'https://registry.example.com/v2' },
+    };
+
+    beforeEach(() => {
+        registryMocked = new Registry();
+        registryMocked.log = log;
+        registryMocked.clearTagCache();
+    });
+
+    test('should follow RFC 5988 Link headers across multiple pages', async () => {
+        let callCount = 0;
+        registryMocked.getTagsPage = jest.fn().mockImplementation(() => {
+            callCount += 1;
+            if (callCount === 1) {
+                return Promise.resolve({
+                    data: { tags: ['v1.0.0', 'v1.1.0'] },
+                    headers: {
+                        link: '</v2/test/repo/tags/list?last=v1.1.0>; rel="next"',
+                    },
+                });
+            }
+            if (callCount === 2) {
+                return Promise.resolve({
+                    data: { tags: ['v1.2.0', 'v1.3.0'] },
+                    headers: {},
+                });
+            }
+            return Promise.resolve({ data: { tags: [] }, headers: {} });
+        });
+
+        const tags = await registryMocked.getTags(testImage as any);
+        expect(callCount).toBe(2);
+        expect(tags).toEqual(['v1.3.0', 'v1.2.0', 'v1.1.0', 'v1.0.0']);
+    });
+
+    test('should honor maxpages configuration ceiling', async () => {
+        registryMocked.configuration = { maxpages: 2 };
+        let callCount = 0;
+        registryMocked.getTagsPage = jest.fn().mockImplementation(() => {
+            callCount += 1;
+            return Promise.resolve({
+                data: { tags: [`v${callCount}.0.0`] },
+                headers: {
+                    link: `</v2/test/repo/tags/list?last=v${callCount}.0.0>; rel="next"`,
+                },
+            });
+        });
+
+        const tags = await registryMocked.getTags(testImage as any);
+        expect(callCount).toBe(2);
+        expect(tags).toEqual(['v2.0.0', 'v1.0.0']);
+    });
+
+    test('should apply pagethrottle delay between page requests', async () => {
+        registryMocked.configuration = { pagethrottle: 50 };
+        const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+
+        let callCount = 0;
+        registryMocked.getTagsPage = jest.fn().mockImplementation(() => {
+            callCount += 1;
+            if (callCount === 1) {
+                return Promise.resolve({
+                    data: { tags: ['v1'] },
+                    headers: {
+                        link: '</v2/tags?last=v1>; rel="next"',
+                    },
+                });
+            }
+            return Promise.resolve({
+                data: { tags: ['v2'] },
+                headers: {},
+            });
+        });
+
+        await registryMocked.getTags(testImage as any);
+        expect(callCount).toBe(2);
+        expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 50);
+        setTimeoutSpy.mockRestore();
+    });
+
+    test('should recover partial tags when 429 occurs on page 2+ after retries exhausted', async () => {
+        const warnSpy = jest.spyOn(registryMocked.log, 'warn');
+        let callCount = 0;
+        registryMocked.getTagsPage = jest.fn().mockImplementation(() => {
+            callCount += 1;
+            if (callCount === 1) {
+                return Promise.resolve({
+                    data: { tags: ['v1.0.0', 'v1.1.0'] },
+                    headers: {
+                        link: '</v2/tags?last=v1.1.0>; rel="next"',
+                    },
+                });
+            }
+            const rateLimitError: any = new Error('Too Many Requests');
+            rateLimitError.response = { status: 429 };
+            return Promise.reject(rateLimitError);
+        });
+
+        const tags = await registryMocked.getTags(testImage as any);
+        expect(tags).toEqual(['v1.1.0', 'v1.0.0']);
+        expect(warnSpy).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'Rate limit reached for test/repo after 1 pages; returning 2 partial tags',
+            ),
+        );
+    });
+
+    test('should rethrow 429 error when failure occurs on page 1 (zero tags collected)', async () => {
+        const rateLimitError: any = new Error('Too Many Requests');
+        rateLimitError.response = { status: 429 };
+        registryMocked.getTagsPage = jest
+            .fn()
+            .mockRejectedValue(rateLimitError);
+
+        await expect(registryMocked.getTags(testImage as any)).rejects.toThrow(
+            'Too Many Requests',
+        );
+    });
+
+    test('should cache tags and return from cache on subsequent call within TTL', async () => {
+        registryMocked.configuration = { tagcachettl: 300 };
+        const getTagsPageMock = jest.fn().mockResolvedValue({
+            data: { tags: ['v1.0.0', 'v2.0.0'] },
+            headers: {},
+        });
+        registryMocked.getTagsPage = getTagsPageMock;
+
+        const firstCall = await registryMocked.getTags(testImage as any);
+        expect(firstCall).toEqual(['v2.0.0', 'v1.0.0']);
+        expect(getTagsPageMock).toHaveBeenCalledTimes(1);
+
+        // Second call should hit the cache without calling getTagsPage
+        const secondCall = await registryMocked.getTags(testImage as any);
+        expect(secondCall).toEqual(['v2.0.0', 'v1.0.0']);
+        expect(getTagsPageMock).toHaveBeenCalledTimes(1);
+    });
+
+    test('should refetch tags after tag cache TTL expires', async () => {
+        registryMocked.configuration = { tagcachettl: 10 };
+        const getTagsPageMock = jest.fn().mockResolvedValue({
+            data: { tags: ['v1.0.0'] },
+            headers: {},
+        });
+        registryMocked.getTagsPage = getTagsPageMock;
+
+        const dateNowSpy = jest.spyOn(Date, 'now');
+        dateNowSpy.mockReturnValue(1000000);
+        await registryMocked.getTags(testImage as any);
+        expect(getTagsPageMock).toHaveBeenCalledTimes(1);
+
+        // Advance beyond TTL (10s = 10000ms)
+        dateNowSpy.mockReturnValue(1000000 + 15000);
+        await registryMocked.getTags(testImage as any);
+        expect(getTagsPageMock).toHaveBeenCalledTimes(2);
+
+        dateNowSpy.mockRestore();
+    });
+
+    test('should clear cache when clearTagCache() is called', async () => {
+        registryMocked.configuration = { tagcachettl: 300 };
+        const getTagsPageMock = jest.fn().mockResolvedValue({
+            data: { tags: ['v1.0.0'] },
+            headers: {},
+        });
+        registryMocked.getTagsPage = getTagsPageMock;
+
+        await registryMocked.getTags(testImage as any);
+        expect(getTagsPageMock).toHaveBeenCalledTimes(1);
+
+        registryMocked.clearTagCache();
+
+        await registryMocked.getTags(testImage as any);
+        expect(getTagsPageMock).toHaveBeenCalledTimes(2);
     });
 });
