@@ -8,6 +8,13 @@ import { testTriggerProvider } from '../TriggerTestHelper';
 
 jest.mock('axios', () => ({
     post: jest.fn(),
+    isAxiosError: (error: unknown): boolean =>
+        Boolean(
+            error &&
+                typeof error === 'object' &&
+                'isAxiosError' in error &&
+                (error as { isAxiosError: boolean }).isAxiosError === true,
+        ),
 }));
 
 const mockedPost = axios.post as jest.MockedFunction<typeof axios.post>;
@@ -188,7 +195,290 @@ test('triggerBatch should send batch notification', async () => {
         .mockResolvedValue(undefined);
     await telegram.triggerBatch(containers);
     expect(sendMessageSpy).toHaveBeenCalledWith(
-        '*2 updates available*\n\n- Container container1 running with tag 1.0.0 can be updated to tag 2.0.0\n\n- Container container2 running with tag 1.1.0 can be updated to tag 2.1.0\n',
+        '*2 updates available*\n\n\\- Container container1 running with tag 1\\.0\\.0 can be updated to tag 2\\.0\\.0\n\n\\- Container container2 running with tag 1\\.1\\.0 can be updated to tag 2\\.1\\.0\n',
+    );
+});
+
+test('triggerBatch should send batch notification in HTML format', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        messageformat: 'HTML',
+    };
+    const containers: Container[] = [
+        {
+            name: 'container<1>',
+            updateKind: {
+                kind: 'tag',
+                localValue: '1.0.0',
+                remoteValue: '2.0.0',
+            },
+        } as Container,
+    ];
+    const sendMessageSpy = jest
+        .spyOn(telegram as any, 'sendMessage')
+        .mockResolvedValue(undefined);
+    await telegram.triggerBatch(containers);
+    expect(sendMessageSpy).toHaveBeenCalledWith(
+        '<b>1 updates available</b>\n\n- Container container&lt;1&gt; running with tag 1.0.0 can be updated to tag 2.0.0\n',
+    );
+});
+
+test('trigger with disabletitle should escape body in Markdown format', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        simplebody: 'Container test-app running 1.0.0 -> 2.0.0',
+        disabletitle: true,
+        messageformat: 'Markdown',
+    };
+    const sendMessageSpy = jest
+        .spyOn(telegram as any, 'sendMessage')
+        .mockResolvedValue(undefined);
+
+    await telegram.trigger(emptyContainer);
+
+    expect(sendMessageSpy).toHaveBeenCalledWith(
+        'Container test\\-app running 1\\.0\\.0 \\-\\> 2\\.0\\.0',
+    );
+});
+
+test('trigger with disabletitle should escape body in HTML format', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        simplebody: 'Container <app> & service running 1.0.0 -> 2.0.0',
+        disabletitle: true,
+        messageformat: 'HTML',
+    };
+    const sendMessageSpy = jest
+        .spyOn(telegram as any, 'sendMessage')
+        .mockResolvedValue(undefined);
+
+    await telegram.trigger(emptyContainer);
+
+    expect(sendMessageSpy).toHaveBeenCalledWith(
+        'Container &lt;app&gt; &amp; service running 1.0.0 -&gt; 2.0.0',
+    );
+});
+
+test('triggerBatch with disabletitle should escape body in Markdown format', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        disabletitle: true,
+        messageformat: 'Markdown',
+    };
+    const containers: Container[] = [
+        {
+            name: 'container1',
+            updateKind: {
+                kind: 'tag',
+                localValue: '1.0.0',
+                remoteValue: '2.0.0',
+            },
+        } as Container,
+    ];
+    const sendMessageSpy = jest
+        .spyOn(telegram as any, 'sendMessage')
+        .mockResolvedValue(undefined);
+
+    await telegram.triggerBatch(containers);
+
+    expect(sendMessageSpy).toHaveBeenCalledWith(
+        '\\- Container container1 running with tag 1\\.0\\.0 can be updated to tag 2\\.0\\.0\n',
+    );
+});
+
+test('triggerBatch with disabletitle should escape body in HTML format', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        disabletitle: true,
+        messageformat: 'HTML',
+    };
+    const containers: Container[] = [
+        {
+            name: 'container<1>',
+            updateKind: {
+                kind: 'tag',
+                localValue: '1.0.0',
+                remoteValue: '2.0.0',
+            },
+        } as Container,
+    ];
+    const sendMessageSpy = jest
+        .spyOn(telegram as any, 'sendMessage')
+        .mockResolvedValue(undefined);
+
+    await telegram.triggerBatch(containers);
+
+    expect(sendMessageSpy).toHaveBeenCalledWith(
+        '- Container container&lt;1&gt; running with tag 1.0.0 can be updated to tag 2.0.0\n',
+    );
+});
+
+test('trigger with HTML format should escape HTML entities in title and body without backslashes', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        simpletitle: 'Update for <web> & "db"',
+        simplebody: 'Container <web> updated: 1.0.0 -> 2.0.0',
+        messageformat: 'HTML',
+    };
+    const sendMessageSpy = jest
+        .spyOn(telegram as any, 'sendMessage')
+        .mockResolvedValue(undefined);
+
+    await telegram.trigger(emptyContainer);
+
+    expect(sendMessageSpy).toHaveBeenCalledWith(
+        '<b>Update for &lt;web&gt; &amp; "db"</b>\n\nContainer &lt;web&gt; updated: 1.0.0 -&gt; 2.0.0',
+    );
+});
+
+test('triggerRollback should escape message in Markdown format', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        messageformat: 'Markdown',
+    };
+    const rollbackReport = {
+        scope: 'container' as const,
+        status: 'succeeded' as const,
+        container: { name: 'my-app' } as Container,
+        oldImageRef: 'repo/app:1.0.0',
+        newImageRef: 'repo/app:2.0.0',
+        reason: 'healthcheck failed',
+    };
+    const sendMessageSpy = jest
+        .spyOn(telegram as any, 'sendMessage')
+        .mockResolvedValue(undefined);
+
+    await telegram.triggerRollback(rollbackReport);
+
+    expect(sendMessageSpy).toHaveBeenCalledWith(
+        '*Rollback of my\\-app \\(healthcheck failed\\)*\n\nContainer my\\-app was rolled back from repo/app:2\\.0\\.0 to repo/app:1\\.0\\.0 \\(reason: healthcheck failed\\)\\.',
+    );
+});
+
+test('triggerRollback should escape message in HTML format', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        messageformat: 'HTML',
+    };
+    const rollbackReport = {
+        scope: 'container' as const,
+        status: 'succeeded' as const,
+        container: { name: '<my-app>' } as Container,
+        oldImageRef: 'repo/app:1.0.0',
+        newImageRef: 'repo/app:2.0.0',
+        reason: 'healthcheck failed & bad state',
+    };
+    const sendMessageSpy = jest
+        .spyOn(telegram as any, 'sendMessage')
+        .mockResolvedValue(undefined);
+
+    await telegram.triggerRollback(rollbackReport);
+
+    expect(sendMessageSpy).toHaveBeenCalledWith(
+        '<b>Rollback of &lt;my-app&gt; (healthcheck failed &amp; bad state)</b>\n\nContainer &lt;my-app&gt; was rolled back from repo/app:2.0.0 to repo/app:1.0.0 (reason: healthcheck failed &amp; bad state).',
+    );
+});
+
+test('triggerRollback with disabletitle should escape body in Markdown format', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        disabletitle: true,
+        messageformat: 'Markdown',
+    };
+    const rollbackReport = {
+        scope: 'container' as const,
+        status: 'succeeded' as const,
+        container: { name: 'my-app' } as Container,
+        oldImageRef: 'repo/app:1.0.0',
+        newImageRef: 'repo/app:2.0.0',
+        reason: 'healthcheck failed',
+    };
+    const sendMessageSpy = jest
+        .spyOn(telegram as any, 'sendMessage')
+        .mockResolvedValue(undefined);
+
+    await telegram.triggerRollback(rollbackReport);
+
+    expect(sendMessageSpy).toHaveBeenCalledWith(
+        'Container my\\-app was rolled back from repo/app:2\\.0\\.0 to repo/app:1\\.0\\.0 \\(reason: healthcheck failed\\)\\.',
+    );
+});
+
+test('triggerRollback should pass message_thread_id when configured', async () => {
+    telegram.configuration = {
+        ...configurationValid,
+        messagethreadid: 999,
+    };
+    const rollbackReport = {
+        scope: 'container' as const,
+        status: 'succeeded' as const,
+        container: { name: 'my-app' } as Container,
+        oldImageRef: 'repo/app:1.0.0',
+        newImageRef: 'repo/app:2.0.0',
+        reason: 'healthcheck failed',
+    };
+    const sendMessageSpy = jest
+        .spyOn(telegram as any, 'sendMessage')
+        .mockResolvedValue(undefined);
+
+    await telegram.triggerRollback(rollbackReport);
+
+    expect(sendMessageSpy).toHaveBeenCalledWith(
+        '*Rollback of my\\-app \\(healthcheck failed\\)*\n\nContainer my\\-app was rolled back from repo/app:2\\.0\\.0 to repo/app:1\\.0\\.0 \\(reason: healthcheck failed\\)\\.',
+        999,
+    );
+});
+
+test('sendMessage should log error when response status is not 2xx', async () => {
+    telegram.configuration = configurationValid;
+    mockedPost.mockResolvedValueOnce({
+        status: 400,
+        data: { ok: false },
+    } as any);
+    const logErrorSpy = jest.spyOn((telegram as any).log, 'error');
+
+    await (telegram as any).sendMessage('test');
+
+    expect(logErrorSpy).toHaveBeenCalledWith(
+        'Failed to send message to Telegram: {"ok":false}',
+    );
+});
+
+test('sendMessage should throw and log detailed Telegram error description when available', async () => {
+    telegram.configuration = configurationValid;
+    const axiosError = {
+        isAxiosError: true,
+        name: 'AxiosError',
+        message: 'Request failed with status code 400',
+        response: {
+            status: 400,
+            data: {
+                ok: false,
+                error_code: 400,
+                description:
+                    "Bad Request: can't parse entities: Character '-' is reserved and must be escaped with the preceding '\\'",
+            },
+        },
+    };
+    mockedPost.mockRejectedValueOnce(axiosError);
+    const logErrorSpy = jest.spyOn((telegram as any).log, 'error');
+
+    await expect((telegram as any).sendMessage('test')).rejects.toThrow(
+        "Failed to send message to Telegram: Bad Request: can't parse entities: Character '-' is reserved and must be escaped with the preceding '\\'",
+    );
+
+    expect(logErrorSpy).toHaveBeenCalledWith(
+        "Failed to send message to Telegram: Bad Request: can't parse entities: Character '-' is reserved and must be escaped with the preceding '\\'",
+    );
+});
+
+test('sendMessage should rethrow original error when no Telegram description is present', async () => {
+    telegram.configuration = configurationValid;
+    const genericError = new Error('Network error');
+    mockedPost.mockRejectedValueOnce(genericError);
+
+    await expect((telegram as any).sendMessage('test')).rejects.toThrow(
+        'Network error',
     );
 });
 

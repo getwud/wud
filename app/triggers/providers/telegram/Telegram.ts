@@ -6,6 +6,19 @@ import { ComponentConfiguration } from '../../../registry/Component';
 import Trigger, { RollbackReport } from '../Trigger';
 import { maskProxy } from '../../../http/proxy';
 
+interface TelegramSendMessagePayload {
+    chat_id: string;
+    text: string;
+    parse_mode: string;
+    message_thread_id?: string | number;
+}
+
+interface TelegramErrorResponse {
+    ok?: boolean;
+    error_code?: number;
+    description?: string;
+}
+
 function createProxyAgent(proxyUrl: string) {
     const { protocol } = new URL(proxyUrl);
     if (protocol.startsWith('socks')) {
@@ -110,16 +123,17 @@ class Telegram extends Trigger {
     trigger(container: Container) {
         const threadId = this.getMessageThreadId(container);
         const body = this.renderSimpleBody(container);
+        const escapedBody = this.escapeText(body);
 
         if (this.configuration.disabletitle) {
             return threadId !== undefined
-                ? this.sendMessage(body, threadId)
-                : this.sendMessage(body);
+                ? this.sendMessage(escapedBody, threadId)
+                : this.sendMessage(escapedBody);
         }
 
         const title = this.renderSimpleTitle(container);
 
-        const message = `${this.bold(title)}\n\n${this.escapeMarkdown(body)}`;
+        const message = `${this.bold(title)}\n\n${escapedBody}`;
         return threadId !== undefined
             ? this.sendMessage(message, threadId)
             : this.sendMessage(message);
@@ -128,14 +142,16 @@ class Telegram extends Trigger {
     triggerBatch(containers: Container[]) {
         const threadId = this.getMessageThreadId(containers[0]);
         const body = this.renderBatchBody(containers);
+        const escapedBody = this.escapeText(body);
+
         if (this.configuration.disabletitle) {
             return threadId !== undefined
-                ? this.sendMessage(body, threadId)
-                : this.sendMessage(body);
+                ? this.sendMessage(escapedBody, threadId)
+                : this.sendMessage(escapedBody);
         }
 
         const title = this.renderBatchTitle(containers);
-        const message = `${this.bold(title)}\n\n${body}`;
+        const message = `${this.bold(title)}\n\n${escapedBody}`;
         return threadId !== undefined
             ? this.sendMessage(message, threadId)
             : this.sendMessage(message);
@@ -151,22 +167,23 @@ class Telegram extends Trigger {
     triggerRollback(rollbackReport: RollbackReport) {
         const threadId = this.getMessageThreadId(rollbackReport.container);
         const body = this.renderRollbackBody(rollbackReport);
+        const escapedBody = this.escapeText(body);
 
         if (this.configuration.disabletitle) {
             return threadId !== undefined
-                ? this.sendMessage(body, threadId)
-                : this.sendMessage(body);
+                ? this.sendMessage(escapedBody, threadId)
+                : this.sendMessage(escapedBody);
         }
 
         const title = this.renderRollbackTitle(rollbackReport);
-        const message = `${this.bold(title)}\n\n${this.escapeMarkdown(body)}`;
+        const message = `${this.bold(title)}\n\n${escapedBody}`;
         return threadId !== undefined
             ? this.sendMessage(message, threadId)
             : this.sendMessage(message);
     }
 
     private async sendMessage(text: string, threadId?: string | number) {
-        const message: Record<string, any> = {
+        const message: TelegramSendMessagePayload = {
             chat_id: this.configuration.chatid,
             text,
             parse_mode: this.getParseMode(),
@@ -182,39 +199,73 @@ class Telegram extends Trigger {
         }
         const requestConfig = this.proxyAgent
             ? {
-                  httpAgent: this.proxyAgent as any,
-                  httpsAgent: this.proxyAgent as any,
+                  httpAgent: this.proxyAgent,
+                  httpsAgent: this.proxyAgent,
                   proxy: false as const,
               }
             : undefined;
 
-        const response = await axios.post(
-            `https://api.telegram.org/bot${this.configuration.bottoken}/sendMessage`,
-            message,
-            requestConfig,
-        );
-
-        if (response.status < 200 || response.status >= 300) {
-            this.log.error(
-                `Failed to send message to Telegram: ${JSON.stringify(response.data)}`,
+        try {
+            const response = await axios.post(
+                `https://api.telegram.org/bot${this.configuration.bottoken}/sendMessage`,
+                message,
+                requestConfig,
             );
+
+            if (response.status < 200 || response.status >= 300) {
+                this.log.error(
+                    `Failed to send message to Telegram: ${JSON.stringify(response.data)}`,
+                );
+            }
+        } catch (error: unknown) {
+            if (
+                axios.isAxiosError<TelegramErrorResponse>(error) &&
+                error.response?.data?.description
+            ) {
+                const description = error.response.data.description;
+                this.log.error(
+                    `Failed to send message to Telegram: ${description}`,
+                );
+                throw new Error(
+                    `Failed to send message to Telegram: ${description}`,
+                );
+            }
+            throw error;
         }
     }
 
+    private isMarkdown(): boolean {
+        return (
+            (this.configuration.messageformat || '').toLowerCase() ===
+            'markdown'
+        );
+    }
+
     private bold(text: string) {
-        return this.configuration.messageformat.toLowerCase() === 'markdown'
+        return this.isMarkdown()
             ? `*${this.escapeMarkdown(text)}*`
-            : `<b>${text}</b>`;
+            : `<b>${this.escapeHtml(text)}</b>`;
     }
 
     private getParseMode() {
-        return this.configuration.messageformat.toLowerCase() === 'markdown'
-            ? 'MarkdownV2'
-            : 'HTML';
+        return this.isMarkdown() ? 'MarkdownV2' : 'HTML';
+    }
+
+    private escapeText(text: string) {
+        return this.isMarkdown()
+            ? this.escapeMarkdown(text)
+            : this.escapeHtml(text);
     }
 
     private escapeMarkdown(text: string) {
         return text.replace(/([\\_*`|!.[\](){}>+#=~-])/gm, '\\$1');
+    }
+
+    private escapeHtml(text: string) {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
     }
 }
 
