@@ -21,7 +21,12 @@ export function isValidUri(uri: string | undefined | null): boolean {
     }
     return !uriSchema.validate(uri.trim()).error;
 }
-const { parse: parseSemver, diff: diffSemver, transform: transformTag } = tag;
+const {
+    parse: parseSemver,
+    diff: diffSemver,
+    transform: transformTag,
+    extractSemverComponents,
+} = tag;
 
 export interface ContainerImage {
     id: string;
@@ -351,6 +356,8 @@ export function isDockerOfficialImage(image: ContainerImage): boolean {
 }
 
 const TOKEN_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*$/;
+const METHOD_CALL_REGEX =
+    /^([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\.(padStart|padEnd)\(\s*(\d{1,2})(?:\s*,\s*(?:'([^'\\]{0,10})'|"([^"\\]{0,10})"))?\s*\)$/;
 const FORBIDDEN_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 const ALLOWED_ROOTS = new Set([
     'major',
@@ -390,13 +397,32 @@ export function safeInterpolate(
     const result = template.replace(/\$\{([^}]*)\}/g, (_match, expr) => {
         replacedCount++;
 
-        if (!TOKEN_REGEX.test(expr)) {
-            throw new Error(
-                `Syntax violation: invalid expression '\${${expr}}'`,
-            );
+        let path = expr;
+        let method: 'padStart' | 'padEnd' | undefined;
+        let padLen = 0;
+        let padChar: string | undefined;
+
+        if (TOKEN_REGEX.test(expr)) {
+            path = expr;
+        } else {
+            const methodMatch = expr.match(METHOD_CALL_REGEX);
+            if (methodMatch) {
+                path = methodMatch[1];
+                method = methodMatch[2] as 'padStart' | 'padEnd';
+                padLen = parseInt(methodMatch[3], 10);
+                if (methodMatch[4] !== undefined) {
+                    padChar = methodMatch[4];
+                } else if (methodMatch[5] !== undefined) {
+                    padChar = methodMatch[5];
+                }
+            } else {
+                throw new Error(
+                    `Syntax violation: invalid expression '\${${expr}}'`,
+                );
+            }
         }
 
-        const segments = expr.split('.');
+        const segments = path.split('.');
         for (const segment of segments) {
             if (FORBIDDEN_KEYS.has(segment)) {
                 throw new Error(`Forbidden property access: '${segment}'`);
@@ -421,15 +447,29 @@ export function safeInterpolate(
             current = (current as Record<string, unknown>)[segments[i]];
         }
 
+        let currentStr = '';
         if (
             typeof current === 'string' ||
             (typeof current === 'number' && !Number.isNaN(current)) ||
             typeof current === 'boolean'
         ) {
-            return String(current);
+            currentStr = String(current);
+        } else {
+            return '';
         }
 
-        return '';
+        if (method === 'padStart') {
+            return padChar !== undefined
+                ? currentStr.padStart(padLen, padChar)
+                : currentStr.padStart(padLen);
+        }
+        if (method === 'padEnd') {
+            return padChar !== undefined
+                ? currentStr.padEnd(padLen, padChar)
+                : currentStr.padEnd(padLen);
+        }
+
+        return currentStr;
     });
 
     if (replacedCount !== openCount) {
@@ -484,16 +524,13 @@ export function renderLinkTemplate(
     let version = '';
 
     if (containerParam.image?.tag?.semver && transformed) {
-        const versionSemver = parseSemver(transformed);
-        if (versionSemver) {
-            major = String(versionSemver.major);
-            minor = String(versionSemver.minor);
-            patch = String(versionSemver.patch);
-            prerelease =
-                versionSemver.prerelease && versionSemver.prerelease.length > 0
-                    ? String(versionSemver.prerelease[0])
-                    : '';
-            version = `${major}.${minor}.${patch}`;
+        const semverComponents = extractSemverComponents(transformed);
+        if (semverComponents) {
+            major = semverComponents.major;
+            minor = semverComponents.minor;
+            patch = semverComponents.patch;
+            prerelease = semverComponents.prerelease;
+            version = semverComponents.version;
         }
     }
     // Export result for dynamic template interpolation (${result.tag}, etc.)

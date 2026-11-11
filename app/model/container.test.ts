@@ -1843,6 +1843,136 @@ describe('rich container metadata', () => {
                 ).toBe('https://example.com/my-container/docker');
             });
 
+            test('should support padStart and padEnd string modifiers (#1551)', () => {
+                expect(
+                    container.safeInterpolate(
+                        'https://example.com/v${major}.${minor.padStart(2, "0")}.${patch}',
+                        dummyContext,
+                    ),
+                ).toBe('https://example.com/v1.02.3');
+
+                expect(
+                    container.safeInterpolate(
+                        "https://example.com/v${major}.${minor.padStart(2, '0')}.${patch}",
+                        dummyContext,
+                    ),
+                ).toBe('https://example.com/v1.02.3');
+
+                // Already 2 digits
+                expect(
+                    container.safeInterpolate('${minor.padStart(2, "0")}', {
+                        ...dummyContext,
+                        minor: '04',
+                    }),
+                ).toBe('04');
+
+                // padStart with length 4
+                expect(
+                    container.safeInterpolate(
+                        '${minor.padStart(4, "0")}',
+                        dummyContext,
+                    ),
+                ).toBe('0002');
+
+                // padStart without fill character defaults to space
+                expect(
+                    container.safeInterpolate(
+                        '${minor.padStart(3)}',
+                        dummyContext,
+                    ),
+                ).toBe('  2');
+
+                // padEnd with fill character
+                expect(
+                    container.safeInterpolate(
+                        '${minor.padEnd(3, "0")}',
+                        dummyContext,
+                    ),
+                ).toBe('200');
+
+                // padEnd without fill character
+                expect(
+                    container.safeInterpolate(
+                        '${minor.padEnd(3)}',
+                        dummyContext,
+                    ),
+                ).toBe('2  ');
+            });
+
+            test('should reject unauthorized methods or malformed arguments in safeInterpolate (#1551)', () => {
+                // Unauthorized method
+                expect(() =>
+                    container.safeInterpolate(
+                        '${minor.slice(0, 1)}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Syntax violation/);
+
+                // Unauthorized method toString
+                expect(() =>
+                    container.safeInterpolate(
+                        '${minor.toString()}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Syntax violation/);
+
+                // Excessively large pad length (> 99)
+                expect(() =>
+                    container.safeInterpolate(
+                        '${minor.padStart(100, "0")}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Syntax violation/);
+
+                // Excessively long fill string (> 10 chars)
+                expect(() =>
+                    container.safeInterpolate(
+                        '${minor.padStart(2, "0123456789extra")}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Syntax violation/);
+
+                // Missing required length argument
+                expect(() =>
+                    container.safeInterpolate(
+                        '${minor.padStart()}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Syntax violation/);
+
+                // Negative length
+                expect(() =>
+                    container.safeInterpolate(
+                        '${minor.padStart(-1)}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Syntax violation/);
+
+                // Unquoted fill argument
+                expect(() =>
+                    container.safeInterpolate(
+                        '${minor.padStart(2, 0)}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Syntax violation/);
+
+                // Too many arguments
+                expect(() =>
+                    container.safeInterpolate(
+                        '${minor.padStart(2, "0", "extra")}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Syntax violation/);
+
+                // Chained method calls
+                expect(() =>
+                    container.safeInterpolate(
+                        '${minor.padStart(2, "0").padEnd(3, "0")}',
+                        dummyContext,
+                    ),
+                ).toThrow(/Syntax violation/);
+            });
+
             test('should resolve null, undefined, objects and functions to empty string', () => {
                 const contextWithComplex = {
                     ...dummyContext,
@@ -2040,6 +2170,61 @@ describe('rich container metadata', () => {
                 expect(rendered).toBe(
                     'https://release-1.2.3.acme.com/org/sec-app',
                 );
+            });
+
+            test('should preserve leading zeros for CalVer tags in renderLinkTemplate (#1551)', () => {
+                const calverContainer = {
+                    ...testContainer,
+                    image: {
+                        ...testContainer.image,
+                        tag: {
+                            value: '26.04.5.1.1',
+                            semver: true,
+                        },
+                    },
+                };
+
+                const template =
+                    'https://www.collaboraonline.com/code-${major}-${minor}-release-notes/';
+                const rendered = container.renderLinkTemplate(
+                    template,
+                    calverContainer,
+                );
+                expect(rendered).toBe(
+                    'https://www.collaboraonline.com/code-26-04-release-notes/',
+                );
+            });
+
+            test('should support padStart in renderLinkTemplate (#1551)', () => {
+                const calverContainer = {
+                    ...testContainer,
+                    image: {
+                        ...testContainer.image,
+                        tag: {
+                            value: '26.4.5',
+                            semver: true,
+                        },
+                    },
+                };
+
+                const template =
+                    'https://www.collaboraonline.com/code-${major}-${minor.padStart(2, "0")}-release-notes/';
+                const rendered = container.renderLinkTemplate(
+                    template,
+                    calverContainer,
+                );
+                expect(rendered).toBe(
+                    'https://www.collaboraonline.com/code-26-04-release-notes/',
+                );
+            });
+
+            test('should safely fall back to template string when method call is unauthorized (#1551)', () => {
+                const payload = 'https://example.com/${minor.slice(0, 1)}';
+                const rendered = container.renderLinkTemplate(
+                    payload,
+                    testContainer,
+                );
+                expect(rendered).toBe(payload);
             });
         });
     });

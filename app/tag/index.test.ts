@@ -887,4 +887,74 @@ describe('interpolateTagFilter', () => {
             expect(regex.test('v1.3.0-alpine3.20')).toBe(false);
         });
     });
+
+    describe('extractSemverComponents', () => {
+        test('should extract standard semver components', () => {
+            expect(semver.extractSemverComponents('1.2.3')).toEqual({
+                major: '1',
+                minor: '2',
+                patch: '3',
+                prerelease: '',
+                version: '1.2.3',
+            });
+        });
+
+        test('should preserve leading zeros for CalVer tags (#1551)', () => {
+            expect(semver.extractSemverComponents('26.04.5.1.1')).toEqual({
+                major: '26',
+                minor: '04',
+                patch: '5',
+                prerelease: '',
+                version: '26.04.5',
+            });
+
+            expect(semver.extractSemverComponents('2024.01.02')).toEqual({
+                major: '2024',
+                minor: '01',
+                patch: '02',
+                prerelease: '',
+                version: '2024.01.02',
+            });
+        });
+
+        test('should preserve leading zeros with prefix and prerelease', () => {
+            expect(semver.extractSemverComponents('v01.02.03-beta.1')).toEqual({
+                major: '01',
+                minor: '02',
+                patch: '03',
+                prerelease: 'beta',
+                version: '01.02.03',
+            });
+        });
+
+        test('should handle short version strings with leading zeros', () => {
+            expect(semver.extractSemverComponents('1.05')).toEqual({
+                major: '1',
+                minor: '05',
+                patch: '0',
+                prerelease: '',
+                version: '1.05.0',
+            });
+        });
+
+        test('should return null for non-semver versions', () => {
+            expect(semver.extractSemverComponents('latest')).toBeNull();
+            expect(semver.extractSemverComponents('master')).toBeNull();
+            expect(semver.extractSemverComponents('')).toBeNull();
+            expect(semver.extractSemverComponents(null as any)).toBeNull();
+        });
+
+        test('should preserve leading zeros when interpolating tag filter (#1551)', () => {
+            const container = makeContainer('26.04.5.1.1');
+            const interpolated = semver.interpolateTagFilter(
+                '^${major}\\.${minor}\\.',
+                container,
+            );
+            expect(interpolated).toBe('^26\\.04\\.');
+
+            const regex = new RegExp(interpolated);
+            expect(regex.test('26.04.5.1.2')).toBe(true);
+            expect(regex.test('26.4.5')).toBe(false);
+        });
+    });
 });

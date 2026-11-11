@@ -7,6 +7,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 > Changes below are merged on `main` and will be included in the upcoming release.
 
+- 🐛 [CORE] Preserve leading zeros and support padStart/padEnd in link templates (#1551)
 - 🐛 [REGISTRY] Optimize GHCR tag pagination with semver cursor and add registry rate limit pacing (#1552)
 - 🐛 [TRIGGER] Fix MQTT summary topics refresh on container update (#1550)
 - 🐛 [TRIGGER] Fix Telegram batch mode MarkdownV2 escaping and formatting (fixes #1548)

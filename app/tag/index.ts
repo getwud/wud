@@ -212,6 +212,69 @@ export function parse(rawVersion) {
     return semver.coerce(versionToParse, { loose: true });
 }
 
+export interface SemverComponents {
+    major: string;
+    minor: string;
+    patch: string;
+    prerelease: string;
+    version: string;
+}
+
+/**
+ * Extract semver components from a raw tag string, preserving leading zeros for CalVer tags.
+ *
+ * @param rawVersion Raw version or tag string
+ * @returns SemverComponents | null
+ */
+export function extractSemverComponents(
+    rawVersion: string,
+): SemverComponents | null {
+    if (!rawVersion || typeof rawVersion !== 'string') {
+        return null;
+    }
+    const versionSemver = parse(rawVersion);
+    if (!versionSemver) {
+        return null;
+    }
+    const components = extractTagComponents(rawVersion);
+    const numericSegments = components.version
+        ? components.version.split('.')
+        : [];
+
+    const major =
+        numericSegments[0] !== undefined &&
+        parseInt(numericSegments[0], 10) === versionSemver.major
+            ? numericSegments[0]
+            : String(versionSemver.major);
+
+    const minor =
+        numericSegments[1] !== undefined &&
+        parseInt(numericSegments[1], 10) === versionSemver.minor
+            ? numericSegments[1]
+            : String(versionSemver.minor);
+
+    const patch =
+        numericSegments[2] !== undefined &&
+        parseInt(numericSegments[2], 10) === versionSemver.patch
+            ? numericSegments[2]
+            : String(versionSemver.patch);
+
+    const prerelease =
+        versionSemver.prerelease && versionSemver.prerelease.length > 0
+            ? String(versionSemver.prerelease[0])
+            : components.prerelease || '';
+
+    const version = `${major}.${minor}.${patch}`;
+
+    return {
+        major,
+        minor,
+        patch,
+        prerelease,
+        version,
+    };
+}
+
 /**
  * Return true if version1 is semver greater than version2.
  * @param version1
@@ -415,7 +478,7 @@ export function interpolateTagFilter(
     }
 
     const rawTag = container?.image?.tag?.value ?? '';
-    const parsedSemver = parse(rawTag);
+    const semverComponents = extractSemverComponents(rawTag);
     const components = extractTagComponents(rawTag);
 
     return filterPattern.replace(
@@ -426,25 +489,13 @@ export function interpolateTagFilter(
                 case 'minor':
                 case 'patch':
                 case 'version': {
-                    if (!parsedSemver) {
+                    if (!semverComponents) {
                         log.warn(
                             `Container image tag "${rawTag}" is not a valid semver; cannot interpolate \${${varName}} into tag filter pattern "${filterPattern}"`,
                         );
                         return '(?!)';
                     }
-                    if (varName === 'major') {
-                        return String(parsedSemver.major);
-                    }
-                    if (varName === 'minor') {
-                        return String(parsedSemver.minor);
-                    }
-                    if (varName === 'patch') {
-                        return String(parsedSemver.patch);
-                    }
-                    if (varName === 'version') {
-                        return `${parsedSemver.major}.${parsedSemver.minor}.${parsedSemver.patch}`;
-                    }
-                    return '(?!)';
+                    return semverComponents[varName];
                 }
                 case 'flavor': {
                     if (!components.flavor) {
