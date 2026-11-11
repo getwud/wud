@@ -610,6 +610,92 @@ describe('Swarm Watcher - Service Discovery & Mapping', () => {
         );
     });
 
+    test('should update container labels and label-derived attributes when image is unchanged (fixes #1549)', async () => {
+        mockDocker.listServices.mockResolvedValue([
+            {
+                Spec: {
+                    Name: 'web',
+                    Labels: {
+                        'wud.tag.include': '^1\\.0\\.',
+                        'wud.tag.exclude': '^1\\.0\\.0$',
+                        'wud.tag.transform': '^(\\d+\\.\\d+\\.\\d+) => $1',
+                        'wud.link.template': 'https://example.com/${tag}',
+                        'wud.display.name': 'Custom Web Service',
+                        'wud.display.icon': 'mdi:web',
+                        'wud.trigger.include': 'slack',
+                        'wud.trigger.exclude': 'discord',
+                        'wud.watch.delay': '10m',
+                        'custom.label': 'foo',
+                    },
+                    TaskTemplate: {
+                        ContainerSpec: {
+                            Image: 'nginx:1.0.0',
+                            Labels: {
+                                'container.label': 'bar',
+                            },
+                        },
+                    },
+                },
+            },
+        ]);
+        const existing = {
+            id: 'test_web',
+            name: 'web',
+            watcher: 'test',
+            image: {
+                id: 'nginx:1.0.0',
+                name: 'nginx',
+                tag: { value: '1.0.0', semver: true },
+                registry: { name: 'hub', url: 'registry-1.docker.io' },
+                digest: { watch: false },
+            },
+            result: { tag: '1.0.0' },
+            error: undefined,
+            labels: {},
+            includeTags: undefined,
+            excludeTags: undefined,
+            transformTags: undefined,
+            linkTemplate: undefined,
+            displayName: 'web',
+            displayIcon: 'mdi:docker',
+            triggerInclude: undefined,
+            triggerExclude: undefined,
+            delay: undefined,
+        };
+        (storeContainer.getContainer as jest.Mock).mockReturnValue(existing);
+
+        const containers = await watcher.getContainers();
+        expect(containers).toHaveLength(1);
+        expect(containers[0].labels).toEqual({
+            'wud.tag.include': '^1\\.0\\.',
+            'wud.tag.exclude': '^1\\.0\\.0$',
+            'wud.tag.transform': '^(\\d+\\.\\d+\\.\\d+) => $1',
+            'wud.link.template': 'https://example.com/${tag}',
+            'wud.display.name': 'Custom Web Service',
+            'wud.display.icon': 'mdi:web',
+            'wud.trigger.include': 'slack',
+            'wud.trigger.exclude': 'discord',
+            'wud.watch.delay': '10m',
+            'custom.label': 'foo',
+            'container.label': 'bar',
+        });
+        expect(containers[0].includeTags).toBe('^1\\.0\\.');
+        expect(containers[0].excludeTags).toBe('^1\\.0\\.0$');
+        expect(containers[0].transformTags).toBe('^(\\d+\\.\\d+\\.\\d+) => $1');
+        expect(containers[0].linkTemplate).toBe('https://example.com/${tag}');
+        expect(containers[0].displayName).toBe('Custom Web Service');
+        expect(containers[0].displayIcon).toBe('mdi:web');
+        expect(containers[0].triggerInclude).toBe('slack');
+        expect(containers[0].triggerExclude).toBe('discord');
+        expect(containers[0].delay).toBe('10m');
+        expect(storeContainer.updateContainer).toHaveBeenCalledWith(
+            expect.objectContaining({
+                includeTags: '^1\\.0\\.',
+                excludeTags: '^1\\.0\\.0$',
+            }),
+        );
+    });
+
     test('should re-evaluate container when service image tag changes and bypass stale store entry', async () => {
         mockDocker.listServices.mockResolvedValue([
             {

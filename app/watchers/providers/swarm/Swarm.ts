@@ -39,6 +39,7 @@ import {
 import * as storeContainer from '../../../store/container';
 import {
     validate as validateContainer,
+    resolveContainerMetadata,
     fullName,
     Container,
     hasTransitionedOutOfCooldown,
@@ -382,97 +383,6 @@ export class Swarm extends Watcher {
                 stack || undefined,
             );
 
-            // One-shot mode: never read from the store (not initialized)
-            const containerInStore = isOneshot()
-                ? undefined
-                : storeContainer.getContainer(containerId);
-            const imageChanged =
-                containerInStore !== undefined &&
-                isServiceImageChanged(containerInStore, fullImageSpec, tagName);
-            if (
-                imageChanged &&
-                this.log &&
-                typeof this.log.info === 'function'
-            ) {
-                this.log.info(
-                    `Container ${containerId} image changed, re-evaluating container`,
-                );
-            }
-            if (
-                containerInStore !== undefined &&
-                containerInStore.error === undefined &&
-                !imageChanged
-            ) {
-                const storeRegistryName =
-                    containerInStore.image?.registry?.name;
-                if (storeRegistryName && !hasRegistry(storeRegistryName)) {
-                    if (this.log && typeof this.log.info === 'function') {
-                        this.log.info(
-                            `Container ${containerId} registry (${storeRegistryName}) is no longer registered, re-evaluating container`,
-                        );
-                    }
-                } else {
-                    let isUpdated = false;
-                    if (containerInStore.watcher !== this.name) {
-                        containerInStore.watcher = this.name;
-                        isUpdated = true;
-                    }
-                    if (storeRegistryName) {
-                        const resolvedRegistry = getRegistry(storeRegistryName);
-                        if (
-                            resolvedRegistry?.getId &&
-                            typeof resolvedRegistry.getId === 'function' &&
-                            containerInStore.image.registry.name !==
-                                resolvedRegistry.getId()
-                        ) {
-                            containerInStore.image.registry.name =
-                                resolvedRegistry.getId();
-                            isUpdated = true;
-                        }
-                    }
-                    const watchDigestLabel = getLabelValue(
-                        mergedLabels,
-                        KEY_WATCH_DIGEST,
-                    );
-                    let watchDigest = false;
-                    if (
-                        watchDigestLabel !== undefined &&
-                        watchDigestLabel !== ''
-                    ) {
-                        watchDigest = watchDigestLabel.toLowerCase() === 'true';
-                    } else if (!containerInStore.image?.tag?.semver) {
-                        const registryProvider = findRegistryProvider(
-                            containerInStore.image?.registry?.url,
-                            getRegistries(),
-                        );
-                        if (registryProvider) {
-                            watchDigest = registryProvider.shouldWatchDigest(
-                                undefined,
-                                containerInStore.image?.name,
-                                this.configuration.watchdigestdefault,
-                            );
-                        } else if (
-                            this.configuration.watchdigestdefault !== undefined
-                        ) {
-                            watchDigest = this.configuration.watchdigestdefault;
-                        }
-                    }
-                    if (
-                        containerInStore.image?.digest &&
-                        containerInStore.image.digest.watch !== watchDigest
-                    ) {
-                        containerInStore.image.digest.watch = watchDigest;
-                        isUpdated = true;
-                    }
-
-                    if (isUpdated) {
-                        storeContainer.updateContainer(containerInStore);
-                    }
-                    currentContainers.push(containerInStore);
-                    continue;
-                }
-            }
-
             const includeTags = getLabelValue(mergedLabels, KEY_TAG_INCLUDE);
             const excludeTags = getLabelValue(mergedLabels, KEY_TAG_EXCLUDE);
             const transformTags = getLabelValue(
@@ -529,6 +439,160 @@ export class Swarm extends Watcher {
                     this.configuration.watchdigestdefault !== undefined
                 ) {
                     watchDigest = this.configuration.watchdigestdefault;
+                }
+            }
+
+            // One-shot mode: never read from the store (not initialized)
+            const containerInStore = isOneshot()
+                ? undefined
+                : storeContainer.getContainer(containerId);
+            const imageChanged =
+                containerInStore !== undefined &&
+                isServiceImageChanged(containerInStore, fullImageSpec, tagName);
+            if (
+                imageChanged &&
+                this.log &&
+                typeof this.log.info === 'function'
+            ) {
+                this.log.info(
+                    `Container ${containerId} image changed, re-evaluating container`,
+                );
+            }
+            if (
+                containerInStore !== undefined &&
+                containerInStore.error === undefined &&
+                !imageChanged
+            ) {
+                const storeRegistryName =
+                    containerInStore.image?.registry?.name;
+                if (storeRegistryName && !hasRegistry(storeRegistryName)) {
+                    if (this.log && typeof this.log.info === 'function') {
+                        this.log.info(
+                            `Container ${containerId} registry (${storeRegistryName}) is no longer registered, re-evaluating container`,
+                        );
+                    }
+                } else {
+                    let isUpdated = false;
+                    if (containerInStore.watcher !== this.name) {
+                        containerInStore.watcher = this.name;
+                        isUpdated = true;
+                    }
+                    if (storeRegistryName) {
+                        const resolvedRegistry = getRegistry(storeRegistryName);
+                        if (
+                            resolvedRegistry?.getId &&
+                            typeof resolvedRegistry.getId === 'function' &&
+                            containerInStore.image?.registry?.name !==
+                                resolvedRegistry.getId()
+                        ) {
+                            containerInStore.image.registry.name =
+                                resolvedRegistry.getId();
+                            isUpdated = true;
+                        }
+                    }
+                    if (
+                        JSON.stringify(containerInStore.labels || {}) !==
+                        JSON.stringify(mergedLabels || {})
+                    ) {
+                        containerInStore.labels = mergedLabels;
+                        isUpdated = true;
+                    }
+                    if (containerInStore.includeTags !== includeTags) {
+                        containerInStore.includeTags = includeTags;
+                        isUpdated = true;
+                    }
+                    if (containerInStore.excludeTags !== excludeTags) {
+                        containerInStore.excludeTags = excludeTags;
+                        isUpdated = true;
+                    }
+                    if (containerInStore.transformTags !== transformTags) {
+                        containerInStore.transformTags = transformTags;
+                        isUpdated = true;
+                    }
+                    if (containerInStore.linkTemplate !== linkTemplate) {
+                        containerInStore.linkTemplate = linkTemplate;
+                        isUpdated = true;
+                    }
+                    if (containerInStore.changelogUrl !== changelogUrl) {
+                        containerInStore.changelogUrl = changelogUrl;
+                        isUpdated = true;
+                    }
+                    if (containerInStore.upstreamUrl !== upstreamUrl) {
+                        containerInStore.upstreamUrl = upstreamUrl;
+                        isUpdated = true;
+                    }
+                    if (
+                        containerInStore.documentationUrl !== documentationUrl
+                    ) {
+                        containerInStore.documentationUrl = documentationUrl;
+                        isUpdated = true;
+                    }
+                    const resolvedDisplayName = displayName || serviceName;
+                    if (containerInStore.displayName !== resolvedDisplayName) {
+                        containerInStore.displayName = resolvedDisplayName;
+                        isUpdated = true;
+                    }
+                    if (containerInStore.displayIcon !== displayIcon) {
+                        containerInStore.displayIcon = displayIcon;
+                        isUpdated = true;
+                    }
+                    if (containerInStore.triggerInclude !== triggerInclude) {
+                        containerInStore.triggerInclude = triggerInclude;
+                        isUpdated = true;
+                    }
+                    if (containerInStore.triggerExclude !== triggerExclude) {
+                        containerInStore.triggerExclude = triggerExclude;
+                        isUpdated = true;
+                    }
+                    if (containerInStore.delay !== delay) {
+                        containerInStore.delay = delay;
+                        isUpdated = true;
+                    }
+                    const resolvedStack = stack || undefined;
+                    if (containerInStore.stack !== resolvedStack) {
+                        containerInStore.stack = resolvedStack;
+                        isUpdated = true;
+                    }
+                    if (
+                        containerInStore.image?.tag &&
+                        containerInStore.image.tag.semver !== isSemver
+                    ) {
+                        containerInStore.image.tag.semver = isSemver;
+                        isUpdated = true;
+                    }
+                    const ociVersion =
+                        typeof mergedLabels?.[
+                            'org.opencontainers.image.version'
+                        ] === 'string' &&
+                        mergedLabels[
+                            'org.opencontainers.image.version'
+                        ].trim() !== ''
+                            ? mergedLabels[
+                                  'org.opencontainers.image.version'
+                              ].trim()
+                            : undefined;
+                    if (
+                        containerInStore.image &&
+                        containerInStore.image.version !== ociVersion
+                    ) {
+                        containerInStore.image.version = ociVersion;
+                        isUpdated = true;
+                    }
+                    if (
+                        containerInStore.image?.digest &&
+                        containerInStore.image.digest.watch !== watchDigest
+                    ) {
+                        containerInStore.image.digest.watch = watchDigest;
+                        isUpdated = true;
+                    }
+
+                    resolveContainerMetadata(containerInStore);
+
+                    if (isUpdated) {
+                        storeContainer.updateContainer(containerInStore);
+                    }
+                    currentContainers.push(containerInStore);
+                    continue;
                 }
             }
 
