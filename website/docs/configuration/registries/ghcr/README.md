@@ -56,6 +56,14 @@ Public packages work out of the box with zero configuration. Configure this modu
     supported="Any integer greater than or equal to 1">
     Maximum number of image pulls the Docker trigger runs at once against GHCR. GHCR rate limits bursts of pulls (HTTP 429 `toomanyrequests`), so the default runs them one at a time.
   </ConfigOption>
+  <ConfigOption
+    name="WUD_REGISTRY_GHCR_{registry_name}_SEMVERCURSOR"
+    required={false}
+    type="boolean"
+    defaultValue="true"
+    supported="true | false">
+    Enable cursor pagination starting from the container's current tag when checking semver updates on GHCR. Drastically reduces API requests and avoids HTTP 429 rate limits for large repositories.
+  </ConfigOption>
 </ConfigList>
 
 ---

@@ -225,6 +225,71 @@ export function getUserAgent(): string {
     return `wud/${getVersion()}`;
 }
 
+export interface RegistryTagCacheEntry {
+    tags: string[];
+    timestamp: number;
+    lastTag?: string;
+}
+
+/**
+ * Parse RFC 5988 Link header looking for `rel="next"`.
+ * Example: `</v2/immich-app/immich-machine-learning/tags/list?last=v1.39.0&n=1000>; rel="next"`
+ */
+export function parseNextLink(
+    linkHeader?: string | string[],
+): string | undefined {
+    if (!linkHeader) {
+        return undefined;
+    }
+    const headerStr = Array.isArray(linkHeader)
+        ? linkHeader.join(',')
+        : typeof linkHeader === 'string'
+          ? linkHeader
+          : undefined;
+    if (!headerStr) {
+        return undefined;
+    }
+    const linkRegex = /<([^>]+)>(?:\s*;[^,]*)*/g;
+    let match: RegExpExecArray | null;
+    while ((match = linkRegex.exec(headerStr)) !== null) {
+        const fullEntry = match[0];
+        const url = match[1].trim();
+        if (/;\s*rel=["']?next["']?(?:[;\s]|$)/i.test(fullEntry)) {
+            return url;
+        }
+    }
+    return undefined;
+}
+
+/**
+ * Resolve the next page URL handling full URLs, absolute paths, or query strings.
+ */
+export function resolveNextPageUrl(
+    registryBaseUrl: string,
+    imageName: string,
+    nextLink: string,
+): string {
+    const extracted = parseNextLink(nextLink) || nextLink.trim();
+    let link = extracted;
+    if (link.startsWith('<')) {
+        const match = link.match(/<([^>]+)>/);
+        if (match) {
+            link = match[1].trim();
+        }
+    }
+    if (link.startsWith('http://') || link.startsWith('https://')) {
+        return link;
+    }
+    if (link.startsWith('/')) {
+        const origin = new URL(registryBaseUrl).origin;
+        return `${origin}${link}`;
+    }
+    if (link.startsWith('?')) {
+        return `${registryBaseUrl}/${imageName}/tags/list${link}`;
+    }
+    return `${registryBaseUrl}/${imageName}/tags/list/${link}`;
+}
+
 /**
  * Docker Registry Abstract class.
  */
@@ -240,6 +305,67 @@ export class Registry extends Component {
     private readonly pendingPulls: (() => void)[] = [];
     private pullsDeferredUntil = 0;
 
+    protected readonly tagCache: Map<string, RegistryTagCacheEntry> = new Map();
+
+    clearTagCache(): void {
+        this.tagCache.clear();
+    }
+
+    protected getTagCacheKey(image: ContainerImage): string {
+        const registryUrl = image.registry?.url || '';
+        return `${registryUrl}/${image.name}`;
+    }
+
+    protected getCachedTags(image: ContainerImage): string[] | undefined {
+        const ttlMs = (this.configuration.tagcachettl ?? 300) * 1000;
+        if (ttlMs <= 0) {
+            return undefined;
+        }
+        const key = this.getTagCacheKey(image);
+        const cached = this.tagCache.get(key);
+        if (cached && Date.now() - cached.timestamp < ttlMs) {
+            return [...cached.tags];
+        }
+        return undefined;
+    }
+
+    protected setCachedTags(
+        image: ContainerImage,
+        tags: string[],
+        lastTag?: string,
+    ): void {
+        const ttlMs = (this.configuration.tagcachettl ?? 300) * 1000;
+        if (ttlMs <= 0) {
+            return;
+        }
+        const key = this.getTagCacheKey(image);
+        this.tagCache.set(key, {
+            tags: [...tags],
+            timestamp: Date.now(),
+            lastTag,
+        });
+    }
+
+    async hasTag(image: ContainerImage, tag: string): Promise<boolean> {
+        try {
+            await this.callRegistry({
+                image,
+                method: 'head',
+                url: `${image.registry.url}/${image.name}/manifests/${tag}`,
+                headers: {
+                    Accept: 'application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json',
+                },
+                resolveWithFullResponse: true,
+            });
+            return true;
+        } catch (error: any) {
+            if (error?.response?.status === 404) {
+                return false;
+            }
+            throw error;
+        }
+    }
+
     validateConfiguration(
         configuration: ComponentConfiguration,
     ): ComponentConfiguration {
@@ -252,6 +378,9 @@ export class Registry extends Component {
             pullconcurrency,
             proxy,
             webhook,
+            maxpages,
+            pagethrottle,
+            tagcachettl,
             ...providerConfiguration
         } = isObjectConfiguration
             ? configuration
@@ -260,6 +389,9 @@ export class Registry extends Component {
                   pullconcurrency: undefined,
                   proxy: undefined,
                   webhook: undefined,
+                  maxpages: undefined,
+                  pagethrottle: undefined,
+                  tagcachettl: undefined,
               };
 
         const concurrencyValidated = this.joi
@@ -298,6 +430,32 @@ export class Registry extends Component {
             .validate(webhook);
         if (webhookValidated.error) throw webhookValidated.error;
 
+        const maxPagesValidated = this.joi
+            .number()
+            .integer()
+            .min(1)
+            .optional()
+            .validate(maxpages);
+        if (maxPagesValidated.error) throw maxPagesValidated.error;
+
+        const pageThrottleValidated = this.joi
+            .number()
+            .integer()
+            .min(0)
+            .default(0)
+            .optional()
+            .validate(pagethrottle);
+        if (pageThrottleValidated.error) throw pageThrottleValidated.error;
+
+        const tagCacheTtlValidated = this.joi
+            .number()
+            .integer()
+            .min(0)
+            .default(300)
+            .optional()
+            .validate(tagcachettl);
+        if (tagCacheTtlValidated.error) throw tagCacheTtlValidated.error;
+
         const providerSchema = this.getConfigurationSchema();
         let providerConfigurationValidated = providerSchema.validate(
             isObjectConfiguration ? providerConfiguration : configuration,
@@ -308,7 +466,10 @@ export class Registry extends Component {
             (Object.hasOwn(configuration, 'concurrency') ||
                 Object.hasOwn(configuration, 'pullconcurrency') ||
                 Object.hasOwn(configuration, 'proxy') ||
-                Object.hasOwn(configuration, 'webhook')) &&
+                Object.hasOwn(configuration, 'webhook') ||
+                Object.hasOwn(configuration, 'maxpages') ||
+                Object.hasOwn(configuration, 'pagethrottle') ||
+                Object.hasOwn(configuration, 'tagcachettl')) &&
             Object.keys(providerConfiguration).length === 0
         ) {
             const anonymousConfigurationValidated = providerSchema.validate('');
@@ -335,6 +496,15 @@ export class Registry extends Component {
                 : {}),
             ...(proxyValidated.value !== undefined
                 ? { proxy: proxyValidated.value }
+                : {}),
+            ...(maxPagesValidated.value !== undefined
+                ? { maxpages: maxPagesValidated.value }
+                : {}),
+            ...(pagethrottle !== undefined
+                ? { pagethrottle: pageThrottleValidated.value }
+                : {}),
+            ...(tagcachettl !== undefined
+                ? { tagcachettl: tagCacheTtlValidated.value }
                 : {}),
         };
     }
@@ -412,22 +582,83 @@ export class Registry extends Component {
      */
     async getTags(image: ContainerImage): Promise<string[]> {
         this.log.debug(`Get ${image.name} tags`);
+        const cachedTags = this.getCachedTags(image);
+        if (cachedTags) {
+            this.log.debug(
+                `Tag cache hit for ${image.name} (${cachedTags.length} tags)`,
+            );
+            return cachedTags;
+        }
+
+        const tags = await this.paginateTags(image);
+        this.setCachedTags(image, tags);
+        return tags;
+    }
+
+    /**
+     * Paginate tags from registry.
+     */
+    protected async paginateTags(
+        image: ContainerImage,
+        firstPage?: AxiosResponse<RegistryTagsList>,
+        startingCursor?: string,
+    ): Promise<string[]> {
         const tags: string[] = [];
-        let page: AxiosResponse<RegistryTagsList> | undefined = undefined;
+        let page = firstPage;
+        let pageCount = page ? 1 : 0;
         let hasNext = true;
         let link: string | undefined = undefined;
-        while (hasNext) {
-            const lastItem =
-                page && page.data && page.data.tags
-                    ? page.data.tags[page.data.tags.length - 1]
-                    : undefined;
+        const maxPages = this.configuration.maxpages as number | undefined;
+        const pageThrottleMs = (this.configuration.pagethrottle ?? 0) as number;
 
-            page = await this.getTagsPage(image, lastItem, link);
+        if (page) {
+            const pageTags = page.data && page.data.tags ? page.data.tags : [];
+            tags.push(...pageTags);
+            const rawLinkHeader = page.headers ? page.headers.link : undefined;
+            const nextLink = parseNextLink(rawLinkHeader);
+            hasNext = nextLink !== undefined;
+            link = rawLinkHeader;
+        }
+
+        while (hasNext) {
+            if (maxPages !== undefined && pageCount >= maxPages) {
+                this.log.debug(
+                    `Reached max pages limit (${maxPages}) for ${image.name}`,
+                );
+                break;
+            }
+
+            if (pageCount > 0 && pageThrottleMs > 0) {
+                await new Promise((resolve) =>
+                    setTimeout(resolve, pageThrottleMs),
+                );
+            }
+
+            const lastItem =
+                tags.length > 0 ? tags[tags.length - 1] : startingCursor;
+
+            try {
+                page = await this.getTagsPage(image, lastItem, link);
+            } catch (error: any) {
+                if (error?.response?.status === 429 && tags.length > 0) {
+                    this.log.warn(
+                        `Rate limit reached for ${image.name} after ${pageCount} pages; returning ${tags.length} partial tags`,
+                    );
+                    break;
+                }
+                throw error;
+            }
+
+            pageCount += 1;
             const pageTags =
                 page && page.data && page.data.tags ? page.data.tags : [];
-            link = page && page.headers ? page.headers.link : undefined;
-            hasNext = page && page.headers && page.headers.link !== undefined;
             tags.push(...pageTags);
+
+            const rawLinkHeader =
+                page && page.headers ? page.headers.link : undefined;
+            const nextLink = parseNextLink(rawLinkHeader);
+            hasNext = nextLink !== undefined;
+            link = rawLinkHeader;
         }
 
         // Sort alpha then reverse to get higher values first
@@ -442,14 +673,17 @@ export class Registry extends Component {
     getTagsPage(
         image: ContainerImage,
         lastItem: string | undefined = undefined,
-        _link: string | undefined = undefined,
+        link: string | undefined = undefined,
     ) {
         // Default items per page (not honoured by all registries)
         const itemsPerPage = 1000;
         const last = lastItem ? `&last=${lastItem}` : '';
+        const url = link
+            ? resolveNextPageUrl(image.registry.url, image.name, link)
+            : `${image.registry.url}/${image.name}/tags/list?n=${itemsPerPage}${last}`;
         return this.callRegistry<RegistryTagsList>({
             image,
-            url: `${image.registry.url}/${image.name}/tags/list?n=${itemsPerPage}${last}`,
+            url,
             resolveWithFullResponse: true,
         });
     }
