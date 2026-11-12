@@ -7,7 +7,7 @@ const mockProps = {
   watchers: ['local', 'docker'],
   watcherSelectedInit: '',
   updateKinds: ['major', 'minor', 'patch'],
-  updateKindSelectedInit: '',
+  updateKindSelectedInit: [],
   updateAvailable: false,
   oldestFirst: false,
   groupLabels: ['app', 'env', 'version'],
@@ -53,11 +53,26 @@ describe('ContainerFilter', () => {
   });
 
   it('emits update-kind-changed event when update kind selection changes', async () => {
-    wrapper.vm.updateKindSelected = 'major';
+    wrapper.vm.updateKindSelected = ['major', 'patch'];
     await wrapper.vm.emitUpdateKindChanged();
     
     expect(wrapper.emitted('update-kind-changed')).toBeTruthy();
-    expect(wrapper.emitted('update-kind-changed')[0]).toEqual(['major']);
+    expect(wrapper.emitted('update-kind-changed')[0]).toEqual([['major', 'patch']]);
+  });
+
+  it('emits an empty array when the update kind selection is cleared', async () => {
+    wrapper.vm.updateKindSelected = null;
+    await wrapper.vm.emitUpdateKindChanged();
+
+    expect(wrapper.emitted('update-kind-changed')[0]).toEqual([[]]);
+  });
+
+  it('has active filters only when at least one update kind is selected', () => {
+    wrapper.vm.updateKindSelected = [];
+    expect(wrapper.vm.hasActiveFilters).toBe(false);
+
+    wrapper.vm.updateKindSelected = ['minor', 'patch'];
+    expect(wrapper.vm.hasActiveFilters).toBe(true);
   });
 
   it('emits group-by-label-changed event when group by label changes', async () => {
@@ -141,7 +156,7 @@ describe('ContainerFilter', () => {
   it('resets all filters on resetFilters', async () => {
     wrapper.vm.registrySelected = 'hub';
     wrapper.vm.watcherSelected = 'local';
-    wrapper.vm.updateKindSelected = 'minor';
+    wrapper.vm.updateKindSelected = ['minor'];
     wrapper.vm.groupByLabelLocal = 'app';
     wrapper.vm.updateAvailableLocal = true;
     wrapper.vm.oldestFirstLocal = true;
@@ -150,7 +165,7 @@ describe('ContainerFilter', () => {
 
     expect(wrapper.vm.registrySelected).toBe('');
     expect(wrapper.vm.watcherSelected).toBe('');
-    expect(wrapper.vm.updateKindSelected).toBe('');
+    expect(wrapper.vm.updateKindSelected).toEqual([]);
     expect(wrapper.vm.groupByLabelLocal).toBe('');
     expect(wrapper.vm.updateAvailableLocal).toBe(false);
     expect(wrapper.vm.oldestFirstLocal).toBe(false);

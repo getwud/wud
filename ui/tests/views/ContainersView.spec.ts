@@ -119,7 +119,7 @@ describe('ContainersView', () => {
         updateAvailable: false,
       },
     ];
-    wrapper.vm.updateKindSelected = 'digest';
+    wrapper.vm.updateKindSelected = ['digest'];
     await wrapper.vm.$nextTick();
 
     const filtered = wrapper.vm.containersFiltered;
@@ -142,7 +142,7 @@ describe('ContainersView', () => {
         updateKind: { kind: 'tag', semverDiff: 'minor' },
       },
     ];
-    wrapper.vm.updateKindSelected = 'minor';
+    wrapper.vm.updateKindSelected = ['minor'];
     await wrapper.vm.$nextTick();
 
     const filtered = wrapper.vm.containersFiltered;
@@ -165,13 +165,114 @@ describe('ContainersView', () => {
         updateKind: { kind: 'tag', semverDiff: 'minor' },
       },
     ];
-    wrapper.vm.updateKindSelected = 'rebuild';
+    wrapper.vm.updateKindSelected = ['rebuild'];
     await wrapper.vm.$nextTick();
 
     const filtered = wrapper.vm.containersFiltered;
     expect(filtered).toHaveLength(1);
     expect(filtered[0].id).toBe('1');
     expect(wrapper.vm.getNewVersionClass(filtered[0])).toBe('info');
+  });
+
+  it('filters containers by several update kinds at once', async () => {
+    wrapper.vm.containers = [
+      { id: '1', updateAvailable: true, updateKind: { kind: 'tag', semverDiff: 'major' } },
+      { id: '2', updateAvailable: true, updateKind: { kind: 'tag', semverDiff: 'minor' } },
+      { id: '3', updateAvailable: true, updateKind: { kind: 'tag', semverDiff: 'patch' } },
+      { id: '4', updateAvailable: true, updateKind: { kind: 'digest' } },
+    ];
+    wrapper.vm.updateKindSelected = ['minor', 'patch'];
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.containersFiltered.map((c) => c.id).sort()).toEqual(['2', '3']);
+  });
+
+  it('filters containers by digest and semver update kinds combined', async () => {
+    wrapper.vm.containers = [
+      { id: '1', updateAvailable: true, updateKind: { kind: 'tag', semverDiff: 'major' } },
+      { id: '2', updateAvailable: true, updateKind: { kind: 'tag', semverDiff: 'minor' } },
+      { id: '3', updateAvailable: true, updateKind: { kind: 'digest' } },
+    ];
+    wrapper.vm.updateKindSelected = ['digest', 'major'];
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.containersFiltered.map((c) => c.id).sort()).toEqual(['1', '3']);
+  });
+
+  it('writes selected update kinds to the query as a comma-separated list', () => {
+    const push = jest.fn();
+    const testWrapper = mount(ContainersView, {
+      global: {
+        stubs: { 'container-filter': true, 'container-item': true },
+        mocks: { $router: { push } },
+      },
+    });
+    testWrapper.vm.onUpdateKindChanged(['minor', 'patch']);
+
+    expect(push).toHaveBeenCalledWith({
+      query: expect.objectContaining({ 'update-kind': 'minor,patch' }),
+    });
+    testWrapper.vm.onUpdateKindChanged([]);
+    expect(push.mock.calls[1][0].query).not.toHaveProperty('update-kind');
+    testWrapper.unmount();
+  });
+
+  it.each([
+    ['minor,patch', ['minor', 'patch']],
+    ['major', ['major']],
+  ])('reads update-kind=%s from the route query', async (queryValue, expected) => {
+    const next = jest.fn();
+    await ContainersView.beforeRouteEnter.call(
+      ContainersView,
+      { query: { 'update-kind': queryValue } },
+      {},
+      next,
+    );
+    const vm: any = { updateKindSelected: [] };
+    next.mock.calls[0][0](vm);
+
+    expect(vm.updateKindSelected).toEqual(expected);
+  });
+
+  it('lists other update candidates by kind, excluding the main update', () => {
+    expect(
+      wrapper.vm.getOtherUpdateCandidates({
+        result: {
+          tag: '2024.12.1',
+          candidates: { minor: '2024.12.1', patch: '2024.07.3', major: '2025.01.0' },
+        },
+      }),
+    ).toEqual([
+      { kind: 'major', tag: '2025.01.0' },
+      { kind: 'patch', tag: '2024.07.3' },
+    ]);
+    expect(wrapper.vm.getOtherUpdateCandidates({ result: { tag: '1.0.0' } })).toEqual([]);
+  });
+
+  it('includes candidate kinds in update kind options and filters by them', async () => {
+    wrapper.vm.containers = [
+      {
+        id: '1',
+        updateAvailable: true,
+        updateKind: { kind: 'tag', semverDiff: 'minor' },
+        result: { tag: '2024.12.1', candidates: { minor: '2024.12.1', patch: '2024.07.3' } },
+      },
+      { id: '2', updateAvailable: true, updateKind: { kind: 'tag', semverDiff: 'major' } },
+    ];
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.updateKinds).toEqual(['major', 'minor', 'patch']);
+
+    wrapper.vm.updateKindSelected = ['patch'];
+    await wrapper.vm.$nextTick();
+    expect(wrapper.vm.containersFiltered.map((c) => c.id)).toEqual(['1']);
+  });
+
+  it('maps semver diffs to chip colors', () => {
+    expect(wrapper.vm.getSemverDiffColor('major')).toBe('error');
+    expect(wrapper.vm.getSemverDiffColor('minor')).toBe('warning');
+    expect(wrapper.vm.getSemverDiffColor('patch')).toBe('success');
+    expect(wrapper.vm.getSemverDiffColor('rebuild')).toBe('info');
+    expect(wrapper.vm.getSemverDiffColor(undefined)).toBe('info');
   });
 
   it('computes all container labels correctly', () => {
@@ -516,7 +617,7 @@ describe('ContainersView', () => {
       wrapper.vm.watcherSelected = 'local';
       wrapper.vm.stackSelected = 'monitoring';
       wrapper.vm.searchQuery = 'test';
-      wrapper.vm.updateKindSelected = 'minor';
+      wrapper.vm.updateKindSelected = ['minor'];
       wrapper.vm.groupByLabel = 'app';
       wrapper.vm.updateAvailableSelected = true;
       wrapper.vm.oldestFirst = true;
@@ -527,7 +628,7 @@ describe('ContainersView', () => {
       expect(wrapper.vm.watcherSelected).toBe('');
       expect(wrapper.vm.stackSelected).toBe('');
       expect(wrapper.vm.searchQuery).toBe('');
-      expect(wrapper.vm.updateKindSelected).toBe('');
+      expect(wrapper.vm.updateKindSelected).toEqual([]);
       expect(wrapper.vm.groupByLabel).toBe('');
       expect(wrapper.vm.updateAvailableSelected).toBe(false);
       expect(wrapper.vm.oldestFirst).toBe(false);

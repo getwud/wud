@@ -858,6 +858,19 @@ components:
                         tag:
                             type: string
                             description: The tag WUD would update to.
+                        candidates:
+                            type: object
+                            description: |
+                                For semver tags, the highest available tag per update kind
+                                (verified to be a container image). Kinds without a newer tag are omitted.
+                                `tag` is always the highest of these.
+                            properties:
+                                major:
+                                    type: string
+                                minor:
+                                    type: string
+                                patch:
+                                    type: string
                         digest:
                             type: string
                             description: The remote manifest digest, when the container is watched by digest.
