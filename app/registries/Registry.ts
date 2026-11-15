@@ -2,7 +2,8 @@ import axios, { AxiosRequestConfig, Method, AxiosResponse } from 'axios';
 import log from '../log';
 import Component, { ComponentConfiguration } from '../registry/Component';
 import { getSummaryTags } from '../prometheus/registry';
-import { ContainerImage } from '../model/container';
+import { Container, ContainerImage } from '../model/container';
+import { groupCandidatesByKind, UpdateCandidates } from '../tag';
 import { getVersion } from '../configuration';
 import { applyProxyConfig, maskProxy } from '../http/proxy';
 
@@ -219,6 +220,59 @@ export async function resolveCandidateTag(
         }
     }
     return {};
+}
+
+/**
+ * Resolve the best update candidate per semver kind (major / minor / patch).
+ * Candidates ranked above the already resolved main candidate were rejected
+ * by resolveCandidateTag (non-container artifacts) and are not checked again.
+ */
+export async function resolveUpdateCandidatesByKind(
+    registryProvider: Registry,
+    container: Container,
+    tagsCandidates: string[],
+    resolvedTag: string,
+    logContainer?: {
+        info: (msg: string) => void;
+        warn?: (msg: string) => void;
+        debug?: (msg: string) => void;
+    },
+): Promise<UpdateCandidates> {
+    const resolvedIndex = tagsCandidates.indexOf(resolvedTag);
+    if (resolvedIndex === -1) {
+        return {};
+    }
+    const groups = groupCandidatesByKind(
+        container.image.tag.value,
+        tagsCandidates.slice(resolvedIndex),
+        container.transformTags,
+        container,
+    );
+    const updateCandidates: UpdateCandidates = {};
+    for (const [kind, tags] of Object.entries(groups)) {
+        if (tags[0] === resolvedTag) {
+            updateCandidates[kind] = resolvedTag;
+            continue;
+        }
+        try {
+            const { tag } = await resolveCandidateTag(
+                registryProvider,
+                container.image,
+                tags,
+                logContainer,
+            );
+            if (tag) {
+                updateCandidates[kind] = tag;
+            }
+        } catch (e: any) {
+            if (logContainer && typeof logContainer.debug === 'function') {
+                logContainer.debug(
+                    `Failed to resolve ${kind} update candidate (${e.message})`,
+                );
+            }
+        }
+    }
+    return updateCandidates;
 }
 
 export function getUserAgent(): string {

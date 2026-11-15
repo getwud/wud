@@ -958,3 +958,44 @@ describe('interpolateTagFilter', () => {
         });
     });
 });
+
+describe('groupCandidatesByKind', () => {
+    test('should group desc sorted candidates by kind, keeping order', () => {
+        expect(
+            semver.groupCandidatesByKind('2024.07.0', [
+                '2025.01.0',
+                '2024.12.1',
+                '2024.12.0',
+                '2024.07.3',
+                '2024.07.1',
+            ]),
+        ).toEqual({
+            major: ['2025.01.0'],
+            minor: ['2024.12.1', '2024.12.0'],
+            patch: ['2024.07.3', '2024.07.1'],
+        });
+    });
+
+    test('should omit kinds without candidates', () => {
+        expect(
+            semver.groupCandidatesByKind('1.2.3', ['1.3.0', '1.2.4']),
+        ).toEqual({ minor: ['1.3.0'], patch: ['1.2.4'] });
+        expect(semver.groupCandidatesByKind('1.2.3', [])).toEqual({});
+    });
+
+    test('should keep the original candidate tag when a prefix is used', () => {
+        expect(
+            semver.groupCandidatesByKind('v1.2.3', ['v2.0.0', 'v1.2.5']),
+        ).toEqual({ major: ['v2.0.0'], patch: ['v1.2.5'] });
+    });
+
+    test('should compare transformed tags but return original ones', () => {
+        expect(
+            semver.groupCandidatesByKind(
+                '1.2.3-ls10',
+                ['1.3.0-ls12', '1.2.4-ls11'],
+                '^(\\d+\\.\\d+\\.\\d+)-ls\\d+$ => $1',
+            ),
+        ).toEqual({ minor: ['1.3.0-ls12'], patch: ['1.2.4-ls11'] });
+    });
+});

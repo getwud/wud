@@ -95,6 +95,7 @@ function buildContainerFromRows(
                 created: historyRow.created ?? undefined,
                 version: historyRow.version ?? undefined,
                 link: historyRow.link ?? undefined,
+                candidates: historyRow.candidates ?? undefined,
             };
         }
         if (historyRow.errorMessage) {
@@ -202,6 +203,7 @@ export function completeContainerShapeForApi(container: Container): Container {
             created: container.result.created ?? undefined,
             version: container.result.version ?? undefined,
             link: container.result.link ?? undefined,
+            candidates: container.result.candidates ?? undefined,
         };
     }
 
@@ -297,6 +299,7 @@ export function insertContainer(container: any): Container {
                 created: containerToSave.result?.created,
                 version: containerToSave.result?.version,
                 link: containerToSave.result?.link,
+                candidates: containerToSave.result?.candidates,
                 updateAvailable: containerToSave.updateAvailable,
                 updateKind: containerToSave.updateKind?.kind,
                 localValue: containerToSave.updateKind?.localValue,
@@ -446,6 +449,7 @@ export function updateContainer(container: any): Container {
                     checkedAt: sql`CURRENT_TIMESTAMP`,
                     created: containerToReturn.result?.created,
                     version: containerToReturn.result?.version,
+                    candidates: containerToReturn.result?.candidates ?? null,
                     updateAvailable: containerToReturn.updateAvailable,
                     updateKind: containerToReturn.updateKind?.kind,
                     localValue: containerToReturn.updateKind?.localValue,
@@ -464,6 +468,7 @@ export function updateContainer(container: any): Container {
                     created: containerToReturn.result?.created,
                     version: containerToReturn.result?.version,
                     link: containerToReturn.result?.link,
+                    candidates: containerToReturn.result?.candidates,
                     updateAvailable: containerToReturn.updateAvailable,
                     updateKind: containerToReturn.updateKind?.kind,
                     localValue: containerToReturn.updateKind?.localValue,

@@ -626,6 +626,46 @@ describe('Container Store (SQLite)', () => {
         ).toBe(false);
     });
 
+    test('insertContainer and updateContainer should persist update candidates per kind', () => {
+        const containerWithCandidates = {
+            ...sampleContainer,
+            id: 'container-candidates-store-test',
+            result: {
+                tag: '2024.12.1',
+                candidates: { minor: '2024.12.1', patch: '2024.07.3' },
+            },
+        };
+
+        container.insertContainer(containerWithCandidates);
+        expect(
+            container.getContainer('container-candidates-store-test')?.result
+                ?.candidates,
+        ).toEqual({ minor: '2024.12.1', patch: '2024.07.3' });
+
+        // Same main result (touch path) with new candidates
+        container.updateContainer({
+            ...containerWithCandidates,
+            result: {
+                tag: '2024.12.1',
+                candidates: { minor: '2024.12.1', patch: '2024.07.4' },
+            },
+        });
+        expect(
+            container.getContainer('container-candidates-store-test')?.result
+                ?.candidates,
+        ).toEqual({ minor: '2024.12.1', patch: '2024.07.4' });
+
+        // Candidates disappear when no longer reported
+        container.updateContainer({
+            ...containerWithCandidates,
+            result: { tag: '2024.12.1' },
+        });
+        expect(
+            container.getContainer('container-candidates-store-test')?.result
+                ?.candidates,
+        ).toBeUndefined();
+    });
+
     test('insertContainer and updateContainer should persist and retrieve version on image and result', () => {
         const containerWithVersion = {
             ...sampleContainer,

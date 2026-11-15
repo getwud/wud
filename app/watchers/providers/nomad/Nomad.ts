@@ -63,6 +63,7 @@ import {
 } from '../../../registries/registryProvider';
 import {
     resolveCandidateTag,
+    resolveUpdateCandidatesByKind,
     isNonContainerArtifactError,
 } from '../../../registries/Registry';
 import { getWatchContainerGauge } from '../../../prometheus/watcher';
@@ -882,6 +883,20 @@ export class Nomad extends Watcher {
                 tagsCandidates,
                 logContainer,
             );
+
+        // Keep the best candidate per semver kind (major / minor / patch)
+        if (candidateTag && container.image.tag.semver) {
+            const candidatesByKind = await resolveUpdateCandidatesByKind(
+                registryProvider,
+                container,
+                tagsCandidates,
+                candidateTag,
+                logContainer,
+            );
+            if (Object.keys(candidatesByKind).length > 0) {
+                result.candidates = candidatesByKind;
+            }
+        }
 
         if (candidateTag) {
             result.tag = candidateTag;

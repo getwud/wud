@@ -133,6 +133,9 @@
           :items="updateKinds"
           @update:modelValue="emitUpdateKindChanged"
           :clearable="true"
+          multiple
+          chips
+          closable-chips
           label="Update kind"
           variant="outlined"
           density="compact"
@@ -158,7 +161,7 @@
 
 <script lang="ts">
 import { refreshAllContainers } from "@/services/container";
-import { defineComponent } from "vue";
+import { defineComponent, type PropType } from "vue";
 
 export default defineComponent({
   props: {
@@ -206,8 +209,8 @@ export default defineComponent({
       required: true,
     },
     updateKindSelectedInit: {
-      type: String,
-      required: true,
+      type: Array as PropType<string[]>,
+      default: () => [],
     },
     updateAvailable: {
       type: Boolean,
@@ -238,7 +241,7 @@ export default defineComponent({
       watcherSelected: "",
       stackSelected: this.stackSelectedInit || "",
       searchQuery: this.searchQueryInit || "",
-      updateKindSelected: "",
+      updateKindSelected: [] as string[],
       updateAvailableLocal: this.updateAvailable,
       oldestFirstLocal: this.oldestFirst,
       groupByLabelLocal: this.groupByLabel,
@@ -252,7 +255,7 @@ export default defineComponent({
         this.watcherSelected ||
         this.stackSelected ||
         this.searchQuery ||
-        this.updateKindSelected ||
+        this.updateKindSelected?.length ||
         this.groupByLabelLocal ||
         this.updateAvailableLocal ||
         this.oldestFirstLocal
@@ -274,7 +277,7 @@ export default defineComponent({
       this.$emit("search-changed", this.searchQuery ?? "");
     },
     emitUpdateKindChanged() {
-      this.$emit("update-kind-changed", this.updateKindSelected ?? "");
+      this.$emit("update-kind-changed", this.updateKindSelected ?? []);
     },
     emitUpdateAvailableChanged() {
       this.$emit("update-available-changed");
@@ -290,7 +293,7 @@ export default defineComponent({
       this.watcherSelected = "";
       this.stackSelected = "";
       this.searchQuery = "";
-      this.updateKindSelected = "";
+      this.updateKindSelected = [];
       this.groupByLabelLocal = "";
       this.updateAvailableLocal = false;
       this.oldestFirstLocal = false;
@@ -327,7 +330,7 @@ export default defineComponent({
     this.watcherSelected = this.watcherSelectedInit;
     this.stackSelected = this.stackSelectedInit || "";
     this.searchQuery = this.searchQueryInit || "";
-    this.updateKindSelected = this.updateKindSelectedInit;
+    this.updateKindSelected = [...(this.updateKindSelectedInit || [])];
     this.updateAvailableLocal = this.updateAvailable;
     this.oldestFirstLocal = this.oldestFirst;
     this.groupByLabelLocal = this.groupByLabel;

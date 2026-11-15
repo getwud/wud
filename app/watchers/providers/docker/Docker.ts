@@ -51,6 +51,7 @@ import {
 } from '../../../registries/registryProvider';
 import Registry, {
     resolveCandidateTag,
+    resolveUpdateCandidatesByKind,
     isNonContainerArtifactError,
 } from '../../../registries/Registry';
 import { getWatchContainerGauge } from '../../../prometheus/watcher';
@@ -1721,6 +1722,20 @@ export class Docker extends Watcher {
                             `Failed to resolve candidate tags (${errorDetail})`,
                         );
                     }
+                }
+            }
+
+            // Keep the best candidate per semver kind (major / minor / patch)
+            if (candidateTag && container.image.tag.semver) {
+                const candidatesByKind = await resolveUpdateCandidatesByKind(
+                    registryProvider,
+                    container,
+                    tagsCandidates,
+                    candidateTag,
+                    logContainer,
+                );
+                if (Object.keys(candidatesByKind).length > 0) {
+                    result.candidates = candidatesByKind;
                 }
             }
 
