@@ -25,6 +25,38 @@ test('mask should not fail when mask is longer than original string', async () =
     expect(Component.mask('abc', 5)).toStrictEqual('***');
 });
 
+test('maskUrlPassword should mask password in url with username and password', async () => {
+    expect(
+        Component.maskUrlPassword('https://user:password@example.com'),
+    ).toStrictEqual('https://user:******@example.com');
+});
+
+test('maskUrlPassword should mask password in url with port and path', async () => {
+    expect(
+        Component.maskUrlPassword(
+            'https://user:secret@example.com:8080/notify',
+        ),
+    ).toStrictEqual('https://user:******@example.com:8080/notify');
+});
+
+test('maskUrlPassword should keep url untouched when no password is present', async () => {
+    expect(Component.maskUrlPassword('http://xxx.com')).toStrictEqual(
+        'http://xxx.com',
+    );
+    expect(Component.maskUrlPassword('https://user@example.com')).toStrictEqual(
+        'https://user@example.com',
+    );
+});
+
+test('maskUrlPassword should handle malformed or invalid url safely', async () => {
+    expect(Component.maskUrlPassword('invalid-url')).toStrictEqual(
+        'invalid-url',
+    );
+    expect(Component.maskUrlPassword('://bad')).toStrictEqual('://bad');
+    expect(Component.maskUrlPassword('')).toStrictEqual('');
+    expect(Component.maskUrlPassword(undefined)).toBeUndefined();
+});
+
 test('getId should return the concatenation $type.$name', async () => {
     const component = new Component();
     component.register('kind', 'type', 'name', { x: 'x' });
