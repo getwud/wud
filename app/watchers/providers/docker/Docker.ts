@@ -504,6 +504,29 @@ export function isDockerRecreateTempName(name?: string): boolean {
 }
 
 /**
+ * Compare two container label maps for equality.
+ */
+export function areLabelsEqual(
+    a?: Record<string, string>,
+    b?: Record<string, string>,
+): boolean {
+    const aEmpty = !a || Object.keys(a).length === 0;
+    const bEmpty = !b || Object.keys(b).length === 0;
+    if (aEmpty && bEmpty) {
+        return true;
+    }
+    if (aEmpty !== bEmpty) {
+        return false;
+    }
+    const aKeys = Object.keys(a!);
+    const bKeys = Object.keys(b!);
+    if (aKeys.length !== bKeys.length) {
+        return false;
+    }
+    return aKeys.every((k) => a![k] === b![k]);
+}
+
+/**
  * Helper to match a filter pattern against container name or container labels.
  * If filter starts with 'label:', pattern is tested against label key, key=value, and key:value.
  * Otherwise, pattern is tested against container name.
@@ -1154,6 +1177,25 @@ export class Docker extends Watcher {
             return undefined;
         }
 
+        // Prune any superseded container from store that previously had the same name on this watcher
+        if (containerName) {
+            const containersInStore =
+                storeContainer.getContainers({
+                    watcher: this.name,
+                }) || [];
+            for (const existing of containersInStore) {
+                if (
+                    existing.name === containerName &&
+                    existing.id !== containerId
+                ) {
+                    this.log.info(
+                        `Pruning superseded container ${existing.name} (${existing.id}) replaced by ${containerId}`,
+                    );
+                    await this.pruneContainerFromStore(existing.id);
+                }
+            }
+        }
+
         let containerWithImage: Container | undefined;
         try {
             const imageDetail = await this.addImageDetailsToContainer(
@@ -1235,6 +1277,13 @@ export class Docker extends Watcher {
             ? dockerEvent.Actor.Attributes.name.replace(/\//, '')
             : undefined;
 
+        // Targeted single-container reactions: destroy must always prune, even if container had a temp recreate name
+        if (action === 'destroy') {
+            this.recordDestroyedContainer(containerId);
+            await this.pruneContainerFromStore(containerId);
+            return;
+        }
+
         // Rollback archive containers, recreate temporary containers, and self-update helper should never be processed or indexed
         if (
             eventName &&
@@ -1254,12 +1303,7 @@ export class Docker extends Watcher {
             return;
         }
 
-        // Targeted single-container reactions
-        if (action === 'destroy') {
-            this.recordDestroyedContainer(containerId);
-            await this.pruneContainerFromStore(containerId);
-            return;
-        } else if (action === 'start') {
+        if (action === 'start') {
             this.destroyedContainers.delete(containerId);
             await this.reconcileContainer(containerId);
         } else {
@@ -1350,8 +1394,51 @@ export class Docker extends Watcher {
                         }
 
                         if (inspectLabels) {
-                            containerFound.labels = inspectLabels;
-                            resolveContainerMetadata(containerFound);
+                            if (
+                                !areLabelsEqual(
+                                    containerFound.labels,
+                                    inspectLabels,
+                                )
+                            ) {
+                                containerFound.labels = inspectLabels;
+                                containerFound.triggerInclude =
+                                    inspectLabels[wudTriggerInclude] ||
+                                    undefined;
+                                containerFound.triggerExclude =
+                                    inspectLabels[wudTriggerExclude] ||
+                                    undefined;
+                                containerFound.includeTags =
+                                    inspectLabels[wudTagInclude] || undefined;
+                                containerFound.excludeTags =
+                                    inspectLabels[wudTagExclude] || undefined;
+                                containerFound.transformTags =
+                                    inspectLabels[wudTagTransform] || undefined;
+                                containerFound.linkTemplate =
+                                    inspectLabels[wudLinkTemplate] || undefined;
+                                if (inspectLabels[wudDisplayIcon]) {
+                                    containerFound.displayIcon =
+                                        inspectLabels[wudDisplayIcon];
+                                }
+                                const inspectStack =
+                                    inspectLabels[wudStack] ||
+                                    inspectLabels[dockerComposeProject] ||
+                                    inspectLabels[
+                                        'com.docker.compose.project'
+                                    ] ||
+                                    undefined;
+                                if (inspectStack) {
+                                    containerFound.stack = inspectStack;
+                                }
+                                const inspectDelay =
+                                    inspectLabels[wudWatchDelay] ||
+                                    inspectLabels[wudTagDelay] ||
+                                    undefined;
+                                if (inspectDelay) {
+                                    containerFound.delay = inspectDelay;
+                                }
+                                resolveContainerMetadata(containerFound);
+                                isUpdated = true;
+                            }
                         }
 
                         if (isUpdated) {
@@ -2040,8 +2127,66 @@ export class Docker extends Watcher {
                     container.Labels ||
                     container.labels
                 ) {
-                    containerInStore.labels = containerLabels;
-                    resolveContainerMetadata(containerInStore);
+                    if (
+                        !areLabelsEqual(
+                            containerInStore.labels,
+                            containerLabels,
+                        )
+                    ) {
+                        containerInStore.labels = containerLabels;
+                        resolveContainerMetadata(containerInStore);
+                        isUpdated = true;
+                    }
+                }
+
+                if (triggerInclude !== containerInStore.triggerInclude) {
+                    containerInStore.triggerInclude = triggerInclude;
+                    isUpdated = true;
+                }
+
+                if (triggerExclude !== containerInStore.triggerExclude) {
+                    containerInStore.triggerExclude = triggerExclude;
+                    isUpdated = true;
+                }
+
+                if (includeTags !== containerInStore.includeTags) {
+                    containerInStore.includeTags = includeTags;
+                    isUpdated = true;
+                }
+
+                if (excludeTags !== containerInStore.excludeTags) {
+                    containerInStore.excludeTags = excludeTags;
+                    isUpdated = true;
+                }
+
+                if (effectiveTransformTags !== containerInStore.transformTags) {
+                    containerInStore.transformTags = effectiveTransformTags;
+                    isUpdated = true;
+                }
+
+                if (linkTemplate !== containerInStore.linkTemplate) {
+                    containerInStore.linkTemplate = linkTemplate;
+                    isUpdated = true;
+                }
+
+                const effectiveDisplayIcon =
+                    displayIcon || containerLabels[wudDisplayIcon];
+                if (
+                    effectiveDisplayIcon &&
+                    effectiveDisplayIcon !== containerInStore.displayIcon
+                ) {
+                    containerInStore.displayIcon = effectiveDisplayIcon;
+                    isUpdated = true;
+                }
+
+                if (stack && containerInStore.stack !== stack) {
+                    containerInStore.stack = stack;
+                    isUpdated = true;
+                }
+
+                if (delay && containerInStore.delay !== delay) {
+                    containerInStore.delay = delay;
+                    isUpdated = true;
                 }
 
                 const registryProvider = findRegistryProvider(

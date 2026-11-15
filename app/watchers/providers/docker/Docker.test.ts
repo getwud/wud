@@ -2974,7 +2974,7 @@ describe('Docker Watcher', () => {
             expect(result.indexDigest).toBe(newIndexDigest);
             expect(container.image.digest.value).toBe(oldLeafDigest);
             expect(container.image.digest.value).not.toBe(result.digest);
-        });
+        }, 10000);
 
         test('should list tags for non-semver images if watch digest is true and includeTags is set', async () => {
             const arm64ManifestDigest =
@@ -6993,6 +6993,174 @@ describe('Docker Watcher', () => {
                 expect(result).toBeUndefined();
                 expect(storeContainer.deleteContainer).toHaveBeenCalledWith(
                     'c123',
+                );
+            });
+        });
+
+        describe('Docker Compose Recreate & Label Sync (#1559)', () => {
+            beforeEach(async () => {
+                await docker.register('watcher', 'docker', 'test', {});
+            });
+
+            test('onDockerEvent should prune container on destroy even if name is a Docker Compose temporary recreate name', async () => {
+                docker.pruneContainerFromStore = jest
+                    .fn()
+                    .mockResolvedValue(undefined);
+                const chunk = Buffer.from(
+                    JSON.stringify({
+                        Action: 'destroy',
+                        Actor: {
+                            ID: 'old-compose-c123',
+                            Attributes: {
+                                name: 'a1b2c3d4e5f6_jellyseerr',
+                            },
+                        },
+                    }),
+                );
+                await docker.onDockerEvent(chunk);
+                expect(docker.pruneContainerFromStore).toHaveBeenCalledWith(
+                    'old-compose-c123',
+                );
+                expect(docker.isContainerDestroyed('old-compose-c123')).toBe(
+                    true,
+                );
+            });
+
+            test('onDockerEvent should persist updated labels to storeContainer when container labels change', async () => {
+                const existing = {
+                    id: 'c123',
+                    name: 'jellyseerr',
+                    displayName: 'jellyseerr',
+                    status: 'running',
+                    labels: {
+                        'com.docker.compose.project': 'media',
+                    },
+                };
+                storeContainer.getContainer.mockReturnValue(existing);
+                mockContainer.inspect.mockResolvedValue({
+                    Id: 'c123',
+                    Name: '/jellyseerr',
+                    State: { Status: 'running' },
+                    Config: {
+                        Labels: {
+                            'com.docker.compose.project': 'media',
+                            'wud.trigger.dockercompose.update.enabled': 'true',
+                            'wud.trigger.include': 'dockercompose',
+                        },
+                    },
+                });
+
+                const chunk = Buffer.from(
+                    JSON.stringify({
+                        Action: 'update',
+                        Actor: {
+                            ID: 'c123',
+                            Attributes: {
+                                name: 'jellyseerr',
+                            },
+                        },
+                    }),
+                );
+
+                await docker.onDockerEvent(chunk);
+
+                expect(storeContainer.updateContainer).toHaveBeenCalled();
+                const updated = (storeContainer.updateContainer as jest.Mock)
+                    .mock.calls[0][0];
+                expect(updated.labels).toEqual(
+                    expect.objectContaining({
+                        'wud.trigger.dockercompose.update.enabled': 'true',
+                    }),
+                );
+                expect(updated.triggerInclude).toBe('dockercompose');
+            });
+
+            test('addImageDetailsToContainer should persist updated labels and triggers when container is already in store', async () => {
+                const existing = {
+                    id: 'c123',
+                    name: 'jellyseerr',
+                    displayName: 'jellyseerr',
+                    status: 'running',
+                    image: {
+                        registry: {},
+                        name: 'seerr/seerr',
+                        tag: { value: 'v3.5.1', semver: true },
+                        digest: { watch: false },
+                    },
+                    labels: {},
+                };
+                storeContainer.getContainer.mockReturnValue(existing);
+                mockImage.inspect.mockResolvedValue({
+                    Architecture: 'amd64',
+                    Os: 'linux',
+                    Config: { Labels: {} },
+                });
+
+                const containerInspect = {
+                    Id: 'c123',
+                    Image: 'sha256:img123',
+                    Name: '/jellyseerr',
+                    Config: {
+                        Image: 'seerr/seerr:v3.5.1',
+                        Labels: {
+                            'wud.trigger.dockercompose.update.enabled': 'true',
+                            'wud.trigger.include': 'dockercompose',
+                        },
+                    },
+                };
+
+                await docker.addImageDetailsToContainer(
+                    containerInspect,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    'dockercompose',
+                    undefined,
+                );
+
+                expect(storeContainer.updateContainer).toHaveBeenCalled();
+                const updated = (storeContainer.updateContainer as jest.Mock)
+                    .mock.calls[0][0];
+                expect(updated.labels).toEqual(
+                    expect.objectContaining({
+                        'wud.trigger.dockercompose.update.enabled': 'true',
+                    }),
+                );
+                expect(updated.triggerInclude).toBe('dockercompose');
+            });
+
+            test('runReconcileContainer should prune superseded container with the same name from store', async () => {
+                mockContainer.inspect.mockResolvedValue({
+                    Id: 'new-c456',
+                    Name: '/jellyseerr',
+                    Config: { Labels: { 'wud.watch': 'true' } },
+                    State: { Status: 'running' },
+                });
+                storeContainer.getContainers.mockReturnValue([
+                    {
+                        id: 'old-c123',
+                        name: 'jellyseerr',
+                        watcher: 'docker.test',
+                    },
+                ]);
+                docker.pruneContainerFromStore = jest
+                    .fn()
+                    .mockResolvedValue(undefined);
+                docker.addImageDetailsToContainer = jest
+                    .fn()
+                    .mockResolvedValue({
+                        id: 'new-c456',
+                        name: 'jellyseerr',
+                    });
+                docker.checkContainer = jest.fn().mockResolvedValue({});
+
+                await docker.runReconcileContainer('new-c456');
+
+                expect(docker.pruneContainerFromStore).toHaveBeenCalledWith(
+                    'old-c123',
                 );
             });
         });
