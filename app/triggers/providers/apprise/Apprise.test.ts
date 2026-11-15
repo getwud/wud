@@ -269,6 +269,61 @@ test('maskConfiguration should mask urls', async () => {
     expect(masked.urls).toBe('m*************************m');
 });
 
+test('maskConfiguration should mask password in url when username and password are provided', async () => {
+    apprise.configuration = {
+        url: 'https://user:password@example.com',
+        urls: 'mailto://secret@example.com',
+    };
+
+    const masked = apprise.maskConfiguration();
+
+    expect(masked.url).toBe('https://user:******@example.com');
+    expect(masked.urls).toBe('m*************************m');
+});
+
+test('maskConfiguration should leave url untouched when credentials are not present', async () => {
+    apprise.configuration = {
+        url: 'https://example.com/notify',
+        urls: 'mailto://secret@example.com',
+    };
+
+    const masked = apprise.maskConfiguration();
+
+    expect(masked.url).toBe('https://example.com/notify');
+});
+
+test('maskConfiguration should leave url untouched when only username is present', async () => {
+    apprise.configuration = {
+        url: 'https://user@example.com',
+        urls: 'mailto://secret@example.com',
+    };
+
+    const masked = apprise.maskConfiguration();
+
+    expect(masked.url).toBe('https://user@example.com');
+});
+
+test('maskConfiguration should handle malformed or invalid url format safely', async () => {
+    apprise.configuration = {
+        url: 'invalid-url',
+        urls: 'mailto://secret@example.com',
+    };
+
+    const masked = apprise.maskConfiguration();
+
+    expect(masked.url).toBe('invalid-url');
+});
+
+test('maskConfiguration should handle undefined url safely', async () => {
+    apprise.configuration = {
+        urls: 'mailto://secret@example.com',
+    };
+
+    const masked = apprise.maskConfiguration();
+
+    expect(masked.url).toBeUndefined();
+});
+
 test('triggerRollback should post the rollback report to Apprise', async () => {
     apprise.configuration = configurationValid;
     axios.mockResolvedValue({ data: 'ok' });

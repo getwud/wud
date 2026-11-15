@@ -137,6 +137,29 @@ class Component {
             Math.max(0, value.length - nb * 2),
         )}${value.substring(value.length - nb, value.length)}`;
     }
+
+    /**
+     * Mask password in a URL string if present.
+     * @param url the URL to mask
+     * @returns the URL with password masked, or original if not present or invalid
+     */
+    static maskUrlPassword(url?: string): string | undefined {
+        if (!url || typeof url !== 'string') {
+            return url;
+        }
+        try {
+            const parsed = new URL(url);
+            if (!parsed.password) {
+                return url;
+            }
+            return url.replace(
+                /^([a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^/?#@:]*:)[^/?#]*(@[^/?#@]+(?:[:/?#]|$))/,
+                '$1******$2',
+            );
+        } catch {
+            return url;
+        }
+    }
 }
 
 export default Component;
