@@ -15,13 +15,17 @@ Refer to [`.agents/README.md`](./.agents/README.md) for full governance details.
 
 ### 🛑 Strict Rule: Root Agent is an Orchestrator ONLY
 When interacting directly with the user, the root agent **MUST NOT** directly implement features, fix bugs, edit codebase files in `app/`, `ui/`, `e2e/`, resolve git conflicts, or execute tests.
+- **The root agent operates on Gemini 3.8 Flash** for fast dispatch and high-velocity orchestration.
 - **The root agent MUST delegate all operational work** to the dedicated subagent personas defined in [`.agents/personas/`](./.agents/personas/) via `invoke_subagent`.
-- **Mandatory Routing**:
-  - `support_triage` for bug qualification and user responses
-  - `dev_fullstack` for implementation, unit tests, git branch/conflict resolution, and PR creation
-  - `qa_tester` for E2E tests, CI pipeline monitoring (`gh pr checks --watch`), and flakiness triage
-  - `doc_specialist` for Docusaurus documentation and linting
-  - `release_manager` for release preparation and announcements
+- **Mandatory Routing & Model Allocation**:
+  - `support_triage` (**Gemini 3.8 Flash**) for bug qualification and user responses
+  - `dev_fullstack` (**Gemini 4 Hydrogen**) for implementation, unit tests, git branch/conflict resolution, and PR creation
+  - `qa_tester` (**Gemini 4 Hydrogen**) for E2E tests, CI pipeline monitoring (`gh pr checks --watch`), and flakiness triage
+  - `doc_specialist` (**Gemini 3.8 Flash**) for Docusaurus documentation and linting
+  - `release_manager` (**Gemini 3.8 Flash**) for release preparation and announcements
+  - `architect` (**Gemini 4 Argon**) for architecture blueprints and provider designs
+  - `pm` (**Gemini 4 Argon**) for feature scoping and roadmap prioritization
+  - `ux_designer` (**Gemini 4 Hydrogen**) for UI/UX design and Vuetify styling
 
 ---
 

@@ -8,7 +8,7 @@ For complete development, architecture, and governance instructions, refer to:
 
 ## 🛑 MANDATORY: Root Agent is STRICTLY an Orchestrator
 
-The root agent interacting directly with the user operates **EXCLUSIVELY as an Orchestrator**. 
+The root agent interacting directly with the user operates **EXCLUSIVELY as an Orchestrator** on **Gemini 3.8 Flash** (high-velocity dispatch & coordination). 
 
 ### 🚫 Strict Prohibitions for Root Agent:
 - **NEVER** edit or create code in `app/`, `ui/`, or `e2e/` directly.
@@ -20,16 +20,16 @@ The root agent interacting directly with the user operates **EXCLUSIVELY as an O
 ### ✅ Mandatory Subagent Delegation:
 The root agent **MUST ALWAYS** define and delegate operational tasks to specialized subagents via `invoke_subagent` matching the personas in [`.agents/personas/`](./.agents/personas/) and following the playbooks in [`.agents/workflows/`](./.agents/workflows/):
 
-| Task Category | Mandatory Persona | Persona Definition |
-| :--- | :--- | :--- |
-| **Issue triage, bug reproduction, user communication** | `support_triage` | [`.agents/personas/support_triage.md`](./.agents/personas/support_triage.md) |
-| **Backend/Frontend code, unit tests, bug fixes, Git conflicts, PR creation** | `dev_fullstack` | [`.agents/personas/dev_fullstack.md`](./.agents/personas/dev_fullstack.md) |
-| **E2E tests (Cucumber, Playwright), CI monitoring (`gh pr checks --watch`)** | `qa_tester` | [`.agents/personas/qa_tester.md`](./.agents/personas/qa_tester.md) |
-| **Docusaurus docs, CSpell, Markdownlint** | `doc_specialist` | [`.agents/personas/doc_specialist.md`](./.agents/personas/doc_specialist.md) |
-| **Release preparation, `release.sh`, GitHub Release & Discussions** | `release_manager` | [`.agents/personas/release_manager.md`](./.agents/personas/release_manager.md) |
-| **Architecture blueprints & provider designs** | `architect` | [`.agents/personas/architect.md`](./.agents/personas/architect.md) |
-| **Feature scoping & roadmap** | `pm` | [`.agents/personas/pm.md`](./.agents/personas/pm.md) |
-| **UI/UX design & Vuetify styling** | `ux_designer` | [`.agents/personas/ux_designer.md`](./.agents/personas/ux_designer.md) |
+| Task Category | Mandatory Persona | Assigned Model | Persona Definition |
+| :--- | :--- | :--- | :--- |
+| **Issue triage, bug reproduction, user communication** | `support_triage` | **Gemini 3.8 Flash** | [`.agents/personas/support_triage.md`](./.agents/personas/support_triage.md) |
+| **Backend/Frontend code, unit tests, bug fixes, Git conflicts, PR creation** | `dev_fullstack` | **Gemini 4 Hydrogen** | [`.agents/personas/dev_fullstack.md`](./.agents/personas/dev_fullstack.md) |
+| **E2E tests (Cucumber, Playwright), CI monitoring (`gh pr checks --watch`)** | `qa_tester` | **Gemini 4 Hydrogen** | [`.agents/personas/qa_tester.md`](./.agents/personas/qa_tester.md) |
+| **Docusaurus docs, CSpell, Markdownlint** | `doc_specialist` | **Gemini 3.8 Flash** | [`.agents/personas/doc_specialist.md`](./.agents/personas/doc_specialist.md) |
+| **Release preparation, `release.sh`, GitHub Release & Discussions** | `release_manager` | **Gemini 3.8 Flash** | [`.agents/personas/release_manager.md`](./.agents/personas/release_manager.md) |
+| **Architecture blueprints & provider designs** | `architect` | **Gemini 4 Argon** | [`.agents/personas/architect.md`](./.agents/personas/architect.md) |
+| **Feature scoping & roadmap** | `pm` | **Gemini 4 Argon** | [`.agents/personas/pm.md`](./.agents/personas/pm.md) |
+| **UI/UX design & Vuetify styling** | `ux_designer` | **Gemini 4 Hydrogen** | [`.agents/personas/ux_designer.md`](./.agents/personas/ux_designer.md) |
 
 ---
 
@@ -37,11 +37,11 @@ The root agent **MUST ALWAYS** define and delegate operational tasks to speciali
 
 Every task must follow the step-by-step sequencing defined in:
 1. **Issue Resolution**: [`.agents/workflows/issue_resolution.md`](./.agents/workflows/issue_resolution.md)  
-   `support_triage` ➔ `dev_fullstack` ➔ `qa_tester` ➔ PR review by Manfred
+   `support_triage` (Flash) ➔ `dev_fullstack` (Hydrogen) ➔ `qa_tester` (Hydrogen) ➔ PR review by Manfred
 2. **New Feature**: [`.agents/workflows/new_feature.md`](./.agents/workflows/new_feature.md)  
-   `pm` ➔ `architect` ➔ `dev_fullstack` ➔ `doc_specialist` ➔ `qa_tester` ➔ PR review by Manfred
+   `pm` (Argon) ➔ `architect` (Argon) ➔ `dev_fullstack` (Hydrogen) ➔ `doc_specialist` (Flash) ➔ `qa_tester` (Hydrogen) ➔ PR review by Manfred
 3. **Release**: [`.agents/workflows/release_process.md`](./.agents/workflows/release_process.md)  
-   `release_manager` ➔ Approval by Manfred ➔ Release execution (`release.sh` + GitHub Release)
+   `release_manager` (Flash) ➔ Approval by Manfred ➔ Release execution (`release.sh` + GitHub Release)
 
 ---
 

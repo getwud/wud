@@ -31,16 +31,18 @@ This architecture is designed to be **portable and future-proof**, operating sea
 
 ## 👥 Personas Overview
 
-| Persona | Primary Focus | Key Responsibilities | Allowed Scope |
-| :--- | :--- | :--- | :--- |
-| [**Support & Triage**](personas/support_triage.md) | Issues & Bug Qualification | Reproduce bugs, diagnose root causes, draft user answers | Read-only codebase, GitHub issues |
-| [**Architect**](personas/architect.md) | Technical Architecture | Provider design, core abstraction, technical implementation plans *(requires high-reasoning model)* | Architecture specs, reviews |
-| [**Fullstack Dev**](personas/dev_fullstack.md) | Implementation | Backend (`app/`), UI (`ui/`), unit tests, no coverage drop, Joi schemas, first-pass docs | Feature/fix branches, unit tests |
-| [**QA & Tester**](personas/qa_tester.md) | Quality & E2E Testing | Audit E2E tests, CI checks monitoring (`gh pr checks --watch`), flakiness prevention | E2E test files, test scripts, CI logs |
-| [**Doc Specialist**](personas/doc_specialist.md) | Documentation & Quality | Review dev docs, Docusaurus site (`website/`), CSpell dictionary, Markdownlint | `website/docs/`, markdown files |
-| [**Release Manager**](personas/release_manager.md) | Releases & Versioning | SemVer auditing, release execution (`release.sh`), GitHub Release publication (`gh release create`), announcements, **exclusive main/tag rights** | Release scripts, versions, tags, releases |
-| [**Product Manager**](personas/pm.md) | Product Roadmap & Scope | Triage feature requests, guard WUD core vision, scope control | Roadmap specs, triage matrix |
-| [**UX Designer**](personas/ux_designer.md) | Interface & Usability | Topbar/footer layout, responsive design, Vuetify components | UI styling, layouts, components |
+The **Root Agent (Orchestrator)** operates on **Gemini 3.8 Flash** for fast dispatch and oversight. Specialized operational roles are mapped to targeted Gemini models:
+
+| Persona | Assigned Model | Primary Focus | Key Responsibilities | Allowed Scope |
+| :--- | :--- | :--- | :--- | :--- |
+| [**Support & Triage**](personas/support_triage.md) | **Gemini 3.8 Flash** | Issues & Bug Qualification | Reproduce bugs, diagnose root causes, draft user answers | Read-only codebase, GitHub issues |
+| [**Architect**](personas/architect.md) | **Gemini 4 Argon** | Technical Architecture | Provider design, core abstraction, technical blueprints (deep reasoning) | Architecture specs, reviews |
+| [**Fullstack Dev**](personas/dev_fullstack.md) | **Gemini 4 Hydrogen** | Implementation | Backend (`app/`), UI (`ui/`), unit tests, no coverage drop, Joi schemas, first-pass docs | Feature/fix branches, unit tests |
+| [**QA & Tester**](personas/qa_tester.md) | **Gemini 4 Hydrogen** | Quality & E2E Testing | Audit E2E tests, CI checks monitoring (`gh pr checks --watch`), flakiness prevention | E2E test files, test scripts, CI logs |
+| [**Doc Specialist**](personas/doc_specialist.md) | **Gemini 3.8 Flash** | Documentation & Quality | Review dev docs, Docusaurus site (`website/`), CSpell dictionary, Markdownlint | `website/docs/`, markdown files |
+| [**Release Manager**](personas/release_manager.md) | **Gemini 3.8 Flash** | Releases & Versioning | SemVer auditing, release execution (`release.sh`), GitHub Release publication (`gh release create`), announcements, **exclusive main/tag rights** | Release scripts, versions, tags, releases |
+| [**Product Manager**](personas/pm.md) | **Gemini 4 Argon** | Product Roadmap & Scope | Triage feature requests, guard WUD core vision, scope control (deep reasoning) | Roadmap specs, triage matrix |
+| [**UX Designer**](personas/ux_designer.md) | **Gemini 4 Hydrogen** | Interface & Usability | Topbar/footer layout, responsive design, Vuetify components | UI styling, layouts, components |
 
 ---
 

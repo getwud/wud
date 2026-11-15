@@ -34,19 +34,19 @@ flowchart TD
 
 ---
 
-## Step 1: Product Qualification (`pm`)
+## Step 1: Product Qualification (`pm` — Gemini 4 Argon)
 1. **Assess Core Alignment**:
    - Does this feature align with WUD's lightweight, autonomous container monitoring philosophy?
    - Can this feature be solved with existing generic triggers (e.g. Webhook, MQTT, Apprise)?
 2. **Value vs Maintenance Burden**:
    - If maintenance is high and audience is niche: recommend alternative or reject politely.
-   - If approved: define functional requirements and user expectations.
+   - If approved: define functional requirements and user expectations (deep reasoning via **Gemini 4 Argon**).
 
 ---
 
-## Step 2: Architecture Blueprint (`architect`)
+## Step 2: Architecture Blueprint (`architect` — Gemini 4 Argon)
 > [!IMPORTANT]
-> The Architect **MUST** use an advanced reasoning model (e.g. Gemini Argon / Pro, Claude 3.5 Sonnet / Opus, GPT-4o, o3-mini).
+> The Architect **MUST** use **Gemini 4 Argon** (deep reasoning, architecture & abstractions). When Argon is unavailable, Gemini 3.8 Flash with maximum reasoning effort (Thinking = HIGH) is authorized as a fallback.
 
 1. **Design Component Hierarchy & Backward Compatibility**:
    - Determine whether the feature is a new Watcher (`app/watchers/`), Registry (`app/registries/`), Trigger (`app/triggers/`), or Storage feature.
@@ -60,19 +60,19 @@ flowchart TD
 
 ---
 
-## Step 3: UI & UX Specification (`ux_designer`) — *Conditional*
+## Step 3: UI & UX Specification (`ux_designer` — Gemini 4 Hydrogen) — *Conditional*
 - **Trigger**: The feature introduces new views, buttons, topbar/footer changes, or dialogs.
-- **Action**: Propose layout hierarchy, Vuetify components, and icon assignments before coding starts.
+- **Action**: Propose layout hierarchy, Vuetify components, and icon assignments before coding starts (high code precision via **Gemini 4 Hydrogen**).
 
 ---
 
-## Step 4: Fullstack Implementation (`dev_fullstack`)
+## Step 4: Fullstack Implementation (`dev_fullstack` — Gemini 4 Hydrogen)
 1. **Branch Creation**:
    ```bash
    git checkout main && git pull origin main
    git checkout -b feat/<feature-name> origin/main
    ```
-2. **Code Implementation**:
+2. **Code Implementation** (powered by **Gemini 4 Hydrogen** for technical code precision):
    - Implement according to the architect's blueprint.
    - Enforce strict typing with zero `any`.
    - Update component registration in `app/registry/index.ts`.
@@ -86,9 +86,9 @@ flowchart TD
 
 ---
 
-## Step 5: Documentation Review & Quality Gates (`doc_specialist`)
+## Step 5: Documentation Review & Quality Gates (`doc_specialist` — Gemini 3.8 Flash)
 1. **Review & Polish**:
-   - Harmonize developer documentation with site style and navigation in `website/sidebars.ts`.
+   - Harmonize developer documentation with site style and navigation in `website/sidebars.ts` (high velocity via **Gemini 3.8 Flash**).
 2. **Linting & Spell Checking**:
    - Run CSpell and Markdownlint:
      ```bash
@@ -103,9 +103,9 @@ flowchart TD
 
 ---
 
-## Step 6: Integration & E2E Audit (`qa_tester`)
+## Step 6: Integration & E2E Audit (`qa_tester` — Gemini 4 Hydrogen)
 1. **Audit E2E Tests**:
-   - Challenge boundary conditions, simulate network failures/timeouts, and ensure tests are not flaky.
+   - Challenge boundary conditions, simulate network failures/timeouts, and ensure tests are not flaky (powered by **Gemini 4 Hydrogen**).
 2. **Run E2E Suites**:
    - Backend: `LOCAL_MODE=true ./scripts/run-e2e-tests.sh`
    - Frontend: `./scripts/run-ui-tests.sh`
@@ -121,7 +121,7 @@ flowchart TD
    ```bash
    gh pr create --title "🚀 [COMPONENT] Short descriptive title" --body "..."
    ```
-3. **Mandatory CI Monitoring**:
+3. **Mandatory CI Monitoring** (`qa_tester` — Gemini 4 Hydrogen):
    - Watch GitHub Actions pipeline until all checks are green:
      ```bash
      gh pr checks <pr-number> --watch
