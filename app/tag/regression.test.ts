@@ -235,6 +235,40 @@ describe('Exotic Tag Resolution & Hardening Regressions (#1278)', () => {
         });
     });
 
+    describe('j) Flavor pinning level: bare vs versioned flavor (#1564)', () => {
+        test('python:3-alpine vs 3-alpine3.24 -> NOT an upgrade (same image, pinned variant)', () => {
+            expect(isGreater('3-alpine3.24', '3-alpine')).toBe(false);
+        });
+
+        test('python:3-alpine3.24 vs 3-alpine -> NOT an upgrade (never drift to floating variant)', () => {
+            expect(isGreater('3-alpine', '3-alpine3.24')).toBe(false);
+        });
+
+        test('python:3.14-alpine vs 3.14-alpine3.24 -> NOT an upgrade', () => {
+            expect(isGreater('3.14-alpine3.24', '3.14-alpine')).toBe(false);
+        });
+
+        test('python:3.13-alpine vs 3.14-alpine3.24 -> NOT an upgrade (different base, mixed pinning)', () => {
+            expect(isGreater('3.14-alpine3.24', '3.13-alpine')).toBe(false);
+        });
+
+        test('python:3.13-alpine vs 3.14-alpine -> IS an upgrade', () => {
+            expect(isGreater('3.14-alpine', '3.13-alpine')).toBe(true);
+        });
+
+        test('python:3-alpine3.23 vs 3-alpine3.24 -> IS an upgrade (pinned to newer pinned)', () => {
+            expect(isGreater('3-alpine3.24', '3-alpine3.23')).toBe(true);
+        });
+
+        test('python:3.13-alpine3.20 vs 3.14-alpine3.21 -> IS an upgrade', () => {
+            expect(isGreater('3.14-alpine3.21', '3.13-alpine3.20')).toBe(true);
+        });
+
+        test('node:20-alpine3.19 vs 20-alpine -> NOT an upgrade', () => {
+            expect(isGreater('20-alpine', '20-alpine3.19')).toBe(false);
+        });
+    });
+
     describe('Candidate filtering via getTagCandidates()', () => {
         const mockLog = { warn: jest.fn(), debug: jest.fn(), info: jest.fn() };
 
@@ -340,6 +374,57 @@ describe('Exotic Tag Resolution & Hardening Regressions (#1278)', () => {
             const tags = ['5.7.0', 'fix__69', '5.8.0'];
             const candidates = getTagCandidates(container, tags, mockLog);
             expect(candidates).toEqual(['5.8.0']);
+        });
+
+        test('python:3-alpine: rejects pinned alpine variants (#1564)', () => {
+            const container = {
+                image: {
+                    tag: { value: '3-alpine', semver: true },
+                },
+            };
+            const tags = [
+                '3-alpine',
+                '3-alpine3.24',
+                '3-alpine3.23',
+                '3.14-alpine',
+                '3.14-alpine3.24',
+            ];
+            const candidates = getTagCandidates(container, tags, mockLog);
+            expect(candidates).toEqual([]);
+        });
+
+        test('python:3.13-alpine: proposes 3.14-alpine, not 3.14-alpine3.24 (#1564)', () => {
+            const container = {
+                image: {
+                    tag: { value: '3.13-alpine', semver: true },
+                },
+            };
+            const tags = [
+                '3.13-alpine',
+                '3.13-alpine3.24',
+                '3.14-alpine3.24',
+                '3.14-alpine3.23',
+                '3.14-alpine',
+            ];
+            const candidates = getTagCandidates(container, tags, mockLog);
+            expect(candidates).toEqual(['3.14-alpine']);
+        });
+
+        test('python:3.13-alpine3.22: keeps pinned channel, orders newest alpine first (#1564)', () => {
+            const container = {
+                image: {
+                    tag: { value: '3.13-alpine3.22', semver: true },
+                },
+            };
+            const tags = [
+                '3.13-alpine3.22',
+                '3.13-alpine',
+                '3.14-alpine',
+                '3.14-alpine3.24',
+                '3.14-alpine3.23',
+            ];
+            const candidates = getTagCandidates(container, tags, mockLog);
+            expect(candidates).toEqual(['3.14-alpine3.24', '3.14-alpine3.23']);
         });
     });
 });
