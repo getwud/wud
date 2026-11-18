@@ -388,6 +388,8 @@ describe('ContainerUpdateDialog.vue', () => {
       const triggerTypes = (wrapper.vm as any).triggers.map((t: any) => t.type);
       expect(triggerTypes).toEqual(['command']);
       expect((wrapper.vm as any).selectedTriggerKey).toBe('command.rebuild');
+      expect(wrapper.text()).toContain('Rebuild container');
+      expect(wrapper.text()).not.toContain('Update container');
       expect(wrapper.text()).toContain('tracks the upstream image');
       expect(wrapper.text()).toContain('caddy');
       expect(wrapper.text()).toContain('library/caddy:1.25.0');

@@ -388,13 +388,13 @@
           </div>
           <v-btn
             v-if="(selectedContainer.updateAvailable || selectedContainer.isCoolingDown) && canWrite"
-            icon="mdi-package-down"
+            :icon="selectedContainer.image?.upstream ? 'mdi-source-branch' : 'mdi-package-down'"
             :color="selectedContainer.isCoolingDown ? 'warning' : 'primary'"
             variant="text"
             size="small"
             class="mr-1"
             @click="openUpdateDialog(selectedContainer)"
-            :title="selectedContainer.isCoolingDown ? 'Override cooldown and update' : 'Update container'"
+            :title="selectedContainer.isCoolingDown ? 'Override cooldown and update' : selectedContainer.image?.upstream ? 'Rebuild from the new upstream version' : 'Update container'"
           ></v-btn>
           <v-btn
             v-if="selectedContainer.updateAvailable && canWrite"
@@ -462,6 +462,7 @@
                 :is-snoozed="selectedContainer.isSnoozed"
                 :snoozed-version="selectedContainer.snoozedVersion"
                 :snoozed-until="selectedContainer.snoozedUntil"
+                :upstream="selectedContainer.image?.upstream"
                 :can-write="canWrite"
                 @override-cooldown="openUpdateDialog(selectedContainer)"
               />

@@ -6,9 +6,9 @@
   >
     <v-card class="rounded-lg">
       <v-toolbar color="primary" density="compact" class="px-2">
-        <v-icon class="mr-2">mdi-package-down</v-icon>
+        <v-icon class="mr-2">{{ isUpstreamTracked ? 'mdi-source-branch' : 'mdi-package-down' }}</v-icon>
         <v-toolbar-title class="text-subtitle-1 font-weight-bold">
-          Update container
+          {{ isUpstreamTracked ? 'Rebuild container' : 'Update container' }}
         </v-toolbar-title>
         <v-spacer />
         <v-btn
