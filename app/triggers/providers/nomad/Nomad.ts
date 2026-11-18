@@ -95,6 +95,13 @@ class Nomad extends Trigger {
             container: fullName(container),
         });
 
+        if (container.image?.upstream) {
+            logContainer.warn(
+                `Container tracks upstream image ${container.image.upstream.ref}; restarting the allocation would not rebuild the locally built image, skipping`,
+            );
+            return;
+        }
+
         const allocId = container.labels?.[this.configuration.alloclabel];
         if (!allocId) {
             logContainer.warn(

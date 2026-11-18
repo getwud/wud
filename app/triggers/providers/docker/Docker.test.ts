@@ -3469,3 +3469,54 @@ describe('pull rate limiting', () => {
         });
     });
 });
+
+describe('Upstream image tracking (#664)', () => {
+    const upstreamContainer = {
+        id: 'c-upstream',
+        name: 'caddy',
+        watcher: 'test',
+        updateAvailable: true,
+        image: {
+            name: 'library/caddy-porkbun',
+            registry: { name: 'hub', url: 'my-registry' },
+            tag: { value: '2.9.1-alpine', semver: true },
+            digest: { watch: false },
+            upstream: {
+                ref: 'caddy',
+                source: 'label',
+                name: 'library/caddy',
+                registry: { name: 'hub', url: 'my-registry' },
+                tag: '2.9.1-alpine',
+            },
+        },
+        result: { tag: '2.9.2-alpine' },
+        updateKind: { kind: 'tag', remoteValue: '2.9.2-alpine' },
+    };
+
+    test('getUpstreamRefusalReason should be undefined for a regular container', () => {
+        expect(
+            docker.getUpstreamRefusalReason({
+                name: 'nginx',
+                image: { name: 'library/nginx' },
+            }),
+        ).toBeUndefined();
+    });
+
+    test('trigger should refuse to update a container tracking an upstream image', async () => {
+        const performUpdateSpy = jest.spyOn(docker, 'performUpdate');
+        await expect(docker.trigger(upstreamContainer)).rejects.toThrow(
+            /tracks upstream image caddy/,
+        );
+        expect(performUpdateSpy).not.toHaveBeenCalled();
+        performUpdateSpy.mockRestore();
+    });
+
+    test('preload should skip a container tracking an upstream image', async () => {
+        const pullImageSpy = jest.spyOn(docker, 'pullImage');
+        await expect(
+            docker.preload(upstreamContainer),
+        ).resolves.toBeUndefined();
+        expect(pullImageSpy).not.toHaveBeenCalled();
+        pullImageSpy.mockRestore();
+    });
+});

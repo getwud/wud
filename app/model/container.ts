@@ -49,6 +49,28 @@ export interface ContainerImage {
     variant?: string;
     created?: string;
     version?: string;
+    /**
+     * Upstream (base) image to look up in the registry instead of the
+     * container's own image. Set for locally built images that declare their
+     * base image via the `wud.image.name` label or the OCI
+     * `org.opencontainers.image.base.name` annotation.
+     */
+    upstream?: ContainerImageUpstream;
+}
+
+export interface ContainerImageUpstream {
+    /** Raw reference as declared on the container. */
+    ref: string;
+    /** Where the reference comes from. */
+    source: 'label' | 'oci';
+    /** Normalized repository name used for registry lookups. */
+    name: string;
+    registry: {
+        name: string;
+        url: string;
+    };
+    /** Tag used as the comparison baseline for registry lookups. */
+    tag: string;
 }
 
 export interface ContainerResult {
@@ -245,6 +267,20 @@ const schema = joi.object({
             variant: joi.string(),
             created: joi.string().isoDate(),
             version: joi.string().optional().allow(null, ''),
+            upstream: joi
+                .object({
+                    ref: joi.string().min(1).required(),
+                    source: joi.string().valid('label', 'oci').required(),
+                    name: joi.string().min(1).required(),
+                    registry: joi
+                        .object({
+                            name: joi.string().min(1).required(),
+                            url: joi.string().allow('').required(),
+                        })
+                        .required(),
+                    tag: joi.string().min(1).required(),
+                })
+                .optional(),
         })
         .required(),
     result: joi.object({
@@ -981,10 +1017,16 @@ function addUpdateKindProperty(container: Container) {
                         'unknown';
                     const isSemver = container.image.tag.semver;
                     if (isSemver) {
+                        // When tracking an upstream image, the semver diff is
+                        // measured from the upstream baseline tag (the local tag
+                        // of a derivative image may not be comparable).
+                        const localTag =
+                            container.image.upstream?.tag ??
+                            container.image.tag.value;
                         const semverDiff = diffSemver(
                             transformTag(
                                 container.transformTags,
-                                container.image.tag.value,
+                                localTag,
                                 container,
                             ),
                             transformTag(
