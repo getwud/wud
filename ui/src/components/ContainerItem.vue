@@ -81,6 +81,25 @@
             </template>
             <span class="text-caption">Official Docker Image</span>
           </v-tooltip>
+          <v-tooltip v-if="container.image.upstream" bottom>
+            <template v-slot:activator="{ props }">
+              <v-chip
+                label
+                variant="outlined"
+                color="info"
+                class="ml-1"
+                v-bind="props"
+              >
+                <v-icon start size="small">mdi-source-branch</v-icon>
+                <span v-if="smAndUp">Tracks {{ container.image.upstream.name }}</span>
+              </v-chip>
+            </template>
+            <span class="text-caption">
+              Locally built image tracking upstream
+              {{ container.image.upstream.name }}:{{ container.image.upstream.tag }}.
+              Updates require a rebuild.
+            </span>
+          </v-tooltip>
           <span v-if="smAndUp && container.updateAvailable" class="d-flex align-center" style="gap: 4px">
             <v-icon>mdi-arrow-right</v-icon>
             <v-tooltip bottom>
@@ -162,6 +181,7 @@
                 :update-available="container.updateAvailable"
                 :is-cooling-down="container.isCoolingDown"
                 :cooling-down-until="container.coolingDownUntil"
+                :upstream="container.image.upstream"
                 :can-write="canWrite"
                 @override-cooldown="dialogUpdate = true"
               />
@@ -189,11 +209,11 @@
                   color="primary"
                   variant="flat"
                   class="mr-2"
-                  :title="container.isCoolingDown ? 'Override cooldown and update' : 'Update container'"
+                  :title="container.isCoolingDown ? 'Override cooldown and update' : container.image.upstream ? 'Rebuild from the new upstream version' : 'Update container'"
                   @click="dialogUpdate = true"
                 >
-                  {{ container.isCoolingDown ? 'Update now' : 'Update' }}
-                  <v-icon right>{{ container.isCoolingDown ? 'mdi-lightning-bolt' : 'mdi-package-down' }}</v-icon>
+                  {{ container.isCoolingDown ? (container.image.upstream ? 'Rebuild now' : 'Update now') : container.image.upstream ? 'Rebuild' : 'Update' }}
+                  <v-icon right>{{ container.isCoolingDown ? 'mdi-lightning-bolt' : container.image.upstream ? 'mdi-source-branch' : 'mdi-package-down' }}</v-icon>
                 </v-btn>
 
                 <v-btn

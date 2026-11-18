@@ -986,6 +986,44 @@ describe('ContainersView', () => {
       testWrapper.unmount();
     });
 
+    it('renders an upstream tracking indicator for locally built images (#664)', async () => {
+      const testWrapper = mountWithSlotStubs();
+      testWrapper.vm.onRefreshAllContainers([
+        {
+          id: 'upstream-1',
+          displayName: 'Caddy Porkbun',
+          watcher: 'local',
+          image: {
+            tag: { value: '2.9.1-alpine' },
+            registry: { name: 'hub' },
+            upstream: {
+              ref: 'caddy',
+              source: 'label',
+              name: 'library/caddy',
+              registry: { name: 'hub' },
+              tag: '2.9.1-alpine',
+            },
+          },
+          updateAvailable: false,
+        },
+        {
+          id: 'regular-2',
+          displayName: 'Regular App',
+          watcher: 'local',
+          image: { tag: { value: '1.0.0' }, registry: { name: 'hub' } },
+          updateAvailable: false,
+        },
+      ]);
+      await testWrapper.vm.$nextTick();
+
+      const html = testWrapper.html();
+      expect(html).toContain('Caddy Porkbun');
+      expect(html).toContain('mdi-source-branch');
+      expect(html).toContain('library/caddy:2.9.1-alpine');
+      expect((html.match(/mdi-source-branch/g) || []).length).toBe(1);
+      testWrapper.unmount();
+    });
+
     it('renders 1-click changelog button when updateAvailable is true and changelogUrl is present', async () => {
       const testWrapper = mountWithSlotStubs();
       testWrapper.vm.onRefreshAllContainers([
