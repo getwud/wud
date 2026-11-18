@@ -807,6 +807,35 @@ components:
                             description: |
                                 The local image's `org.opencontainers.image.version` label, when it
                                 carries one.
+                        upstream:
+                            type: object
+                            description: |
+                                Present when the container declares an upstream (base) image through the
+                                `wud.image.name` label or the OCI `org.opencontainers.image.base.name`
+                                annotation. Registry lookups target this image instead of the container's
+                                own (locally built) image; `result` then describes the upstream update.
+                                Digest watching is disabled and pull-based update triggers refuse such
+                                containers.
+                            properties:
+                                ref:
+                                    type: string
+                                    description: Raw reference as declared on the container.
+                                source:
+                                    type: string
+                                    enum: [label, oci]
+                                name:
+                                    type: string
+                                    description: Normalized repository name used for lookups.
+                                registry:
+                                    type: object
+                                    properties:
+                                        name:
+                                            type: string
+                                        url:
+                                            type: string
+                                tag:
+                                    type: string
+                                    description: Baseline tag compared against the registry.
                 updateAvailable:
                     type: boolean
                 isSnoozed:

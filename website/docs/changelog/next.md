@@ -8,6 +8,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 > Changes below are merged on `main` and will be included in the upcoming release.
 
 - 🚀 [UI] Update kind filter on the Containers page now supports selecting several kinds at once (e.g. patch + minor) (#1558)
+- 🚀 [WATCHER] Track the upstream (base) image of locally built containers with the `wud.image.name` label or the OCI `org.opencontainers.image.base.name` annotation; registry lookups target the upstream image, digest watching is disabled and pull-based update triggers refuse such containers (fixes #664)
 - 🚀 [WATCHER] Report the best available update per semver kind (`result.candidates`: major / minor / patch); the Containers page shows them next to the main update (e.g. a patch release besides a minor one) (#1558)
 - 🐛 [CORE] Preserve leading zeros and support padStart/padEnd in link templates (#1551)
 - 🐛 [REGISTRY] Optimize GHCR tag pagination with semver cursor and add registry rate limit pacing (#1552)

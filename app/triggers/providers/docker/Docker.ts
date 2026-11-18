@@ -1965,6 +1965,12 @@ class Docker extends Trigger {
     async preload(container: Container): Promise<void> {
         const logContainer = this.log.child({ container: fullName(container) });
 
+        const upstreamRefusalReason = this.getUpstreamRefusalReason(container);
+        if (upstreamRefusalReason) {
+            logContainer.info(`${upstreamRefusalReason} => skip preload`);
+            return;
+        }
+
         if (!container.updateAvailable) {
             logContainer.info(
                 `No update available for container ${fullName(container)} => skip preload`,
@@ -2050,12 +2056,39 @@ class Docker extends Trigger {
     }
 
     /**
+     * Return the reason why a pull-based update must be refused for this
+     * container, or undefined when the update can proceed.
+     * A container tracking an upstream image runs a locally built derivative:
+     * pulling the upstream image and recreating the container from it would
+     * silently drop the local customizations.
+     */
+    getUpstreamRefusalReason(container: Container): string | undefined {
+        const upstream = container?.image?.upstream;
+        if (!upstream) {
+            return undefined;
+        }
+        return `Container ${fullName(container)} tracks upstream image ${upstream.ref}; the ${this.type} trigger cannot update a locally built image (rebuild it from the new upstream version instead)`;
+    }
+
+    /**
+     * Throw when the container tracks an upstream image.
+     */
+    assertNotUpstreamTracked(container: Container) {
+        const reason = this.getUpstreamRefusalReason(container);
+        if (reason) {
+            this.log.warn(reason);
+            throw new Error(reason);
+        }
+    }
+
+    /**
      * Update the container.
      */
     async trigger(
         container: Container,
         options?: { runHooks?: boolean; emitEvents?: boolean },
     ): Promise<void> {
+        this.assertNotUpstreamTracked(container);
         await this.performUpdate(container, {
             gate: this.resolveRollback(container),
             runHooks: options?.runHooks,
