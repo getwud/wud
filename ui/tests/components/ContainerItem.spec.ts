@@ -333,3 +333,42 @@ describe('ContainerItem', () => {
     expect(releaseNotesBtn.attributes('title')).toBe('Release notes (2.0.0)');
   });
 });
+describe('ContainerItem - upstream image tracking (#664)', () => {
+  const upstreamContainer = {
+    ...mockContainer,
+    image: {
+      ...mockContainer.image,
+      name: 'library/caddy-porkbun',
+      upstream: {
+        ref: 'caddy',
+        source: 'label',
+        name: 'library/caddy',
+        registry: { name: 'hub' },
+        tag: '1.0.0',
+      },
+    },
+  };
+
+  it('shows the upstream chip and a Rebuild button', () => {
+    const wrapper = mount(ContainerItem, {
+      props: { container: upstreamContainer, groupingLabel: '', oldestFirst: false },
+    });
+    const html = wrapper.html();
+    expect(html).toContain('mdi-source-branch');
+    expect(wrapper.text()).toContain(
+      'Locally built image tracking upstream library/caddy:1.0.0',
+    );
+    expect(wrapper.text()).toContain('Rebuild');
+    wrapper.unmount();
+  });
+
+  it('does not show the upstream chip for regular containers', () => {
+    const wrapper = mount(ContainerItem, {
+      props: { container: mockContainer, groupingLabel: '', oldestFirst: false },
+    });
+    expect(wrapper.html()).not.toContain('mdi-source-branch');
+    expect(wrapper.text()).toContain('Update');
+    expect(wrapper.text()).not.toContain('Rebuild');
+    wrapper.unmount();
+  });
+});

@@ -1014,5 +1014,5 @@ When the annotation carries a tag, that tag is the comparison baseline. A pinned
 :::warning[What changes for these containers]
 - **Digest watching is disabled**, even if `wud.watch.digest=true` is set. A locally built image can never share the digest of its base image, so a digest comparison would always report an update.
 - **Pull-based update triggers refuse these containers.** The `docker`, `dockercompose` and `nomad` triggers would otherwise pull the plain upstream image and recreate the container from it, dropping your local changes. Manual runs fail with an explicit error; automatic runs skip the container with a warning. Use a notification trigger, or the `command` trigger to run your rebuild script.
-- The UI shows the tracked upstream image in the container's **Image** tab, while the container keeps displaying its own image name and tag.
+- The UI marks these containers with a branch icon in the Containers list and in the container header, shows the tracked upstream image in the **Image** tab, and turns the **Update** button into **Rebuild**: the update dialog only offers `command` triggers and tells you which upstream version to rebuild from. The container keeps displaying its own image name and tag.
 :::

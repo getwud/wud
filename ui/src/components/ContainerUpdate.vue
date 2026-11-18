@@ -29,6 +29,23 @@
     </v-alert>
 
     <v-alert
+      v-if="upstream && updateAvailable"
+      color="info"
+      variant="tonal"
+      density="compact"
+      icon="mdi-source-branch"
+      class="mb-3"
+    >
+      <div class="font-weight-medium">Rebuild required</div>
+      <div class="text-caption">
+        This container runs a locally built image tracking upstream
+        {{ upstream.name }}:{{ upstream.tag }}. Rebuild it from
+        {{ upstream.name }}:{{ result.tag }} to apply the update; pulling the upstream image
+        would drop the local build.
+      </div>
+    </v-alert>
+
+    <v-alert
       v-if="isSnoozed || snoozedVersion"
       color="warning"
       variant="tonal"
@@ -187,6 +204,11 @@ export default defineComponent({
     },
     snoozedUntil: {
       type: Number,
+      default: null,
+    },
+    // Upstream image tracked by a locally built container (image.upstream)
+    upstream: {
+      type: Object,
       default: null,
     },
   },

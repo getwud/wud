@@ -143,6 +143,23 @@
                   </template>
                   <span>Official Docker Image</span>
                 </v-tooltip>
+                <v-tooltip bottom v-if="(item.raw || item).image?.upstream">
+                  <template v-slot:activator="{ props }">
+                    <v-icon
+                      size="small"
+                      color="info"
+                      class="ml-1"
+                      v-bind="props"
+                    >
+                      mdi-source-branch
+                    </v-icon>
+                  </template>
+                  <span>
+                    Locally built image tracking upstream
+                    {{ (item.raw || item).image.upstream.name }}:{{ (item.raw || item).image.upstream.tag }}.
+                    Updates require a rebuild.
+                  </span>
+                </v-tooltip>
               </div>
             </template>
 
