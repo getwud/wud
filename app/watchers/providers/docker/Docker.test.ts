@@ -905,7 +905,7 @@ describe('Docker Watcher', () => {
             expect(docker.watchCronDebounced).not.toHaveBeenCalled();
         });
 
-        test('should process chunked create/destroy events', async () => {
+        test('should process a Docker event split across chunks', async () => {
             const mockStream = { on: jest.fn(), once: jest.fn() };
             mockDockerApi.getEvents.mockImplementation((options, callback) => {
                 callback(null, mockStream);
@@ -924,10 +924,109 @@ describe('Docker Watcher', () => {
 
             dataHandler(Buffer.from('\n'));
             expect(docker.onDockerEvent).toHaveBeenCalledTimes(1);
+            expect(docker.onDockerEvent.mock.calls[0][0].toString()).toBe(
+                '{"Action":"create","id":"container123"}',
+            );
+        });
 
-            const calledWith = docker.onDockerEvent.mock.calls[0][0].toString();
-            expect(calledWith).toBe(
-                '{"Action":"create","id":"container123"}\n',
+        test('should process multiple Docker events within one chunk', async () => {
+            const mockStream = { on: jest.fn(), once: jest.fn() };
+            mockDockerApi.getEvents.mockImplementation((options, callback) => {
+                callback(null, mockStream);
+            });
+            docker.onDockerEvent = jest.fn();
+
+            await docker.register('watcher', 'docker', 'test', {});
+            await docker.listenDockerEvents();
+
+            const dataHandler = mockStream.on.mock.calls.find(
+                (c) => c[0] === 'data',
+            )[1];
+            dataHandler(
+                Buffer.from(
+                    '{"Action":"die","id":"one"}\n' +
+                        '{"Action":"stop","id":"one"}\n',
+                ),
+            );
+
+            expect(docker.onDockerEvent).toHaveBeenCalledTimes(2);
+            expect(docker.onDockerEvent.mock.calls.map(([event]) =>
+                JSON.parse(event.toString()).Action,
+            )).toEqual(['die', 'stop']);
+        });
+
+        test('should retain a trailing partial event after complete events', async () => {
+            const mockStream = { on: jest.fn(), once: jest.fn() };
+            mockDockerApi.getEvents.mockImplementation((options, callback) => {
+                callback(null, mockStream);
+            });
+            docker.onDockerEvent = jest.fn();
+
+            await docker.register('watcher', 'docker', 'test', {});
+            await docker.listenDockerEvents();
+
+            const dataHandler = mockStream.on.mock.calls.find(
+                (c) => c[0] === 'data',
+            )[1];
+            dataHandler(Buffer.from('{"Action":"die"}\n{"Action":"st'));
+            expect(docker.onDockerEvent).toHaveBeenCalledTimes(1);
+
+            dataHandler(Buffer.from('op"}\n{"Action":"start"}\n'));
+            expect(docker.onDockerEvent.mock.calls.map(([event]) =>
+                JSON.parse(event.toString()).Action,
+            )).toEqual(['die', 'stop', 'start']);
+        });
+
+        test('should preserve UTF-8 data split across chunks', async () => {
+            const mockStream = { on: jest.fn(), once: jest.fn() };
+            mockDockerApi.getEvents.mockImplementation((options, callback) => {
+                callback(null, mockStream);
+            });
+            docker.onDockerEvent = jest.fn();
+
+            await docker.register('watcher', 'docker', 'test', {});
+            await docker.listenDockerEvents();
+
+            const dataHandler = mockStream.on.mock.calls.find(
+                (c) => c[0] === 'data',
+            )[1];
+            const event = Buffer.from(JSON.stringify({ name: 'café' }) + '\n');
+            const split = event.indexOf(Buffer.from('é')) + 1;
+            dataHandler(event.subarray(0, split));
+            dataHandler(event.subarray(split));
+
+            expect(docker.onDockerEvent).toHaveBeenCalledTimes(1);
+            expect(
+                JSON.parse(docker.onDockerEvent.mock.calls[0][0].toString()),
+            ).toEqual({ name: 'café' });
+        });
+
+        test('should drop oversized Docker events and resume at the next line', async () => {
+            const mockStream = { on: jest.fn(), once: jest.fn() };
+            mockDockerApi.getEvents.mockImplementation((options, callback) => {
+                callback(null, mockStream);
+            });
+            docker.onDockerEvent = jest.fn();
+            const warn = jest.fn();
+
+            await docker.register('watcher', 'docker', 'test', {});
+            docker.log.warn = warn;
+            await docker.listenDockerEvents();
+
+            const dataHandler = mockStream.on.mock.calls.find(
+                (c) => c[0] === 'data',
+            )[1];
+            dataHandler(Buffer.from('x'.repeat(1024 * 1024)));
+            dataHandler(Buffer.from('x'.repeat(10)));
+            dataHandler(Buffer.from('ignored\n{"Action":"start"}\n'));
+
+            expect(warn).toHaveBeenCalledWith(
+                'Discarding oversized Docker event',
+            );
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(docker.onDockerEvent).toHaveBeenCalledTimes(1);
+            expect(docker.onDockerEvent.mock.calls[0][0].toString()).toBe(
+                '{"Action":"start"}',
             );
         });
 
