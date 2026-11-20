@@ -1030,6 +1030,64 @@ describe('Docker Watcher', () => {
             );
         });
 
+        test('should ignore empty lines and accept CRLF event boundaries', async () => {
+            const mockStream = { on: jest.fn(), once: jest.fn() };
+            mockDockerApi.getEvents.mockImplementation((options, callback) => {
+                callback(null, mockStream);
+            });
+            docker.onDockerEvent = jest.fn();
+
+            await docker.register('watcher', 'docker', 'test', {});
+            await docker.listenDockerEvents();
+
+            const dataHandler = mockStream.on.mock.calls.find(
+                (c) => c[0] === 'data',
+            )[1];
+            dataHandler(
+                Buffer.from(
+                    '\n{"Action":"die"}\r\n\n{"Action":"stop"}\r\n',
+                ),
+            );
+
+            expect(docker.onDockerEvent).toHaveBeenCalledTimes(2);
+            expect(
+                docker.onDockerEvent.mock.calls.map(([event]) =>
+                    JSON.parse(event.toString()).Action,
+                ),
+            ).toEqual(['die', 'stop']);
+        });
+
+        test('should accept a complete Docker event at the size limit', async () => {
+            const mockStream = { on: jest.fn(), once: jest.fn() };
+            mockDockerApi.getEvents.mockImplementation((options, callback) => {
+                callback(null, mockStream);
+            });
+            docker.onDockerEvent = jest.fn();
+            const warn = jest.fn();
+
+            await docker.register('watcher', 'docker', 'test', {});
+            docker.log.warn = warn;
+            await docker.listenDockerEvents();
+
+            const dataHandler = mockStream.on.mock.calls.find(
+                (c) => c[0] === 'data',
+            )[1];
+            const prefix = '{"Action":"start","payload":"';
+            const suffix = '"}';
+            const maxEventBytes = 1024 * 1024;
+            const event = Buffer.from(
+                prefix +
+                    'x'.repeat(maxEventBytes - prefix.length - suffix.length) +
+                    suffix,
+            );
+            expect(event.length).toBe(maxEventBytes);
+            dataHandler(Buffer.concat([event, Buffer.from('\n')]));
+
+            expect(warn).not.toHaveBeenCalled();
+            expect(docker.onDockerEvent).toHaveBeenCalledTimes(1);
+            expect(docker.onDockerEvent.mock.calls[0][0]).toEqual(event);
+        });
+
         test('should update container status on other events', async () => {
             await docker.register('watcher', 'docker', 'test', {});
             const mockLog = {
