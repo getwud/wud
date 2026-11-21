@@ -999,3 +999,99 @@ describe('groupCandidatesByKind', () => {
         ).toEqual({ minor: ['1.3.0-ls12'], patch: ['1.2.4-ls11'] });
     });
 });
+
+describe('extractTagComponents', () => {
+    const flavorVersionTests = [
+        {
+            tag: '',
+            expected: { flavor: '', flavorVersion: '', isPrerelease: false },
+            desc: 'empty string',
+        },
+        {
+            tag: null,
+            expected: { flavor: '', flavorVersion: '', isPrerelease: false },
+            desc: 'null input',
+        },
+        {
+            tag: '3-alpine',
+            expected: {
+                flavor: 'alpine',
+                flavorVersion: '',
+                isPrerelease: false,
+            },
+            desc: 'bare flavor',
+        },
+        {
+            tag: '3-alpine3.24',
+            expected: {
+                flavor: 'alpine',
+                flavorVersion: '3.24',
+                isPrerelease: false,
+            },
+            desc: 'direct digit flavor version',
+        },
+        {
+            tag: '3-alpine-3.24',
+            expected: {
+                flavor: 'alpine',
+                flavorVersion: '3.24',
+                isPrerelease: false,
+            },
+            desc: 'hyphen-separated flavor version',
+        },
+        {
+            tag: '3-alpine_3.24',
+            expected: {
+                flavor: 'alpine',
+                flavorVersion: '3.24',
+                isPrerelease: false,
+            },
+            desc: 'underscore-separated flavor version',
+        },
+        {
+            tag: '3-alpine.3.24',
+            expected: {
+                flavor: 'alpine',
+                flavorVersion: '3.24',
+                isPrerelease: false,
+            },
+            desc: 'dot-separated flavor version',
+        },
+        {
+            tag: '1.2.3-ubuntu.24.04',
+            expected: {
+                flavor: 'ubuntu',
+                flavorVersion: '24.04',
+                isPrerelease: false,
+            },
+            desc: 'dot-separated distro flavor version',
+        },
+        {
+            tag: '3.14-rc1-alpine',
+            expected: {
+                flavor: 'alpine',
+                flavorVersion: '',
+                isPrerelease: true,
+            },
+            desc: 'prerelease with bare flavor',
+        },
+        {
+            tag: '3.14-rc1-alpine3.24',
+            expected: {
+                flavor: 'alpine',
+                flavorVersion: '3.24',
+                isPrerelease: true,
+            },
+            desc: 'prerelease with versioned flavor',
+        },
+    ];
+
+    test.each(flavorVersionTests)(
+        'should extract flavorVersion for $desc ($tag)',
+        ({ tag, expected }) => {
+            expect(semver.extractTagComponents(tag)).toEqual(
+                expect.objectContaining(expected),
+            );
+        },
+    );
+});
