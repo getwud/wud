@@ -1,0 +1,16 @@
+{
+    "extends": "./tsconfig.json",
+    "exclude": [
+        "node_modules",
+        "dist",
+        "coverage",
+        "**/*.test.ts",
+        "**/*.spec.ts",
+        "**/__mocks__/**",
+        "registries/providers/RegistryTestHelper.ts",
+        "triggers/providers/TriggerTestHelper.ts",
+        "eslint.config.ts",
+        "drizzle.config.ts",
+        "jest.config.cjs"
+    ]
+}

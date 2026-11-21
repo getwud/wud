@@ -6,7 +6,20 @@ COPY app/package*.json ./
 RUN npm ci --include=dev --omit=optional --no-audit --no-fund --no-update-notifier
 COPY app/ ./
 RUN npm run build
-RUN npm prune --omit=dev
+RUN npm prune --omit=dev \
+    && find node_modules -path 'node_modules/better-sqlite3' -prune -o \
+        -type d \( \
+            -name '__tests__' -o -name '__mocks__' -o -name 'test' -o -name 'tests' \
+            -o -name 'example' -o -name 'examples' -o -name 'docs' \
+            -o -name '.github' -o -name '.vscode' -o -name '.idea' \
+            -o -name 'coverage' -o -name '@types' \
+        \) -prune -exec rm -rf {} + \
+    && find node_modules -path 'node_modules/better-sqlite3' -prune -o \
+        -type f \( \
+            -name '*.map' -o -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' \
+            -o -iname '*.md' -o -iname '*.markdown' -o -iname '*.mkd' \
+            -o -name '*.tsbuildinfo' -o -name '.DS_Store' -o -name 'Thumbs.db' \
+        \) -exec rm -f {} +
 
 # UI build stage
 FROM --platform=$BUILDPLATFORM node:24-alpine AS ui-build
