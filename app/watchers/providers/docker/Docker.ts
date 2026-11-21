@@ -874,13 +874,43 @@ export class Docker extends Watcher {
                 this.eventsReconnectAttempts = 0;
                 this.dockerEventsStream = stream;
 
-                let chunks: Buffer[] = [];
+                // Docker sends newline-delimited JSON events. A single stream
+                // chunk can contain multiple events or only part of one.
+                const MAX_DOCKER_EVENT_BYTES = 1024 * 1024;
+                let pendingEvent = Buffer.alloc(0);
+                let droppingOversizedEvent = false;
                 const collectChunks = (chunk: Buffer) => {
-                    chunks.push(chunk);
-                    if (chunk.toString().endsWith('\n')) {
-                        const dockerEventChunk = Buffer.concat(chunks);
-                        this.onDockerEvent(dockerEventChunk);
-                        chunks = [];
+                    let cursor = 0;
+                    while (cursor < chunk.length) {
+                        const newline = chunk.indexOf(10, cursor);
+                        const end = newline === -1 ? chunk.length : newline;
+
+                        if (!droppingOversizedEvent) {
+                            const fragment = chunk.subarray(cursor, end);
+                            if (
+                                pendingEvent.length + fragment.length >
+                                MAX_DOCKER_EVENT_BYTES
+                            ) {
+                                this.log.warn('Discarding oversized Docker event');
+                                pendingEvent = Buffer.alloc(0);
+                                droppingOversizedEvent = true;
+                            } else if (fragment.length) {
+                                pendingEvent = Buffer.concat([
+                                    pendingEvent,
+                                    fragment,
+                                ]);
+                            }
+                        }
+
+                        if (newline === -1) {
+                            break;
+                        }
+                        if (!droppingOversizedEvent && pendingEvent.length) {
+                            void this.onDockerEvent(pendingEvent);
+                        }
+                        pendingEvent = Buffer.alloc(0);
+                        droppingOversizedEvent = false;
+                        cursor = newline + 1;
                     }
                 };
 
