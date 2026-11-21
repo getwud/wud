@@ -75,6 +75,7 @@ export const EVENTS_BACKOFF_FACTOR = 2;
 export const EVENTS_JITTER_MS = 1000;
 export const DESTROYED_CONTAINERS_TTL_MS = 10 * 60 * 1000;
 export const DESTROYED_CONTAINERS_MAX_SIZE = 1000;
+export const MAX_DOCKER_EVENT_BYTES = 1024 * 1024;
 
 export interface DockerWatcherConfiguration extends ComponentConfiguration {
     socket: string;
@@ -874,13 +875,70 @@ export class Docker extends Watcher {
                 this.eventsReconnectAttempts = 0;
                 this.dockerEventsStream = stream;
 
-                let chunks: Buffer[] = [];
+                // Docker sends newline-delimited JSON events. A single stream
+                // chunk can contain multiple events or only part of one.
+                const LF = 0x0a;
+                const CR = 0x0d;
+                const CR_BUFFER = Buffer.from([CR]);
+                let pendingEvent = Buffer.alloc(0);
+                let pendingCarriageReturn = false;
+                let droppingOversizedEvent = false;
+                const appendEventBytes = (bytes: Buffer) => {
+                    if (!bytes.length || droppingOversizedEvent) {
+                        return;
+                    }
+                    if (
+                        pendingEvent.length + bytes.length >
+                        MAX_DOCKER_EVENT_BYTES
+                    ) {
+                        this.log.warn('Discarding oversized Docker event');
+                        pendingEvent = Buffer.alloc(0);
+                        droppingOversizedEvent = true;
+                        return;
+                    }
+                    pendingEvent = Buffer.concat([pendingEvent, bytes]);
+                };
                 const collectChunks = (chunk: Buffer) => {
-                    chunks.push(chunk);
-                    if (chunk.toString().endsWith('\n')) {
-                        const dockerEventChunk = Buffer.concat(chunks);
-                        this.onDockerEvent(dockerEventChunk);
-                        chunks = [];
+                    let cursor = 0;
+                    while (cursor < chunk.length) {
+                        const newline = chunk.indexOf(LF, cursor);
+                        const end = newline === -1 ? chunk.length : newline;
+
+                        if (!droppingOversizedEvent) {
+                            if (pendingCarriageReturn) {
+                                pendingCarriageReturn = false;
+                                if (end > cursor) {
+                                    appendEventBytes(CR_BUFFER);
+                                }
+                            }
+
+                            if (!droppingOversizedEvent) {
+                                let fragmentEnd = end;
+                                if (
+                                    fragmentEnd > cursor &&
+                                    chunk[fragmentEnd - 1] === CR
+                                ) {
+                                    fragmentEnd -= 1;
+                                    if (newline === -1) {
+                                        pendingCarriageReturn = true;
+                                    }
+                                }
+                                appendEventBytes(
+                                    chunk.subarray(cursor, fragmentEnd),
+                                );
+                            }
+                        }
+
+                        if (newline === -1) {
+                            break;
+                        }
+                        if (!droppingOversizedEvent && pendingEvent.length) {
+                            void this.onDockerEvent(pendingEvent);
+                        }
+                        pendingEvent = Buffer.alloc(0);
+                        pendingCarriageReturn = false;
+                        droppingOversizedEvent = false;
+                        cursor = newline + 1;
                     }
                 };
 
