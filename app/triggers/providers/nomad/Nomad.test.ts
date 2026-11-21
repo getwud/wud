@@ -198,3 +198,26 @@ test('triggerBatch should restart every container allocation', async () => {
 
     expect(axios.post).toHaveBeenCalledTimes(2);
 });
+
+test('trigger should skip a container tracking an upstream image (#664)', async () => {
+    axios.post.mockResolvedValue({ data: {} });
+
+    await nomad.trigger({
+        name: 'romm',
+        labels: {
+            'com.hashicorp.nomad.alloc_id': 'alloc-123',
+            'com.hashicorp.nomad.task_name': 'romm',
+        },
+        image: {
+            upstream: {
+                ref: 'ghcr.io/org/base',
+                source: 'label',
+                name: 'org/base',
+                registry: { name: 'ghcr', url: 'https://ghcr.io/v2' },
+                tag: '1',
+            },
+        },
+    });
+
+    expect(axios.post).not.toHaveBeenCalled();
+});

@@ -2697,3 +2697,40 @@ services:
         });
     });
 });
+
+describe('Upstream image tracking (#664)', () => {
+    const upstreamContainer = {
+        ...container,
+        name: 'caddy',
+        image: {
+            ...container.image,
+            upstream: {
+                ref: 'caddy',
+                source: 'label',
+                name: 'library/caddy',
+                registry: { name: 'hub', url: 'https://hub' },
+                tag: '1.2.3',
+            },
+        },
+    };
+
+    test('trigger should refuse a container tracking an upstream image', async () => {
+        const triggerBatchSpy = jest.spyOn(dockercompose, 'triggerBatch');
+        await expect(
+            dockercompose.trigger(upstreamContainer as any),
+        ).rejects.toThrow(/tracks upstream image caddy/);
+        expect(triggerBatchSpy).not.toHaveBeenCalled();
+        triggerBatchSpy.mockRestore();
+    });
+
+    test('triggerBatch should skip containers tracking an upstream image', async () => {
+        dockercompose.processComposeFile = jest.fn();
+        dockercompose.getWatcher = jest.fn().mockReturnValue({
+            dockerApi: { modem: { socketPath: '/var/run/docker.sock' } },
+        });
+        await expect(
+            dockercompose.triggerBatch([upstreamContainer as any]),
+        ).resolves.toBeUndefined();
+        expect(dockercompose.processComposeFile).not.toHaveBeenCalled();
+    });
+});

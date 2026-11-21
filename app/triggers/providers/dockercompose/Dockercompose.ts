@@ -611,6 +611,7 @@ class Dockercompose extends Docker {
             );
             return;
         }
+        this.assertNotUpstreamTracked(container);
         return this.triggerBatch([container]);
     }
 
@@ -620,7 +621,16 @@ class Dockercompose extends Docker {
      * @returns {Promise<void>}
      */
     async triggerBatch(containers) {
-        const containersToUpdate = containers.filter((c) => c.updateAvailable);
+        const containersToUpdate = containers
+            .filter((c) => c.updateAvailable)
+            .filter((c) => {
+                const reason = this.getUpstreamRefusalReason(c);
+                if (reason) {
+                    this.log.warn(`${reason} => skip`);
+                    return false;
+                }
+                return true;
+            });
         if (containersToUpdate.length === 0) {
             this.log.info(
                 'No containers with updates available => skip trigger',

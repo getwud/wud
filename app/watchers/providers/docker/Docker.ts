@@ -34,6 +34,7 @@ import {
     wudWatchDelay,
     wudTagDelay,
 } from './label';
+import { getUpstreamImageRef, parseUpstreamImageRef } from './upstream';
 import * as storeContainer from '../../../store/container';
 import { isOneshot } from '../../../runtime/mode';
 import {
@@ -494,6 +495,32 @@ export const DOCKER_RECREATE_TEMP_REGEX = /^[0-9a-f]{12}_/;
  */
 export function isRollbackArchive(name?: string): boolean {
     return Boolean(name && ROLLBACK_ARCHIVE_REGEX.test(name));
+}
+
+/**
+ * Return the container view used for registry lookups.
+ * When the container declares an upstream image, the image name, registry and
+ * baseline tag are swapped for the upstream ones; the returned object is a
+ * shallow copy so the container itself (what is displayed and updated) stays
+ * untouched. Without an upstream, the container is returned as-is.
+ */
+export function getLookupContainer(container: Container): Container {
+    const upstream = container?.image?.upstream;
+    if (!upstream) {
+        return container;
+    }
+    return {
+        ...container,
+        image: {
+            ...container.image,
+            name: upstream.name,
+            registry: { ...upstream.registry },
+            tag: {
+                value: upstream.tag,
+                semver: container.image.tag.semver,
+            },
+        },
+    };
 }
 
 /**
@@ -1695,6 +1722,12 @@ export class Docker extends Watcher {
         registryProvider?: Registry,
         imageName?: string,
     ): boolean {
+        // A locally built image tracking an upstream image can never match the
+        // upstream digest (its content differs by construction), so digest
+        // watching is meaningless and forced off.
+        if (getUpstreamImageRef(labels)) {
+            return false;
+        }
         const label = labels[wudWatchDigest];
         if (label !== undefined && label !== '') {
             return label.toLowerCase() === 'true';
@@ -1723,20 +1756,29 @@ export class Docker extends Watcher {
      */
 
     async findNewVersion(container: Container, logContainer: Logger) {
-        const registryProvider = getRegistry(container.image.registry.name);
+        // Registry lookups target the upstream image when one is declared
+        // (locally built derivative); otherwise the container's own image.
+        const lookupContainer = getLookupContainer(container);
+        const lookupImage = lookupContainer.image;
+        const registryProvider = getRegistry(lookupImage.registry.name);
         const result: any = { tag: container.image.tag.value };
         if (!registryProvider) {
             logContainer.error(
-                `Unsupported registry (${container.image.registry.name})`,
+                `Unsupported registry (${lookupImage.registry.name})`,
             );
             return result;
         } else {
+            if (container.image.upstream) {
+                logContainer.debug(
+                    `Looking up upstream image ${lookupImage.name}:${lookupImage.tag.value} on registry ${lookupImage.registry.name} (declared by ${container.image.upstream.source === 'oci' ? 'OCI base image annotation' : 'label'})`,
+                );
+            }
             const watchDigest = this.resolveWatchDigest(
                 container.name,
                 container.labels || {},
                 container.image.tag.semver,
                 registryProvider,
-                container.image.name,
+                lookupImage.name,
             );
             if (container.image.digest) {
                 container.image.digest.watch = watchDigest;
@@ -1746,7 +1788,7 @@ export class Docker extends Watcher {
 
             if (!container.image.tag.semver && !watchDigest) {
                 this.log.warn(
-                    `Image ${container.image.name} is not a semver and digest watching is disabled so wud won't report any update. Please review the configuration to enable digest watching for this container or exclude this container from being watched`,
+                    `Image ${lookupImage.name} is not a semver and digest watching is disabled so wud won't report any update. Please review the configuration to enable digest watching for this container or exclude this container from being watched`,
                 );
             }
 
@@ -1754,11 +1796,11 @@ export class Docker extends Watcher {
             let tags: string[] = [];
             if (container.image.tag.semver || container.includeTags) {
                 try {
-                    tags = await registryProvider.getTags(container.image);
+                    tags = await registryProvider.getTags(lookupImage);
                 } catch (e: any) {
                     const errorDetail = formatErrorMessage(e);
                     logContainer.warn(
-                        `Failed to fetch tags for image ${container.image.name} from registry ${container.image.registry.name} (${errorDetail})`,
+                        `Failed to fetch tags for image ${lookupImage.name} from registry ${lookupImage.registry.name} (${errorDetail})`,
                     );
                     if (
                         logContainer &&
@@ -1776,7 +1818,7 @@ export class Docker extends Watcher {
 
             // Get candidate tags (based on tag name)
             const tagsCandidates = getTagCandidates(
-                container,
+                lookupContainer,
                 tags,
                 logContainer,
             );
@@ -1787,7 +1829,7 @@ export class Docker extends Watcher {
                 try {
                     const resolution = await resolveCandidateTag(
                         registryProvider,
-                        container.image,
+                        lookupImage,
                         tagsCandidates,
                         logContainer,
                     );
@@ -1796,7 +1838,7 @@ export class Docker extends Watcher {
                 } catch (e: any) {
                     const errorDetail = formatErrorMessage(e);
                     logContainer.warn(
-                        `Failed to resolve candidate tags for image ${container.image.name} (${errorDetail})`,
+                        `Failed to resolve candidate tags for image ${lookupImage.name} (${errorDetail})`,
                     );
                     if (
                         logContainer &&
@@ -1816,7 +1858,7 @@ export class Docker extends Watcher {
             if (candidateTag && container.image.tag.semver) {
                 const candidatesByKind = await resolveUpdateCandidatesByKind(
                     registryProvider,
-                    container,
+                    lookupContainer,
                     tagsCandidates,
                     candidateTag,
                     logContainer,
@@ -1837,7 +1879,7 @@ export class Docker extends Watcher {
                 }
                 await resolveCandidateConfig({
                     registryProvider,
-                    container,
+                    container: lookupContainer,
                     candidateTag,
                     candidateRemoteDigest,
                     result,
@@ -2035,10 +2077,27 @@ export class Docker extends Watcher {
             containerInStore.error === undefined
         ) {
             const storeRegistryName = containerInStore.image?.registry?.name;
+            // The upstream image derives from labels: when the declared
+            // reference changed, the lookup target changed and the container
+            // must be fully re-evaluated (only when labels were provided).
+            const labelsProvided =
+                container.Config?.Labels !== undefined ||
+                container.Labels !== undefined ||
+                container.labels !== undefined;
+            const upstreamChanged =
+                labelsProvided &&
+                getUpstreamImageRef(containerLabels)?.ref !==
+                    containerInStore.image?.upstream?.ref;
             if (storeRegistryName && !hasRegistry(storeRegistryName)) {
                 if (this.log && typeof this.log.info === 'function') {
                     this.log.info(
                         `Container ${containerInStore.id} registry (${storeRegistryName}) is no longer registered, re-evaluating container`,
+                    );
+                }
+            } else if (upstreamChanged) {
+                if (this.log && typeof this.log.info === 'function') {
+                    this.log.info(
+                        `Container ${containerInStore.id} upstream image declaration changed, re-evaluating container`,
                     );
                 }
             } else {
@@ -2343,8 +2402,40 @@ export class Docker extends Watcher {
                 `${container.Image} - ${parsedImage.domain} - No Registry Provider found`,
             );
         }
+        // Upstream (base) image override for locally built images
+        const upstreamRef = getUpstreamImageRef(containerLabels);
+        let upstream: Container['image']['upstream'];
+        if (upstreamRef) {
+            const parsedUpstream = parseUpstreamImageRef(upstreamRef.ref);
+            if (!parsedUpstream) {
+                this.log.warn(
+                    `${containerName} - Invalid upstream image reference [${upstreamRef.ref}] => ignored`,
+                );
+            } else {
+                upstream = {
+                    ref: upstreamRef.ref,
+                    source: upstreamRef.source,
+                    name: parsedUpstream.path,
+                    registry: {
+                        name: 'unknown', // Will be overwritten by normalizeContainer
+                        url: parsedUpstream.domain,
+                    },
+                    tag: parsedUpstream.tag || tagName,
+                };
+                this.log.info(
+                    `${containerName} - Tracking upstream image ${upstreamRef.ref} instead of ${imageNameToParse}`,
+                );
+            }
+        }
+
+        // Semver detection is made on the lookup baseline tag (the upstream
+        // tag when declared, the container's own tag otherwise).
         const parsedTag = parseSemver(
-            transformTag(effectiveTransformTags, tagName, containerName),
+            transformTag(
+                effectiveTransformTags,
+                upstream?.tag ?? tagName,
+                containerName,
+            ),
         );
         const isSemver = parsedTag !== null && parsedTag !== undefined;
         const watchDigest = this.resolveWatchDigest(
@@ -2393,6 +2484,7 @@ export class Docker extends Watcher {
                 variant,
                 created,
                 version,
+                upstream,
             },
             labels: containerLabels,
             snoozedVersion: containerInStore?.snoozedVersion,
@@ -2479,8 +2571,44 @@ export class Docker extends Watcher {
             containerWithNormalizedImage.image.registry.name =
                 registryProvider.getId();
         }
+        this.normalizeUpstreamImage(containerWithNormalizedImage);
         resolveContainerMetadata(containerWithNormalizedImage);
         return validateContainer(containerWithNormalizedImage);
+    }
+
+    /**
+     * Resolve the registry of the declared upstream image and normalize its
+     * name the same way the registry would for a real image (e.g. `library/`
+     * prefix on Docker Hub).
+     */
+    private normalizeUpstreamImage(container: Container) {
+        const upstream = container.image?.upstream;
+        if (!upstream) {
+            return;
+        }
+        const upstreamProvider = findRegistryProvider(
+            upstream.registry.url,
+            getRegistries(),
+        );
+        if (!upstreamProvider) {
+            this.log.warn(
+                `${fullName(container)} - No Registry Provider found for upstream image ${upstream.ref}`,
+            );
+            upstream.registry.name = 'unknown';
+            return;
+        }
+        const normalized = upstreamProvider.normalizeImage({
+            ...container.image,
+            name: upstream.name,
+            registry: { ...upstream.registry },
+            tag: { value: upstream.tag, semver: container.image.tag.semver },
+            upstream: undefined,
+        });
+        upstream.name = normalized.name;
+        upstream.registry = {
+            name: upstreamProvider.getId(),
+            url: normalized.registry.url,
+        };
     }
 }
 

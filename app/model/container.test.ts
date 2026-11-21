@@ -2229,3 +2229,73 @@ describe('rich container metadata', () => {
         });
     });
 });
+
+describe('upstream image tracking (#664)', () => {
+    const baseImage = {
+        id: 'image-123456789',
+        registry: { name: 'hub', url: 'https://hub' },
+        name: 'library/caddy-porkbun',
+        tag: { value: '2.9.1', semver: true },
+        digest: { watch: false },
+        architecture: 'amd64',
+        os: 'linux',
+    };
+    const upstream = {
+        ref: 'caddy',
+        source: 'label',
+        name: 'library/caddy',
+        registry: { name: 'hub', url: 'https://hub' },
+        tag: '2.9.1',
+    };
+
+    test('model should validate and preserve the upstream declaration', () => {
+        const containerValidated = container.validate({
+            id: 'container-123456789',
+            name: 'caddy',
+            watcher: 'test',
+            image: { ...baseImage, upstream },
+            result: { tag: '2.9.2' },
+        });
+        expect(containerValidated.image.upstream).toEqual(upstream);
+        expect(containerValidated.image.name).toBe('library/caddy-porkbun');
+        expect(containerValidated.updateAvailable).toBe(true);
+        expect(containerValidated.updateKind).toEqual({
+            kind: 'tag',
+            localValue: '2.9.1',
+            remoteValue: '2.9.2',
+            semverDiff: 'patch',
+        });
+    });
+
+    test('model should reject an upstream declaration with an unknown source', () => {
+        expect(() =>
+            container.validate({
+                id: 'container-123456789',
+                name: 'caddy',
+                watcher: 'test',
+                image: {
+                    ...baseImage,
+                    upstream: { ...upstream, source: 'guess' },
+                },
+            }),
+        ).toThrow();
+    });
+
+    test('semver diff should be measured from the upstream baseline tag', () => {
+        const containerValidated = container.validate({
+            id: 'container-123456789',
+            name: 'caddy',
+            watcher: 'test',
+            image: {
+                ...baseImage,
+                tag: { value: 'custom', semver: true },
+                upstream: { ...upstream, tag: '2.9.1' },
+            },
+            result: { tag: '2.10.0' },
+        });
+        expect(containerValidated.updateAvailable).toBe(true);
+        expect(containerValidated.updateKind.kind).toBe('tag');
+        expect(containerValidated.updateKind.localValue).toBe('custom');
+        expect(containerValidated.updateKind.semverDiff).toBe('minor');
+    });
+});
