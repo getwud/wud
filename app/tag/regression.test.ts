@@ -267,6 +267,50 @@ describe('Exotic Tag Resolution & Hardening Regressions (#1278)', () => {
         test('node:20-alpine3.19 vs 20-alpine -> NOT an upgrade', () => {
             expect(isGreater('20-alpine', '20-alpine3.19')).toBe(false);
         });
+
+        test('python:3.13-alpine3.22 vs 3.14-alpine -> NOT an upgrade (pinned to newer floating)', () => {
+            expect(isGreater('3.14-alpine', '3.13-alpine3.22')).toBe(false);
+        });
+
+        test('python:3-alpine3.9 vs 3-alpine3.24 -> IS an upgrade (numeric ordering)', () => {
+            expect(isGreater('3-alpine3.24', '3-alpine3.9')).toBe(true);
+        });
+
+        test('dot-separated flavor version: 3-alpine vs 3-alpine.3.24 -> NOT an upgrade', () => {
+            expect(isGreater('3-alpine.3.24', '3-alpine')).toBe(false);
+        });
+
+        test('dot-separated flavor version: 3-alpine.3.24 vs 3-alpine -> NOT an upgrade', () => {
+            expect(isGreater('3-alpine', '3-alpine.3.24')).toBe(false);
+        });
+
+        test('dot-separated flavor version: 3-alpine.3.23 vs 3-alpine.3.24 -> IS an upgrade', () => {
+            expect(isGreater('3-alpine.3.24', '3-alpine.3.23')).toBe(true);
+        });
+
+        test('prerelease with flavor: 3.14-rc1-alpine vs 3.14-alpine3.24 -> NOT an upgrade', () => {
+            expect(isGreater('3.14-alpine3.24', '3.14-rc1-alpine')).toBe(false);
+        });
+
+        test('prerelease with flavor: 3.14-rc1-alpine vs 3.14-rc1-alpine3.24 -> NOT an upgrade', () => {
+            expect(isGreater('3.14-rc1-alpine3.24', '3.14-rc1-alpine')).toBe(
+                false,
+            );
+        });
+
+        test('prerelease with flavor: 3.14-rc1-alpine vs 3.14-alpine -> IS an upgrade', () => {
+            expect(isGreater('3.14-alpine', '3.14-rc1-alpine')).toBe(true);
+        });
+
+        test('prerelease with flavor: 3.14-rc1-alpine3.24 vs 3.14-alpine3.24 -> IS an upgrade', () => {
+            expect(isGreater('3.14-alpine3.24', '3.14-rc1-alpine3.24')).toBe(
+                true,
+            );
+        });
+
+        test('prerelease with flavor: 3.14-rc1-alpine3.24 vs 3.14-alpine -> NOT an upgrade', () => {
+            expect(isGreater('3.14-alpine', '3.14-rc1-alpine3.24')).toBe(false);
+        });
     });
 
     describe('Candidate filtering via getTagCandidates()', () => {

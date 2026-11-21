@@ -106,12 +106,12 @@ export function extractTagComponents(tag) {
                 const flavorMatch = flavorCandidate.match(
                     /^([a-zA-Z]+(?:[-_][a-zA-Z]+)*)/,
                 );
-                flavor = flavorMatch ? flavorMatch[1].toLowerCase() : '';
-                if (flavor) {
-                    // Version attached to the flavor (e.g. "alpine3.24" -> "3.24")
+                if (flavorMatch) {
+                    flavor = flavorMatch[1].toLowerCase();
+                    // Version attached to the flavor (e.g. "alpine3.24", "alpine.3.24" -> "3.24")
                     const flavorVersionMatch = flavorCandidate
                         .substring(flavorMatch[1].length)
-                        .match(/^[-_]?(\d+(?:\.\d+)*)/);
+                        .match(/^[-_.]?(\d+(?:\.\d+)*)/);
                     flavorVersion = flavorVersionMatch
                         ? flavorVersionMatch[1]
                         : '';
@@ -330,8 +330,6 @@ export function isGreater(version1, version2) {
     // ('3-alpine3.24', pinned base image) are different channels for the same
     // image. Never propose crossing from one to the other in either direction.
     if (
-        !comp1.isPrerelease &&
-        !comp2.isPrerelease &&
         comp1.flavor &&
         comp1.flavor === comp2.flavor &&
         Boolean(comp1.flavorVersion) !== Boolean(comp2.flavorVersion)
@@ -371,7 +369,17 @@ export function isGreater(version1, version2) {
             return false;
         }
 
-        // 3. Fallback to numeric-aware string comparison:
+        // 3. Stable release supersedes prerelease of the same base version and flavor
+        // (e.g. 3.14-alpine > 3.14-rc1-alpine, 3.14-alpine3.24 > 3.14-rc1-alpine3.24):
+        if (
+            !comp1.isPrerelease &&
+            comp2.isPrerelease &&
+            comp1.flavor === comp2.flavor
+        ) {
+            return true;
+        }
+
+        // 4. Fallback to numeric-aware string comparison:
         // This handles:
         // - Dates like 2025-09-01 vs 2025-08-05
         // - Multi-part build tags (e.g. 4.0.13.2933-ls275 vs 4.0.13.2932-ls274)
