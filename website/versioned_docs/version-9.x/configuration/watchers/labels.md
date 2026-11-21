@@ -637,15 +637,29 @@ WUD provides dedicated labels to attach rich metadata links to your containers a
 
 #### Dynamic Template Variables & Static URLs
 
-All three labels (`link.doc`, `link.changelog`, and `link.upstream`), as well as the historical `link.template`, support static URLs or dynamic JavaScript string template variables evaluated against the container update data:
+All three labels (`link.doc`, `link.changelog`, and `link.upstream`), as well as the historical `link.template`, support static URLs or dynamic string template variables evaluated against the container update data:
 
-- `${major}`: Major version number (e.g. `16`)
-- `${minor}`: Minor version number (e.g. `2`)
+- `${major}`: Major version number (e.g. `16`, or `26` for CalVer)
+- `${minor}`: Minor version number (e.g. `2`, or `04` preserving leading zeros for CalVer)
 - `${patch}`: Patch version number (e.g. `0`)
+- `${version}`: Full semver version string (`${major}.${minor}.${patch}`)
 - `${prerelease}`: Prerelease identifier (e.g. `beta.1`)
-- `${original}`: The original unparsed tag value (e.g. `10.6.4-alpine`)
+- `${original}` / `${raw}`: The original unparsed tag value (e.g. `10.6.4-alpine`)
 - `${transformed}`: The tag after applying `tag.transform` rules
 - `${image.name}`: Monitored container image name (e.g. `mariadb` or `searx/searx`)
+
+##### CalVer & Leading Zeros Support
+
+For CalVer or date-based versioning schemes (e.g. `26.04.5.1.1` or `2024.01.02`), WUD preserves original leading zeros in version placeholders:
+
+- A tag like `26.04.5.1.1` resolves `${major}` to `26` and `${minor}` to `04` (instead of dropping `0` to `4`).
+
+##### String Padding Modifiers (`.padStart` / `.padEnd`)
+
+Link templates also support secure, bounded `.padStart(len[, 'fill'])` and `.padEnd(len[, 'fill'])` modifier methods:
+
+- `${minor.padStart(2, '0')}`: Pads the minor version with leading zeros to ensure a minimum length of 2 (e.g. `4` becomes `04`).
+- `${minor.padEnd(2, '0')}`: Pads with trailing zeros (e.g. `4` becomes `40`).
 
 #### Automatic Official Docker Hub Detection
 
