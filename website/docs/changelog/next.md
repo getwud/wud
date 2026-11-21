@@ -7,6 +7,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 > Changes below are merged on `main` and will be included in the upcoming release.
 
+- 🚀 [CORE] Reduce Docker image size by excluding test artifacts from TypeScript builds, moving `jiti` to devDependencies, and pruning non-runtime files from `node_modules` (#1563)
 - 🚀 [UI] Update kind filter on the Containers page now supports selecting several kinds at once (e.g. patch + minor) (#1558)
 - 🚀 [WATCHER] Report the best available update per semver kind (`result.candidates`: major / minor / patch); the Containers page shows them next to the main update (e.g. a patch release besides a minor one) (#1558)
 - 🐛 [CORE] Preserve leading zeros and support padStart/padEnd in link templates (#1551)
