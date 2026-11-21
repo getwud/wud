@@ -6,6 +6,7 @@ import Docker, {
     formatErrorMessage,
     getRepoDigest,
     isDockerRecreateTempName,
+    MAX_DOCKER_EVENT_BYTES,
 } from './Docker';
 import Registry, {
     UnsupportedArtifactError,
@@ -950,9 +951,11 @@ describe('Docker Watcher', () => {
             );
 
             expect(docker.onDockerEvent).toHaveBeenCalledTimes(2);
-            expect(docker.onDockerEvent.mock.calls.map(([event]) =>
-                JSON.parse(event.toString()).Action,
-            )).toEqual(['die', 'stop']);
+            expect(
+                docker.onDockerEvent.mock.calls.map(
+                    ([event]) => JSON.parse(event.toString()).Action,
+                ),
+            ).toEqual(['die', 'stop']);
         });
 
         test('should retain a trailing partial event after complete events', async () => {
@@ -972,9 +975,11 @@ describe('Docker Watcher', () => {
             expect(docker.onDockerEvent).toHaveBeenCalledTimes(1);
 
             dataHandler(Buffer.from('op"}\n{"Action":"start"}\n'));
-            expect(docker.onDockerEvent.mock.calls.map(([event]) =>
-                JSON.parse(event.toString()).Action,
-            )).toEqual(['die', 'stop', 'start']);
+            expect(
+                docker.onDockerEvent.mock.calls.map(
+                    ([event]) => JSON.parse(event.toString()).Action,
+                ),
+            ).toEqual(['die', 'stop', 'start']);
         });
 
         test('should preserve UTF-8 data split across chunks', async () => {
@@ -1016,7 +1021,7 @@ describe('Docker Watcher', () => {
             const dataHandler = mockStream.on.mock.calls.find(
                 (c) => c[0] === 'data',
             )[1];
-            dataHandler(Buffer.from('x'.repeat(1024 * 1024)));
+            dataHandler(Buffer.from('x'.repeat(MAX_DOCKER_EVENT_BYTES)));
             dataHandler(Buffer.from('x'.repeat(10)));
             dataHandler(Buffer.from('ignored\n{"Action":"start"}\n'));
 
@@ -1030,14 +1035,16 @@ describe('Docker Watcher', () => {
             );
         });
 
-        test('should ignore empty lines and accept CRLF event boundaries', async () => {
+        test('should drop a single-chunk oversized Docker event and recover on next event', async () => {
             const mockStream = { on: jest.fn(), once: jest.fn() };
             mockDockerApi.getEvents.mockImplementation((options, callback) => {
                 callback(null, mockStream);
             });
             docker.onDockerEvent = jest.fn();
+            const warn = jest.fn();
 
             await docker.register('watcher', 'docker', 'test', {});
+            docker.log.warn = warn;
             await docker.listenDockerEvents();
 
             const dataHandler = mockStream.on.mock.calls.find(
@@ -1045,19 +1052,86 @@ describe('Docker Watcher', () => {
             )[1];
             dataHandler(
                 Buffer.from(
-                    '\n{"Action":"die"}\r\n\n{"Action":"stop"}\r\n',
+                    `${'x'.repeat(MAX_DOCKER_EVENT_BYTES + 1)}\n{"Action":"start"}\n`,
                 ),
             );
 
+            expect(warn).toHaveBeenCalledWith(
+                'Discarding oversized Docker event',
+            );
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(docker.onDockerEvent).toHaveBeenCalledTimes(1);
+            expect(docker.onDockerEvent.mock.calls[0][0].toString()).toBe(
+                '{"Action":"start"}',
+            );
+        });
+
+        test('should ignore empty LF and CRLF lines and strip trailing CR from payloads', async () => {
+            const mockStream = { on: jest.fn(), once: jest.fn() };
+            mockDockerApi.getEvents.mockImplementation((options, callback) => {
+                callback(null, mockStream);
+            });
+            docker.onDockerEvent = jest.fn();
+            const warn = jest.fn();
+
+            await docker.register('watcher', 'docker', 'test', {});
+            docker.log.warn = warn;
+            await docker.listenDockerEvents();
+
+            const dataHandler = mockStream.on.mock.calls.find(
+                (c) => c[0] === 'data',
+            )[1];
+            dataHandler(
+                Buffer.from(
+                    '\r\n\n{"Action":"die"}\r\n\r\n\n{"Action":"stop"}\r\n\r\n',
+                ),
+            );
+
+            expect(warn).not.toHaveBeenCalled();
             expect(docker.onDockerEvent).toHaveBeenCalledTimes(2);
             expect(
                 docker.onDockerEvent.mock.calls.map(([event]) =>
-                    JSON.parse(event.toString()).Action,
+                    event.toString(),
                 ),
-            ).toEqual(['die', 'stop']);
+            ).toEqual(['{"Action":"die"}', '{"Action":"stop"}']);
         });
 
-        test('should accept a complete Docker event at the size limit', async () => {
+        test('should handle split CRLF boundaries and embedded CR across chunks', async () => {
+            const mockStream = { on: jest.fn(), once: jest.fn() };
+            mockDockerApi.getEvents.mockImplementation((options, callback) => {
+                callback(null, mockStream);
+            });
+            docker.onDockerEvent = jest.fn();
+            const warn = jest.fn();
+
+            await docker.register('watcher', 'docker', 'test', {});
+            docker.log.warn = warn;
+            await docker.listenDockerEvents();
+
+            const dataHandler = mockStream.on.mock.calls.find(
+                (c) => c[0] === 'data',
+            )[1];
+            // Empty split CRLF line
+            dataHandler(Buffer.from('\r'));
+            dataHandler(Buffer.from('\n'));
+            // Payload with split CRLF boundary
+            dataHandler(Buffer.from('{"Action":"die"}\r'));
+            dataHandler(Buffer.from('\n'));
+            // Embedded CR split across chunks (not followed by LF)
+            dataHandler(Buffer.from('{"Action":\r'));
+            dataHandler(Buffer.from('"stop"}\r\n'));
+
+            expect(warn).not.toHaveBeenCalled();
+            expect(docker.onDockerEvent).toHaveBeenCalledTimes(2);
+            expect(docker.onDockerEvent.mock.calls[0][0].toString()).toBe(
+                '{"Action":"die"}',
+            );
+            expect(
+                JSON.parse(docker.onDockerEvent.mock.calls[1][0].toString()),
+            ).toEqual({ Action: 'stop' });
+        });
+
+        test('should accept a complete Docker event at the size limit with LF and CRLF boundaries', async () => {
             const mockStream = { on: jest.fn(), once: jest.fn() };
             mockDockerApi.getEvents.mockImplementation((options, callback) => {
                 callback(null, mockStream);
@@ -1074,18 +1148,28 @@ describe('Docker Watcher', () => {
             )[1];
             const prefix = '{"Action":"start","payload":"';
             const suffix = '"}';
-            const maxEventBytes = 1024 * 1024;
             const event = Buffer.from(
                 prefix +
-                    'x'.repeat(maxEventBytes - prefix.length - suffix.length) +
+                    'x'.repeat(
+                        MAX_DOCKER_EVENT_BYTES - prefix.length - suffix.length,
+                    ) +
                     suffix,
             );
-            expect(event.length).toBe(maxEventBytes);
+            expect(event.length).toBe(MAX_DOCKER_EVENT_BYTES);
+
+            // LF boundary
             dataHandler(Buffer.concat([event, Buffer.from('\n')]));
+            // Single-chunk CRLF boundary
+            dataHandler(Buffer.concat([event, Buffer.from('\r\n')]));
+            // Split CRLF boundary
+            dataHandler(Buffer.concat([event, Buffer.from('\r')]));
+            dataHandler(Buffer.from('\n'));
 
             expect(warn).not.toHaveBeenCalled();
-            expect(docker.onDockerEvent).toHaveBeenCalledTimes(1);
+            expect(docker.onDockerEvent).toHaveBeenCalledTimes(3);
             expect(docker.onDockerEvent.mock.calls[0][0]).toEqual(event);
+            expect(docker.onDockerEvent.mock.calls[1][0]).toEqual(event);
+            expect(docker.onDockerEvent.mock.calls[2][0]).toEqual(event);
         });
 
         test('should update container status on other events', async () => {
