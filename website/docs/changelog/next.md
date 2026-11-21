@@ -9,6 +9,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 - 🚀 [UI] Update kind filter on the Containers page now supports selecting several kinds at once (e.g. patch + minor) (#1558)
 - 🚀 [WATCHER] Report the best available update per semver kind (`result.candidates`: major / minor / patch); the Containers page shows them next to the main update (e.g. a patch release besides a minor one) (#1558)
+- 🐛 [API] Restrict trigger test simulation to notification triggers, strictly validate and strip simulation container payloads, and block exec hooks targeting WUD's own container
 - 🐛 [CORE] Preserve leading zeros and support padStart/padEnd in link templates (#1551)
 - 🐛 [REGISTRY] Optimize GHCR tag pagination with semver cursor and add registry rate limit pacing (#1552)
 - 🐛 [TAG] Do not propose pinned flavor variants (e.g. `3-alpine3.24`) as updates for floating flavor tags (e.g. `3-alpine`), and vice versa (fixes #1564)

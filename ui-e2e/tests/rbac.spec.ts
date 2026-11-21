@@ -99,18 +99,25 @@ test.describe('Role-Based Access Control (RBAC)', () => {
       }
     }
 
-    // 5. Triggers view: Test buttons are hidden
+    // 5. Triggers view: Test buttons are hidden even on a simulatable notification trigger
     await page.goto('/configuration/triggers');
-    const triggerRow = page.locator('table tbody tr').first();
-    if (await triggerRow.isVisible()) {
-      await triggerRow.click();
-      await expect(page.getByRole('button', { name: 'Test', exact: true })).toHaveCount(0);
-      await expect(page.getByRole('button', { name: 'Test this trigger' })).toHaveCount(0);
-    }
+    const mockTriggerRow = page.locator('table tbody tr', { hasText: 'mock' }).first();
+    await expect(mockTriggerRow).toBeVisible();
+    await mockTriggerRow.click();
+    const activeDrawer = page.locator('.v-navigation-drawer--temporary.v-navigation-drawer--active');
+    await expect(activeDrawer).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Test', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Test this trigger' })).toHaveCount(0);
 
     // 6. Backend API enforcement: Direct mutation requests return 403 Forbidden
     const watchRes = await page.request.post('/api/containers/watch');
     expect(watchRes.status()).toBe(403);
+
+    const triggerSimRes = await page.request.post('/api/triggers/mock/example', {
+      headers: { 'Content-Type': 'application/json' },
+      data: { name: 'container_test', watcher: 'local' },
+    });
+    expect(triggerSimRes.status()).toBe(403);
 
     const userRes = await page.request.post('/api/users', {
       headers: { 'Content-Type': 'application/json' },
@@ -142,16 +149,29 @@ test.describe('Role-Based Access Control (RBAC)', () => {
     await page.goto('/containers');
     await expect(page.getByRole('button', { name: 'Watch now' })).toBeVisible();
 
-    // 5. Triggers view: Test trigger buttons ARE visible
+    // 5. Triggers view: Test trigger buttons ARE visible for notification triggers, hidden for action triggers
     await page.goto('/configuration/triggers');
-    const triggerRow = page.locator('table tbody tr').first();
-    if (await triggerRow.isVisible()) {
-      await triggerRow.click();
-      await expect(page.getByRole('button', { name: 'Test', exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Test this trigger' })).toBeVisible();
-    }
+    const activeDrawer = page.locator('.v-navigation-drawer--temporary.v-navigation-drawer--active');
 
-    // 6. Backend API enforcement: RW cannot manage users (403), but CAN watch containers (not 403)
+    const mockTriggerRow = page.locator('table tbody tr', { hasText: 'mock' }).first();
+    await expect(mockTriggerRow).toBeVisible();
+    await mockTriggerRow.click();
+    await expect(activeDrawer).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Test', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Test this trigger' })).toBeVisible();
+    await activeDrawer.locator('button[title="Close details"]').click();
+    await expect(activeDrawer).toHaveCount(0);
+
+    const dockerTriggerRow = page.locator('table tbody tr', { hasText: 'docker' }).first();
+    await expect(dockerTriggerRow).toBeVisible();
+    await dockerTriggerRow.click();
+    await expect(activeDrawer).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Test', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Test this trigger' })).toHaveCount(0);
+    await activeDrawer.locator('button[title="Close details"]').click();
+    await expect(activeDrawer).toHaveCount(0);
+
+    // 6. Backend API enforcement: RW cannot manage users (403) or simulate action triggers (403), but CAN watch containers (not 403)
     const userRes = await page.request.post('/api/users', {
       headers: { 'Content-Type': 'application/json' },
       data: {
@@ -161,6 +181,12 @@ test.describe('Role-Based Access Control (RBAC)', () => {
       },
     });
     expect(userRes.status()).toBe(403);
+
+    const actionTriggerSimRes = await page.request.post('/api/triggers/docker/e2e', {
+      headers: { 'Content-Type': 'application/json' },
+      data: { name: 'container_test', watcher: 'local' },
+    });
+    expect(actionTriggerSimRes.status()).toBe(403);
 
     const watchRes = await page.request.post('/api/containers/watch?async=true');
     expect(watchRes.status()).not.toBe(403);
@@ -183,12 +209,31 @@ test.describe('Role-Based Access Control (RBAC)', () => {
     await page.goto('/containers');
     await expect(page.getByRole('button', { name: 'Watch now' })).toBeVisible();
 
-    // 4. Triggers view: Test trigger buttons ARE visible
+    // 4. Triggers view: Test trigger buttons ARE visible for notification triggers and hidden for action triggers
     await page.goto('/configuration/triggers');
-    const triggerRow = page.locator('table tbody tr').first();
-    if (await triggerRow.isVisible()) {
-      await triggerRow.click();
-      await expect(page.getByRole('button', { name: 'Test', exact: true })).toBeVisible();
-    }
+    const activeDrawer = page.locator('.v-navigation-drawer--temporary.v-navigation-drawer--active');
+
+    const mockTriggerRow = page.locator('table tbody tr', { hasText: 'mock' }).first();
+    await expect(mockTriggerRow).toBeVisible();
+    await mockTriggerRow.click();
+    await expect(activeDrawer).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Test', exact: true })).toBeVisible();
+    await activeDrawer.locator('button[title="Close details"]').click();
+    await expect(activeDrawer).toHaveCount(0);
+
+    const dockerTriggerRow = page.locator('table tbody tr', { hasText: 'docker' }).first();
+    await expect(dockerTriggerRow).toBeVisible();
+    await dockerTriggerRow.click();
+    await expect(activeDrawer).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Test', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Test this trigger' })).toHaveCount(0);
+    await activeDrawer.locator('button[title="Close details"]').click();
+    await expect(activeDrawer).toHaveCount(0);
+
+    const actionTriggerSimRes = await page.request.post('/api/triggers/docker/e2e', {
+      headers: { 'Content-Type': 'application/json' },
+      data: { name: 'container_test', watcher: 'local' },
+    });
+    expect(actionTriggerSimRes.status()).toBe(403);
   });
 });

@@ -31,6 +31,13 @@ class Command extends Trigger {
     }
 
     /**
+     * Action trigger: refuses test simulation via POST /api/triggers/:type/:name.
+     */
+    supportsSimulation(): boolean {
+        return false;
+    }
+
+    /**
      * Run the command with new image version details.
      *
      * @param container the container

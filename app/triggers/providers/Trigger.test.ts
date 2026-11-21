@@ -1905,4 +1905,8 @@ describe('granular per-trigger labels (fixes #691)', () => {
             expect(container.result.preloaded).toBeUndefined();
         });
     });
+
+    test('supportsSimulation should default to true on base Trigger', () => {
+        expect(trigger.supportsSimulation()).toBe(true);
+    });
 });

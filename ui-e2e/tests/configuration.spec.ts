@@ -40,14 +40,23 @@ test.describe('Configuration Views', () => {
     const table = page.locator('.v-data-table');
     await expect(table).toBeVisible();
 
-    const row = table.locator('tbody tr').first();
-    if (await row.count() > 0 && await row.isVisible()) {
-      await row.click();
-      const drawer = page.locator('.v-navigation-drawer--temporary.v-navigation-drawer--active');
-      await expect(drawer).toBeVisible();
-      await expect(drawer.getByRole('button', { name: /test/i }).first()).toBeVisible();
-      await drawer.getByTitle('Close details').click();
-    }
+    const activeDrawer = page.locator('.v-navigation-drawer--temporary.v-navigation-drawer--active');
+
+    const mockRow = table.locator('tbody tr', { hasText: 'mock' }).first();
+    await expect(mockRow).toBeVisible();
+    await mockRow.click();
+    await expect(activeDrawer).toBeVisible();
+    await expect(activeDrawer.getByRole('button', { name: /test/i }).first()).toBeVisible();
+    await activeDrawer.getByTitle('Close details').click();
+    await expect(activeDrawer).toHaveCount(0);
+
+    const dockerRow = table.locator('tbody tr', { hasText: 'docker' }).first();
+    await expect(dockerRow).toBeVisible();
+    await dockerRow.click();
+    await expect(activeDrawer).toBeVisible();
+    await expect(activeDrawer.getByRole('button', { name: /test/i })).toHaveCount(0);
+    await activeDrawer.getByTitle('Close details').click();
+    await expect(activeDrawer).toHaveCount(0);
   });
 
   test('should display Authentications table with search', async ({ page }) => {

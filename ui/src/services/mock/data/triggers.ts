@@ -3,6 +3,7 @@ export const mockTriggers = [
     id: "apprise.gotify",
     type: "apprise",
     name: "gotify",
+    supportsSimulation: true,
     configuration: {
       url: "gotify://gotify.homelab.lan/A0b1C2d3E4f5G6",
       threshold: "all",
@@ -14,6 +15,7 @@ export const mockTriggers = [
     id: "discord.homelab",
     type: "discord",
     name: "homelab",
+    supportsSimulation: true,
     configuration: {
       url: "https://discord.com/api/webhooks/123456789/********",
       threshold: "minor",
@@ -25,6 +27,7 @@ export const mockTriggers = [
     id: "mqtt.homeassistant",
     type: "mqtt",
     name: "homeassistant",
+    supportsSimulation: true,
     configuration: {
       url: "mqtt://mosquitto.homelab.lan:1883",
       topic: "wud/container",
@@ -41,6 +44,7 @@ export const mockTriggers = [
     id: "smtp.gmail",
     type: "smtp",
     name: "gmail",
+    supportsSimulation: true,
     configuration: {
       host: "smtp.gmail.com",
       port: 587,

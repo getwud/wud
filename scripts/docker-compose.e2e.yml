@@ -12,6 +12,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - WUD_REGISTRY_GITLAB_PRIVATE_WEBHOOK_TOKEN=registry-e2e-secret
+      - WUD_TRIGGER_DOCKER_E2E_AUTO=false
+      - WUD_TRIGGER_DOCKER_E2E_DRYRUN=true
+      - WUD_TRIGGER_DOCKER_E2E_INCLUDEBYDEFAULT=false
       - WUD_TRIGGER_MOCK_EXAMPLE_MOCK=mock
       - WUD_TRIGGER_MQTT_E2E_URL=mqtt://mosquitto:1883
       - WUD_TRIGGER_MQTT_E2E_TOPIC=wud/container

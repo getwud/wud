@@ -3,6 +3,8 @@ import Trigger from '../Trigger';
 import { ComponentConfiguration } from '../../../registry/Component';
 import { Container, fullName } from '../../../model/container';
 
+const SAFE_ALLOC_ID_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,127}$/;
+
 /**
  * Restart the HashiCorp Nomad allocation/task backing a watched container.
  *
@@ -100,6 +102,12 @@ class Nomad extends Trigger {
             );
             return;
         }
+        if (typeof allocId !== 'string' || !SAFE_ALLOC_ID_REGEX.test(allocId)) {
+            logContainer.warn(
+                `Invalid Nomad allocation ID '${allocId}' from label ${this.configuration.alloclabel}; refusing to restart`,
+            );
+            return;
+        }
 
         const body: { TaskName?: string; AllTasks?: boolean } = {};
         if (this.configuration.alltasks) {
@@ -127,7 +135,7 @@ class Nomad extends Trigger {
         );
         try {
             await axios.post(
-                `${this.configuration.address}/v1/client/allocation/${allocId}/restart`,
+                `${this.configuration.address}/v1/client/allocation/${encodeURIComponent(allocId)}/restart`,
                 body,
                 { headers },
             );
@@ -140,6 +148,13 @@ class Nomad extends Trigger {
             );
             throw e;
         }
+    }
+
+    /**
+     * Action trigger: refuses test simulation via POST /api/triggers/:type/:name.
+     */
+    supportsSimulation(): boolean {
+        return false;
     }
 
     /**

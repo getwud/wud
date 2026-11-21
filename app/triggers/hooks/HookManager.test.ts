@@ -990,4 +990,197 @@ describe('HookManager', () => {
             expect(mockLog.info).not.toHaveBeenCalled();
         });
     });
+
+    describe('self-container exec hook guard', () => {
+        const wudFullId =
+            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+        const wudShortId = 'aaaaaaaaaaaa';
+        const otherFullId =
+            'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+
+        const baseContainer: Container = {
+            id: otherFullId,
+            name: 'frontend',
+            displayName: 'frontend',
+            displayIcon: 'docker',
+            status: 'running',
+            watcher: 'local',
+            image: {
+                id: 'img1',
+                registry: { name: 'docker.io', url: 'https://docker.io' },
+                name: 'frontend',
+                tag: { value: '1.0.0', semver: true },
+                digest: { watch: false },
+                architecture: 'amd64',
+                os: 'linux',
+            },
+            updateAvailable: true,
+            updateKind: {
+                kind: 'tag',
+                localValue: '1.0.0',
+                remoteValue: '1.1.0',
+            },
+        };
+
+        it('should refuse exec hook targeting WUD by container name resolved via inspect()', async () => {
+            const mockTarget = {
+                inspect: jest.fn().mockResolvedValue({ Id: wudFullId }),
+                exec: jest.fn(),
+            };
+            const mockDockerApi = {
+                getContainer: jest.fn().mockReturnValue(mockTarget),
+            } as unknown as Dockerode;
+
+            const hook: Hook = {
+                phase: 'pre',
+                type: 'exec',
+                command: 'id',
+                target: 'wud',
+            };
+
+            await expect(
+                HookManager.runPreHooks(baseContainer, [hook], {
+                    triggerName: 'docker_local',
+                    dockerApi: mockDockerApi,
+                    log: mockLog,
+                    selfContainerId: wudFullId,
+                }),
+            ).rejects.toThrow(
+                "Refusing to execute pre-update exec hook targeting WUD's own container (wud)",
+            );
+
+            expect(mockDockerApi.getContainer).toHaveBeenCalledWith('wud');
+            expect(mockTarget.inspect).toHaveBeenCalled();
+            expect(mockTarget.exec).not.toHaveBeenCalled();
+        });
+
+        it('should refuse exec hook targeting WUD by short or full self container ID', async () => {
+            const mockTarget = {
+                exec: jest.fn(),
+            };
+            const mockDockerApi = {
+                getContainer: jest.fn().mockReturnValue(mockTarget),
+            } as unknown as Dockerode;
+
+            for (const targetId of [wudShortId, wudFullId]) {
+                await expect(
+                    HookManager.runPostHooks(
+                        baseContainer,
+                        [
+                            {
+                                phase: 'post',
+                                type: 'exec',
+                                command: 'whoami',
+                                target: targetId,
+                            },
+                        ],
+                        {
+                            triggerName: 'docker_local',
+                            dockerApi: mockDockerApi,
+                            log: mockLog,
+                            selfContainerId: wudFullId,
+                        },
+                    ),
+                ).rejects.toThrow(
+                    `Refusing to execute post-update exec hook targeting WUD's own container (${targetId})`,
+                );
+            }
+
+            expect(mockTarget.exec).not.toHaveBeenCalled();
+        });
+
+        it('should refuse exec hook with target="self" when container itself is WUD', async () => {
+            const mockTarget = {
+                inspect: jest.fn().mockResolvedValue({ Id: wudFullId }),
+                exec: jest.fn(),
+            };
+            const mockDockerApi = {
+                getContainer: jest.fn().mockReturnValue(mockTarget),
+            } as unknown as Dockerode;
+
+            const wudContainer: Container = {
+                ...baseContainer,
+                id: wudFullId,
+                name: 'wud',
+            };
+
+            await expect(
+                HookManager.runPreHooks(
+                    wudContainer,
+                    [
+                        {
+                            phase: 'pre',
+                            type: 'exec',
+                            command: 'env',
+                            target: 'self',
+                        },
+                    ],
+                    {
+                        triggerName: 'docker_local',
+                        dockerApi: mockDockerApi,
+                        log: mockLog,
+                        selfContainerId: wudFullId,
+                    },
+                ),
+            ).rejects.toThrow(
+                `Refusing to execute pre-update exec hook targeting WUD's own container (${wudFullId})`,
+            );
+
+            expect(mockTarget.exec).not.toHaveBeenCalled();
+        });
+
+        it('should allow exec hook on a non-self container when inspect resolves to another ID', async () => {
+            const stream = new PassThrough();
+            const mockExec = {
+                start: jest.fn().mockResolvedValue(stream),
+                inspect: jest.fn().mockResolvedValue({
+                    Running: false,
+                    ExitCode: 0,
+                }),
+            };
+            const mockTarget = {
+                inspect: jest.fn().mockResolvedValue({ Id: otherFullId }),
+                exec: jest.fn().mockResolvedValue(mockExec),
+            };
+            const mockDockerApi = {
+                getContainer: jest.fn().mockReturnValue(mockTarget),
+                modem: {
+                    demuxStream: jest.fn(
+                        (
+                            s: PassThrough,
+                            stdout: PassThrough,
+                            _stderr: PassThrough,
+                        ) => {
+                            s.on('data', (chunk) => stdout.write(chunk));
+                        },
+                    ),
+                },
+            } as unknown as Dockerode;
+
+            const runPromise = HookManager.runPreHooks(
+                baseContainer,
+                [
+                    {
+                        phase: 'pre',
+                        type: 'exec',
+                        command: 'echo ok',
+                        target: 'frontend',
+                    },
+                ],
+                {
+                    triggerName: 'docker_local',
+                    dockerApi: mockDockerApi,
+                    log: mockLog,
+                    selfContainerId: wudFullId,
+                },
+            );
+
+            stream.write('ok');
+            stream.end();
+
+            await expect(runPromise).resolves.toBeUndefined();
+            expect(mockTarget.inspect).toHaveBeenCalled();
+            expect(mockTarget.exec).toHaveBeenCalledTimes(1);
+        });
+    });
 });

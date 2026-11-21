@@ -1953,6 +1953,13 @@ class Docker extends Trigger {
     }
 
     /**
+     * Action trigger: refuses test simulation via POST /api/triggers/:type/:name.
+     */
+    supportsSimulation(): boolean {
+        return false;
+    }
+
+    /**
      * Whether this trigger supports background image preloading.
      */
     supportsPreload(): boolean {

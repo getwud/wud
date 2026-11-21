@@ -39,7 +39,7 @@ class Ifttt extends Trigger {
     async trigger(container) {
         return this.sendHttpRequest({
             value1: container.name,
-            value2: container.result.tag,
+            value2: container.result?.tag ?? '',
             value3: JSON.stringify(container),
         });
     }

@@ -20,17 +20,32 @@ describe('TriggerTestDialog.vue', () => {
 
   const mockRealContainers = [
     {
+      $loki: 1,
+      meta: { created: 12345 },
       id: 'real-container-1',
       name: 'nginx-prod',
+      displayName: 'Nginx Prod',
       watcher: 'local',
       stack: 'web',
       labels: {
         'com.docker.compose.service': 'nginx',
+        'wud.hook.1.command': 'id',
       },
       image: {
+        id: 'sha256:img1',
+        name: 'library/nginx',
+        registry: { name: 'hub', url: 'https://registry-1.docker.io/v2' },
         tag: {
           value: '1.25.0',
+          semver: true,
         },
+        digest: {
+          watch: false,
+          value: 'sha256:olddigest',
+        },
+        architecture: 'amd64',
+        os: 'linux',
+        extraUnsafe: 'should-not-forward',
       },
     },
     {
@@ -89,7 +104,7 @@ describe('TriggerTestDialog.vue', () => {
     expect(wrapper.emitted('update:modelValue')![0]).toEqual([false]);
   });
 
-  it('calls runTrigger with enriched mock container when no real container is selected', async () => {
+  it('calls runTrigger with clean allowlisted mock container without labels when no real container is selected', async () => {
     (triggerService.runTrigger as jest.Mock).mockResolvedValueOnce({ ok: true });
 
     const wrapper = mount(TriggerTestDialog, {
@@ -100,23 +115,33 @@ describe('TriggerTestDialog.vue', () => {
     });
 
     await (wrapper.vm as any).executeTrigger();
-    expect(triggerService.runTrigger).toHaveBeenCalledWith({
+    expect(triggerService.runTrigger).toHaveBeenCalledTimes(1);
+    const callArg = (triggerService.runTrigger as jest.Mock).mock.calls[0][0];
+    expect(callArg).toEqual({
       triggerType: 'slack',
       triggerName: 'myslack',
-      container: expect.objectContaining({
+      container: {
         id: '123456789',
         name: 'container_test',
         watcher: 'watcher_test',
         stack: 'test-stack',
-        labels: {
-          'com.docker.compose.project.working_dir': '/opt/docker/container_test',
-          'com.docker.compose.service': 'container_test',
+        updateAvailable: true,
+        updateKind: {
+          kind: 'tag',
+          semverDiff: 'major',
+          localValue: '1.2.3',
+          remoteValue: '4.5.6',
         },
-      }),
+        result: {
+          tag: '4.5.6',
+          link: 'https://my-container/release-notes/',
+        },
+      },
     });
+    expect(callArg.container).not.toHaveProperty('labels');
   });
 
-  it('pre-fills fields and sends cloned container payload with simulation state when real container is selected', async () => {
+  it('pre-fills fields and sends sanitized allowlisted payload without labels or internal store fields when real container is selected', async () => {
     (triggerService.runTrigger as jest.Mock).mockResolvedValueOnce({ ok: true });
 
     const wrapper = mount(TriggerTestDialog, {
@@ -141,29 +166,43 @@ describe('TriggerTestDialog.vue', () => {
     // Execute trigger
     await (wrapper.vm as any).executeTrigger();
 
-    expect(triggerService.runTrigger).toHaveBeenCalledWith({
+    expect(triggerService.runTrigger).toHaveBeenCalledTimes(1);
+    const callArg = (triggerService.runTrigger as jest.Mock).mock.calls[0][0];
+    expect(callArg).toEqual({
       triggerType: 'slack',
       triggerName: 'myslack',
-      container: expect.objectContaining({
+      container: {
         id: 'real-container-1',
         name: 'nginx-prod',
+        displayName: 'Nginx Prod',
         watcher: 'local',
         stack: 'web',
-        labels: {
-          'com.docker.compose.service': 'nginx',
-        },
         updateAvailable: true,
-        updateKind: expect.objectContaining({
+        updateKind: {
           kind: 'tag',
+          semverDiff: 'major',
           localValue: '1.25.0',
           remoteValue: '4.5.6',
-        }),
-        result: expect.objectContaining({
+        },
+        result: {
           tag: '4.5.6',
           link: 'https://my-container/release-notes/',
-        }),
-      }),
+        },
+        image: {
+          id: 'sha256:img1',
+          name: 'library/nginx',
+          registry: { name: 'hub', url: 'https://registry-1.docker.io/v2' },
+          tag: { value: '1.25.0', semver: true },
+          digest: { watch: false, value: 'sha256:olddigest' },
+          architecture: 'amd64',
+          os: 'linux',
+        },
+      },
     });
+    expect(callArg.container).not.toHaveProperty('labels');
+    expect(callArg.container).not.toHaveProperty('$loki');
+    expect(callArg.container).not.toHaveProperty('meta');
+    expect(callArg.container.image).not.toHaveProperty('extraUnsafe');
   });
 
   it('supports digest update simulation when real container is selected', async () => {
