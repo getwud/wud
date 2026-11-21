@@ -31,18 +31,25 @@ This architecture is designed to be **portable and future-proof**, operating sea
 
 ## 👥 Personas Overview
 
-The **Root Agent (Orchestrator)** operates on **Gemini 3.8 Flash** for fast dispatch and oversight. Specialized operational roles are mapped to targeted Gemini models:
+The **Root Agent (Orchestrator)** operates on **Orchestrator (Neon)** (`gemini-pro-orchestrator-neon`, or **Gemini 4 Neon (High)** directly) for delegation and oversight. Specialized operational roles are mapped to targeted Gemini 4 models:
 
 | Persona | Assigned Model | Primary Focus | Key Responsibilities | Allowed Scope |
 | :--- | :--- | :--- | :--- | :--- |
-| [**Support & Triage**](personas/support_triage.md) | **Gemini 3.8 Flash** | Issues & Bug Qualification | Reproduce bugs, diagnose root causes, draft user answers | Read-only codebase, GitHub issues |
-| [**Architect**](personas/architect.md) | **Gemini 4 Argon** | Technical Architecture | Provider design, core abstraction, technical blueprints (deep reasoning) | Architecture specs, reviews |
-| [**Fullstack Dev**](personas/dev_fullstack.md) | **Gemini 4 Hydrogen** | Implementation | Backend (`app/`), UI (`ui/`), unit tests, no coverage drop, Joi schemas, first-pass docs | Feature/fix branches, unit tests |
-| [**QA & Tester**](personas/qa_tester.md) | **Gemini 4 Hydrogen** | Quality & E2E Testing | Audit E2E tests, CI checks monitoring (`gh pr checks --watch`), flakiness prevention | E2E test files, test scripts, CI logs |
-| [**Doc Specialist**](personas/doc_specialist.md) | **Gemini 3.8 Flash** | Documentation & Quality | Review dev docs, Docusaurus site (`website/`), CSpell dictionary, Markdownlint | `website/docs/`, markdown files |
-| [**Release Manager**](personas/release_manager.md) | **Gemini 3.8 Flash** | Releases & Versioning | SemVer auditing, release execution (`release.sh`), GitHub Release publication (`gh release create`), announcements, **exclusive main/tag rights** | Release scripts, versions, tags, releases |
-| [**Product Manager**](personas/pm.md) | **Gemini 4 Argon** | Product Roadmap & Scope | Triage feature requests, guard WUD core vision, scope control (deep reasoning) | Roadmap specs, triage matrix |
-| [**UX Designer**](personas/ux_designer.md) | **Gemini 4 Hydrogen** | Interface & Usability | Topbar/footer layout, responsive design, Vuetify components | UI styling, layouts, components |
+| [**Support & Triage**](personas/support_triage.md) | **Gemini 4 Hydrogen (Medium)** | Issues & Bug Qualification | Reproduce bugs, diagnose root causes, draft user answers | Read-only codebase, GitHub issues |
+| [**Architect**](personas/architect.md) | **Gemini 4 Argon (High)** | Technical Architecture | Provider design, core abstraction, technical blueprints (deep reasoning) | Architecture specs, reviews |
+| [**Fullstack Dev**](personas/dev_fullstack.md) | **Gemini 4 Neon (High)** | Implementation | Backend (`app/`), UI (`ui/`), unit tests, no coverage drop, Joi schemas, first-pass docs | Feature/fix branches, unit tests |
+| [**QA & Tester**](personas/qa_tester.md) | **Gemini 4 Neon (Medium)** | Quality & E2E Testing | Audit E2E tests, CI checks monitoring (`gh pr checks --watch`), flakiness prevention | E2E test files, test scripts, CI logs |
+| [**Doc Specialist**](personas/doc_specialist.md) | **Gemini 4 Hydrogen (Medium)** | Documentation & Quality | Review dev docs, Docusaurus site (`website/`), CSpell dictionary, Markdownlint | `website/docs/`, markdown files |
+| [**Release Manager**](personas/release_manager.md) | **Gemini 4 Hydrogen (Medium)** | Releases & Versioning | SemVer auditing, release execution (`release.sh`), GitHub Release publication (`gh release create`), announcements, **exclusive main/tag rights** | Release scripts, versions, tags, releases |
+| [**Product Manager**](personas/pm.md) | **Gemini 4 Argon (Medium)** | Product Roadmap & Scope | Triage feature requests, guard WUD core vision, scope control (deep reasoning) | Roadmap specs, triage matrix |
+| [**UX Designer**](personas/ux_designer.md) | **Gemini 4 Neon (Medium)** | Interface & Usability | Topbar/footer layout, responsive design, Vuetify components | UI styling, layouts, components |
+
+> [!NOTE]
+> **Gemini 4 Antigravity Model Tiers**:
+> - **Orchestrator (Neon)** (`gemini-pro-orchestrator-neon`): Dedicated orchestration preset for the root agent (fallback: `Gemini 4 Neon (Medium)` / `Gemini 4 Hydrogen (Medium)`).
+> - **Gemini 4 Argon** (`deep_reasoning`, weekly quota): Frontier deep reasoning for architecture (`High`) and product scoping (`Medium`).
+> - **Gemini 4 Neon** (`code_precision`, 4h quota): High-judgment coding and analytical workhorse for fullstack implementation (`High`), QA, and UX (`Medium`).
+> - **Gemini 4 Hydrogen** (`high_velocity`, 4h quota): Ultra-fast Gemini 4 execution tier replacing Gemini 3.8 Flash for triage, documentation, and release operations (`Medium`).
 
 ---
 

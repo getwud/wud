@@ -35,7 +35,7 @@ flowchart TD
 
 ---
 
-## Step 1: Intake & Qualification (`support_triage` — Gemini 3.8 Flash)
+## Step 1: Intake & Qualification (`support_triage` — Gemini 4 Hydrogen (Medium))
 1. **Fetch Issue Data**:
    ```bash
    gh issue view <issue-number> --comments
@@ -48,7 +48,7 @@ flowchart TD
      - Draft a concise, human, direct explanation pointing to documentation and correct configuration syntax (max 2-3 sentences, zero AI corporate fluff).
      - Present draft to Manfred. Do NOT post to GitHub without approval.
    - **Scenario B: Feature Request Filed as an Issue**
-     - **Route immediately to the Product Manager (`pm` — Gemini 4 Argon)**: Hand off the issue to the [New Feature Playbook](new_feature.md) to assess value, roadmap fit, and architectural scope.
+     - **Route immediately to the Product Manager (`pm` — Gemini 4 Argon (Medium))**: Hand off the issue to the [New Feature Playbook](new_feature.md) to assess value, roadmap fit, and architectural scope.
    - **Scenario C: Confirmed Bug (Silent Triage)**
      - **DO NOT comment on the issue**: Avoid noisy or robotic comments during investigation.
      - **Strict No-Upstream-Response Rule**: When an issue is confirmed and determined to be fixable, **DO NOT reply or comment to the user upstream**. No acknowledgment, no pre-announcement, no intermediate technical analysis. All investigation remains strictly internal.
@@ -61,13 +61,13 @@ flowchart TD
 
 ---
 
-## Step 2: Architectural Review (`architect` — Gemini 4 Argon) — *Conditional*
+## Step 2: Architectural Review (`architect` — Gemini 4 Argon (High)) — *Conditional*
 - **Trigger**: The bug is caused by a fundamental protocol incompatibility, data storage limitation, or requires schema migration.
-- **Action**: The architect (powered by **Gemini 4 Argon** for deep reasoning) defines a migration plan or interface refactoring guaranteeing strict backward compatibility before code changes are attempted.
+- **Action**: The architect (powered by **Gemini 4 Argon (High)** for deep reasoning) defines a migration plan or interface refactoring guaranteeing strict backward compatibility before code changes are attempted.
 
 ---
 
-## Step 3: Branch Creation & Implementation (`dev_fullstack` — Gemini 4 Hydrogen)
+## Step 3: Branch Creation & Implementation (`dev_fullstack` — Gemini 4 Neon (High))
 1. **Branch Preparation**:
    ```bash
    git checkout main && git pull origin main
@@ -75,7 +75,7 @@ flowchart TD
    ```
 2. **Reproducing Test**:
    - Add a unit test in Jest (`app/**/*.test.ts`) that asserts the expected behavior and fails against the bug.
-3. **Fix Implementation** (powered by **Gemini 4 Hydrogen** for code precision):
+3. **Fix Implementation** (powered by **Gemini 4 Neon (High)** for code precision):
    - Implement minimal, robust fix strictly addressing the root cause without side-effects.
    - Preserve backward compatibility (Joi schemas, environment variables, OpenAPI contracts, SQLite migrations).
 4. **Validation & Coverage**:
@@ -90,7 +90,7 @@ flowchart TD
 
 ---
 
-## Step 4: Quality & E2E Validation (`qa_tester` — Gemini 4 Hydrogen)
+## Step 4: Quality & E2E Validation (`qa_tester` — Gemini 4 Neon (Medium))
 1. If the fix touches container watchers, triggers, or external registries, verify against local E2E suite:
    ```bash
    LOCAL_MODE=true ./scripts/run-e2e-tests.sh
@@ -127,7 +127,7 @@ flowchart TD
    EOF
    )"
    ```
-3. **Mandatory CI Pipeline Monitoring** (`qa_tester` — Gemini 4 Hydrogen):
+3. **Mandatory CI Pipeline Monitoring** (`qa_tester` — Gemini 4 Neon (Medium)):
    - Monitor remote checks until 100% green:
      ```bash
      gh pr checks <pr-number> --watch
@@ -139,7 +139,7 @@ flowchart TD
 
 ---
 
-## Step 6: Post-Merge Issue Closure (`support_triage` — Gemini 3.8 Flash)
+## Step 6: Post-Merge Issue Closure (`support_triage` — Gemini 4 Hydrogen (Medium))
 1. **Trigger**: Manfred has validated and merged the Pull Request into `main`.
 2. **Action**:
    - Draft a minimal, human closing comment (1-2 sentences max, no corporate fluff):

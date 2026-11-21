@@ -27,7 +27,7 @@ flowchart TD
 
 ---
 
-## Step 1: SemVer Audit (`release_manager` — Gemini 3.8 Flash)
+## Step 1: SemVer Audit (`release_manager` — Gemini 4 Hydrogen (Medium))
 1. **Analyze Unreleased Changes**:
    - Inspect `website/docs/changelog/next.md`.
    - Identify entries with:
@@ -40,7 +40,7 @@ flowchart TD
 
 ---
 
-## Step 2: Release Plan Submission (`release_manager` — Gemini 3.8 Flash)
+## Step 2: Release Plan Submission (`release_manager` — Gemini 4 Hydrogen (Medium))
 Prepare a release overview containing:
 - Target version (e.g. `9.0.0`).
 - Summary of core highlights.
@@ -51,7 +51,7 @@ Present this plan to Manfred and **wait for explicit authorization**.
 
 ---
 
-## Step 3: Release Script Execution (`release_manager` — Gemini 3.8 Flash)
+## Step 3: Release Script Execution (`release_manager` — Gemini 4 Hydrogen (Medium))
 Once authorized by Manfred:
 ```bash
 ./scripts/release.sh <version>
@@ -75,7 +75,7 @@ git push origin <version>
 
 ---
 
-## Step 5: Publish GitHub Release (`release_manager` — Gemini 3.8 Flash)
+## Step 5: Publish GitHub Release (`release_manager` — Gemini 4 Hydrogen (Medium))
 **Mandatory step**: Pushing the Git tag does **not** create the GitHub Release. Publish the GitHub Release immediately so its publication timestamp reflects the real release time:
 ```bash
 MAJOR=$(echo "<version>" | cut -d. -f1)
@@ -86,7 +86,7 @@ gh release create "<version>" --title "<version>" --notes "$NOTES"
 
 ---
 
-## Step 6: CI Release Monitoring (`qa_tester` — Gemini 4 Hydrogen / `release_manager` — Gemini 3.8 Flash)
+## Step 6: CI Release Monitoring (`qa_tester` — Gemini 4 Neon (Medium) / `release_manager` — Gemini 4 Hydrogen (Medium))
 1. Monitor the GitHub Actions CI workflow:
    ```bash
    gh run list --workflow=ci.yml
@@ -97,6 +97,6 @@ gh release create "<version>" --title "<version>" --notes "$NOTES"
 
 ---
 
-## Step 7: Post-Release Community Announcement (`release_manager` — Gemini 3.8 Flash)
+## Step 7: Post-Release Community Announcement (`release_manager` — Gemini 4 Hydrogen (Medium))
 1. Post a celebratory release announcement in GitHub Discussions under the **Announcements** category on Manfred's behalf.
 2. Highlight the major features, bug fixes, and link to documentation.
