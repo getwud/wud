@@ -35,6 +35,7 @@ export function extractTagComponents(tag) {
             version: '',
             suffix: '',
             flavor: '',
+            flavorVersion: '',
             isPrerelease: false,
         };
     }
@@ -78,6 +79,7 @@ export function extractTagComponents(tag) {
 
     // 4. Extract flavor and prerelease from suffix
     let flavor = '';
+    let flavorVersion = '';
     let prerelease = '';
     const isTagPrerelease = isPrerelease(tag);
 
@@ -105,6 +107,15 @@ export function extractTagComponents(tag) {
                     /^([a-zA-Z]+(?:[-_][a-zA-Z]+)*)/,
                 );
                 flavor = flavorMatch ? flavorMatch[1].toLowerCase() : '';
+                if (flavor) {
+                    // Version attached to the flavor (e.g. "alpine3.24" -> "3.24")
+                    const flavorVersionMatch = flavorCandidate
+                        .substring(flavorMatch[1].length)
+                        .match(/^[-_]?(\d+(?:\.\d+)*)/);
+                    flavorVersion = flavorVersionMatch
+                        ? flavorVersionMatch[1]
+                        : '';
+                }
             }
         }
     }
@@ -132,6 +143,7 @@ export function extractTagComponents(tag) {
         version,
         suffix,
         flavor,
+        flavorVersion,
         prerelease,
         isPrerelease: isTagPrerelease,
     };
@@ -310,6 +322,20 @@ export function isGreater(version1, version2) {
     // Channel stability check:
     // If current tag is stable and candidate is a pre-release, candidate must NOT upgrade current tag.
     if (comp1.isPrerelease && !comp2.isPrerelease) {
+        return false;
+    }
+
+    // Flavor pinning level check (#1564):
+    // A bare flavor ('3-alpine', floating base image) and a versioned flavor
+    // ('3-alpine3.24', pinned base image) are different channels for the same
+    // image. Never propose crossing from one to the other in either direction.
+    if (
+        !comp1.isPrerelease &&
+        !comp2.isPrerelease &&
+        comp1.flavor &&
+        comp1.flavor === comp2.flavor &&
+        Boolean(comp1.flavorVersion) !== Boolean(comp2.flavorVersion)
+    ) {
         return false;
     }
 

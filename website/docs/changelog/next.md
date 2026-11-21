@@ -16,6 +16,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [TRIGGER] Mask credentials in Apprise trigger base URL
 - 🐛 [WATCHER] Fix cool-down delay ignored for tag updates when digest watching is disabled (#1543)
 - 🐛 [WATCHER] Fix Docker Compose container pruning and label sync on recreate events (fixes #1559)
+- 🐛 [TAG] Do not propose pinned flavor variants (e.g. `3-alpine3.24`) as updates for floating flavor tags (e.g. `3-alpine`), and vice versa (fixes #1564)
 - 🐛 [WATCHER] Fix Swarm service label update when image is unchanged (fixes #1549)
 - 🐛 [WATCHER] Populate candidate digest on SemVer updates when digest watching is disabled (fixes #1542)
 
