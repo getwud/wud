@@ -184,7 +184,25 @@ describe("Trigger Service", () => {
       expect(result).toEqual(responseData);
     });
 
-    it("should throw error when API response status is not 200", async () => {
+    it("should prefer json.message over json.error when API response status is not 200", async () => {
+      (global as any).fetch.mockResolvedValue({
+        status: 403,
+        json: jest.fn().mockResolvedValue({
+          error: "Forbidden",
+          message: "Trigger docker.local does not support test simulation",
+        }),
+      });
+
+      await expect(
+        runTrigger({
+          triggerType: "docker",
+          triggerName: "local",
+          container: { name: "nginx" },
+        })
+      ).rejects.toThrow("Trigger docker.local does not support test simulation");
+    });
+
+    it("should throw json.error when json.message is missing and API response status is not 200", async () => {
       (global as any).fetch.mockResolvedValue({
         status: 500,
         json: jest.fn().mockResolvedValue({ error: "Failed to trigger" }),

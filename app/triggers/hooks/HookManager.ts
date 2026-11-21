@@ -4,6 +4,9 @@ import Joi from 'joi';
 import { Logger } from 'pino';
 import { Container } from '../../model/container';
 import { getState } from '../../registry';
+import { getSelfContainerId, isSelfContainer } from '../providers/docker/self';
+
+const HEX_ID_REGEX = /^[0-9a-f]{12,64}$/i;
 
 export interface Hook {
     type: 'exec' | 'trigger';
@@ -18,6 +21,7 @@ export interface HookContext {
     triggerName: string;
     dockerApi?: Dockerode;
     log: Logger;
+    selfContainerId?: string;
 }
 
 export const hookSchema = Joi.object({
@@ -138,6 +142,7 @@ async function executeExecHook(
     dockerApi: Dockerode,
     triggerName: string,
     log: Logger,
+    selfContainerId?: string,
 ): Promise<void> {
     const isSelfTarget =
         !hook.target ||
@@ -150,6 +155,31 @@ async function executeExecHook(
         : hook.target!;
 
     const targetContainer = dockerApi.getContainer(targetIdOrName);
+
+    const selfId =
+        selfContainerId ?? (await getSelfContainerId(dockerApi, log));
+
+    let resolvedTargetId: string | undefined;
+    if (typeof targetContainer.inspect === 'function') {
+        const targetInspect = await targetContainer.inspect();
+        resolvedTargetId = targetInspect?.Id;
+    }
+
+    const targetsWudSelf =
+        (resolvedTargetId !== undefined &&
+            isSelfContainer(resolvedTargetId, selfId)) ||
+        (HEX_ID_REGEX.test(targetIdOrName) &&
+            isSelfContainer(targetIdOrName, selfId)) ||
+        (isSelfTarget &&
+            Boolean(container.id) &&
+            HEX_ID_REGEX.test(container.id) &&
+            isSelfContainer(container.id, selfId));
+
+    if (targetsWudSelf) {
+        throw new Error(
+            `Refusing to execute ${hook.phase}-update exec hook targeting WUD's own container (${targetIdOrName})`,
+        );
+    }
 
     const imageName = container.image?.name || '';
     const imageRegistry = container.image?.registry?.name || '';
@@ -441,6 +471,7 @@ export class HookManager {
                     context.dockerApi,
                     context.triggerName,
                     context.log,
+                    context.selfContainerId,
                 );
             } else if (hook.type === 'trigger') {
                 await executeTriggerHook(

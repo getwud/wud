@@ -160,7 +160,7 @@ async function runTrigger({
   });
   const json = await response.json();
   if (response.status !== 200) {
-    throw new Error(json.error ? json.error : "Unknown error");
+    throw new Error(json.message || json.error || "Unknown error");
   }
   return json;
 }

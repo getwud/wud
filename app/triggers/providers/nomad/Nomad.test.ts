@@ -198,3 +198,32 @@ test('triggerBatch should restart every container allocation', async () => {
 
     expect(axios.post).toHaveBeenCalledTimes(2);
 });
+
+test.each([
+    '../../jobs',
+    'abc?x=1',
+    'alloc/123',
+    '../other',
+    '-leading-dash',
+    'alloc with spaces',
+])(
+    'trigger should reject invalid Nomad allocation ID "%s" without calling axios.post',
+    async (badAllocId) => {
+        axios.post.mockResolvedValue({ data: {} });
+        const container = {
+            name: 'romm',
+            labels: {
+                'com.hashicorp.nomad.alloc_id': badAllocId,
+                'com.hashicorp.nomad.task_name': 'romm',
+            },
+        };
+
+        await nomad.trigger(container);
+
+        expect(axios.post).not.toHaveBeenCalled();
+    },
+);
+
+test('supportsSimulation should return false for Nomad action trigger', () => {
+    expect(nomad.supportsSimulation()).toBe(false);
+});

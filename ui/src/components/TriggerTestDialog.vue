@@ -102,7 +102,7 @@
 
         <v-text-field
           label="Release Notes / Result Link"
-          v-model="container.updateKind.result.link"
+          v-model="container.result.link"
           variant="outlined"
           density="compact"
           hide-details
@@ -158,18 +158,16 @@ export default defineComponent({
         name: "container_test",
         watcher: "watcher_test",
         stack: "test-stack",
-        labels: {
-          "com.docker.compose.project.working_dir": "/opt/docker/container_test",
-          "com.docker.compose.service": "container_test",
-        },
         updateKind: {
           kind: "tag",
           semverDiff: "major",
           localValue: "1.2.3",
           remoteValue: "4.5.6",
-          result: {
-            link: "https://my-container/release-notes/",
-          },
+        },
+        result: {
+          tag: "4.5.6",
+          digest: "",
+          link: "https://my-container/release-notes/",
         },
       },
     };
@@ -226,29 +224,90 @@ export default defineComponent({
     close() {
       this.$emit("update:modelValue", false);
     },
+    sanitizeImage(image: any): Record<string, any> | undefined {
+      if (!image || typeof image !== "object") {
+        return undefined;
+      }
+      const sanitized: Record<string, any> = {};
+      if (typeof image.id === "string") sanitized.id = image.id;
+      if (typeof image.name === "string") sanitized.name = image.name;
+      if (image.registry && typeof image.registry === "object") {
+        const registry: Record<string, any> = {};
+        if (typeof image.registry.name === "string") registry.name = image.registry.name;
+        if (typeof image.registry.url === "string") registry.url = image.registry.url;
+        if (Object.keys(registry).length > 0) sanitized.registry = registry;
+      }
+      if (image.tag && typeof image.tag === "object") {
+        const tag: Record<string, any> = {};
+        if (typeof image.tag.value === "string") tag.value = image.tag.value;
+        if (typeof image.tag.semver === "boolean") tag.semver = image.tag.semver;
+        if (Object.keys(tag).length > 0) sanitized.tag = tag;
+      }
+      if (image.digest && typeof image.digest === "object") {
+        const digest: Record<string, any> = {};
+        if (typeof image.digest.watch === "boolean") digest.watch = image.digest.watch;
+        if (typeof image.digest.value === "string") digest.value = image.digest.value;
+        if (typeof image.digest.repo === "string") digest.repo = image.digest.repo;
+        if (Object.keys(digest).length > 0) sanitized.digest = digest;
+      }
+      if (typeof image.architecture === "string") sanitized.architecture = image.architecture;
+      if (typeof image.os === "string") sanitized.os = image.os;
+      if (typeof image.variant === "string") sanitized.variant = image.variant;
+      if (typeof image.created === "string") sanitized.created = image.created;
+      if (typeof image.version === "string" || image.version === null) {
+        sanitized.version = image.version;
+      }
+      return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+    },
     async executeTrigger() {
       if (!this.trigger) return;
       this.isTriggering = true;
       try {
-        let payload: any;
+        const result: Record<string, any> = {
+          link: this.container.result.link,
+        };
+        if (this.container.updateKind.kind === "tag") {
+          result.tag = this.container.updateKind.remoteValue;
+        } else if (this.container.updateKind.kind === "digest") {
+          result.digest = this.container.updateKind.remoteValue;
+        }
+
+        const updateKind: Record<string, any> = {
+          kind: this.container.updateKind.kind,
+          localValue: this.container.updateKind.localValue,
+          remoteValue: this.container.updateKind.remoteValue,
+        };
+        if (this.container.updateKind.kind === "tag") {
+          updateKind.semverDiff = this.container.updateKind.semverDiff;
+        }
+
+        const payload: Record<string, any> = {
+          id: this.container.id,
+          name: this.container.name,
+          watcher: this.container.watcher,
+          updateAvailable: true,
+          updateKind,
+          result,
+        };
+
         if (this.selectedContainerId) {
           const selectedContainer = (this.containers || []).find(
             (c: any) => c.id === this.selectedContainerId,
           );
-          payload = selectedContainer
-            ? JSON.parse(JSON.stringify(selectedContainer))
-            : JSON.parse(JSON.stringify(this.container));
-          payload.updateAvailable = true;
-          payload.updateKind = { ...this.container.updateKind };
-          if (!payload.result) payload.result = {};
-          if (this.container.updateKind.kind === "tag") {
-            payload.result.tag = this.container.updateKind.remoteValue;
-          } else if (this.container.updateKind.kind === "digest") {
-            payload.result.digest = this.container.updateKind.remoteValue;
+          if (selectedContainer) {
+            if (typeof selectedContainer.displayName === "string") {
+              payload.displayName = selectedContainer.displayName;
+            }
+            if (typeof selectedContainer.stack === "string") {
+              payload.stack = selectedContainer.stack;
+            }
+            const sanitizedImage = this.sanitizeImage(selectedContainer.image);
+            if (sanitizedImage) {
+              payload.image = sanitizedImage;
+            }
           }
-          payload.result.link = this.container.updateKind.result.link;
-        } else {
-          payload = this.container;
+        } else if (this.container.stack) {
+          payload.stack = this.container.stack;
         }
 
         await runTrigger({

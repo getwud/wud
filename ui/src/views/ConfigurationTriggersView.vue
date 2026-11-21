@@ -117,7 +117,7 @@
             </div>
           </div>
           <v-btn
-            v-if="canWrite"
+            v-if="canTestSelectedTrigger"
             color="primary"
             variant="tonal"
             size="small"
@@ -136,7 +136,7 @@
             :item="selectedTrigger"
             :fallback-icon="triggerIcon"
           >
-            <template #actions v-if="canWrite">
+            <template #actions v-if="canTestSelectedTrigger">
               <v-btn
                 variant="outlined"
                 color="primary"
@@ -155,7 +155,7 @@
 
     <!-- Test Trigger Dialog -->
     <trigger-test-dialog
-      v-if="selectedTrigger"
+      v-if="canTestSelectedTrigger"
       v-model="testDialogOpen"
       :trigger="selectedTrigger"
     />
@@ -226,6 +226,9 @@ export default defineComponent({
     canWrite(): boolean {
       if (!this.currentUser) return true;
       return this.currentUser.role === "admin" || this.currentUser.role === "rw";
+    },
+    canTestSelectedTrigger(): boolean {
+      return this.canWrite && Boolean(this.selectedTrigger?.supportsSimulation);
     },
     triggerIcon(): string {
       return getTriggerIcon();

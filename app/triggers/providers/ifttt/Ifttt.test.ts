@@ -109,3 +109,31 @@ test('trigger should send http request to IFTTT', async () => {
         url: 'https://maker.ifttt.com/trigger/event/with/key/key',
     });
 });
+
+test('trigger should default value2 to empty string when container.result is missing', async () => {
+    ifttt.configuration = {
+        key: 'key',
+        event: 'event',
+    };
+    const container = {
+        name: 'container1',
+    };
+    axios.mockResolvedValue({ data: {} });
+    await ifttt.trigger(container);
+    expect(axios).toHaveBeenCalledWith({
+        data: {
+            value1: 'container1',
+            value2: '',
+            value3: '{"name":"container1"}',
+        },
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        method: 'POST',
+        url: 'https://maker.ifttt.com/trigger/event/with/key/key',
+    });
+});
+
+test('supportsSimulation should return true', () => {
+    expect(ifttt.supportsSimulation()).toBe(true);
+});

@@ -859,6 +859,15 @@ class Trigger extends Component {
     }
 
     /**
+     * Whether this trigger supports test simulation via `POST /api/triggers/:type/:name`.
+     * Notification triggers inherit `true`; action/mutating triggers (command,
+     * docker, dockercompose, nomad) override this to `false`.
+     */
+    supportsSimulation(): boolean {
+        return true;
+    }
+
+    /**
      * Whether this trigger implements rollback notifications.
      * Positive, overridable capability: the base default is `false`, so a
      * notification trigger must opt in explicitly (blueprint §9).

@@ -16,13 +16,22 @@ const mockTriggers = [
     id: "slack.team",
     type: "slack",
     name: "team",
+    supportsSimulation: true,
     configuration: { channel: "#general" },
   },
   {
     id: "smtp.mail",
     type: "smtp",
     name: "mail",
+    supportsSimulation: true,
     configuration: { host: "smtp.example.com" },
+  },
+  {
+    id: "docker.local",
+    type: "docker",
+    name: "local",
+    supportsSimulation: false,
+    configuration: { prune: false },
   },
 ];
 
@@ -36,14 +45,14 @@ describe("ConfigurationTriggersView.vue", () => {
     await wrapper.setData({ triggers: mockTriggers });
 
     const vm = wrapper.vm as any;
-    expect(vm.triggersFiltered).toHaveLength(2);
+    expect(vm.triggersFiltered).toHaveLength(3);
 
     vm.search = "slack";
     expect(vm.triggersFiltered).toHaveLength(1);
     expect(vm.triggersFiltered[0].type).toBe("slack");
 
     vm.search = "";
-    expect(vm.triggersFiltered).toHaveLength(2);
+    expect(vm.triggersFiltered).toHaveLength(3);
   });
 
   it("opens drawer on row click", async () => {
@@ -56,6 +65,37 @@ describe("ConfigurationTriggersView.vue", () => {
     vm.onRowClick({}, { item: mockTriggers[0] });
     expect(vm.drawerOpen).toBe(true);
     expect(vm.selectedTrigger).toEqual(mockTriggers[0]);
+    expect(vm.canTestSelectedTrigger).toBe(true);
+  });
+
+  it("disables trigger testing for non-simulatable action triggers and read-only users", async () => {
+    const wrapper = mount(ConfigurationTriggersView);
+    await wrapper.setData({
+      triggers: mockTriggers,
+      currentUser: { username: "admin", role: "admin" },
+    });
+
+    const vm = wrapper.vm as any;
+
+    // Action trigger (docker) cannot be tested even by admin
+    vm.onRowClick({}, { item: mockTriggers[2] });
+    await wrapper.vm.$nextTick();
+    expect(vm.selectedTrigger.id).toBe("docker.local");
+    expect(vm.canTestSelectedTrigger).toBe(false);
+    expect(wrapper.findComponent({ name: "TriggerTestDialog" }).exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("Test this trigger");
+
+    // Notification trigger (slack) can be tested by admin
+    vm.onRowClick({}, { item: mockTriggers[0] });
+    await wrapper.vm.$nextTick();
+    expect(vm.canTestSelectedTrigger).toBe(true);
+    expect(wrapper.findComponent({ name: "TriggerTestDialog" }).exists()).toBe(true);
+
+    // Read-only user cannot test notification trigger
+    await wrapper.setData({ currentUser: { username: "viewer", role: "ro" } });
+    await wrapper.vm.$nextTick();
+    expect(vm.canTestSelectedTrigger).toBe(false);
+    expect(wrapper.findComponent({ name: "TriggerTestDialog" }).exists()).toBe(false);
   });
 
   it("refreshes triggers on refreshTriggers and enriches icons", async () => {
@@ -64,7 +104,7 @@ describe("ConfigurationTriggersView.vue", () => {
 
     await vm.refreshTriggers();
     expect(triggerService.getAllTriggers).toHaveBeenCalled();
-    expect(vm.triggers).toHaveLength(2);
+    expect(vm.triggers).toHaveLength(3);
   });
 
   it("maps custom icon from configuration.icon on refreshTriggers", async () => {
