@@ -23,6 +23,12 @@ interface ImageReplacement {
     text: string;
 }
 
+interface FileMetadata {
+    mode: number;
+    uid: number;
+    gid: number;
+}
+
 /**
  * Locate the Scalar node corresponding to the target image in the YAML AST.
  */
@@ -938,14 +944,89 @@ class Dockercompose extends Docker {
     }
 
     /**
+     * Read file permissions and ownership metadata.
+     * Returns undefined if stat fails or does not expose numeric metadata.
+     */
+    private async getFileMetadata(
+        filePath: string,
+    ): Promise<FileMetadata | undefined> {
+        try {
+            const stats = await fs.stat(filePath);
+            if (
+                !stats ||
+                typeof stats.mode !== 'number' ||
+                typeof stats.uid !== 'number' ||
+                typeof stats.gid !== 'number'
+            ) {
+                return undefined;
+            }
+            return {
+                mode: stats.mode & 0o7777,
+                uid: stats.uid,
+                gid: stats.gid,
+            };
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            this.log.debug(
+                `Unable to stat ${filePath} to preserve file metadata (${message})`,
+            );
+            return undefined;
+        }
+    }
+
+    /**
+     * Best-effort restore of file permissions and ownership metadata on a target file.
+     * Errors (such as EPERM, ENOTSUP, ENOSYS, EINVAL, EROFS when running non-root
+     * or on non-POSIX mounts) are logged at debug level and never fail the operation.
+     */
+    private async applyFileMetadata(
+        filePath: string,
+        metadata: FileMetadata,
+    ): Promise<void> {
+        try {
+            await fs.chmod(filePath, metadata.mode);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            this.log.debug(
+                `Unable to preserve permissions on ${filePath} (${message})`,
+            );
+        }
+        try {
+            await fs.chown(filePath, metadata.uid, metadata.gid);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            this.log.debug(
+                `Unable to preserve ownership on ${filePath} (${message})`,
+            );
+        }
+    }
+
+    /**
+     * Copy a file and best-effort preserve the source file's permissions and ownership.
+     */
+    private async copyFilePreservingMetadata(
+        src: string,
+        dest: string,
+    ): Promise<void> {
+        await fs.copyFile(src, dest);
+        const metadata = await this.getFileMetadata(src);
+        if (metadata) {
+            await this.applyFileMetadata(dest, metadata);
+        }
+    }
+
+    /**
      * Force a backup of the compose file (implicit rollback requirement).
      * Throws when the backup cannot be written so the transaction can abort
      * before mutating anything.
      * @param composeFile the compose file path
      * @returns {Promise<void>}
      */
-    async ensureComposeBackup(composeFile) {
-        await fs.copyFile(composeFile, `${composeFile}.back`);
+    async ensureComposeBackup(composeFile: string): Promise<void> {
+        await this.copyFilePreservingMetadata(
+            composeFile,
+            `${composeFile}.back`,
+        );
     }
 
     /**
@@ -953,8 +1034,11 @@ class Dockercompose extends Docker {
      * @param composeFile the compose file path
      * @returns {Promise<void>}
      */
-    async restoreComposeFileFromBackup(composeFile) {
-        await fs.copyFile(`${composeFile}.back`, composeFile);
+    async restoreComposeFileFromBackup(composeFile: string): Promise<void> {
+        await this.copyFilePreservingMetadata(
+            `${composeFile}.back`,
+            composeFile,
+        );
     }
 
     /**
@@ -969,6 +1053,7 @@ class Dockercompose extends Docker {
         mappings: ComposeImageUpdate[],
     ): Promise<void> {
         const composeFileStr = (await fs.readFile(composeFile)).toString();
+        const metadata = await this.getFileMetadata(composeFile);
         const updatedComposeFileStr = this.updateComposeYaml(
             composeFileStr,
             mappings,
@@ -976,6 +1061,9 @@ class Dockercompose extends Docker {
         const tmpFile = `${composeFile}.tmp.${Date.now()}`;
         try {
             await fs.writeFile(tmpFile, updatedComposeFileStr);
+            if (metadata) {
+                await this.applyFileMetadata(tmpFile, metadata);
+            }
             await fs.rename(tmpFile, composeFile);
         } catch (error) {
             try {
@@ -987,6 +1075,9 @@ class Dockercompose extends Docker {
                 const backupFile = `${composeFile}.back`;
                 await fs.access(backupFile);
                 await fs.copyFile(backupFile, composeFile);
+                if (metadata) {
+                    await this.applyFileMetadata(composeFile, metadata);
+                }
             } catch {
                 // Ignore failure if backup does not exist or restore fails
             }
@@ -1000,13 +1091,14 @@ class Dockercompose extends Docker {
      * @param backupFile
      * @returns {Promise<void>}
      */
-    async backup(file, backupFile) {
+    async backup(file: string, backupFile: string): Promise<void> {
         try {
             this.log.debug(`Backup ${file} as ${backupFile}`);
-            await fs.copyFile(file, backupFile);
-        } catch (e) {
+            await this.copyFilePreservingMetadata(file, backupFile);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
             this.log.warn(
-                `Error when trying to backup file ${file} to ${backupFile} (${e.message})`,
+                `Error when trying to backup file ${file} to ${backupFile} (${message})`,
             );
         }
     }
