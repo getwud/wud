@@ -619,6 +619,9 @@ describe('Dockercompose Trigger - file operations', () => {
         jest.clearAllMocks();
         (fs.rename as jest.Mock).mockResolvedValue(undefined);
         (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+        (fs.stat as jest.Mock).mockResolvedValue(undefined);
+        (fs.chmod as jest.Mock).mockResolvedValue(undefined);
+        (fs.chown as jest.Mock).mockResolvedValue(undefined);
         dockercompose.configuration = { ...configurationValid };
     });
 
@@ -830,6 +833,362 @@ describe('Dockercompose Trigger - file operations', () => {
             k.startsWith('docker-compose.yml.tmp.'),
         );
         expect(tempFiles).toHaveLength(0);
+    });
+
+    test('rewriteComposeFile should preserve file permissions and ownership on tmpFile before rename (issue #1577)', async () => {
+        const callOrder: string[] = [];
+        (fs.readFile as jest.Mock).mockResolvedValue(
+            Buffer.from('services:\n  web:\n    image: app:1.0.0'),
+        );
+        (fs.stat as jest.Mock).mockImplementation(async () => {
+            callOrder.push('stat');
+            return {
+                mode: 0o100664,
+                uid: 1000,
+                gid: 1000,
+            };
+        });
+        (fs.writeFile as jest.Mock).mockImplementation(async () => {
+            callOrder.push('writeFile');
+        });
+        (fs.chmod as jest.Mock).mockImplementation(async () => {
+            callOrder.push('chmod');
+        });
+        (fs.chown as jest.Mock).mockImplementation(async () => {
+            callOrder.push('chown');
+        });
+        (fs.rename as jest.Mock).mockImplementation(async () => {
+            callOrder.push('rename');
+        });
+
+        await dockercompose.rewriteComposeFile('test.yml', [
+            { current: 'app:1.0.0', update: 'app:2.0.0' },
+        ]);
+
+        expect(fs.stat).toHaveBeenCalledWith('test.yml');
+        expect(fs.chmod).toHaveBeenCalledWith(
+            expect.stringMatching(/^test\.yml\.tmp\./),
+            0o664,
+        );
+        expect(fs.chown).toHaveBeenCalledWith(
+            expect.stringMatching(/^test\.yml\.tmp\./),
+            1000,
+            1000,
+        );
+        expect(fs.rename).toHaveBeenCalledWith(
+            expect.stringMatching(/^test\.yml\.tmp\./),
+            'test.yml',
+        );
+        expect(callOrder).toEqual([
+            'stat',
+            'writeFile',
+            'chmod',
+            'chown',
+            'rename',
+        ]);
+    });
+
+    test('rewriteComposeFile should preserve ownership and permissions in simulated filesystem (reproduction #1577)', async () => {
+        interface SimulatedFile {
+            content: string;
+            mode: number;
+            uid: number;
+            gid: number;
+        }
+        const fileStore: Record<string, SimulatedFile> = {
+            'docker-compose.yml': {
+                content: 'services:\n  web:\n    image: app:1.0.0',
+                mode: 0o100664,
+                uid: 1000,
+                gid: 1000,
+            },
+        };
+
+        (fs.readFile as jest.Mock).mockImplementation(
+            async (filePath: string) =>
+                Buffer.from(fileStore[filePath].content),
+        );
+        (fs.stat as jest.Mock).mockImplementation(async (filePath: string) => ({
+            mode: fileStore[filePath].mode,
+            uid: fileStore[filePath].uid,
+            gid: fileStore[filePath].gid,
+        }));
+        (fs.writeFile as jest.Mock).mockImplementation(
+            async (filePath: string, data: string) => {
+                // Simulate Docker root process creating a new file with 0:0 and 0644
+                fileStore[filePath] = {
+                    content: String(data),
+                    mode: 0o100644,
+                    uid: 0,
+                    gid: 0,
+                };
+            },
+        );
+        (fs.chmod as jest.Mock).mockImplementation(
+            async (filePath: string, mode: number) => {
+                fileStore[filePath].mode = 0o100000 | (mode & 0o7777);
+            },
+        );
+        (fs.chown as jest.Mock).mockImplementation(
+            async (filePath: string, uid: number, gid: number) => {
+                fileStore[filePath].uid = uid;
+                fileStore[filePath].gid = gid;
+            },
+        );
+        (fs.rename as jest.Mock).mockImplementation(
+            async (oldPath: string, newPath: string) => {
+                fileStore[newPath] = fileStore[oldPath];
+                delete fileStore[oldPath];
+            },
+        );
+
+        await dockercompose.rewriteComposeFile('docker-compose.yml', [
+            { current: 'app:1.0.0', update: 'app:2.0.0' },
+        ]);
+
+        expect(fileStore['docker-compose.yml']).toEqual({
+            content: 'services:\n  web:\n    image: app:2.0.0',
+            mode: 0o100664,
+            uid: 1000,
+            gid: 1000,
+        });
+    });
+
+    test('rewriteComposeFile should succeed when chown fails with EPERM or ENOTSUP', async () => {
+        const debugSpy = jest.spyOn(dockercompose.log, 'debug');
+        (fs.readFile as jest.Mock).mockResolvedValue(
+            Buffer.from('services:\n  web:\n    image: app:1.0.0'),
+        );
+        (fs.stat as jest.Mock).mockResolvedValue({
+            mode: 0o100664,
+            uid: 1000,
+            gid: 1000,
+        });
+        (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
+        (fs.chmod as jest.Mock).mockResolvedValue(undefined);
+        const epermError = Object.assign(
+            new Error('EPERM: operation not permitted'),
+            { code: 'EPERM' },
+        );
+        (fs.chown as jest.Mock).mockRejectedValue(epermError);
+
+        await expect(
+            dockercompose.rewriteComposeFile('test.yml', [
+                { current: 'app:1.0.0', update: 'app:2.0.0' },
+            ]),
+        ).resolves.toBeUndefined();
+
+        expect(fs.chmod).toHaveBeenCalledWith(
+            expect.stringMatching(/^test\.yml\.tmp\./),
+            0o664,
+        );
+        expect(fs.chown).toHaveBeenCalledWith(
+            expect.stringMatching(/^test\.yml\.tmp\./),
+            1000,
+            1000,
+        );
+        expect(fs.rename).toHaveBeenCalledWith(
+            expect.stringMatching(/^test\.yml\.tmp\./),
+            'test.yml',
+        );
+        expect(debugSpy).toHaveBeenCalledWith(
+            expect.stringContaining('Unable to preserve ownership'),
+        );
+        debugSpy.mockRestore();
+    });
+
+    test('rewriteComposeFile should succeed when chmod fails with ENOTSUP and still attempt chown', async () => {
+        const debugSpy = jest.spyOn(dockercompose.log, 'debug');
+        (fs.readFile as jest.Mock).mockResolvedValue(
+            Buffer.from('services:\n  web:\n    image: app:1.0.0'),
+        );
+        (fs.stat as jest.Mock).mockResolvedValue({
+            mode: 0o100664,
+            uid: 1000,
+            gid: 1000,
+        });
+        (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
+        const enotsupError = Object.assign(
+            new Error('ENOTSUP: operation not supported'),
+            { code: 'ENOTSUP' },
+        );
+        (fs.chmod as jest.Mock).mockRejectedValue(enotsupError);
+        (fs.chown as jest.Mock).mockResolvedValue(undefined);
+
+        await expect(
+            dockercompose.rewriteComposeFile('test.yml', [
+                { current: 'app:1.0.0', update: 'app:2.0.0' },
+            ]),
+        ).resolves.toBeUndefined();
+
+        expect(fs.chown).toHaveBeenCalledWith(
+            expect.stringMatching(/^test\.yml\.tmp\./),
+            1000,
+            1000,
+        );
+        expect(fs.rename).toHaveBeenCalledWith(
+            expect.stringMatching(/^test\.yml\.tmp\./),
+            'test.yml',
+        );
+        expect(debugSpy).toHaveBeenCalledWith(
+            expect.stringContaining('Unable to preserve permissions'),
+        );
+        debugSpy.mockRestore();
+    });
+
+    test('rewriteComposeFile should succeed when stat fails', async () => {
+        const debugSpy = jest.spyOn(dockercompose.log, 'debug');
+        (fs.readFile as jest.Mock).mockResolvedValue(
+            Buffer.from('services:\n  web:\n    image: app:1.0.0'),
+        );
+        (fs.stat as jest.Mock).mockRejectedValue(
+            Object.assign(new Error('ENOSYS: function not implemented'), {
+                code: 'ENOSYS',
+            }),
+        );
+        (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
+
+        await expect(
+            dockercompose.rewriteComposeFile('test.yml', [
+                { current: 'app:1.0.0', update: 'app:2.0.0' },
+            ]),
+        ).resolves.toBeUndefined();
+
+        expect(fs.chmod).not.toHaveBeenCalled();
+        expect(fs.chown).not.toHaveBeenCalled();
+        expect(fs.rename).toHaveBeenCalledWith(
+            expect.stringMatching(/^test\.yml\.tmp\./),
+            'test.yml',
+        );
+        expect(debugSpy).toHaveBeenCalledWith(
+            expect.stringContaining('Unable to stat test.yml'),
+        );
+        debugSpy.mockRestore();
+    });
+
+    test('rewriteComposeFile should handle non-Error rejections in stat, chmod, and chown gracefully', async () => {
+        (fs.readFile as jest.Mock).mockResolvedValue(
+            Buffer.from('services:\n  web:\n    image: app:1.0.0'),
+        );
+        (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
+
+        (fs.stat as jest.Mock).mockRejectedValueOnce('stat string error');
+        await expect(
+            dockercompose.rewriteComposeFile('test.yml', [
+                { current: 'app:1.0.0', update: 'app:2.0.0' },
+            ]),
+        ).resolves.toBeUndefined();
+
+        (fs.stat as jest.Mock).mockResolvedValueOnce({
+            mode: 0o100640,
+            uid: 1000,
+            gid: 1000,
+        });
+        (fs.chmod as jest.Mock).mockRejectedValueOnce('chmod string error');
+        (fs.chown as jest.Mock).mockRejectedValueOnce('chown string error');
+        await expect(
+            dockercompose.rewriteComposeFile('test.yml', [
+                { current: 'app:1.0.0', update: 'app:2.0.0' },
+            ]),
+        ).resolves.toBeUndefined();
+    });
+
+    test('rewriteComposeFile should restore metadata on composeFile when rename fails and backup is restored', async () => {
+        (fs.readFile as jest.Mock).mockResolvedValue(
+            Buffer.from('services:\n  web:\n    image: app:1.0.0'),
+        );
+        (fs.stat as jest.Mock).mockResolvedValue({
+            mode: 0o100660,
+            uid: 1000,
+            gid: 1001,
+        });
+        (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
+        (fs.rename as jest.Mock).mockRejectedValue(
+            new Error('EACCES: permission denied'),
+        );
+        (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+        (fs.access as jest.Mock).mockResolvedValue(undefined);
+        (fs.copyFile as jest.Mock).mockResolvedValue(undefined);
+
+        await expect(
+            dockercompose.rewriteComposeFile('test.yml', [
+                { current: 'app:1.0.0', update: 'app:2.0.0' },
+            ]),
+        ).rejects.toThrow('EACCES');
+
+        expect(fs.copyFile).toHaveBeenCalledWith('test.yml.back', 'test.yml');
+        expect(fs.chmod).toHaveBeenCalledWith('test.yml', 0o660);
+        expect(fs.chown).toHaveBeenCalledWith('test.yml', 1000, 1001);
+    });
+
+    test('ensureComposeBackup should preserve file permissions and ownership on .back file', async () => {
+        (fs.copyFile as jest.Mock).mockResolvedValue(undefined);
+        (fs.stat as jest.Mock).mockResolvedValue({
+            mode: 0o100664,
+            uid: 1000,
+            gid: 1000,
+        });
+
+        await dockercompose.ensureComposeBackup('test.yml');
+
+        expect(fs.copyFile).toHaveBeenCalledWith('test.yml', 'test.yml.back');
+        expect(fs.stat).toHaveBeenCalledWith('test.yml');
+        expect(fs.chmod).toHaveBeenCalledWith('test.yml.back', 0o664);
+        expect(fs.chown).toHaveBeenCalledWith('test.yml.back', 1000, 1000);
+    });
+
+    test('restoreComposeFileFromBackup should preserve backup file permissions and ownership on compose file', async () => {
+        (fs.copyFile as jest.Mock).mockResolvedValue(undefined);
+        (fs.stat as jest.Mock).mockResolvedValue({
+            mode: 0o100664,
+            uid: 1000,
+            gid: 1000,
+        });
+
+        await dockercompose.restoreComposeFileFromBackup('test.yml');
+
+        expect(fs.copyFile).toHaveBeenCalledWith('test.yml.back', 'test.yml');
+        expect(fs.stat).toHaveBeenCalledWith('test.yml.back');
+        expect(fs.chmod).toHaveBeenCalledWith('test.yml', 0o664);
+        expect(fs.chown).toHaveBeenCalledWith('test.yml', 1000, 1000);
+    });
+
+    test('backup should preserve file permissions and ownership on backup file', async () => {
+        (fs.copyFile as jest.Mock).mockResolvedValue(undefined);
+        (fs.stat as jest.Mock).mockResolvedValue({
+            mode: 0o100640,
+            uid: 1000,
+            gid: 2000,
+        });
+
+        await dockercompose.backup('test.yml', 'test.yml.back');
+
+        expect(fs.copyFile).toHaveBeenCalledWith('test.yml', 'test.yml.back');
+        expect(fs.stat).toHaveBeenCalledWith('test.yml');
+        expect(fs.chmod).toHaveBeenCalledWith('test.yml.back', 0o640);
+        expect(fs.chown).toHaveBeenCalledWith('test.yml.back', 1000, 2000);
+    });
+
+    test('backup should log a warning when copyFile fails', async () => {
+        const warnSpy = jest.spyOn(dockercompose.log, 'warn');
+        (fs.copyFile as jest.Mock).mockRejectedValueOnce(
+            new Error('EACCES: cannot write backup'),
+        );
+        await expect(
+            dockercompose.backup('test.yml', 'test.yml.back'),
+        ).resolves.toBeUndefined();
+        expect(warnSpy).toHaveBeenCalledWith(
+            expect.stringContaining('EACCES: cannot write backup'),
+        );
+
+        (fs.copyFile as jest.Mock).mockRejectedValueOnce('raw backup error');
+        await expect(
+            dockercompose.backup('test.yml', 'test.yml.back'),
+        ).resolves.toBeUndefined();
+        expect(warnSpy).toHaveBeenCalledWith(
+            expect.stringContaining('raw backup error'),
+        );
+        warnSpy.mockRestore();
     });
 
     test('writeComposeFile should write data', async () => {

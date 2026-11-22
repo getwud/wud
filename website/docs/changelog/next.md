@@ -9,4 +9,5 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 
 ---
 
+- 🐛 [TRIGGER] Preserve file ownership and permissions when updating Docker Compose files (fixes #1577)
 - 🐛 [WATCHER] Reconcile store containers when the Docker event stream reconnects (fixes #1575)
