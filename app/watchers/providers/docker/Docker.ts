@@ -615,6 +615,8 @@ export function isContainerToWatch(
 
 export const isContainerIncluded = isContainerToWatch;
 
+export type StoreReconcileReason = 'startup' | 'reconnect';
+
 /**
  * Docker Watcher Component.
  */
@@ -629,9 +631,12 @@ export class Docker extends Watcher {
     public dockerEventsStream: any;
     public eventsReconnectTimer?: NodeJS.Timeout;
     public eventsReconnectAttempts = 0;
+    public hasConnectedEvents = false;
     public isConnectingEvents = false;
     public isDeregistered = false;
     private isWatching = false;
+    private storeReconcilePromise?: Promise<void>;
+    private pendingStoreReconcileReason?: StoreReconcileReason;
 
     getConfigurationSchema() {
         const containerDigestsSchema = this.joi
@@ -871,7 +876,10 @@ export class Docker extends Watcher {
                     return;
                 }
 
-                // Successful connection: reset reconnect attempts
+                // Successful connection: reconcile if recovering from a prior stream or failed attempt
+                const shouldReconcile =
+                    this.hasConnectedEvents || this.eventsReconnectAttempts > 0;
+                this.hasConnectedEvents = true;
                 this.eventsReconnectAttempts = 0;
                 this.dockerEventsStream = stream;
 
@@ -953,6 +961,17 @@ export class Docker extends Watcher {
                 );
                 stream.once('end', () => onTerminated('end'));
                 stream.once('close', () => onTerminated('close'));
+
+                // Docker does not replay events missed while the stream was down
+                // (e.g. while a Docker socket proxy was recreated). Reconcile the store
+                // after a reconnect; init() already reconciles at startup.
+                if (shouldReconcile) {
+                    this.reconcileStoreContainers('reconnect').catch((e) => {
+                        this.log.warn(
+                            `Error during reconnect reconciliation: ${formatErrorMessage(e)}`,
+                        );
+                    });
+                }
             });
         } catch (e: any) {
             this.isConnectingEvents = false;
@@ -1099,13 +1118,44 @@ export class Docker extends Watcher {
     }
 
     /**
-     * Startup reconciliation: prune dead containers from store that no longer exist in Docker,
-     * and reconcile active containers that are missing from store (e.g. created while WUD was stopped).
+     * Reconcile store containers against Docker: prune dead containers from store that no longer
+     * exist in Docker, and reconcile active containers missing from store (e.g. created while
+     * WUD was stopped or while the Docker event stream was disconnected).
+     * Concurrent calls are serialized and coalesced so no state change is missed.
      */
-    async reconcileStoreContainers(): Promise<void> {
-        if (isOneshot()) {
+    async reconcileStoreContainers(
+        reason: StoreReconcileReason = 'startup',
+    ): Promise<void> {
+        if (isOneshot() || this.isDeregistered) {
             return;
         }
+        if (this.storeReconcilePromise) {
+            this.pendingStoreReconcileReason = reason;
+            return this.storeReconcilePromise;
+        }
+        const run = async () => {
+            try {
+                let currentReason: StoreReconcileReason | undefined = reason;
+                while (currentReason && !this.isDeregistered && !isOneshot()) {
+                    await this.executeStoreReconciliation(currentReason);
+                    currentReason = this.pendingStoreReconcileReason;
+                    this.pendingStoreReconcileReason = undefined;
+                }
+            } finally {
+                this.storeReconcilePromise = undefined;
+                this.pendingStoreReconcileReason = undefined;
+            }
+        };
+        this.storeReconcilePromise = run();
+        return this.storeReconcilePromise;
+    }
+
+    /**
+     * Perform a single store reconciliation pass against Docker listContainers().
+     */
+    private async executeStoreReconciliation(
+        reason: StoreReconcileReason,
+    ): Promise<void> {
         try {
             const containersInStore =
                 storeContainer.getContainers({
@@ -1114,8 +1164,14 @@ export class Docker extends Watcher {
             const activeContainers = await this.dockerApi.listContainers({
                 all: Boolean(this.configuration.watchall),
             });
+            if (this.isDeregistered) {
+                return;
+            }
             const activeIds = new Set(
-                (activeContainers || []).map((c: any) => c.Id || c.id),
+                (activeContainers || []).map(
+                    (c: Dockerode.ContainerInfo & { id?: string }) =>
+                        c.Id || c.id,
+                ),
             );
             const storeIds = new Set(containersInStore.map((c) => c.id));
 
@@ -1124,27 +1180,39 @@ export class Docker extends Watcher {
                 (c) => !activeIds.has(c.id),
             );
             for (const container of toPrune) {
+                if (this.isDeregistered) {
+                    return;
+                }
                 this.log.info(
-                    `Pruning dead container ${container.name} (${container.id}) from store during startup reconciliation`,
+                    `Pruning dead container ${container.name} (${container.id}) from store during ${reason} reconciliation`,
                 );
                 await this.pruneContainerFromStore(container.id);
             }
 
-            // Index active containers missing from store (e.g. created while WUD was stopped)
-            const toAdd = (activeContainers || []).filter((c: any) => {
-                const id = c.Id || c.id;
-                return id && !storeIds.has(id);
-            });
-            for (const container of toAdd) {
-                const containerId = container.Id || (container as any).id;
+            // Index active containers missing from store (e.g. created while WUD was stopped or disconnected)
+            const toAddIds = (activeContainers || [])
+                .map(
+                    (c: Dockerode.ContainerInfo & { id?: string }) =>
+                        c.Id || c.id,
+                )
+                .filter(
+                    (id): id is string =>
+                        typeof id === 'string' &&
+                        id.length > 0 &&
+                        !storeIds.has(id),
+                );
+            for (const containerId of toAddIds) {
+                if (this.isDeregistered) {
+                    return;
+                }
                 this.log.info(
-                    `Reconciling active container ${containerId} missing from store during startup reconciliation`,
+                    `Reconciling active container ${containerId} missing from store during ${reason} reconciliation`,
                 );
                 await this.reconcileContainer(containerId);
             }
-        } catch (e: any) {
+        } catch (e: unknown) {
             this.log.warn(
-                `Failed startup reconciliation of store containers: ${formatErrorMessage(e)}`,
+                `Failed ${reason} reconciliation of store containers: ${formatErrorMessage(e)}`,
             );
         }
     }
