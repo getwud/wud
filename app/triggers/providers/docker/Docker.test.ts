@@ -5,6 +5,7 @@ import Docker, {
     reconcileLabels,
     reconcileCmd,
     reconcileEntrypoint,
+    reconcileHealthcheck,
     createPullProgressLogger,
     isPullRateLimited,
     getPullRetryAfterMs,
@@ -1311,6 +1312,92 @@ describe('reconcileCmd & reconcileEntrypoint', () => {
     });
 });
 
+describe('reconcileHealthcheck', () => {
+    test('should keep the fields the user overrode and adopt the new image values for the inherited ones', () => {
+        // Docker merges a partial healthcheck override with the image
+        // HEALTHCHECK field by field: here the user only set the interval.
+        const containerHealthcheck = {
+            Test: ['CMD-SHELL', 'exec su-exec node sh /healthcheck.sh'],
+            Interval: 10000000000,
+            Timeout: 5000000000,
+            StartPeriod: 30000000000,
+        };
+        const oldImageHealthcheck = {
+            Test: ['CMD-SHELL', 'exec su-exec node sh /healthcheck.sh'],
+            Interval: 60000000000,
+            Timeout: 5000000000,
+            StartPeriod: 30000000000,
+        };
+        const newImageHealthcheck = {
+            Test: ['CMD-SHELL', 'sh /healthcheck.sh'],
+            Interval: 60000000000,
+            Timeout: 3000000000,
+            StartPeriod: 30000000000,
+        };
+
+        expect(
+            reconcileHealthcheck(
+                containerHealthcheck,
+                oldImageHealthcheck,
+                newImageHealthcheck,
+            ),
+        ).toEqual({
+            Test: ['CMD-SHELL', 'sh /healthcheck.sh'],
+            Interval: 10000000000,
+            Timeout: 3000000000,
+            StartPeriod: 30000000000,
+        });
+    });
+
+    test('should keep the healthcheck disabled when the user disabled it', () => {
+        // What `docker run --no-healthcheck` stores on top of an image HEALTHCHECK.
+        const containerHealthcheck = {
+            Test: ['NONE'],
+            Interval: 60000000000,
+            Timeout: 5000000000,
+            StartPeriod: 30000000000,
+        };
+        const oldImageHealthcheck = {
+            Test: ['CMD-SHELL', 'exec su-exec node sh /healthcheck.sh'],
+            Interval: 60000000000,
+            Timeout: 5000000000,
+            StartPeriod: 30000000000,
+        };
+        const newImageHealthcheck = {
+            Test: ['CMD-SHELL', 'sh /healthcheck.sh'],
+            Interval: 60000000000,
+            Timeout: 5000000000,
+            StartPeriod: 30000000000,
+        };
+
+        expect(
+            reconcileHealthcheck(
+                containerHealthcheck,
+                oldImageHealthcheck,
+                newImageHealthcheck,
+            )?.Test,
+        ).toEqual(['NONE']);
+    });
+
+    test('should handle undefined arguments', () => {
+        expect(
+            reconcileHealthcheck(undefined, undefined, {
+                Test: ['CMD', 'true'],
+            }),
+        ).toEqual({ Test: ['CMD', 'true'] });
+        expect(
+            reconcileHealthcheck(
+                { Test: ['CMD', 'true'] },
+                undefined,
+                undefined,
+            ),
+        ).toEqual({ Test: ['CMD', 'true'] });
+        expect(
+            reconcileHealthcheck(undefined, undefined, undefined),
+        ).toBeUndefined();
+    });
+});
+
 describe('inspectImage', () => {
     test('should return undefined when imageRef is undefined', async () => {
         const result = await docker.inspectImage({}, undefined, log);
@@ -1466,6 +1553,65 @@ describe('cloneContainer with image reconciliation', () => {
         expect(clone.Labels).toEqual(baseContainer.Config.Labels);
         expect(clone.Cmd).toEqual(baseContainer.Config.Cmd);
         expect(clone.Entrypoint).toEqual(baseContainer.Config.Entrypoint);
+    });
+
+    describe('Healthcheck reconciliation', () => {
+        // Docker copies the image HEALTHCHECK into Config.Healthcheck when it
+        // creates a container, so an inherited healthcheck looks like this.
+        const oldImageHealthcheck = {
+            Test: ['CMD-SHELL', 'exec su-exec node sh /healthcheck.sh'],
+            Interval: 60000000000,
+            Timeout: 5000000000,
+            StartPeriod: 30000000000,
+        };
+        const containerWithInheritedHealthcheck = {
+            ...baseContainer,
+            Config: {
+                ...baseContainer.Config,
+                Healthcheck: {
+                    Test: ['CMD-SHELL', 'exec su-exec node sh /healthcheck.sh'],
+                    Interval: 60000000000,
+                    Timeout: 5000000000,
+                    StartPeriod: 30000000000,
+                },
+            },
+        };
+
+        test('should adopt the new image healthcheck when the container inherited it from the old image', () => {
+            const clone = docker.cloneContainer(
+                containerWithInheritedHealthcheck,
+                'my-app:2.0.0',
+                { Config: { Healthcheck: oldImageHealthcheck } },
+                {
+                    Config: {
+                        Healthcheck: {
+                            Test: ['CMD-SHELL', 'sh /healthcheck.sh'],
+                            Interval: 30000000000,
+                            Timeout: 5000000000,
+                            StartPeriod: 30000000000,
+                        },
+                    },
+                },
+            );
+
+            expect(clone.Healthcheck).toEqual({
+                Test: ['CMD-SHELL', 'sh /healthcheck.sh'],
+                Interval: 30000000000,
+                Timeout: 5000000000,
+                StartPeriod: 30000000000,
+            });
+        });
+
+        test('should drop an inherited healthcheck when the new image defines none', () => {
+            const clone = docker.cloneContainer(
+                containerWithInheritedHealthcheck,
+                'my-app:2.0.0',
+                { Config: { Healthcheck: oldImageHealthcheck } },
+                { Config: {} },
+            );
+
+            expect(clone.Healthcheck).toBeUndefined();
+        });
     });
 
     describe('Docker Compose label synchronization (#1422)', () => {

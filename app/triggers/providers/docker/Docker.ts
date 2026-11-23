@@ -213,6 +213,51 @@ export function reconcileEntrypoint(
 }
 
 /**
+ * Check if two values of a healthcheck field are equivalent.
+ */
+function areHealthcheckValuesEqual(a: unknown, b: unknown): boolean {
+    if (Array.isArray(a) && Array.isArray(b)) {
+        return (
+            a.length === b.length &&
+            a.every((value, index) => value === b[index])
+        );
+    }
+    return a === b;
+}
+
+/**
+ * Reconcile container Healthcheck against old and new image Healthcheck.
+ * Docker copies the image HEALTHCHECK into the container, field by field,
+ * wherever the user did not set a value. User overrides (fields added or
+ * changed in container compared to old image) are overlaid on top of new
+ * image default fields.
+ */
+export function reconcileHealthcheck(
+    containerHealthcheck?: Dockerode.HealthConfig | null,
+    oldImageHealthcheck?: Dockerode.HealthConfig | null,
+    newImageHealthcheck?: Dockerode.HealthConfig | null,
+): Dockerode.HealthConfig | undefined {
+    const oldHealthcheck: Record<string, unknown> = {
+        ...oldImageHealthcheck,
+    };
+
+    const userOverrides: Record<string, unknown> = {};
+    for (const [field, value] of Object.entries(containerHealthcheck || {})) {
+        if (!areHealthcheckValuesEqual(value, oldHealthcheck[field])) {
+            userOverrides[field] = value;
+        }
+    }
+
+    const reconciledHealthcheck: Dockerode.HealthConfig = {
+        ...newImageHealthcheck,
+        ...userOverrides,
+    };
+    return Object.keys(reconciledHealthcheck).length > 0
+        ? reconciledHealthcheck
+        : undefined;
+}
+
+/**
  * Return the IPv4 address of an endpoint as reported by inspect (live address first, then the IPAM request).
  */
 export function getEndpointIPv4Address(
@@ -1243,6 +1288,16 @@ class Docker extends Trigger {
                 containerClone.Entrypoint = reconciledEntrypoint;
             } else {
                 delete containerClone.Entrypoint;
+            }
+            const reconciledHealthcheck = reconcileHealthcheck(
+                currentContainer.Config?.Healthcheck,
+                oldImageSpec.Config?.Healthcheck,
+                newImageSpec.Config?.Healthcheck,
+            );
+            if (reconciledHealthcheck !== undefined) {
+                containerClone.Healthcheck = reconciledHealthcheck;
+            } else {
+                delete containerClone.Healthcheck;
             }
         }
 
