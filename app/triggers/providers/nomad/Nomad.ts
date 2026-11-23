@@ -2,6 +2,7 @@ import axios from 'axios';
 import Trigger from '../Trigger';
 import { ComponentConfiguration } from '../../../registry/Component';
 import { Container, fullName } from '../../../model/container';
+import { getUpstreamRefusalReason } from '../upstream';
 
 const SAFE_ALLOC_ID_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,127}$/;
 
@@ -87,6 +88,19 @@ class Nomad extends Trigger {
     }
 
     /**
+     * Automatic runs skip containers tracking an upstream image with a warning
+     * (restarting the allocation would not rebuild the locally built image).
+     */
+    mustTrigger(container: Container): boolean {
+        const reason = getUpstreamRefusalReason(container, this.type);
+        if (reason) {
+            this.log.warn(`${reason} => skip`);
+            return false;
+        }
+        return super.mustTrigger(container);
+    }
+
+    /**
      * Restart the Nomad allocation (or a single task within it) backing
      * this container.
      */
@@ -95,11 +109,15 @@ class Nomad extends Trigger {
             container: fullName(container),
         });
 
-        if (container.image?.upstream) {
-            logContainer.warn(
-                `Container tracks upstream image ${container.image.upstream.ref}; restarting the allocation would not rebuild the locally built image, skipping`,
-            );
-            return;
+        // Manual runs (API / UI) must fail explicitly, like the docker and
+        // dockercompose triggers; automatic runs are skipped in mustTrigger.
+        const upstreamRefusalReason = getUpstreamRefusalReason(
+            container,
+            this.type,
+        );
+        if (upstreamRefusalReason) {
+            logContainer.warn(upstreamRefusalReason);
+            throw new Error(upstreamRefusalReason);
         }
 
         const allocId = container.labels?.[this.configuration.alloclabel];

@@ -1,5 +1,6 @@
 import {
     getUpstreamImageRef,
+    getValidUpstreamImageRef,
     parseUpstreamImageRef,
     OCI_BASE_IMAGE_LABEL,
 } from './upstream';
@@ -106,5 +107,58 @@ describe('parseUpstreamImageRef', () => {
         expect(
             parseUpstreamImageRef(undefined as unknown as string),
         ).toBeUndefined();
+    });
+});
+
+describe('getUpstreamImageRef with image config labels', () => {
+    test('falls back to the OCI annotation of the image config', () => {
+        expect(
+            getUpstreamImageRef({}, { [OCI_BASE_IMAGE_LABEL]: 'caddy:2.9.1' }),
+        ).toEqual({ ref: 'caddy:2.9.1', source: 'oci' });
+        expect(
+            getUpstreamImageRef(undefined, {
+                [OCI_BASE_IMAGE_LABEL]: 'caddy:2.9.1',
+            }),
+        ).toEqual({ ref: 'caddy:2.9.1', source: 'oci' });
+    });
+
+    test('container labels win over the image config annotation', () => {
+        expect(
+            getUpstreamImageRef(
+                { [OCI_BASE_IMAGE_LABEL]: 'caddy:2.9.1' },
+                { [OCI_BASE_IMAGE_LABEL]: 'caddy:2.8.0' },
+            ),
+        ).toEqual({ ref: 'caddy:2.9.1', source: 'oci' });
+        expect(
+            getUpstreamImageRef(
+                { 'wud.image.name': 'caddy' },
+                { [OCI_BASE_IMAGE_LABEL]: 'caddy:2.8.0' },
+            ),
+        ).toEqual({ ref: 'caddy', source: 'label' });
+    });
+
+    test('never reads the wud label from the image config', () => {
+        expect(
+            getUpstreamImageRef({}, { 'wud.image.name': 'caddy' }),
+        ).toBeUndefined();
+    });
+});
+
+describe('getValidUpstreamImageRef', () => {
+    test('returns the reference when it is parsable', () => {
+        expect(getValidUpstreamImageRef({ 'wud.image.name': 'caddy' })).toEqual(
+            { ref: 'caddy', source: 'label' },
+        );
+    });
+
+    test('ignores an unparsable reference', () => {
+        expect(
+            getValidUpstreamImageRef({ 'wud.image.name': '@sha256:abc' }),
+        ).toBeUndefined();
+    });
+
+    test('returns undefined without declaration', () => {
+        expect(getValidUpstreamImageRef({})).toBeUndefined();
+        expect(getValidUpstreamImageRef(undefined)).toBeUndefined();
     });
 });

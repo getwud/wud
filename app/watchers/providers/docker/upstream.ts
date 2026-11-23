@@ -35,27 +35,56 @@ export interface ParsedUpstreamImage {
     tag?: string;
 }
 
+function readLabel(
+    labels: Record<string, unknown> | undefined,
+    key: string,
+): string | undefined {
+    const value = labels?.[key];
+    return typeof value === 'string' && value.trim() !== ''
+        ? value.trim()
+        : undefined;
+}
+
 /**
  * Return the upstream image reference declared on a container, if any.
- * The WUD label wins over the OCI base image annotation.
+ * The WUD label (container labels only) wins over the OCI base image
+ * annotation, which is read from the container labels first and then from
+ * the image config labels (Docker copies image labels onto the container,
+ * but an annotation may only be present on the image config).
  */
 export function getUpstreamImageRef(
     labels: Record<string, unknown> | undefined,
+    imageLabels?: Record<string, unknown> | undefined,
 ): UpstreamImageRef | undefined {
-    if (!labels) {
-        return undefined;
-    }
     for (const key of UPSTREAM_IMAGE_LABEL_KEYS) {
-        const value = labels[key];
-        if (typeof value === 'string' && value.trim() !== '') {
-            return { ref: value.trim(), source: 'label' };
+        const value = readLabel(labels, key);
+        if (value) {
+            return { ref: value, source: 'label' };
         }
     }
-    const ociValue = labels[OCI_BASE_IMAGE_LABEL];
-    if (typeof ociValue === 'string' && ociValue.trim() !== '') {
-        return { ref: ociValue.trim(), source: 'oci' };
+    const ociValue =
+        readLabel(labels, OCI_BASE_IMAGE_LABEL) ??
+        readLabel(imageLabels, OCI_BASE_IMAGE_LABEL);
+    if (ociValue) {
+        return { ref: ociValue, source: 'oci' };
     }
     return undefined;
+}
+
+/**
+ * Same as getUpstreamImageRef but only returns a reference WUD can actually
+ * use (parsable image reference). An invalid declaration is ignored by the
+ * watcher, so it must not influence digest watching or cache invalidation.
+ */
+export function getValidUpstreamImageRef(
+    labels: Record<string, unknown> | undefined,
+    imageLabels?: Record<string, unknown> | undefined,
+): UpstreamImageRef | undefined {
+    const ref = getUpstreamImageRef(labels, imageLabels);
+    if (!ref || !parseUpstreamImageRef(ref.ref)) {
+        return undefined;
+    }
+    return ref;
 }
 
 /**

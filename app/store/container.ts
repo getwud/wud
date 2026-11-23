@@ -84,6 +84,7 @@ function buildContainerFromRows(
             variant: imageRow.variant ?? undefined,
             created: imageRow.created ?? undefined,
             version: imageRow.version ?? undefined,
+            upstream: imageRow.upstream ?? undefined,
         };
     }
 
@@ -193,6 +194,7 @@ export function completeContainerShapeForApi(container: Container): Container {
             variant: container.image.variant ?? undefined,
             created: container.image.created ?? undefined,
             version: container.image.version ?? undefined,
+            upstream: container.image.upstream ?? undefined,
         };
     }
 
@@ -285,6 +287,7 @@ export function insertContainer(container: any): Container {
                 variant: containerToSave.image.variant,
                 created: containerToSave.image.created,
                 version: containerToSave.image.version,
+                upstream: containerToSave.image.upstream,
             })
             .run();
     }
@@ -396,6 +399,7 @@ export function updateContainer(container: any): Container {
                 variant: containerToReturn.image.variant,
                 created: containerToReturn.image.created,
                 version: containerToReturn.image.version,
+                upstream: containerToReturn.image.upstream,
             })
             .onConflictDoUpdate({
                 target: schema.containerImages.containerId,
@@ -414,6 +418,8 @@ export function updateContainer(container: any): Container {
                     variant: containerToReturn.image.variant,
                     created: containerToReturn.image.created,
                     version: containerToReturn.image.version,
+                    // null (not undefined) so a removed declaration is cleared
+                    upstream: containerToReturn.image.upstream ?? null,
                 },
             })
             .run();

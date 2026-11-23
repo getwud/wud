@@ -228,25 +228,46 @@ test('supportsSimulation should return false for Nomad action trigger', () => {
     expect(nomad.supportsSimulation()).toBe(false);
 });
 
-test('trigger should skip a container tracking an upstream image (#664)', async () => {
+const upstreamTrackedContainer = {
+    name: 'romm',
+    labels: {
+        'com.hashicorp.nomad.alloc_id': 'alloc-123',
+        'com.hashicorp.nomad.task_name': 'romm',
+    },
+    image: {
+        upstream: {
+            ref: 'ghcr.io/org/base',
+            source: 'label',
+            name: 'org/base',
+            registry: { name: 'ghcr', url: 'https://ghcr.io/v2' },
+            tag: '1',
+        },
+    },
+};
+
+test('trigger should refuse a container tracking an upstream image (#664)', async () => {
     axios.post.mockResolvedValue({ data: {} });
 
-    await nomad.trigger({
-        name: 'romm',
-        labels: {
-            'com.hashicorp.nomad.alloc_id': 'alloc-123',
-            'com.hashicorp.nomad.task_name': 'romm',
-        },
-        image: {
-            upstream: {
-                ref: 'ghcr.io/org/base',
-                source: 'label',
-                name: 'org/base',
-                registry: { name: 'ghcr', url: 'https://ghcr.io/v2' },
-                tag: '1',
-            },
-        },
-    });
+    await expect(nomad.trigger(upstreamTrackedContainer)).rejects.toThrow(
+        /tracks upstream image ghcr.io\/org\/base/,
+    );
 
     expect(axios.post).not.toHaveBeenCalled();
+});
+
+test('mustTrigger should skip a container tracking an upstream image on automatic runs (#664)', () => {
+    nomad.log = { warn: jest.fn(), info: jest.fn(), debug: jest.fn() };
+    expect(nomad.mustTrigger(upstreamTrackedContainer)).toBe(false);
+    expect(nomad.log.warn).toHaveBeenCalledWith(
+        expect.stringMatching(
+            /tracks upstream image ghcr.io\/org\/base.*=> skip/,
+        ),
+    );
+    expect(
+        nomad.mustTrigger({
+            name: 'romm',
+            labels: upstreamTrackedContainer.labels,
+            image: {},
+        }),
+    ).toBe(true);
 });

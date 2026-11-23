@@ -1047,6 +1047,22 @@ describe('cool-down delay logic', () => {
 
 describe('rich container metadata', () => {
     describe('isDockerOfficialImage', () => {
+        test('should return false for a locally built image tracking an upstream image (#664)', () => {
+            expect(
+                container.isDockerOfficialImage({
+                    name: 'caddy-porkbun',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    upstream: {
+                        ref: 'caddy',
+                        source: 'label',
+                        name: 'library/caddy',
+                        registry: { name: 'hub', url: 'https://hub' },
+                        tag: '2.9.1-alpine',
+                    },
+                } as any),
+            ).toBe(false);
+        });
+
         test('should return true for official docker images', () => {
             expect(
                 container.isDockerOfficialImage({
@@ -2297,5 +2313,74 @@ describe('upstream image tracking (#664)', () => {
         expect(containerValidated.updateKind.kind).toBe('tag');
         expect(containerValidated.updateKind.localValue).toBe('custom');
         expect(containerValidated.updateKind.semverDiff).toBe('minor');
+    });
+});
+
+describe('upstream image tracking (#664)', () => {
+    const upstreamContainer = (overrides: any = {}) =>
+        container.validate({
+            id: '31a61a8305ef1fc9a71fa4f20a68d7ec88b28e32303bbc4a5f192e851165b816',
+            name: 'caddy',
+            watcher: 'test',
+            image: {
+                id: 'image-123456789',
+                registry: { name: 'hub', url: 'https://hub' },
+                name: 'library/caddy-porkbun',
+                tag: { value: 'custom', semver: true },
+                digest: { watch: false, repo: undefined },
+                architecture: 'arch',
+                os: 'os',
+                upstream: {
+                    ref: 'caddy:2.9.1-alpine',
+                    source: 'label',
+                    name: 'library/caddy',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: '2.9.1-alpine',
+                },
+            },
+            ...overrides,
+        });
+
+    test('getBaselineTag returns the upstream tag when tracked', () => {
+        expect(container.getBaselineTag(upstreamContainer())).toBe(
+            '2.9.1-alpine',
+        );
+        expect(
+            container.getBaselineTag(
+                container.validate({
+                    id: '31a61a8305ef1fc9a71fa4f20a68d7ec88b28e32303bbc4a5f192e851165b816',
+                    name: 'nginx',
+                    watcher: 'test',
+                    image: {
+                        id: 'image-123456789',
+                        registry: { name: 'hub', url: 'https://hub' },
+                        name: 'library/nginx',
+                        tag: { value: '1.2.3', semver: true },
+                        digest: { watch: false, repo: undefined },
+                        architecture: 'arch',
+                        os: 'os',
+                    },
+                }),
+            ),
+        ).toBe('1.2.3');
+    });
+
+    test('no update when the result tag equals the upstream baseline (local tag differs)', () => {
+        const validated = upstreamContainer({
+            result: { tag: '2.9.1-alpine' },
+        });
+        expect(validated.updateAvailable).toBe(false);
+        expect(validated.updateKind.kind).toBe('unknown');
+    });
+
+    test('update kind is measured from the upstream baseline, not the local tag', () => {
+        const validated = upstreamContainer({
+            result: { tag: '2.9.2-alpine' },
+        });
+        expect(validated.updateAvailable).toBe(true);
+        expect(validated.updateKind.kind).toBe('tag');
+        expect(validated.updateKind.semverDiff).toBe('patch');
+        expect(validated.updateKind.localValue).toBe('custom');
+        expect(validated.updateKind.remoteValue).toBe('2.9.2-alpine');
     });
 });

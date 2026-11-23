@@ -15,6 +15,7 @@ import {
     sortTriggersByTypeAndName,
     UPDATE_TRIGGER_TYPES,
 } from '../../associatedTriggers';
+import { PULL_BASED_TRIGGER_TYPES } from '../upstream';
 import Watcher from '../../../watchers/Watcher';
 import { MqqtConfiguration as MqttConfiguration } from './Mqtt';
 import { Logger } from 'pino';
@@ -811,13 +812,22 @@ class Hass {
             // equally-associated triggers (e.g. two command triggers) would
             // be resolved by component registration order rather than
             // matching the web UI's own (sorted) default selection.
+            // A container tracking an upstream image (locally built derivative)
+            // cannot be updated by pulling: like the web UI's Update dialog,
+            // leave pull-based triggers out so the command trigger (rebuild
+            // script) is picked instead of failing.
+            const isUpstreamTracked = Boolean(container.image?.upstream);
             const associatedTriggerIds = getAssociatedTriggerIds(container);
             const updateTriggers = sortTriggersByTypeAndName(
                 Object.entries(registry.getState().trigger)
                     .filter(
                         ([id, trigger]) =>
                             associatedTriggerIds.has(id) &&
-                            UPDATE_TRIGGER_TYPES.includes(trigger.type),
+                            UPDATE_TRIGGER_TYPES.includes(trigger.type) &&
+                            (!isUpstreamTracked ||
+                                !PULL_BASED_TRIGGER_TYPES.includes(
+                                    trigger.type,
+                                )),
                     )
                     .map(([, trigger]) => trigger),
             );

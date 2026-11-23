@@ -209,7 +209,7 @@
                   color="primary"
                   variant="flat"
                   class="mr-2"
-                  :title="container.isCoolingDown ? 'Override cooldown and update' : container.image.upstream ? 'Rebuild from the new upstream version' : 'Update container'"
+                  :title="container.isCoolingDown ? (container.image.upstream ? 'Override cooldown and rebuild' : 'Override cooldown and update') : container.image.upstream ? 'Rebuild from the new upstream version' : 'Update container'"
                   @click="dialogUpdate = true"
                 >
                   {{ container.isCoolingDown ? (container.image.upstream ? 'Rebuild now' : 'Update now') : container.image.upstream ? 'Rebuild' : 'Update' }}

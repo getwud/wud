@@ -221,4 +221,27 @@ describe('ContainerUpdate - upstream image tracking (#664)', () => {
     expect(noUpdate.text()).not.toContain('Rebuild required');
     noUpdate.unmount();
   });
+
+  it('keeps the rebuild hint and labels the cool-down button "Rebuild now" during cool-down', async () => {
+    const wrapper = mount(ContainerUpdate, {
+      props: {
+        updateKind: mockUpdateKind,
+        result: mockResult,
+        updateAvailable: false,
+        isCoolingDown: true,
+        coolingDownUntil: Date.now() + 86400000,
+        canWrite: true,
+        upstream,
+      },
+    });
+    expect(wrapper.text()).toContain('Rebuild required');
+    expect(wrapper.text()).toContain('library/caddy:2.0.0');
+    const buttons = wrapper.findAll('button');
+    const rebuildNowBtn = buttons.find((b: any) => b.text().includes('Rebuild now'));
+    expect(rebuildNowBtn).toBeDefined();
+    expect(buttons.find((b: any) => b.text().includes('Update now'))).toBeUndefined();
+    await rebuildNowBtn.trigger('click');
+    expect(wrapper.emitted('override-cooldown')).toBeTruthy();
+    wrapper.unmount();
+  });
 });

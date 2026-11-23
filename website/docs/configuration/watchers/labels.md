@@ -936,9 +936,6 @@ When a container runs an image you build yourself on top of a public base image 
 
 Set the `image.name` label to the upstream image you build from. WUD then looks that image up instead of your local one and reports new upstream releases. Only the image name is needed: the tag defaults to the tag of your own image, so one variable can drive the base image, the local tag and the lookup.
 
-<Tabs groupId="orchestrator">
-<TabItem value="docker" label="🐳 Docker">
-
 ```yaml title="compose.yaml"
 services:
   caddy:
@@ -962,42 +959,11 @@ COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 
 With `CADDY_VERSION=2.9.1`, WUD compares `caddy:2.9.1-alpine` against the tags of `library/caddy` on Docker Hub and reports `2.9.2-alpine` when it is published.
 
-</TabItem>
-<TabItem value="kubernetes" label="☸️ Kubernetes">
+:::note[Docker watcher only]
 
-```yaml title="deployment.yaml"
-metadata:
-  annotations:
-    getwud.app/image.name: "caddy"
-```
+Upstream image tracking is currently implemented by the Docker watcher. The Kubernetes, Nomad and Swarm watchers do not read the `image.name` label or the OCI base image annotation yet.
 
-</TabItem>
-<TabItem value="nomad" label="🟢 Nomad">
-
-```hcl title="job.nomad.hcl"
-job "caddy" {
-  meta {
-    "getwud.app/image.name" = "caddy"
-  }
-}
-```
-
-</TabItem>
-<TabItem value="swarm" label="🐝 Docker Swarm">
-
-```yaml title="stack.yaml"
-version: '3.8'
-
-services:
-  caddy:
-    image: caddy-porkbun:2.9.1-alpine
-    deploy:
-      labels:
-        - getwud.app/image.name=caddy
-```
-
-</TabItem>
-</Tabs>
+:::
 
 #### Using the OCI base image annotation
 

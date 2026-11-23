@@ -3519,4 +3519,42 @@ describe('Upstream image tracking (#664)', () => {
         expect(pullImageSpy).not.toHaveBeenCalled();
         pullImageSpy.mockRestore();
     });
+
+    test('mustTrigger should skip a container tracking an upstream image on automatic runs', () => {
+        const previousLog = docker.log;
+        docker.log = { warn: jest.fn(), info: jest.fn(), debug: jest.fn() };
+        try {
+            expect(docker.mustTrigger(upstreamContainer)).toBe(false);
+            expect(docker.log.warn).toHaveBeenCalledWith(
+                expect.stringMatching(/tracks upstream image caddy.*=> skip/),
+            );
+            expect(
+                docker.mustTrigger({
+                    name: 'nginx',
+                    image: { name: 'library/nginx' },
+                }),
+            ).toBe(true);
+        } finally {
+            docker.log = previousLog;
+        }
+    });
+
+    test('triggerBatch should skip containers tracking an upstream image and update the others', async () => {
+        const triggerSpy = jest
+            .spyOn(docker, 'trigger')
+            .mockResolvedValue(undefined);
+        const regularContainer = {
+            id: 'c-regular',
+            name: 'nginx',
+            watcher: 'test',
+            updateAvailable: true,
+            image: { name: 'library/nginx' },
+        };
+        await expect(
+            docker.triggerBatch([upstreamContainer, regularContainer]),
+        ).resolves.toBeUndefined();
+        expect(triggerSpy).toHaveBeenCalledTimes(1);
+        expect(triggerSpy).toHaveBeenCalledWith(regularContainer);
+        triggerSpy.mockRestore();
+    });
 });

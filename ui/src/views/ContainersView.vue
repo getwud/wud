@@ -286,8 +286,8 @@
                 <v-list density="compact">
                   <v-list-item
                     v-if="((item.raw ? item.raw.updateAvailable : item.updateAvailable) || (item.raw ? item.raw.isCoolingDown : item.isCoolingDown)) && canWrite"
-                    prepend-icon="mdi-package-down"
-                    :title="(item.raw ? item.raw.isCoolingDown : item.isCoolingDown) ? 'Override cooldown & update' : 'Update container'"
+                    :prepend-icon="(item.raw || item).image?.upstream ? 'mdi-source-branch' : 'mdi-package-down'"
+                    :title="(item.raw || item).image?.upstream ? ((item.raw || item).isCoolingDown ? 'Override cooldown & rebuild' : 'Rebuild container') : ((item.raw || item).isCoolingDown ? 'Override cooldown & update' : 'Update container')"
                     class="text-primary"
                     @click.stop="openUpdateDialog(item.raw || item)"
                   />
@@ -394,7 +394,7 @@
             size="small"
             class="mr-1"
             @click="openUpdateDialog(selectedContainer)"
-            :title="selectedContainer.isCoolingDown ? 'Override cooldown and update' : selectedContainer.image?.upstream ? 'Rebuild from the new upstream version' : 'Update container'"
+            :title="selectedContainer.isCoolingDown ? (selectedContainer.image?.upstream ? 'Override cooldown and rebuild' : 'Override cooldown and update') : selectedContainer.image?.upstream ? 'Rebuild from the new upstream version' : 'Update container'"
           ></v-btn>
           <v-btn
             v-if="selectedContainer.updateAvailable && canWrite"
@@ -788,6 +788,8 @@ export default defineComponent({
             (c.name && c.name.toLowerCase().includes(q)) ||
             (c.stack && c.stack.toLowerCase().includes(q)) ||
             (c.image?.name && c.image.name.toLowerCase().includes(q)) ||
+            (c.image?.upstream?.name && c.image.upstream.name.toLowerCase().includes(q)) ||
+            (c.image?.upstream?.ref && c.image.upstream.ref.toLowerCase().includes(q)) ||
             (c.watcher && c.watcher.toLowerCase().includes(q))
           );
         })

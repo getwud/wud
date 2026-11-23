@@ -389,6 +389,12 @@ export function isDockerOfficialImage(image: ContainerImage): boolean {
     if (!image || !image.name) {
         return false;
     }
+    // A locally built image tracking an upstream image is never the official
+    // image itself, even when its single-segment name looks like a `library/*`
+    // Docker Hub repository (e.g. `caddy-porkbun`).
+    if (image.upstream) {
+        return false;
+    }
     const registryName = image.registry?.name?.toLowerCase();
     const registryUrl = image.registry?.url?.toLowerCase() || '';
     const isHub = registryName === 'hub' || registryUrl.includes('docker.io');
@@ -795,6 +801,15 @@ function addIsSnoozedProperty(container: Container) {
 }
 
 /**
+ * Tag the registry result is compared against: the upstream tag when the
+ * container tracks an upstream image (the local tag of a locally built
+ * derivative may not be comparable), the container's own tag otherwise.
+ */
+export function getBaselineTag(container: Container): string {
+    return container.image.upstream?.tag ?? container.image.tag.value;
+}
+
+/**
  * Check whether a candidate update exists (different tag, digest, or created date).
  * @param container
  * @returns {boolean}
@@ -842,9 +857,11 @@ function isCandidateUpdateAvailable(container: Container): boolean {
         container.result.tag !== null &&
         container.result.tag !== ''
     ) {
+        // When tracking an upstream image, the baseline is the upstream tag
+        // (the local tag of a derivative image may not be comparable).
         const localTag = transformTag(
             container.transformTags,
-            container.image.tag.value,
+            getBaselineTag(container),
             container,
         );
         const remoteTag = transformTag(
@@ -1010,23 +1027,17 @@ function addUpdateKindProperty(container: Container) {
                     container.result.tag !== undefined &&
                     container.result.tag !== null &&
                     container.result.tag !== '' &&
-                    container.image.tag.value !== container.result.tag
+                    getBaselineTag(container) !== container.result.tag
                 ) {
                     updateKind.kind = 'tag';
                     let semverDiffWud: ContainerUpdateKind['semverDiff'] =
                         'unknown';
                     const isSemver = container.image.tag.semver;
                     if (isSemver) {
-                        // When tracking an upstream image, the semver diff is
-                        // measured from the upstream baseline tag (the local tag
-                        // of a derivative image may not be comparable).
-                        const localTag =
-                            container.image.upstream?.tag ??
-                            container.image.tag.value;
                         const semverDiff = diffSemver(
                             transformTag(
                                 container.transformTags,
-                                localTag,
+                                getBaselineTag(container),
                                 container,
                             ),
                             transformTag(

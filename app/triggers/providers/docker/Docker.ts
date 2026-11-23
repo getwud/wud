@@ -4,6 +4,7 @@ import Trigger, { TriggerConfiguration, RollbackReport } from '../Trigger';
 import * as event from '../../../event';
 import { getState } from '../../../registry';
 import { Container, ContainerImage, fullName } from '../../../model/container';
+import { getUpstreamRefusalReason } from '../upstream';
 import { Docker as DockerWatcher } from '../../../watchers/providers/docker/Docker';
 import Registry from '../../../registries/Registry';
 import { Logger } from 'pino';
@@ -2070,15 +2071,12 @@ class Docker extends Trigger {
      * silently drop the local customizations.
      */
     getUpstreamRefusalReason(container: Container): string | undefined {
-        const upstream = container?.image?.upstream;
-        if (!upstream) {
-            return undefined;
-        }
-        return `Container ${fullName(container)} tracks upstream image ${upstream.ref}; the ${this.type} trigger cannot update a locally built image (rebuild it from the new upstream version instead)`;
+        return getUpstreamRefusalReason(container, this.type);
     }
 
     /**
-     * Throw when the container tracks an upstream image.
+     * Throw when the container tracks an upstream image (manual runs via the
+     * API / UI must fail with an explicit error).
      */
     assertNotUpstreamTracked(container: Container) {
         const reason = this.getUpstreamRefusalReason(container);
@@ -2086,6 +2084,19 @@ class Docker extends Trigger {
             this.log.warn(reason);
             throw new Error(reason);
         }
+    }
+
+    /**
+     * Automatic runs (simple and batch modes) skip containers tracking an
+     * upstream image with a warning instead of failing on every watch cycle.
+     */
+    mustTrigger(container: Container): boolean {
+        const reason = this.getUpstreamRefusalReason(container);
+        if (reason) {
+            this.log.warn(`${reason} => skip`);
+            return false;
+        }
+        return super.mustTrigger(container);
     }
 
     /**
@@ -2107,8 +2118,18 @@ class Docker extends Trigger {
      * Update the containers.
      */
     async triggerBatch(containers: Container[]) {
+        // One container tracking an upstream image must not reject the
+        // whole batch: skip it with a warning and update the others.
+        const containersToUpdate = containers.filter((container) => {
+            const reason = this.getUpstreamRefusalReason(container);
+            if (reason) {
+                this.log.warn(`${reason} => skip`);
+                return false;
+            }
+            return true;
+        });
         await Promise.all(
-            containers.map((container) => this.trigger(container)),
+            containersToUpdate.map((container) => this.trigger(container)),
         );
     }
 }

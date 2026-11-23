@@ -34,7 +34,11 @@ import {
     wudWatchDelay,
     wudTagDelay,
 } from './label';
-import { getUpstreamImageRef, parseUpstreamImageRef } from './upstream';
+import {
+    getUpstreamImageRef,
+    getValidUpstreamImageRef,
+    parseUpstreamImageRef,
+} from './upstream';
 import * as storeContainer from '../../../store/container';
 import { isOneshot } from '../../../runtime/mode';
 import {
@@ -1847,11 +1851,12 @@ export class Docker extends Watcher {
         isSemver: boolean,
         registryProvider?: Registry,
         imageName?: string,
+        upstreamTracked = false,
     ): boolean {
         // A locally built image tracking an upstream image can never match the
         // upstream digest (its content differs by construction), so digest
         // watching is meaningless and forced off.
-        if (getUpstreamImageRef(labels)) {
+        if (upstreamTracked) {
             return false;
         }
         const label = labels[wudWatchDigest];
@@ -1887,7 +1892,9 @@ export class Docker extends Watcher {
         const lookupContainer = getLookupContainer(container);
         const lookupImage = lookupContainer.image;
         const registryProvider = getRegistry(lookupImage.registry.name);
-        const result: any = { tag: container.image.tag.value };
+        // "No update" means the lookup baseline tag (the upstream tag when one
+        // is tracked), so that it compares equal to the local baseline.
+        const result: any = { tag: lookupImage.tag.value };
         if (!registryProvider) {
             logContainer.error(
                 `Unsupported registry (${lookupImage.registry.name})`,
@@ -1905,6 +1912,7 @@ export class Docker extends Watcher {
                 container.image.tag.semver,
                 registryProvider,
                 lookupImage.name,
+                Boolean(container.image.upstream),
             );
             if (container.image.digest) {
                 container.image.digest.watch = watchDigest;
@@ -2210,10 +2218,19 @@ export class Docker extends Watcher {
                 container.Config?.Labels !== undefined ||
                 container.Labels !== undefined ||
                 container.labels !== undefined;
+            // Only a usable (parsable) declaration counts: an invalid one is
+            // ignored at resolution time and must not invalidate the cache on
+            // every cycle. An upstream resolved from the OCI annotation of the
+            // image config is not visible in container labels, so the absence
+            // of a label only means "changed" when the stored one came from a
+            // label.
+            const declaredUpstream = getValidUpstreamImageRef(containerLabels);
+            const storedUpstream = containerInStore.image?.upstream;
             const upstreamChanged =
                 labelsProvided &&
-                getUpstreamImageRef(containerLabels)?.ref !==
-                    containerInStore.image?.upstream?.ref;
+                (declaredUpstream
+                    ? declaredUpstream.ref !== storedUpstream?.ref
+                    : storedUpstream?.source === 'label');
             if (storeRegistryName && !hasRegistry(storeRegistryName)) {
                 if (this.log && typeof this.log.info === 'function') {
                     this.log.info(
@@ -2384,6 +2401,7 @@ export class Docker extends Watcher {
                     containerInStore.image?.tag?.semver,
                     registryProvider,
                     containerInStore.image?.name,
+                    Boolean(containerInStore.image?.upstream),
                 );
                 if (
                     containerInStore.image?.digest &&
@@ -2529,7 +2547,10 @@ export class Docker extends Watcher {
             );
         }
         // Upstream (base) image override for locally built images
-        const upstreamRef = getUpstreamImageRef(containerLabels);
+        const upstreamRef = getUpstreamImageRef(
+            containerLabels,
+            image.Config?.Labels ?? image.ContainerConfig?.Labels,
+        );
         let upstream: Container['image']['upstream'];
         if (upstreamRef) {
             const parsedUpstream = parseUpstreamImageRef(upstreamRef.ref);
@@ -2570,6 +2591,7 @@ export class Docker extends Watcher {
             isSemver,
             registryProvider,
             parsedImage.path,
+            Boolean(upstream),
         );
 
         return this.normalizeContainer({

@@ -1024,6 +1024,46 @@ describe('ContainersView', () => {
       testWrapper.unmount();
     });
 
+    it('matches the search query against the tracked upstream image (#664)', async () => {
+      const testWrapper = mountWithSlotStubs();
+      testWrapper.vm.onRefreshAllContainers([
+        {
+          id: 'upstream-1',
+          displayName: 'Porkbun Proxy',
+          name: 'porkbun-proxy',
+          watcher: 'local',
+          image: {
+            name: 'library/caddy-porkbun',
+            tag: { value: '2.9.1-alpine' },
+            registry: { name: 'hub' },
+            upstream: {
+              ref: 'caddy',
+              source: 'label',
+              name: 'library/caddy',
+              registry: { name: 'hub' },
+              tag: '2.9.1-alpine',
+            },
+          },
+          updateAvailable: false,
+        },
+        {
+          id: 'regular-2',
+          displayName: 'Regular App',
+          name: 'regular-app',
+          watcher: 'local',
+          image: { name: 'org/regular', tag: { value: '1.0.0' }, registry: { name: 'hub' } },
+          updateAvailable: false,
+        },
+      ]);
+      testWrapper.vm.searchQuery = 'library/caddy';
+      await testWrapper.vm.$nextTick();
+
+      const filtered = testWrapper.vm.containersFiltered;
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].id).toBe('upstream-1');
+      testWrapper.unmount();
+    });
+
     it('renders 1-click changelog button when updateAvailable is true and changelogUrl is present', async () => {
       const testWrapper = mountWithSlotStubs();
       testWrapper.vm.onRefreshAllContainers([

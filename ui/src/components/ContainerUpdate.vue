@@ -23,13 +23,13 @@
           prepend-icon="mdi-lightning-bolt"
           @click="$emit('override-cooldown')"
         >
-          Update now
+          {{ upstream ? 'Rebuild now' : 'Update now' }}
         </v-btn>
       </div>
     </v-alert>
 
     <v-alert
-      v-if="upstream && updateAvailable"
+      v-if="upstream && (updateAvailable || isCoolingDown)"
       color="info"
       variant="tonal"
       density="compact"
@@ -40,7 +40,7 @@
       <div class="text-caption">
         This container runs a locally built image tracking upstream
         {{ upstream.name }}:{{ upstream.tag }}. Rebuild it from
-        {{ upstream.name }}:{{ result.tag }} to apply the update; pulling the upstream image
+        {{ upstream.name }}:{{ result?.tag }} to apply the update; pulling the upstream image
         would drop the local build.
       </div>
     </v-alert>

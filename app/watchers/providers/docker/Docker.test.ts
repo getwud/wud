@@ -7934,6 +7934,144 @@ describe('Docker Watcher', () => {
             expect(mockTag.parse).toHaveBeenCalledWith('2.9.1-alpine');
         });
 
+        test('addImageDetailsToContainer reads the OCI base image annotation from the image config when absent from the container labels', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            docker.log = fullLog();
+            const containerModule = await import('../../../model/container');
+            containerModule.validate.mockImplementation((value) => value);
+            registry.getState.mockReturnValue({
+                registry: { hub: hubProvider() },
+            });
+            mockImage.inspect.mockResolvedValue({
+                Id: 'sha256:abc',
+                Architecture: 'amd64',
+                Os: 'linux',
+                RepoTags: ['caddy-porkbun:custom'],
+                Config: {
+                    Labels: {
+                        'org.opencontainers.image.base.name':
+                            'docker.io/library/caddy:2.9.1-alpine',
+                    },
+                },
+            });
+            mockParse
+                .mockReturnValueOnce({ path: 'caddy-porkbun', tag: 'custom' })
+                .mockReturnValueOnce({
+                    domain: 'docker.io',
+                    path: 'library/caddy',
+                    tag: '2.9.1-alpine',
+                });
+
+            const result = await docker.addImageDetailsToContainer({
+                Id: '123',
+                Image: 'caddy-porkbun:custom',
+                Names: ['/caddy'],
+                State: 'running',
+                Labels: {},
+            });
+
+            expect(result.image.upstream).toEqual({
+                ...upstream,
+                ref: 'docker.io/library/caddy:2.9.1-alpine',
+                source: 'oci',
+            });
+        });
+
+        test('addImageDetailsToContainer keeps a stored container whose upstream came from the image config annotation (no label)', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            docker.log = fullLog();
+            registry.getState.mockReturnValue({
+                registry: { hub: hubProvider() },
+            });
+            storeContainer.getContainer.mockReturnValue({
+                id: '123',
+                name: 'caddy',
+                displayName: 'caddy',
+                status: 'running',
+                image: {
+                    registry: {
+                        name: 'hub',
+                        url: 'https://registry-1.docker.io/v2',
+                    },
+                    name: 'library/caddy-porkbun',
+                    tag: { value: 'custom', semver: true },
+                    digest: { watch: false },
+                    upstream: {
+                        ...upstream,
+                        ref: 'docker.io/library/caddy:2.9.1-alpine',
+                        source: 'oci',
+                    },
+                },
+                labels: {},
+            });
+
+            await docker.addImageDetailsToContainer({
+                Id: '123',
+                Image: 'caddy-porkbun:custom',
+                Names: ['/caddy'],
+                State: 'running',
+                Labels: {},
+            });
+
+            expect(mockImage.inspect).not.toHaveBeenCalled();
+        });
+
+        test('addImageDetailsToContainer does not re-evaluate a stored container because of an invalid upstream declaration', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            docker.log = fullLog();
+            registry.getState.mockReturnValue({
+                registry: { hub: hubProvider() },
+            });
+            storeContainer.getContainer.mockReturnValue({
+                id: '123',
+                name: 'caddy',
+                displayName: 'caddy',
+                status: 'running',
+                image: {
+                    registry: {
+                        name: 'hub',
+                        url: 'https://registry-1.docker.io/v2',
+                    },
+                    name: 'library/caddy-porkbun',
+                    tag: { value: '2.9.1-alpine', semver: true },
+                    digest: { watch: false },
+                },
+                labels: { 'wud.image.name': '@sha256:abc' },
+            });
+            await docker.addImageDetailsToContainer({
+                Id: '123',
+                Image: 'caddy-porkbun:2.9.1-alpine',
+                Names: ['/caddy'],
+                State: 'running',
+                Labels: { 'wud.image.name': '@sha256:abc' },
+            });
+
+            expect(mockImage.inspect).not.toHaveBeenCalled();
+        });
+
+        test('resolveWatchDigest honours the digest label unless the container tracks an upstream image', () => {
+            const labels = { 'wud.watch.digest': 'true' };
+            expect(
+                docker.resolveWatchDigest(
+                    'caddy',
+                    labels,
+                    true,
+                    undefined,
+                    'x',
+                ),
+            ).toBe(true);
+            expect(
+                docker.resolveWatchDigest(
+                    'caddy',
+                    labels,
+                    true,
+                    undefined,
+                    'x',
+                    true,
+                ),
+            ).toBe(false);
+        });
+
         test('addImageDetailsToContainer ignores an invalid upstream reference with a warning', async () => {
             await docker.register('watcher', 'docker', 'test', {});
             docker.log = fullLog();
@@ -8082,6 +8220,8 @@ describe('Docker Watcher', () => {
                 RepoTags: ['caddy-porkbun:2.9.1-alpine'],
             });
             mockParse
+                // validity check of the declared upstream (cache invalidation)
+                .mockReturnValueOnce({ path: 'caddy' })
                 .mockReturnValueOnce({
                     path: 'caddy-porkbun',
                     tag: '2.9.1-alpine',
