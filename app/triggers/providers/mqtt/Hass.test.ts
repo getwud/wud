@@ -745,6 +745,57 @@ describe('handleInstallCommand', () => {
         );
     });
 
+    test('must skip pull-based triggers for a container tracking an upstream image (#664)', async () => {
+        const mockContainer = {
+            id: '1234567890ab',
+            name: 'my-app',
+            displayName: 'my-app',
+            watcher: 'watcher-name',
+            image: {
+                upstream: {
+                    ref: 'caddy',
+                    source: 'label',
+                    name: 'library/caddy',
+                    registry: { name: 'hub', url: 'https://hub' },
+                    tag: '2.9.1-alpine',
+                },
+            },
+        };
+        jest.spyOn(containerStore, 'getContainers').mockReturnValue([
+            mockContainer,
+        ]);
+        jest.spyOn(containerStore, 'getContainer').mockReturnValue(
+            mockContainer,
+        );
+
+        const dockerTriggerMock = {
+            type: 'docker',
+            trigger: jest.fn().mockResolvedValue(undefined),
+        };
+        const composeTriggerMock = {
+            type: 'dockercompose',
+            trigger: jest.fn().mockResolvedValue(undefined),
+        };
+        const commandTriggerMock = {
+            type: 'command',
+            trigger: jest.fn().mockResolvedValue(undefined),
+        };
+        registry.getState().trigger = {
+            docker: dockerTriggerMock,
+            dockercompose: composeTriggerMock,
+            command: commandTriggerMock,
+        };
+
+        await messageHandler(
+            'topic/watcher-name/my-app/install',
+            Buffer.from('INSTALL'),
+        );
+
+        expect(commandTriggerMock.trigger).toHaveBeenCalledWith(mockContainer);
+        expect(dockerTriggerMock.trigger).not.toHaveBeenCalled();
+        expect(composeTriggerMock.trigger).not.toHaveBeenCalled();
+    });
+
     test('must publish updated container state, summary updates, and container sensors when update completes (#1393)', async () => {
         const initialContainer = {
             id: 'old-container-id',

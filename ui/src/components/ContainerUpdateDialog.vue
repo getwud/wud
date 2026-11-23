@@ -6,9 +6,9 @@
   >
     <v-card class="rounded-lg">
       <v-toolbar color="primary" density="compact" class="px-2">
-        <v-icon class="mr-2">mdi-package-down</v-icon>
+        <v-icon class="mr-2">{{ isUpstreamTracked ? 'mdi-source-branch' : 'mdi-package-down' }}</v-icon>
         <v-toolbar-title class="text-subtitle-1 font-weight-bold">
-          Update container
+          {{ isUpstreamTracked ? 'Rebuild container' : 'Update container' }}
         </v-toolbar-title>
         <v-spacer />
         <v-btn
@@ -53,6 +53,20 @@
         </div>
 
         <v-alert
+          v-if="isUpstreamTracked"
+          type="info"
+          variant="tonal"
+          density="compact"
+          icon="mdi-source-branch"
+          class="mb-3 text-caption"
+        >
+          This container runs a locally built image that tracks the upstream image
+          <strong>{{ upstreamRef }}</strong>. It cannot be updated by pulling: rebuild it
+          from <strong>{{ upstreamTarget }}</strong>. Pull-based triggers (docker,
+          dockercompose, nomad) are not offered here.
+        </v-alert>
+
+        <v-alert
           v-if="container.isCoolingDown"
           type="info"
           variant="tonal"
@@ -72,6 +86,17 @@
           />
           <span class="text-caption text-grey">Loading triggers...</span>
         </div>
+
+        <v-alert
+          v-else-if="triggers.length === 0 && isUpstreamTracked"
+          type="warning"
+          variant="tonal"
+          density="compact"
+          class="mt-3 text-caption"
+        >
+          No command trigger is configured for this container. Rebuild the image from
+          {{ upstreamTarget }} yourself, or configure a command trigger that runs your build.
+        </v-alert>
 
         <v-alert
           v-else-if="triggers.length === 0"
@@ -132,10 +157,10 @@
           size="small"
           :loading="isUpdating"
           :disabled="!selectedTrigger || isUpdating || triggers.length === 0"
-          :prepend-icon="container.isCoolingDown ? 'mdi-lightning-bolt' : 'mdi-package-down'"
+          :prepend-icon="container.isCoolingDown ? 'mdi-lightning-bolt' : isUpstreamTracked ? 'mdi-source-branch' : 'mdi-package-down'"
           @click="confirmUpdate"
         >
-          {{ container.isCoolingDown ? 'Update now' : 'Update' }}
+          {{ container.isCoolingDown ? (isUpstreamTracked ? 'Rebuild now' : 'Update now') : isUpstreamTracked ? 'Rebuild' : 'Update' }}
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -150,6 +175,11 @@ import { getContainerTriggers, runTrigger } from "@/services/container";
 // which the Home Assistant MQTT install handler also uses so both surfaces
 // agree on what counts as an "update trigger" for a container.
 export const UPDATER_TRIGGER_TYPES = ["docker", "dockercompose", "command", "nomad"];
+
+// Triggers that update by pulling the image and recreating the container.
+// They refuse containers tracking an upstream image (locally built derivative),
+// so the dialog does not offer them for such containers.
+export const PULL_BASED_TRIGGER_TYPES = ["docker", "dockercompose", "nomad"];
 
 interface TriggerConfig {
   threshold?: string;
@@ -175,6 +205,13 @@ interface ContainerUpdateDialogProps {
     registry?: { name?: string };
     tag?: { value?: string };
     created?: string;
+    upstream?: {
+      ref?: string;
+      source?: string;
+      name?: string;
+      registry?: { name?: string };
+      tag?: string;
+    };
   };
   updateKind?: {
     kind?: string;
@@ -228,6 +265,19 @@ export default defineComponent({
     },
     containerImageName(): string {
       return this.container?.image?.name || this.container?.image?.path || "";
+    },
+    isUpstreamTracked(): boolean {
+      return Boolean(this.container?.image?.upstream);
+    },
+    upstreamRef(): string {
+      const upstream = this.container?.image?.upstream;
+      return upstream?.ref || upstream?.name || "";
+    },
+    upstreamTarget(): string {
+      const upstream = this.container?.image?.upstream;
+      if (!upstream) return "";
+      const name = upstream.name || upstream.ref || "";
+      return `${name}:${this.displayNewVersion}`;
     },
     currentVersion(): string {
       if (!this.container) return "unknown";
@@ -340,8 +390,10 @@ export default defineComponent({
       this.loadingTriggers = true;
       try {
         const rawTriggers = (await getContainerTriggers(this.container.id)) || [];
-        this.triggers = rawTriggers.filter((t: ContainerTriggerItem) =>
-          UPDATER_TRIGGER_TYPES.includes(t.type),
+        this.triggers = rawTriggers.filter(
+          (t: ContainerTriggerItem) =>
+            UPDATER_TRIGGER_TYPES.includes(t.type) &&
+            (!this.isUpstreamTracked || !PULL_BASED_TRIGGER_TYPES.includes(t.type)),
         );
         this.selectDefaultTrigger();
       } catch {

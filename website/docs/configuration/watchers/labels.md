@@ -50,6 +50,15 @@ In orchestrators that support multi-container workloads (such as Kubernetes Pods
   </ConfigOption>
 
   <ConfigOption
+    name="image.name"
+    required={false}
+    type="string"
+    defaultValue="The container's own image (or the OCI `org.opencontainers.image.base.name` annotation when present)"
+    supported="Image reference, optionally with registry and tag (e.g. `caddy`, `ghcr.io/org/app:1.2`)">
+    Upstream (base) image to look up in the registry instead of the container's own image. For locally built images that are not pushed anywhere (see [Track the Upstream Image of a Locally Built Container](#10-track-the-upstream-image-of-a-locally-built-container))
+  </ConfigOption>
+
+  <ConfigOption
     name="link.changelog"
     required={false}
     type="string"
@@ -920,3 +929,58 @@ services:
 
 </TabItem>
 </Tabs>
+
+### 10. Track the Upstream Image of a Locally Built Container
+
+When a container runs an image you build yourself on top of a public base image (for example Caddy with an extra DNS plugin), the resulting image exists only on your host. There is nothing for WUD to look up in a registry, and every check fails with a registry error.
+
+Set the `image.name` label to the upstream image you build from. WUD then looks that image up instead of your local one and reports new upstream releases. Only the image name is needed: the tag defaults to the tag of your own image, so one variable can drive the base image, the local tag and the lookup.
+
+```yaml title="compose.yaml"
+services:
+  caddy:
+    build:
+      context: .
+      args:
+        CADDY_VERSION: ${CADDY_VERSION}
+    image: caddy-porkbun:${CADDY_VERSION}-alpine
+    labels:
+      - wud.image.name=caddy
+```
+
+```dockerfile title="Dockerfile"
+ARG CADDY_VERSION
+FROM caddy:${CADDY_VERSION}-builder-alpine AS builder
+RUN xcaddy build --with github.com/caddy-dns/porkbun
+
+FROM caddy:${CADDY_VERSION}-alpine
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+```
+
+With `CADDY_VERSION=2.9.1`, WUD compares `caddy:2.9.1-alpine` against the tags of `library/caddy` on Docker Hub and reports `2.9.2-alpine` when it is published.
+
+:::note[Docker watcher only]
+
+Upstream image tracking is currently implemented by the Docker watcher. The Kubernetes, Nomad and Swarm watchers do not read the `image.name` label or the OCI base image annotation yet.
+
+:::
+
+#### Using the OCI base image annotation
+
+Without a WUD label, WUD falls back to the standard OCI annotation `org.opencontainers.image.base.name`. Adding it to your Dockerfile makes the image self-describing for any tool, not only WUD:
+
+```dockerfile title="Dockerfile"
+ARG CADDY_VERSION
+FROM caddy:${CADDY_VERSION}-alpine
+LABEL org.opencontainers.image.base.name="docker.io/library/caddy:${CADDY_VERSION}-alpine"
+```
+
+When the annotation carries a tag, that tag is the comparison baseline. A pinned digest (`@sha256:...`) is ignored: lookups are made by tag. BuildKit does not set this annotation on its own, so it has to be added explicitly.
+
+:::warning[What changes for these containers]
+
+- **Digest watching is disabled**, even if `wud.watch.digest=true` is set. A locally built image can never share the digest of its base image, so a digest comparison would always report an update.
+- **Pull-based update triggers refuse these containers.** The `docker`, `dockercompose` and `nomad` triggers would otherwise pull the plain upstream image and recreate the container from it, dropping your local changes. Manual runs fail with an explicit error; automatic runs skip the container with a warning. Use a notification trigger, or the `command` trigger to run your rebuild script.
+- The UI marks these containers with a branch icon in the Containers list and in the container header, shows the tracked upstream image in the **Image** tab, and turns the **Update** button into **Rebuild**: the update dialog only offers `command` triggers and tells you which upstream version to rebuild from. The container keeps displaying its own image name and tag.
+
+:::

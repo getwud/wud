@@ -67,6 +67,14 @@ export const containerImages = sqliteTable('container_images', {
     variant: text('variant'),
     created: text('created'),
     version: text('version'),
+    // Upstream (base) image tracked by a locally built container (#664)
+    upstream: text('upstream', { mode: 'json' }).$type<{
+        ref: string;
+        source: 'label' | 'oci';
+        name: string;
+        registry: { name: string; url: string };
+        tag: string;
+    }>(),
 });
 
 // Container results history table (One-to-Many with container)

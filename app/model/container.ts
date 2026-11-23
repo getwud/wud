@@ -49,6 +49,28 @@ export interface ContainerImage {
     variant?: string;
     created?: string;
     version?: string;
+    /**
+     * Upstream (base) image to look up in the registry instead of the
+     * container's own image. Set for locally built images that declare their
+     * base image via the `wud.image.name` label or the OCI
+     * `org.opencontainers.image.base.name` annotation.
+     */
+    upstream?: ContainerImageUpstream;
+}
+
+export interface ContainerImageUpstream {
+    /** Raw reference as declared on the container. */
+    ref: string;
+    /** Where the reference comes from. */
+    source: 'label' | 'oci';
+    /** Normalized repository name used for registry lookups. */
+    name: string;
+    registry: {
+        name: string;
+        url: string;
+    };
+    /** Tag used as the comparison baseline for registry lookups. */
+    tag: string;
 }
 
 export interface ContainerResult {
@@ -245,6 +267,20 @@ const schema = joi.object({
             variant: joi.string(),
             created: joi.string().isoDate(),
             version: joi.string().optional().allow(null, ''),
+            upstream: joi
+                .object({
+                    ref: joi.string().min(1).required(),
+                    source: joi.string().valid('label', 'oci').required(),
+                    name: joi.string().min(1).required(),
+                    registry: joi
+                        .object({
+                            name: joi.string().min(1).required(),
+                            url: joi.string().allow('').required(),
+                        })
+                        .required(),
+                    tag: joi.string().min(1).required(),
+                })
+                .optional(),
         })
         .required(),
     result: joi.object({
@@ -351,6 +387,12 @@ function getFirstLabel(
  */
 export function isDockerOfficialImage(image: ContainerImage): boolean {
     if (!image || !image.name) {
+        return false;
+    }
+    // A locally built image tracking an upstream image is never the official
+    // image itself, even when its single-segment name looks like a `library/*`
+    // Docker Hub repository (e.g. `caddy-porkbun`).
+    if (image.upstream) {
         return false;
     }
     const registryName = image.registry?.name?.toLowerCase();
@@ -759,6 +801,15 @@ function addIsSnoozedProperty(container: Container) {
 }
 
 /**
+ * Tag the registry result is compared against: the upstream tag when the
+ * container tracks an upstream image (the local tag of a locally built
+ * derivative may not be comparable), the container's own tag otherwise.
+ */
+export function getBaselineTag(container: Container): string {
+    return container.image.upstream?.tag ?? container.image.tag.value;
+}
+
+/**
  * Check whether a candidate update exists (different tag, digest, or created date).
  * @param container
  * @returns {boolean}
@@ -806,9 +857,11 @@ function isCandidateUpdateAvailable(container: Container): boolean {
         container.result.tag !== null &&
         container.result.tag !== ''
     ) {
+        // When tracking an upstream image, the baseline is the upstream tag
+        // (the local tag of a derivative image may not be comparable).
         const localTag = transformTag(
             container.transformTags,
-            container.image.tag.value,
+            getBaselineTag(container),
             container,
         );
         const remoteTag = transformTag(
@@ -974,7 +1027,7 @@ function addUpdateKindProperty(container: Container) {
                     container.result.tag !== undefined &&
                     container.result.tag !== null &&
                     container.result.tag !== '' &&
-                    container.image.tag.value !== container.result.tag
+                    getBaselineTag(container) !== container.result.tag
                 ) {
                     updateKind.kind = 'tag';
                     let semverDiffWud: ContainerUpdateKind['semverDiff'] =
@@ -984,7 +1037,7 @@ function addUpdateKindProperty(container: Container) {
                         const semverDiff = diffSemver(
                             transformTag(
                                 container.transformTags,
-                                container.image.tag.value,
+                                getBaselineTag(container),
                                 container,
                             ),
                             transformTag(
