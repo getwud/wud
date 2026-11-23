@@ -214,6 +214,109 @@ export function reconcileEntrypoint(
 }
 
 /**
+ * Check if a healthcheck field value represents an unset/zero value in Docker inspect payloads.
+ */
+function isUnsetHealthcheckValue(value: unknown): boolean {
+    return (
+        value === undefined ||
+        value === null ||
+        value === 0 ||
+        (Array.isArray(value) && value.length === 0)
+    );
+}
+
+/**
+ * Check if two values of a healthcheck field are equivalent.
+ */
+export function areHealthcheckValuesEqual(a: unknown, b: unknown): boolean {
+    if (isUnsetHealthcheckValue(a) && isUnsetHealthcheckValue(b)) {
+        return true;
+    }
+    if (Array.isArray(a) && Array.isArray(b)) {
+        return (
+            a.length === b.length &&
+            a.every((value, index) => value === b[index])
+        );
+    }
+    return a === b;
+}
+
+/**
+ * Check if a healthcheck Test command explicitly disables healthchecks (`['NONE']`).
+ */
+function isDisabledHealthcheckTest(test: unknown): boolean {
+    return (
+        Array.isArray(test) &&
+        test.length === 1 &&
+        typeof test[0] === 'string' &&
+        test[0].toUpperCase() === 'NONE'
+    );
+}
+
+/**
+ * Reconcile container Healthcheck against old and new image Healthcheck.
+ * Docker copies the image HEALTHCHECK into the container, field by field,
+ * wherever the user did not set a value. User overrides (fields added or
+ * changed in container compared to old image) are overlaid on top of new
+ * image default fields.
+ */
+export function reconcileHealthcheck(
+    containerHealthcheck?: Dockerode.HealthConfig | null,
+    oldImageHealthcheck?: Dockerode.HealthConfig | null,
+    newImageHealthcheck?: Dockerode.HealthConfig | null,
+): Dockerode.HealthConfig | undefined {
+    const oldHealthcheck: Record<string, unknown> = {
+        ...oldImageHealthcheck,
+    };
+
+    const userOverrides: Record<string, unknown> = {};
+    for (const [field, value] of Object.entries(containerHealthcheck || {})) {
+        if (isUnsetHealthcheckValue(value)) {
+            continue;
+        }
+        const oldValue = Object.prototype.hasOwnProperty.call(
+            oldHealthcheck,
+            field,
+        )
+            ? oldHealthcheck[field]
+            : undefined;
+        if (!areHealthcheckValuesEqual(value, oldValue)) {
+            userOverrides[field] = Array.isArray(value) ? [...value] : value;
+        }
+    }
+
+    if (isDisabledHealthcheckTest(userOverrides.Test)) {
+        return { Test: ['NONE'] };
+    }
+
+    const baseHealthcheck: Record<string, unknown> = {};
+    for (const [field, value] of Object.entries(newImageHealthcheck || {})) {
+        if (isUnsetHealthcheckValue(value)) {
+            continue;
+        }
+        baseHealthcheck[field] = Array.isArray(value) ? [...value] : value;
+    }
+
+    const reconciledHealthcheck: Dockerode.HealthConfig = {
+        ...baseHealthcheck,
+        ...userOverrides,
+    };
+
+    if (
+        !Array.isArray(reconciledHealthcheck.Test) ||
+        reconciledHealthcheck.Test.length === 0
+    ) {
+        return undefined;
+    }
+
+    if (isDisabledHealthcheckTest(reconciledHealthcheck.Test)) {
+        return { Test: ['NONE'] };
+    }
+
+    return reconciledHealthcheck;
+}
+
+/**
  * Return the IPv4 address of an endpoint as reported by inspect (live address first, then the IPAM request).
  */
 export function getEndpointIPv4Address(
@@ -1244,6 +1347,16 @@ class Docker extends Trigger {
                 containerClone.Entrypoint = reconciledEntrypoint;
             } else {
                 delete containerClone.Entrypoint;
+            }
+            const reconciledHealthcheck = reconcileHealthcheck(
+                currentContainer.Config?.Healthcheck,
+                oldImageSpec.Config?.Healthcheck,
+                newImageSpec.Config?.Healthcheck,
+            );
+            if (reconciledHealthcheck !== undefined) {
+                containerClone.Healthcheck = reconciledHealthcheck;
+            } else {
+                delete containerClone.Healthcheck;
             }
         }
 
