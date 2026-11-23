@@ -186,8 +186,21 @@ class Nomad extends Trigger {
      * Restart the Nomad allocations backing these containers.
      */
     async triggerBatch(containers: Container[]) {
+        // One container tracking an upstream image must not reject the
+        // whole batch: skip it with a warning and restart the others.
+        const containersToUpdate = containers.filter((container) => {
+            const reason = getUpstreamRefusalReason(
+                container,
+                this.type || 'nomad',
+            );
+            if (reason) {
+                this.log.warn(`${reason} => skip`);
+                return false;
+            }
+            return true;
+        });
         await Promise.all(
-            containers.map((container) => this.trigger(container)),
+            containersToUpdate.map((container) => this.trigger(container)),
         );
     }
 }

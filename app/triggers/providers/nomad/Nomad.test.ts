@@ -271,3 +271,40 @@ test('mustTrigger should skip a container tracking an upstream image on automati
         }),
     ).toBe(true);
 });
+
+test('triggerBatch should skip upstream-tracked containers with a warning while restarting normal containers (#664)', async () => {
+    axios.post.mockResolvedValue({ data: {} });
+    nomad.log = {
+        warn: jest.fn(),
+        info: jest.fn(),
+        debug: jest.fn(),
+        child: jest.fn().mockReturnValue({
+            warn: jest.fn(),
+            info: jest.fn(),
+            debug: jest.fn(),
+        }),
+    };
+
+    const normalContainer = {
+        name: 'guacamole',
+        labels: {
+            'com.hashicorp.nomad.alloc_id': 'alloc-456',
+            'com.hashicorp.nomad.task_name': 'guacamole',
+        },
+        image: {},
+    };
+
+    await nomad.triggerBatch([upstreamTrackedContainer, normalContainer]);
+
+    expect(nomad.log.warn).toHaveBeenCalledWith(
+        expect.stringMatching(
+            /tracks upstream image ghcr\.io\/org\/base; the nomad trigger cannot update.*=> skip/,
+        ),
+    );
+    expect(axios.post).toHaveBeenCalledTimes(1);
+    expect(axios.post).toHaveBeenCalledWith(
+        'http://127.0.0.1:4646/v1/client/allocation/alloc-456/restart',
+        { TaskName: 'guacamole' },
+        { headers: {} },
+    );
+});

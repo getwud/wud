@@ -22,9 +22,10 @@ import { Logger } from 'pino';
 import { isOneshot } from '../../../runtime/mode';
 
 const HASS_MANUFACTURER = 'wud';
-const HASS_ENTITY_VALUE_TEMPLATE = '{{ value_json.image_tag_value }}';
+const HASS_ENTITY_VALUE_TEMPLATE =
+    '{{ value_json.image_upstream_tag | default(value_json.image_tag_value) }}';
 const HASS_LATEST_VERSION_TEMPLATE =
-    '{% if value_json.update_kind_kind == "digest" %}{{ value_json.result_digest[:15] }}{% elif value_json.result_tag is defined %}{{ value_json.result_tag }}{% elif value_json.result_digest is defined %}{{ value_json.result_digest[:15] }}{% else %}{{ value_json.image_tag_value }}{% endif %}';
+    '{% if value_json.update_kind_kind == "digest" %}{{ value_json.result_digest[:15] }}{% elif value_json.result_tag is defined %}{{ value_json.result_tag }}{% elif value_json.result_digest is defined %}{{ value_json.result_digest[:15] }}{% else %}{{ value_json.image_upstream_tag | default(value_json.image_tag_value) }}{% endif %}';
 const HASS_BOOLEAN_OPTIONS = {
     payload_on: true.toString(),
     payload_off: false.toString(),
