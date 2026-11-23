@@ -21,7 +21,9 @@ If the application is healthy, the HTTP status code returned is `200` (or `500` 
 }
 ```
 
-You can use it to configure health checks in your container orchestrator, for example:
+The official Docker image includes a built-in `HEALTHCHECK` that queries `/health` automatically using `WUD_SERVER_PORT` (default `3000`), switches to `https://` with `--insecure` when `WUD_SERVER_TLS_ENABLED=true`, and exits `0` when `WUD_SERVER_ENABLED=false`.
+
+You can also configure or override health checks in your container orchestrator, for example:
 
 ```yaml
 services:
