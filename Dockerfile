@@ -40,7 +40,12 @@ ENV WORKDIR=/home/node/app
 ENV WUD_LOG_FORMAT=text
 ENV WUD_VERSION=$WUD_VERSION
 
-HEALTHCHECK --interval=30s --timeout=5s CMD if [[ -z ${WUD_SERVER_ENABLED} || ${WUD_SERVER_ENABLED} == 'true' ]]; then curl --fail http://localhost:${WUD_SERVER_PORT:-3000}/health || exit 1; else exit 0; fi;
+HEALTHCHECK --interval=30s --timeout=5s CMD \
+    case "${WUD_SERVER_ENABLED:-true}" in [Tt][Rr][Uu][Ee]) ;; *) exit 0 ;; esac; \
+    case "${WUD_SERVER_TLS_ENABLED:-false}" in \
+        [Tt][Rr][Uu][Ee]) curl --fail --silent --show-error --insecure "https://localhost:${WUD_SERVER_PORT:-3000}/health" || exit 1 ;; \
+        *) curl --fail --silent --show-error "http://localhost:${WUD_SERVER_PORT:-3000}/health" || exit 1 ;; \
+    esac
 
 RUN apk add --no-cache tzdata openssl curl bash libstdc++
 
