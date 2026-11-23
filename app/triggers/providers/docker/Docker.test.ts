@@ -5,6 +5,7 @@ import Docker, {
     reconcileLabels,
     reconcileCmd,
     reconcileEntrypoint,
+    areHealthcheckValuesEqual,
     reconcileHealthcheck,
     createPullProgressLogger,
     isPullRateLimited,
@@ -1313,6 +1314,21 @@ describe('reconcileCmd & reconcileEntrypoint', () => {
 });
 
 describe('reconcileHealthcheck', () => {
+    test('areHealthcheckValuesEqual should treat unset values as equal and compare arrays and primitives strictly', () => {
+        expect(areHealthcheckValuesEqual(undefined, 0)).toBe(true);
+        expect(areHealthcheckValuesEqual(null, [])).toBe(true);
+        expect(areHealthcheckValuesEqual(0, null)).toBe(true);
+        expect(
+            areHealthcheckValuesEqual(['CMD', 'true'], ['CMD', 'true']),
+        ).toBe(true);
+        expect(
+            areHealthcheckValuesEqual(['CMD', 'true'], ['CMD', 'false']),
+        ).toBe(false);
+        expect(areHealthcheckValuesEqual(['CMD'], ['CMD', 'true'])).toBe(false);
+        expect(areHealthcheckValuesEqual(30000000000, 30000000000)).toBe(true);
+        expect(areHealthcheckValuesEqual(30000000000, 0)).toBe(false);
+    });
+
     test('should keep the fields the user overrode and adopt the new image values for the inherited ones', () => {
         // Docker merges a partial healthcheck override with the image
         // HEALTHCHECK field by field: here the user only set the interval.
@@ -1349,7 +1365,7 @@ describe('reconcileHealthcheck', () => {
         });
     });
 
-    test('should keep the healthcheck disabled when the user disabled it', () => {
+    test('should keep the healthcheck disabled without leaking timing fields when the user disabled it', () => {
         // What `docker run --no-healthcheck` stores on top of an image HEALTHCHECK.
         const containerHealthcheck = {
             Test: ['NONE'],
@@ -1365,9 +1381,11 @@ describe('reconcileHealthcheck', () => {
         };
         const newImageHealthcheck = {
             Test: ['CMD-SHELL', 'sh /healthcheck.sh'],
-            Interval: 60000000000,
-            Timeout: 5000000000,
-            StartPeriod: 30000000000,
+            Interval: 30000000000,
+            Timeout: 3000000000,
+            Retries: 5,
+            StartInterval: 2000000000,
+            StartPeriod: 15000000000,
         };
 
         expect(
@@ -1375,11 +1393,244 @@ describe('reconcileHealthcheck', () => {
                 containerHealthcheck,
                 oldImageHealthcheck,
                 newImageHealthcheck,
-            )?.Test,
-        ).toEqual(['NONE']);
+            ),
+        ).toEqual({ Test: ['NONE'] });
+
+        // Case-insensitive NONE should also normalize to ['NONE']
+        expect(
+            reconcileHealthcheck(
+                { ...containerHealthcheck, Test: ['none'] },
+                oldImageHealthcheck,
+                newImageHealthcheck,
+            ),
+        ).toEqual({ Test: ['NONE'] });
     });
 
-    test('should handle undefined arguments', () => {
+    test('should return undefined when user only overrode timing fields and new image drops HEALTHCHECK', () => {
+        const containerHealthcheck = {
+            Test: ['CMD-SHELL', 'curl -f http://localhost/'],
+            Interval: 10000000000,
+            Timeout: 5000000000,
+        };
+        const oldImageHealthcheck = {
+            Test: ['CMD-SHELL', 'curl -f http://localhost/'],
+            Interval: 30000000000,
+            Timeout: 5000000000,
+        };
+
+        expect(
+            reconcileHealthcheck(
+                containerHealthcheck,
+                oldImageHealthcheck,
+                undefined,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('should return { Test: ["NONE"] } without orphaned timing fields when user only overrode timing fields and new image disables HEALTHCHECK', () => {
+        const containerHealthcheck = {
+            Test: ['CMD-SHELL', 'curl -f http://localhost/'],
+            Interval: 10000000000,
+            Timeout: 5000000000,
+        };
+        const oldImageHealthcheck = {
+            Test: ['CMD-SHELL', 'curl -f http://localhost/'],
+            Interval: 30000000000,
+            Timeout: 5000000000,
+        };
+        const newImageHealthcheck = {
+            Test: ['NONE'],
+        };
+
+        expect(
+            reconcileHealthcheck(
+                containerHealthcheck,
+                oldImageHealthcheck,
+                newImageHealthcheck,
+            ),
+        ).toEqual({ Test: ['NONE'] });
+    });
+
+    test('should adopt a real HEALTHCHECK from the new image when the container inherited HEALTHCHECK NONE from the old image', () => {
+        const containerHealthcheck = { Test: ['NONE'] };
+        const oldImageHealthcheck = { Test: ['NONE'] };
+        const newImageHealthcheck = {
+            Test: ['CMD-SHELL', 'curl -f http://localhost/health'],
+            Interval: 30000000000,
+            Timeout: 5000000000,
+            Retries: 3,
+        };
+
+        expect(
+            reconcileHealthcheck(
+                containerHealthcheck,
+                oldImageHealthcheck,
+                newImageHealthcheck,
+            ),
+        ).toEqual(newImageHealthcheck);
+    });
+
+    test('should preserve user custom HEALTHCHECK and merge unset timing fields from a newly added image HEALTHCHECK', () => {
+        const containerHealthcheck = {
+            Test: ['CMD-SHELL', 'custom-probe'],
+            Interval: 15000000000,
+        };
+        const newImageHealthcheck = {
+            Test: ['CMD-SHELL', 'image-probe'],
+            Interval: 60000000000,
+            Timeout: 5000000000,
+            Retries: 4,
+            StartPeriod: 20000000000,
+        };
+
+        expect(
+            reconcileHealthcheck(
+                containerHealthcheck,
+                undefined,
+                newImageHealthcheck,
+            ),
+        ).toEqual({
+            Test: ['CMD-SHELL', 'custom-probe'],
+            Interval: 15000000000,
+            Timeout: 5000000000,
+            Retries: 4,
+            StartPeriod: 20000000000,
+        });
+    });
+
+    test('should reconcile Retries and StartInterval fields', () => {
+        const containerHealthcheck = {
+            Test: ['CMD-SHELL', 'old-probe'],
+            Retries: 10,
+            StartInterval: 5000000000,
+        };
+        const oldImageHealthcheck = {
+            Test: ['CMD-SHELL', 'old-probe'],
+            Retries: 3,
+            StartInterval: 5000000000,
+        };
+        const newImageHealthcheck = {
+            Test: ['CMD-SHELL', 'new-probe'],
+            Retries: 5,
+            StartInterval: 2000000000,
+        };
+
+        expect(
+            reconcileHealthcheck(
+                containerHealthcheck,
+                oldImageHealthcheck,
+                newImageHealthcheck,
+            ),
+        ).toEqual({
+            Test: ['CMD-SHELL', 'new-probe'],
+            Retries: 10,
+            StartInterval: 2000000000,
+        });
+    });
+
+    test('should ignore unset values (0, null, [], undefined) on container and image specs', () => {
+        // Container has explicit zero/null/empty fields while old image omits them
+        const containerHealthcheck = {
+            Test: ['CMD', 'true'],
+            Interval: 0,
+            Timeout: null,
+            Retries: 0,
+            StartPeriod: undefined,
+            StartInterval: 0,
+        };
+        const oldImageHealthcheck = {
+            Test: ['CMD', 'true'],
+        };
+        const newImageHealthcheck = {
+            Test: ['CMD', 'new-check'],
+            Interval: 30000000000,
+            Timeout: 5000000000,
+            Retries: 3,
+            StartPeriod: 10000000000,
+            StartInterval: 1000000000,
+        };
+
+        expect(
+            reconcileHealthcheck(
+                containerHealthcheck,
+                oldImageHealthcheck,
+                newImageHealthcheck,
+            ),
+        ).toEqual(newImageHealthcheck);
+
+        // Unset values alone should not produce a spurious healthcheck
+        expect(
+            reconcileHealthcheck(
+                {
+                    Test: [],
+                    Interval: 0,
+                    Timeout: null,
+                    Retries: 0,
+                    StartPeriod: undefined,
+                },
+                undefined,
+                {
+                    Test: [],
+                    Interval: 0,
+                },
+            ),
+        ).toBeUndefined();
+
+        // Unset values on newImageHealthcheck should be stripped
+        expect(
+            reconcileHealthcheck(undefined, undefined, {
+                Test: ['CMD', 'true'],
+                Interval: 0,
+                Timeout: null,
+                Retries: 0,
+                StartPeriod: undefined,
+            }),
+        ).toEqual({ Test: ['CMD', 'true'] });
+
+        // Setting a non-zero value when old image had 0 should be recognized as user override
+        expect(
+            reconcileHealthcheck(
+                {
+                    Test: ['CMD', 'true'],
+                    Interval: 15000000000,
+                },
+                {
+                    Test: ['CMD', 'true'],
+                    Interval: 0,
+                },
+                {
+                    Test: ['CMD', 'new-check'],
+                    Interval: 30000000000,
+                },
+            ),
+        ).toEqual({
+            Test: ['CMD', 'new-check'],
+            Interval: 15000000000,
+        });
+    });
+
+    test('should clone Test arrays so mutating the reconciled result does not mutate input specs', () => {
+        const containerTest = ['CMD-SHELL', 'custom-check'];
+        const newImageTest = ['CMD-SHELL', 'image-check'];
+
+        const fromNewImage = reconcileHealthcheck(
+            { Test: ['CMD-SHELL', 'old-check'] },
+            { Test: ['CMD-SHELL', 'old-check'] },
+            { Test: newImageTest },
+        );
+        fromNewImage.Test.push('--mutated');
+        expect(newImageTest).toEqual(['CMD-SHELL', 'image-check']);
+
+        const fromUserOverride = reconcileHealthcheck(
+            { Test: containerTest },
+            { Test: ['CMD-SHELL', 'old-check'] },
+            { Test: newImageTest },
+        );
+        fromUserOverride.Test.push('--mutated');
+        expect(containerTest).toEqual(['CMD-SHELL', 'custom-check']);
+    });
+
+    test('should handle undefined and null arguments', () => {
         expect(
             reconcileHealthcheck(undefined, undefined, {
                 Test: ['CMD', 'true'],
@@ -1395,6 +1646,7 @@ describe('reconcileHealthcheck', () => {
         expect(
             reconcileHealthcheck(undefined, undefined, undefined),
         ).toBeUndefined();
+        expect(reconcileHealthcheck(null, null, null)).toBeUndefined();
     });
 });
 
@@ -1611,6 +1863,58 @@ describe('cloneContainer with image reconciliation', () => {
             );
 
             expect(clone.Healthcheck).toBeUndefined();
+            expect('Healthcheck' in clone).toBe(false);
+        });
+
+        test('should delete Healthcheck when user only overrode timing fields and the new image drops HEALTHCHECK', () => {
+            const containerWithIntervalOverride = {
+                ...baseContainer,
+                Config: {
+                    ...baseContainer.Config,
+                    Healthcheck: {
+                        ...oldImageHealthcheck,
+                        Interval: 10000000000,
+                    },
+                },
+            };
+
+            const clone = docker.cloneContainer(
+                containerWithIntervalOverride,
+                'my-app:2.0.0',
+                { Config: { Healthcheck: oldImageHealthcheck } },
+                { Config: {} },
+            );
+
+            expect(clone.Healthcheck).toBeUndefined();
+            expect('Healthcheck' in clone).toBe(false);
+        });
+
+        test('should preserve existing Healthcheck when oldImageSpec or newImageSpec is missing', () => {
+            const cloneWithoutOldSpec = docker.cloneContainer(
+                containerWithInheritedHealthcheck,
+                'my-app:2.0.0',
+                undefined,
+                {
+                    Config: {
+                        Healthcheck: {
+                            Test: ['CMD-SHELL', 'sh /healthcheck.sh'],
+                        },
+                    },
+                },
+            );
+            expect(cloneWithoutOldSpec.Healthcheck).toEqual(
+                containerWithInheritedHealthcheck.Config.Healthcheck,
+            );
+
+            const cloneWithoutNewSpec = docker.cloneContainer(
+                containerWithInheritedHealthcheck,
+                'my-app:2.0.0',
+                { Config: { Healthcheck: oldImageHealthcheck } },
+                undefined,
+            );
+            expect(cloneWithoutNewSpec.Healthcheck).toEqual(
+                containerWithInheritedHealthcheck.Config.Healthcheck,
+            );
         });
     });
 
@@ -2431,6 +2735,11 @@ test('trigger should reconcile container configuration with old and new image sp
             Labels: { 'com.example.version': '1.0.0' },
             Cmd: ['npm', 'start'],
             Entrypoint: ['/entrypoint.sh'],
+            Healthcheck: {
+                Test: ['CMD-SHELL', 'old-healthcheck'],
+                Interval: 60000000000,
+                Timeout: 5000000000,
+            },
         },
     };
     const newImageInspect = {
@@ -2447,6 +2756,11 @@ test('trigger should reconcile container configuration with old and new image sp
             },
             Cmd: ['node', 'index.js'],
             Entrypoint: ['/docker-entrypoint.sh'],
+            Healthcheck: {
+                Test: ['CMD-SHELL', 'new-healthcheck'],
+                Interval: 60000000000,
+                Timeout: 3000000000,
+            },
         },
     };
 
@@ -2495,6 +2809,11 @@ test('trigger should reconcile container configuration with old and new image sp
                             },
                             Cmd: ['npm', 'start'],
                             Entrypoint: ['/entrypoint.sh'],
+                            Healthcheck: {
+                                Test: ['CMD-SHELL', 'old-healthcheck'],
+                                Interval: 15000000000,
+                                Timeout: 5000000000,
+                            },
                         },
                         HostConfig: {
                             RestartPolicy: { Name: 'always' },
@@ -2552,6 +2871,11 @@ test('trigger should reconcile container configuration with old and new image sp
     });
     expect(createdOptions.Cmd).toEqual(['node', 'index.js']);
     expect(createdOptions.Entrypoint).toEqual(['/docker-entrypoint.sh']);
+    expect(createdOptions.Healthcheck).toEqual({
+        Test: ['CMD-SHELL', 'new-healthcheck'],
+        Interval: 15000000000,
+        Timeout: 3000000000,
+    });
 
     watcherSpy.mockRestore();
 });

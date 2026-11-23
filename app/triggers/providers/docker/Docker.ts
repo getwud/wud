@@ -213,9 +213,24 @@ export function reconcileEntrypoint(
 }
 
 /**
+ * Check if a healthcheck field value represents an unset/zero value in Docker inspect payloads.
+ */
+function isUnsetHealthcheckValue(value: unknown): boolean {
+    return (
+        value === undefined ||
+        value === null ||
+        value === 0 ||
+        (Array.isArray(value) && value.length === 0)
+    );
+}
+
+/**
  * Check if two values of a healthcheck field are equivalent.
  */
-function areHealthcheckValuesEqual(a: unknown, b: unknown): boolean {
+export function areHealthcheckValuesEqual(a: unknown, b: unknown): boolean {
+    if (isUnsetHealthcheckValue(a) && isUnsetHealthcheckValue(b)) {
+        return true;
+    }
     if (Array.isArray(a) && Array.isArray(b)) {
         return (
             a.length === b.length &&
@@ -223,6 +238,18 @@ function areHealthcheckValuesEqual(a: unknown, b: unknown): boolean {
         );
     }
     return a === b;
+}
+
+/**
+ * Check if a healthcheck Test command explicitly disables healthchecks (`['NONE']`).
+ */
+function isDisabledHealthcheckTest(test: unknown): boolean {
+    return (
+        Array.isArray(test) &&
+        test.length === 1 &&
+        typeof test[0] === 'string' &&
+        test[0].toUpperCase() === 'NONE'
+    );
 }
 
 /**
@@ -243,18 +270,49 @@ export function reconcileHealthcheck(
 
     const userOverrides: Record<string, unknown> = {};
     for (const [field, value] of Object.entries(containerHealthcheck || {})) {
-        if (!areHealthcheckValuesEqual(value, oldHealthcheck[field])) {
-            userOverrides[field] = value;
+        if (isUnsetHealthcheckValue(value)) {
+            continue;
+        }
+        const oldValue = Object.prototype.hasOwnProperty.call(
+            oldHealthcheck,
+            field,
+        )
+            ? oldHealthcheck[field]
+            : undefined;
+        if (!areHealthcheckValuesEqual(value, oldValue)) {
+            userOverrides[field] = Array.isArray(value) ? [...value] : value;
         }
     }
 
+    if (isDisabledHealthcheckTest(userOverrides.Test)) {
+        return { Test: ['NONE'] };
+    }
+
+    const baseHealthcheck: Record<string, unknown> = {};
+    for (const [field, value] of Object.entries(newImageHealthcheck || {})) {
+        if (isUnsetHealthcheckValue(value)) {
+            continue;
+        }
+        baseHealthcheck[field] = Array.isArray(value) ? [...value] : value;
+    }
+
     const reconciledHealthcheck: Dockerode.HealthConfig = {
-        ...newImageHealthcheck,
+        ...baseHealthcheck,
         ...userOverrides,
     };
-    return Object.keys(reconciledHealthcheck).length > 0
-        ? reconciledHealthcheck
-        : undefined;
+
+    if (
+        !Array.isArray(reconciledHealthcheck.Test) ||
+        reconciledHealthcheck.Test.length === 0
+    ) {
+        return undefined;
+    }
+
+    if (isDisabledHealthcheckTest(reconciledHealthcheck.Test)) {
+        return { Test: ['NONE'] };
+    }
+
+    return reconciledHealthcheck;
 }
 
 /**
