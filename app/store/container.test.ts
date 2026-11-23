@@ -722,4 +722,61 @@ describe('Container Store (SQLite)', () => {
         expect(historyUpdated.length).toBe(2);
         expect(historyUpdated[0].version).toBe('2.0.0');
     });
+
+    test('insertContainer and updateContainer should persist and retrieve image.upstream (#664)', () => {
+        const upstream = {
+            ref: 'caddy',
+            source: 'label',
+            name: 'library/caddy',
+            registry: { name: 'hub', url: 'https://registry-1.docker.io/v2' },
+            tag: '2.9.1-alpine',
+        };
+        const containerWithUpstream = {
+            ...sampleContainer,
+            id: 'container-upstream-store-test',
+            image: {
+                ...sampleContainer.image,
+                upstream,
+            },
+        };
+
+        const inserted = container.insertContainer(containerWithUpstream);
+        expect(inserted.image.upstream).toEqual(upstream);
+
+        const fetched = container.getContainer('container-upstream-store-test');
+        expect(fetched?.image.upstream).toEqual(upstream);
+
+        const updatedUpstream = {
+            ...upstream,
+            ref: 'caddy:2.9.2',
+            tag: '2.9.2',
+        };
+        const updated = container.updateContainer({
+            ...containerWithUpstream,
+            image: {
+                ...containerWithUpstream.image,
+                upstream: updatedUpstream,
+            },
+        });
+        expect(updated.image.upstream).toEqual(updatedUpstream);
+        expect(
+            container.getContainer('container-upstream-store-test')?.image
+                .upstream,
+        ).toEqual(updatedUpstream);
+
+        // Removing the declaration clears the persisted value
+        container.updateContainer({
+            ...containerWithUpstream,
+            image: { ...containerWithUpstream.image, upstream: undefined },
+        });
+        expect(
+            container.getContainer('container-upstream-store-test')?.image
+                .upstream,
+        ).toBeUndefined();
+
+        // The API shape keeps the field as well
+        expect(
+            container.completeContainerShapeForApi(inserted).image.upstream,
+        ).toEqual(upstream);
+    });
 });

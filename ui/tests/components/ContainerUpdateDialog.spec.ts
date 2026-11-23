@@ -354,4 +354,78 @@ describe('ContainerUpdateDialog.vue', () => {
     expect((wrapper.vm as any).currentVersion).toBe('sha256:11112222...');
     expect((wrapper.vm as any).displayNewVersion).toBe('sha256:99998888...');
   });
+  describe('containers tracking an upstream image (#664)', () => {
+    const upstreamContainer = {
+      ...mockContainer,
+      image: {
+        ...mockContainer.image,
+        name: 'library/caddy-porkbun',
+        upstream: {
+          ref: 'caddy',
+          source: 'label',
+          name: 'library/caddy',
+          registry: { name: 'hub' },
+          tag: '1.24.0',
+        },
+      },
+    };
+
+    it('does not offer pull-based triggers and explains the rebuild', async () => {
+      (containerService.getContainerTriggers as jest.Mock).mockResolvedValueOnce([
+        { id: 'docker.local', type: 'docker', name: 'local' },
+        { id: 'dockercompose.main', type: 'dockercompose', name: 'main' },
+        { id: 'nomad.job', type: 'nomad', name: 'job' },
+        { id: 'command.rebuild', type: 'command', name: 'rebuild' },
+        { id: 'telegram.alerts', type: 'telegram', name: 'alerts' },
+      ]);
+
+      const wrapper = mount(ContainerUpdateDialog, {
+        props: { modelValue: true, container: upstreamContainer },
+      });
+      await wrapper.vm.$nextTick();
+      await wrapper.vm.$nextTick();
+
+      const triggerTypes = (wrapper.vm as any).triggers.map((t: any) => t.type);
+      expect(triggerTypes).toEqual(['command']);
+      expect((wrapper.vm as any).selectedTriggerKey).toBe('command.rebuild');
+      expect(wrapper.text()).toContain('Rebuild container');
+      expect(wrapper.text()).not.toContain('Update container');
+      expect(wrapper.text()).toContain('tracks the upstream image');
+      expect(wrapper.text()).toContain('caddy');
+      expect(wrapper.text()).toContain('library/caddy:1.25.0');
+      const rebuildBtn = wrapper.findAll('.v-btn').find((btn) => btn.text().includes('Rebuild'));
+      expect(rebuildBtn).toBeDefined();
+      expect(rebuildBtn?.attributes('disabled')).toBeUndefined();
+    });
+
+    it('shows a rebuild hint when only pull-based triggers exist', async () => {
+      (containerService.getContainerTriggers as jest.Mock).mockResolvedValueOnce([
+        { id: 'docker.local', type: 'docker', name: 'local' },
+      ]);
+
+      const wrapper = mount(ContainerUpdateDialog, {
+        props: { modelValue: true, container: upstreamContainer },
+      });
+      await wrapper.vm.$nextTick();
+      await wrapper.vm.$nextTick();
+
+      expect((wrapper.vm as any).triggers).toHaveLength(0);
+      expect(wrapper.text()).toContain('No command trigger is configured for this container');
+      expect(wrapper.text()).not.toContain('No update trigger (docker, dockercompose, command, nomad)');
+      const rebuildBtn = wrapper.findAll('.v-btn').find((btn) => btn.text().includes('Rebuild'));
+      expect(rebuildBtn?.attributes('disabled')).toBeDefined();
+    });
+
+    it('keeps pull-based triggers for regular containers', async () => {
+      const wrapper = mount(ContainerUpdateDialog, {
+        props: { modelValue: true, container: mockContainer },
+      });
+      await wrapper.vm.$nextTick();
+      await wrapper.vm.$nextTick();
+
+      expect((wrapper.vm as any).isUpstreamTracked).toBe(false);
+      expect(wrapper.text()).not.toContain('tracks the upstream image');
+      expect((wrapper.vm as any).triggers.map((t: any) => t.type)).toEqual(['docker', 'dockercompose']);
+    });
+  });
 });

@@ -184,3 +184,64 @@ describe('ContainerUpdate', () => {
     expect(wrapper.emitted('override-cooldown')).toBeTruthy();
   });
 });
+describe('ContainerUpdate - upstream image tracking (#664)', () => {
+  const upstream = {
+    ref: 'caddy',
+    source: 'label',
+    name: 'library/caddy',
+    registry: { name: 'hub' },
+    tag: '1.0.0',
+  };
+
+  it('explains that a rebuild is required when an upstream update is available', () => {
+    const wrapper = mount(ContainerUpdate, {
+      props: {
+        updateKind: mockUpdateKind,
+        result: mockResult,
+        updateAvailable: true,
+        upstream,
+      },
+    });
+    expect(wrapper.text()).toContain('Rebuild required');
+    expect(wrapper.text()).toContain('library/caddy:1.0.0');
+    expect(wrapper.text()).toContain('library/caddy:2.0.0');
+    wrapper.unmount();
+  });
+
+  it('does not show the rebuild hint without upstream or without update', () => {
+    const noUpstream = mount(ContainerUpdate, {
+      props: { updateKind: mockUpdateKind, result: mockResult, updateAvailable: true },
+    });
+    expect(noUpstream.text()).not.toContain('Rebuild required');
+    noUpstream.unmount();
+
+    const noUpdate = mount(ContainerUpdate, {
+      props: { updateKind: mockUpdateKind, result: mockResult, updateAvailable: false, upstream },
+    });
+    expect(noUpdate.text()).not.toContain('Rebuild required');
+    noUpdate.unmount();
+  });
+
+  it('keeps the rebuild hint and labels the cool-down button "Rebuild now" during cool-down', async () => {
+    const wrapper = mount(ContainerUpdate, {
+      props: {
+        updateKind: mockUpdateKind,
+        result: mockResult,
+        updateAvailable: false,
+        isCoolingDown: true,
+        coolingDownUntil: Date.now() + 86400000,
+        canWrite: true,
+        upstream,
+      },
+    });
+    expect(wrapper.text()).toContain('Rebuild required');
+    expect(wrapper.text()).toContain('library/caddy:2.0.0');
+    const buttons = wrapper.findAll('button');
+    const rebuildNowBtn = buttons.find((b: any) => b.text().includes('Rebuild now'));
+    expect(rebuildNowBtn).toBeDefined();
+    expect(buttons.find((b: any) => b.text().includes('Update now'))).toBeUndefined();
+    await rebuildNowBtn.trigger('click');
+    expect(wrapper.emitted('override-cooldown')).toBeTruthy();
+    wrapper.unmount();
+  });
+});

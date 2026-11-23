@@ -148,6 +148,8 @@ export function migrateLokiToSqlite(
                                 os: validated.image.os,
                                 variant: validated.image.variant,
                                 created: validated.image.created,
+                                version: validated.image.version,
+                                upstream: validated.image.upstream,
                             })
                             .run();
                     }

@@ -50,6 +50,25 @@
         {{ image.tag.value }}
       </v-list-item-subtitle>
     </v-list-item>
+    <v-list-item v-if="image.upstream">
+      <template v-slot:prepend>
+        <v-icon color="secondary">mdi-source-branch</v-icon>
+      </template>
+      <v-list-item-title>
+        Tracks upstream image &nbsp;<v-chip
+          size="x-small"
+          variant="outlined"
+          color="info"
+          label
+          >{{ image.upstream.source === "oci" ? "OCI base image" : "label" }}</v-chip
+        >
+      </v-list-item-title>
+      <v-list-item-subtitle>
+        {{ image.upstream.registry.name }} / {{ image.upstream.name }}:{{
+          image.upstream.tag
+        }}
+      </v-list-item-subtitle>
+    </v-list-item>
     <v-list-item v-if="image.version">
       <template v-slot:prepend>
         <v-icon color="secondary">mdi-package-variant</v-icon>
