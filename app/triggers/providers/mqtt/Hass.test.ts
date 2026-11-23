@@ -1,6 +1,7 @@
 // @ts-nocheck
 import log from '../../../log';
 import Hass from './Hass';
+import { flatten } from '../../../model/container';
 import * as containerStore from '../../../store/container';
 import * as registry from '../../../registry';
 
@@ -203,10 +204,11 @@ test('addContainerSensor must publish sensor discovery message expected by HA', 
             icon: 'mdi:docker',
             state_topic: 'topic/watcher-name/container-name',
             force_update: true,
-            value_template: '{{ value_json.image_tag_value }}',
+            value_template:
+                '{{ value_json.image_upstream_tag | default(value_json.image_tag_value) }}',
             latest_version_topic: 'topic/watcher-name/container-name',
             latest_version_template:
-                '{% if value_json.update_kind_kind == "digest" %}{{ value_json.result_digest[:15] }}{% elif value_json.result_tag is defined %}{{ value_json.result_tag }}{% elif value_json.result_digest is defined %}{{ value_json.result_digest[:15] }}{% else %}{{ value_json.image_tag_value }}{% endif %}',
+                '{% if value_json.update_kind_kind == "digest" %}{{ value_json.result_digest[:15] }}{% elif value_json.result_tag is defined %}{{ value_json.result_tag }}{% elif value_json.result_digest is defined %}{{ value_json.result_digest[:15] }}{% else %}{{ value_json.image_upstream_tag | default(value_json.image_tag_value) }}{% endif %}',
             command_topic: 'topic/watcher-name/container-name/install',
             payload_install: 'INSTALL',
             in_progress_template:
@@ -232,6 +234,59 @@ test('addContainerSensor must publish the container display name as title', asyn
     // as supporting text, since the headline is the (shared) device name.
     expect(discoveryPayload.name).toEqual('my-container');
     expect(discoveryPayload.title).toEqual('my-container');
+});
+
+test('addContainerSensor discovery template matches flattened image_upstream_tag for upstream-tracked containers (#664)', async () => {
+    const upstreamContainer = {
+        name: 'caddy',
+        displayName: 'caddy',
+        watcher: 'local',
+        displayIcon: 'mdi:docker',
+        image: {
+            name: 'library/caddy-porkbun',
+            tag: { value: 'custom', semver: true },
+            upstream: {
+                ref: 'docker.io/library/caddy:2.9.1-alpine',
+                source: 'oci',
+                name: 'library/caddy',
+                registry: {
+                    name: 'hub',
+                    url: 'https://registry-1.docker.io/v2',
+                },
+                tag: '2.9.1-alpine',
+            },
+        },
+        result: {
+            tag: '2.9.1-alpine',
+        },
+    };
+
+    await hass.addContainerSensor(upstreamContainer);
+    const discoveryPayload = JSON.parse(
+        mqttClientMock.publish.mock.calls[0][1],
+    );
+    const flattened = flatten(upstreamContainer);
+
+    expect(discoveryPayload.value_template).toEqual(
+        '{{ value_json.image_upstream_tag | default(value_json.image_tag_value) }}',
+    );
+    expect(discoveryPayload.latest_version_template).toContain(
+        '{{ value_json.image_upstream_tag | default(value_json.image_tag_value) }}',
+    );
+    expect(flattened.image_tag_value).toEqual('custom');
+    expect(flattened.image_upstream_tag).toEqual('2.9.1-alpine');
+    expect(flattened.result_tag).toEqual('2.9.1-alpine');
+
+    const normalFlattened = flatten({
+        name: 'nginx',
+        watcher: 'local',
+        image: {
+            name: 'library/nginx',
+            tag: { value: '1.25.0', semver: true },
+        },
+    });
+    expect(normalFlattened.image_upstream_tag).toBeUndefined();
+    expect(normalFlattened.image_tag_value).toEqual('1.25.0');
 });
 
 test('addContainerSensor must prefer result.changelogUrl over result.link for release_url', async () => {

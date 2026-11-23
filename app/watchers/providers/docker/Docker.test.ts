@@ -8278,5 +8278,142 @@ describe('Docker Watcher', () => {
 
             expect(mockImage.inspect).not.toHaveBeenCalled();
         });
+
+        test('addImageDetailsToContainer initializes fallback result.tag to upstream.tag so a failed lookup does not report a false update', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            docker.log = fullLog();
+            const actualContainer = jest.requireActual(
+                '../../../model/container',
+            );
+            const containerModule = await import('../../../model/container');
+            containerModule.validate.mockImplementation(
+                actualContainer.validate,
+            );
+            mockTag.transform.mockImplementation((_formula, tag) => tag);
+            mockTag.parse.mockReturnValue({ major: 2, minor: 9, patch: 1 });
+
+            const provider = hubProvider();
+            provider.getTags.mockRejectedValue(
+                new Error('registry unavailable'),
+            );
+            registry.getState.mockReturnValue({
+                registry: { hub: provider },
+            });
+            mockImage.inspect.mockResolvedValue({
+                Id: 'sha256:abc',
+                Architecture: 'amd64',
+                Os: 'linux',
+                RepoTags: ['caddy-porkbun:custom'],
+            });
+            mockParse
+                .mockReturnValueOnce({ path: 'caddy-porkbun', tag: 'custom' })
+                .mockReturnValueOnce({
+                    domain: 'docker.io',
+                    path: 'library/caddy',
+                    tag: '2.9.1-alpine',
+                });
+
+            const container = await docker.addImageDetailsToContainer(
+                {
+                    Id: '123',
+                    Image: 'caddy-porkbun:custom',
+                    Names: ['/caddy'],
+                    State: 'running',
+                    Labels: {
+                        'wud.image.name': 'caddy:2.9.1-alpine',
+                    },
+                },
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                { forceRefresh: true },
+            );
+
+            expect(container.image.tag.value).toBe('custom');
+            expect(container.image.upstream.tag).toBe('2.9.1-alpine');
+            expect(container.result.tag).toBe('2.9.1-alpine');
+            expect(container.updateAvailable).toBe(false);
+
+            storeContainer.getContainer.mockReturnValue(undefined);
+            storeContainer.insertContainer.mockImplementation((c) => c);
+
+            const report = await docker.checkContainer(container);
+
+            expect(report.container.error).toEqual({
+                message:
+                    'Failed to fetch tags from registry (registry unavailable)',
+            });
+            expect(report.container.result.tag).toBe('2.9.1-alpine');
+            expect(report.container.updateAvailable).toBe(false);
+        });
+
+        test('addImageDetailsToContainer invalidates cache when the stored upstream registry is no longer registered', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            docker.log = fullLog();
+            const containerModule = await import('../../../model/container');
+            containerModule.validate.mockImplementation((value) => value);
+            registry.getState.mockReturnValue({
+                registry: { hub: hubProvider() },
+            });
+            storeContainer.getContainer.mockReturnValue({
+                id: '123',
+                name: 'caddy',
+                displayName: 'caddy',
+                status: 'running',
+                image: {
+                    registry: {
+                        name: 'hub',
+                        url: 'https://registry-1.docker.io/v2',
+                    },
+                    name: 'library/caddy-porkbun',
+                    tag: { value: '2.9.1-alpine', semver: true },
+                    digest: { watch: false },
+                    upstream: {
+                        ...upstream,
+                        registry: {
+                            name: 'deleted_upstream_registry',
+                            url: 'https://registry-1.docker.io/v2',
+                        },
+                    },
+                },
+                labels: { 'wud.image.name': 'caddy' },
+            });
+            mockImage.inspect.mockResolvedValue({
+                Id: 'sha256:abc',
+                Architecture: 'amd64',
+                Os: 'linux',
+                RepoTags: ['caddy-porkbun:2.9.1-alpine'],
+            });
+            mockParse
+                // validity check of the declared upstream (cache check)
+                .mockReturnValueOnce({ path: 'caddy' })
+                // re-evaluation: container image + upstream image
+                .mockReturnValueOnce({
+                    path: 'caddy-porkbun',
+                    tag: '2.9.1-alpine',
+                })
+                .mockReturnValueOnce({ path: 'caddy' });
+
+            const result = await docker.addImageDetailsToContainer({
+                Id: '123',
+                Image: 'caddy-porkbun:2.9.1-alpine',
+                Names: ['/caddy'],
+                State: 'running',
+                Labels: { 'wud.image.name': 'caddy' },
+            });
+
+            expect(mockImage.inspect).toHaveBeenCalled();
+            expect(docker.log.info).toHaveBeenCalledWith(
+                expect.stringContaining(
+                    'upstream registry (deleted_upstream_registry) is no longer registered',
+                ),
+            );
+            expect(result.image.upstream.registry.name).toBe('hub');
+        });
     });
 });

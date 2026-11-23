@@ -2211,6 +2211,8 @@ export class Docker extends Watcher {
             containerInStore.error === undefined
         ) {
             const storeRegistryName = containerInStore.image?.registry?.name;
+            const storeUpstreamRegistryName =
+                containerInStore.image?.upstream?.registry?.name;
             // The upstream image derives from labels: when the declared
             // reference changed, the lookup target changed and the container
             // must be fully re-evaluated (only when labels were provided).
@@ -2235,6 +2237,15 @@ export class Docker extends Watcher {
                 if (this.log && typeof this.log.info === 'function') {
                     this.log.info(
                         `Container ${containerInStore.id} registry (${storeRegistryName}) is no longer registered, re-evaluating container`,
+                    );
+                }
+            } else if (
+                storeUpstreamRegistryName &&
+                !hasRegistry(storeUpstreamRegistryName)
+            ) {
+                if (this.log && typeof this.log.info === 'function') {
+                    this.log.info(
+                        `Container ${containerInStore.id} upstream registry (${storeUpstreamRegistryName}) is no longer registered, re-evaluating container`,
                     );
                 }
             } else if (upstreamChanged) {
@@ -2640,7 +2651,7 @@ export class Docker extends Watcher {
             result: (options?.forceRefresh
                 ? undefined
                 : containerInStore?.result) ?? {
-                tag: tagName,
+                tag: upstream?.tag ?? tagName,
             },
             updateAvailable: false,
             updateKind: { kind: 'unknown' },
