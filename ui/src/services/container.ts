@@ -84,6 +84,36 @@ async function runTrigger({
   return response.json();
 }
 
+async function runTriggerBatch({
+  containerIds,
+  triggerType,
+  triggerName,
+  overrideCooldown,
+}: {
+  containerIds: string[];
+  triggerType: string;
+  triggerName: string;
+  overrideCooldown?: boolean;
+}) {
+  if (isDemoMode()) {
+    return mockService.runContainerTriggerBatch({ containerIds, triggerType, triggerName, overrideCooldown });
+  }
+  const response = await fetch(url(`api/containers/triggers/${triggerType}/${triggerName}`), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      containers: containerIds,
+      ...(overrideCooldown !== undefined ? { overrideCooldown } : {}),
+    }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || response.statusText);
+  }
+  return response.json();
+}
+
 async function snoozeContainer(
   containerId: string,
   { version, until }: { version?: string; until?: number } = {},
@@ -129,4 +159,5 @@ export {
   unsnoozeContainer,
   getContainerTriggers,
   runTrigger,
+  runTriggerBatch,
 };

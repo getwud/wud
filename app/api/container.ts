@@ -8,6 +8,7 @@ import { mapComponentsToList } from './component';
 import { getAssociatedTriggerIds } from '../triggers/associatedTriggers';
 import { requireRole } from './rbac';
 import logger from '../log';
+import { Container } from '../model/container';
 const log = logger.child({ component: 'container' });
 
 const router = express.Router();
@@ -212,6 +213,89 @@ export async function runTriggerForContainer(req, res) {
 }
 
 /**
+ * Run a trigger once for a batch of containers.
+ * Batch-capable triggers (e.g. dockercompose) receive all containers in a
+ * single call so a compose stack is rewritten and recreated only once.
+ * @param {*} req
+ * @param {*} res
+ */
+export async function runTriggerForContainers(req, res) {
+    const { triggerType, triggerName } = req.params;
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const containerIds = body.containers;
+
+    if (
+        !Array.isArray(containerIds) ||
+        containerIds.length === 0 ||
+        containerIds.some((id) => typeof id !== 'string' || id.length === 0)
+    ) {
+        res.status(400).json({
+            error: 'Bad Request',
+            message:
+                'Request body must contain a non-empty "containers" array of container ids',
+        });
+        return;
+    }
+
+    const triggerToRun = getTriggers()[`${triggerType}.${triggerName}`];
+    if (!triggerToRun) {
+        res.status(404).json({
+            error: 'Not found',
+            message: 'Trigger not found',
+        });
+        return;
+    }
+
+    const containersToTrigger: Container[] = [];
+    const missingContainerIds: string[] = [];
+    for (const id of new Set<string>(containerIds)) {
+        const container = storeContainer.getContainer(id);
+        if (container) {
+            containersToTrigger.push(container);
+        } else {
+            missingContainerIds.push(id);
+        }
+    }
+    if (missingContainerIds.length > 0) {
+        res.status(404).json({
+            error: 'Not found',
+            message: `Container not found (${missingContainerIds.join(', ')})`,
+        });
+        return;
+    }
+
+    const overrideCooldown =
+        req.query?.overrideCooldown === 'true' ||
+        req.query?.overrideCooldown === true ||
+        body.overrideCooldown === true ||
+        body.overrideCooldown === 'true';
+    if (overrideCooldown) {
+        containersToTrigger.forEach((container) => {
+            container.overrideCooldown = true;
+        });
+    }
+
+    const containerNames = containersToTrigger
+        .map((container) => container.name)
+        .join(', ');
+    try {
+        await triggerToRun.triggerBatch(containersToTrigger);
+        log.info(
+            `Trigger executed with success (type=${triggerType}, name=${triggerName}, containers=${containerNames})`,
+        );
+        res.status(200).json({});
+    } catch (e) {
+        log.warn(
+            `Error when running trigger (type=${triggerType}, name=${triggerName}, containers=${containerNames}) (${e.message})`,
+        );
+        res.status(500).json({
+            error: 'Trigger execution failed',
+            message: `Error when running trigger (type=${triggerType}, name=${triggerName}) (${e.message})`,
+        });
+    }
+}
+
+/**
  * Watch an image.
  * @param req
  * @param res
@@ -325,6 +409,11 @@ export function init() {
         '/watch',
         requireRole(['admin', 'rw'], 'write'),
         watchContainers,
+    );
+    router.post(
+        '/triggers/:triggerType/:triggerName',
+        requireRole(['admin', 'rw'], 'write'),
+        runTriggerForContainers,
     );
     router.get(
         '/:id',

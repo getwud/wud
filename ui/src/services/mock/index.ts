@@ -214,6 +214,14 @@ export const mockService = {
     };
   },
 
+  async runContainerTriggerBatch({ containerIds, triggerType, triggerName, overrideCooldown }: any) {
+    await delay(500);
+    return {
+      status: 200,
+      message: `Trigger ${triggerType}.${triggerName} executed for containers ${(containerIds || []).join(', ')}${overrideCooldown ? ' (cooldown overridden)' : ''}`,
+    };
+  },
+
   // Registries
   async getAllRegistries() {
     await delay(150);

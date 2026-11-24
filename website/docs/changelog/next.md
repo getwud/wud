@@ -3,12 +3,8 @@ title: Next (Unreleased)
 description: Unreleased changes and upcoming features in WUD (What's Up Docker?).
 ---
 
-# Next (Unreleased)
-
-> Changes below are merged on `main` and will be included in the upcoming release.
-
----
-
+- 🚀 [API] Add `POST /api/containers/triggers/{type}/{name}` to run a trigger once for several containers, so batch-capable triggers such as `dockercompose` rewrite and recreate a compose stack only once (#767, #1410)
+- 🚀 [UI] Select several containers on the Containers page and update them together with "Update selected"; "Add rest of stack" completes the selection with the other updatable containers of the same compose stack(s) (#767, #1410)
 - 🚀 [WATCHER] Track the upstream (base) image of locally built containers with the `wud.image.name` label or the OCI `org.opencontainers.image.base.name` annotation; registry lookups target the upstream image, digest watching is disabled and pull-based update triggers refuse such containers; the UI flags these containers and switches the update flow to a rebuild (fixes #664)
 - 🐛 [CORE] Fix Docker HEALTHCHECK POSIX shell syntax and support TLS when `WUD_SERVER_TLS_ENABLED=true` (fixes #1580)
 - 🐛 [TRIGGER] Adopt the new image `HEALTHCHECK` when recreating a container instead of carrying over the one inherited from the old image

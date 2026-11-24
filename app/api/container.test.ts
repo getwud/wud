@@ -58,6 +58,10 @@ describe('API Container', () => {
         app.delete('/:id/snooze', containerRouterLocal.unsnoozeContainer);
         app.get('/:id/triggers', containerRouterLocal.getContainerTriggers);
         app.post(
+            '/triggers/:triggerType/:triggerName',
+            containerRouterLocal.runTriggerForContainers,
+        );
+        app.post(
             '/:id/triggers/:triggerType/:triggerName',
             containerRouterLocal.runTriggerForContainer,
         );
@@ -643,6 +647,190 @@ describe('API Container', () => {
             const res = await request(app).delete('/container1/snooze');
             expect(res.status).toBe(500);
             expect(res.body.message).toBe('store error');
+        });
+    });
+
+    describe('runTriggerForContainers (batch)', () => {
+        let containers;
+
+        beforeEach(() => {
+            // Fresh objects per test: the handler mutates them (overrideCooldown)
+            containers = {
+                container1: {
+                    id: 'container1',
+                    name: 'app',
+                    updateAvailable: true,
+                },
+                container2: {
+                    id: 'container2',
+                    name: 'db',
+                    updateAvailable: true,
+                },
+            };
+            (storeContainer.getContainer as jest.Mock).mockImplementation(
+                (id) => containers[id],
+            );
+        });
+
+        test('should run triggerBatch once with all containers', async () => {
+            const triggerBatch = jest.fn().mockResolvedValue(undefined);
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': { triggerBatch } },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({ containers: ['container1', 'container2'] });
+
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual({});
+            expect(triggerBatch).toHaveBeenCalledTimes(1);
+            expect(triggerBatch).toHaveBeenCalledWith([
+                containers.container1,
+                containers.container2,
+            ]);
+        });
+
+        test('should deduplicate container ids', async () => {
+            const triggerBatch = jest.fn().mockResolvedValue(undefined);
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': { triggerBatch } },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({ containers: ['container1', 'container1'] });
+
+            expect(res.status).toBe(200);
+            expect(triggerBatch).toHaveBeenCalledWith([containers.container1]);
+        });
+
+        test('should set overrideCooldown on every container when requested in body', async () => {
+            const triggerBatch = jest.fn().mockResolvedValue(undefined);
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': { triggerBatch } },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({
+                    containers: ['container1', 'container2'],
+                    overrideCooldown: true,
+                });
+
+            expect(res.status).toBe(200);
+            expect(triggerBatch).toHaveBeenCalledWith([
+                expect.objectContaining({
+                    id: 'container1',
+                    overrideCooldown: true,
+                }),
+                expect.objectContaining({
+                    id: 'container2',
+                    overrideCooldown: true,
+                }),
+            ]);
+        });
+
+        test('should set overrideCooldown when requested as query parameter', async () => {
+            const triggerBatch = jest.fn().mockResolvedValue(undefined);
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': { triggerBatch } },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main?overrideCooldown=true')
+                .send({ containers: ['container1'] });
+
+            expect(res.status).toBe(200);
+            expect(triggerBatch).toHaveBeenCalledWith([
+                expect.objectContaining({
+                    id: 'container1',
+                    overrideCooldown: true,
+                }),
+            ]);
+        });
+
+        test('should not set overrideCooldown when not requested', async () => {
+            const triggerBatch = jest.fn().mockResolvedValue(undefined);
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': { triggerBatch } },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({ containers: ['container1'] });
+
+            expect(res.status).toBe(200);
+            expect(triggerBatch.mock.calls[0][0][0]).not.toHaveProperty(
+                'overrideCooldown',
+            );
+        });
+
+        test.each([
+            ['missing body', undefined],
+            ['missing containers', {}],
+            ['empty containers', { containers: [] }],
+            ['containers not an array', { containers: 'container1' }],
+            ['non-string ids', { containers: ['container1', 42] }],
+            ['empty id', { containers: [''] }],
+        ])('should return 400 when %s', async (_label, body) => {
+            const triggerBatch = jest.fn();
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': { triggerBatch } },
+            });
+
+            const req = request(app).post('/triggers/dockercompose/main');
+            const res = body === undefined ? await req : await req.send(body);
+
+            expect(res.status).toBe(400);
+            expect(res.body.error).toBe('Bad Request');
+            expect(triggerBatch).not.toHaveBeenCalled();
+        });
+
+        test('should return 404 when trigger is unknown', async () => {
+            (registry.getState as jest.Mock).mockReturnValue({ trigger: {} });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/unknown')
+                .send({ containers: ['container1'] });
+
+            expect(res.status).toBe(404);
+            expect(res.body.message).toBe('Trigger not found');
+        });
+
+        test('should return 404 listing unknown containers without running the trigger', async () => {
+            const triggerBatch = jest.fn();
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': { triggerBatch } },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({ containers: ['container1', 'nope1', 'nope2'] });
+
+            expect(res.status).toBe(404);
+            expect(res.body.message).toBe('Container not found (nope1, nope2)');
+            expect(triggerBatch).not.toHaveBeenCalled();
+        });
+
+        test('should return 500 when triggerBatch fails', async () => {
+            const triggerBatch = jest
+                .fn()
+                .mockRejectedValue(new Error('compose file locked'));
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': { triggerBatch } },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({ containers: ['container1', 'container2'] });
+
+            expect(res.status).toBe(500);
+            expect(res.body).toEqual({
+                error: 'Trigger execution failed',
+                message:
+                    'Error when running trigger (type=dockercompose, name=main) (compose file locked)',
+            });
         });
     });
 });

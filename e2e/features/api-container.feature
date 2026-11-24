@@ -81,3 +81,19 @@ Feature: WUD Container API Exposure
     Then response code should be 200
     And response body should be valid json
     And response body path $.result.tag should be v16.1.0
+  # Batch trigger endpoint (run a trigger once for several containers)
+  Scenario: WUD must reject a batch trigger run without containers with 400
+    Given I set Content-Type header to application/json
+    And I set body to {"containers":[]}
+    When I POST to /api/containers/triggers/docker/local
+    Then response code should be 400
+    And response body should be valid json
+    And response body path $.error should be Bad Request
+
+  Scenario: WUD must reject a batch trigger run on an unknown trigger with 404
+    Given I set Content-Type header to application/json
+    And I set body to {"containers":["unknown"]}
+    When I POST to /api/containers/triggers/unknown/unknown
+    Then response code should be 404
+    And response body should be valid json
+    And response body path $.message should be Trigger not found
