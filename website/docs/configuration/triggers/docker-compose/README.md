@@ -87,7 +87,7 @@ import TabItem from '@theme/TabItem';
     required={false}
     type="boolean"
     defaultValue="true">
-    When `false`, WUD only rewrites the Compose file with the new image versions (honoring `BACKUP`) and does **not** pull images, recreate services, run update hooks or roll back. The containers keep showing the update as available until you apply it yourself with `docker compose up -d`. `DRYRUN` still takes precedence and writes nothing
+    When `false`, WUD only rewrites the Compose file (atomically, honoring `BACKUP`, and only when an image reference actually changes) and does **not** pull images, recreate services, run update hooks or roll back. The containers keep showing the update as available until you apply it yourself with `docker compose up -d`. With `DRYRUN=true` nothing is written or pulled
   </ConfigOption>
 
   <ConfigOption
@@ -345,7 +345,7 @@ services:
 ### 🔄 Docker Compose Convergence & Metadata
 
 - WUD updates the Compose YAML on disk and recreates the container via the Docker Engine API.
-- When several services of the same Compose file are updated together (automatic batch, or a multi-container selection on the Containers page), the file is rewritten once and services are recreated in `depends_on` order: dependencies first, dependents afterwards, independent services in parallel. Dependencies on services that are not part of the update are ignored.
+- When several services of the same Compose file are updated together (automatic batch, or a multi-container selection on the Containers page), the file is rewritten once and services are recreated in `depends_on` order: dependencies first, dependents afterwards, independent services in parallel. The order is derived from the whole file, so a dependency through a service that is not updated still counts. When a dependent declares `condition: service_healthy`, WUD waits for the dependency to report healthy (bounded by `ROLLBACKWINDOW` / `ROLLBACKINTERVAL`) before recreating it. A failed service stops the recreation of the services that depend on it, a dependency cycle is logged and its services are recreated together, and the container WUD itself runs in is always recreated last.
 - WUD synchronizes `com.docker.compose.image` with the newly pulled image ID.
 - `com.docker.compose.config-hash` is an internal Docker Compose hash computed exclusively by the Docker Compose Go CLI; subsequent manual or automated `docker compose up` calls will smoothly converge the hash, or users can pass `docker compose up -d --no-recreate` if they wish to keep the existing running container instance.
 
