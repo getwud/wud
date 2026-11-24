@@ -129,11 +129,11 @@ describe('ContainerBatchUpdateDialog.vue', () => {
     expect(keys).toEqual(['command.rebuild']);
   });
 
-  it('runs the batch once with all ids, overriding cool-down when any container is cooling down', async () => {
+  it('runs the batch once with all ids and never overrides cool-down', async () => {
     const wrapper = mountDialog();
     await flush(wrapper);
 
-    expect(wrapper.text()).toContain('Update now');
+    expect(wrapper.text()).not.toContain('Update now');
     await (wrapper.vm as any).confirmUpdate();
 
     expect(containerService.runTriggerBatch).toHaveBeenCalledTimes(1);
@@ -141,7 +141,6 @@ describe('ContainerBatchUpdateDialog.vue', () => {
       containerIds: ['c-app', 'c-db'],
       triggerType: 'dockercompose',
       triggerName: 'main',
-      overrideCooldown: true,
     });
     expect(mockEventBus.emit).toHaveBeenCalledWith(
       'notify',
@@ -151,17 +150,18 @@ describe('ContainerBatchUpdateDialog.vue', () => {
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([false]);
   });
 
-  it('does not send overrideCooldown when no container is cooling down', async () => {
-    const wrapper = mountDialog([app, { ...db, isCoolingDown: false }]);
+  it('excludes triggers that declare no batch support', async () => {
+    (containerService.getContainerTriggers as jest.Mock).mockResolvedValue([
+      { ...composeTrigger, supportsBatch: false },
+      { ...dockerTrigger, supportsBatch: true },
+      smtpTrigger,
+    ]);
+
+    const wrapper = mountDialog();
     await flush(wrapper);
 
-    await (wrapper.vm as any).confirmUpdate();
-
-    expect(containerService.runTriggerBatch).toHaveBeenCalledWith({
-      containerIds: ['c-app', 'c-db'],
-      triggerType: 'dockercompose',
-      triggerName: 'main',
-    });
+    const keys = (wrapper.vm as any).triggers.map((t: any) => `${t.type}.${t.name}`);
+    expect(keys).toEqual(['docker.local']);
   });
 
   it('notifies an error and keeps the dialog open when the batch fails', async () => {

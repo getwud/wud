@@ -203,6 +203,7 @@ export const mockService = {
       configuration: {
         threshold: t.configuration.threshold || "all",
       },
+      supportsBatch: t.type !== "mqtt",
     }));
   },
 

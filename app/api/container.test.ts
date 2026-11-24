@@ -652,6 +652,10 @@ describe('API Container', () => {
 
     describe('runTriggerForContainers (batch)', () => {
         let containers;
+        const batchTrigger = (triggerBatch) => ({
+            triggerBatch,
+            supportsBatch: () => true,
+        });
 
         beforeEach(() => {
             // Fresh objects per test: the handler mutates them (overrideCooldown)
@@ -666,6 +670,17 @@ describe('API Container', () => {
                     name: 'db',
                     updateAvailable: true,
                 },
+                uptodate: {
+                    id: 'uptodate',
+                    name: 'cache',
+                    updateAvailable: false,
+                },
+                snoozed: {
+                    id: 'snoozed',
+                    name: 'proxy',
+                    updateAvailable: true,
+                    isSnoozed: true,
+                },
             };
             (storeContainer.getContainer as jest.Mock).mockImplementation(
                 (id) => containers[id],
@@ -675,7 +690,7 @@ describe('API Container', () => {
         test('should run triggerBatch once with all containers', async () => {
             const triggerBatch = jest.fn().mockResolvedValue(undefined);
             (registry.getState as jest.Mock).mockReturnValue({
-                trigger: { 'dockercompose.main': { triggerBatch } },
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
             });
 
             const res = await request(app)
@@ -694,7 +709,7 @@ describe('API Container', () => {
         test('should deduplicate container ids', async () => {
             const triggerBatch = jest.fn().mockResolvedValue(undefined);
             (registry.getState as jest.Mock).mockReturnValue({
-                trigger: { 'dockercompose.main': { triggerBatch } },
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
             });
 
             const res = await request(app)
@@ -705,10 +720,43 @@ describe('API Container', () => {
             expect(triggerBatch).toHaveBeenCalledWith([containers.container1]);
         });
 
+        test('should skip containers without a pending update or snoozed', async () => {
+            const triggerBatch = jest.fn().mockResolvedValue(undefined);
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({
+                    containers: ['uptodate', 'container1', 'snoozed'],
+                });
+
+            expect(res.status).toBe(200);
+            expect(triggerBatch).toHaveBeenCalledWith([containers.container1]);
+        });
+
+        test('should return 400 when no container has a pending update', async () => {
+            const triggerBatch = jest.fn();
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({ containers: ['uptodate', 'snoozed'] });
+
+            expect(res.status).toBe(400);
+            expect(res.body.message).toBe(
+                'None of the containers has a pending update',
+            );
+            expect(triggerBatch).not.toHaveBeenCalled();
+        });
+
         test('should set overrideCooldown on every container when requested in body', async () => {
             const triggerBatch = jest.fn().mockResolvedValue(undefined);
             (registry.getState as jest.Mock).mockReturnValue({
-                trigger: { 'dockercompose.main': { triggerBatch } },
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
             });
 
             const res = await request(app)
@@ -734,7 +782,7 @@ describe('API Container', () => {
         test('should set overrideCooldown when requested as query parameter', async () => {
             const triggerBatch = jest.fn().mockResolvedValue(undefined);
             (registry.getState as jest.Mock).mockReturnValue({
-                trigger: { 'dockercompose.main': { triggerBatch } },
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
             });
 
             const res = await request(app)
@@ -753,7 +801,7 @@ describe('API Container', () => {
         test('should not set overrideCooldown when not requested', async () => {
             const triggerBatch = jest.fn().mockResolvedValue(undefined);
             (registry.getState as jest.Mock).mockReturnValue({
-                trigger: { 'dockercompose.main': { triggerBatch } },
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
             });
 
             const res = await request(app)
@@ -773,10 +821,15 @@ describe('API Container', () => {
             ['containers not an array', { containers: 'container1' }],
             ['non-string ids', { containers: ['container1', 42] }],
             ['empty id', { containers: [''] }],
+            ['body is an array', ['container1']],
+            [
+                'invalid overrideCooldown',
+                { containers: ['container1'], overrideCooldown: 'maybe' },
+            ],
         ])('should return 400 when %s', async (_label, body) => {
             const triggerBatch = jest.fn();
             (registry.getState as jest.Mock).mockReturnValue({
-                trigger: { 'dockercompose.main': { triggerBatch } },
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
             });
 
             const req = request(app).post('/triggers/dockercompose/main');
@@ -784,6 +837,7 @@ describe('API Container', () => {
 
             expect(res.status).toBe(400);
             expect(res.body.error).toBe('Bad Request');
+            expect(res.body.message).toContain('Invalid request body');
             expect(triggerBatch).not.toHaveBeenCalled();
         });
 
@@ -798,10 +852,36 @@ describe('API Container', () => {
             expect(res.body.message).toBe('Trigger not found');
         });
 
+        test.each([
+            ['declares no batch support', { supportsBatch: () => false }],
+            ['has no supportsBatch method', {}],
+        ])(
+            'should return 400 before resolving containers when the trigger %s',
+            async (_label, triggerShape) => {
+                const triggerBatch = jest.fn();
+                (registry.getState as jest.Mock).mockReturnValue({
+                    trigger: {
+                        'mqtt.home': { triggerBatch, ...triggerShape },
+                    },
+                });
+
+                const res = await request(app)
+                    .post('/triggers/mqtt/home')
+                    .send({ containers: ['does-not-exist'] });
+
+                expect(res.status).toBe(400);
+                expect(res.body.message).toBe(
+                    'Trigger mqtt.home does not support batch execution',
+                );
+                expect(storeContainer.getContainer).not.toHaveBeenCalled();
+                expect(triggerBatch).not.toHaveBeenCalled();
+            },
+        );
+
         test('should return 404 listing unknown containers without running the trigger', async () => {
             const triggerBatch = jest.fn();
             (registry.getState as jest.Mock).mockReturnValue({
-                trigger: { 'dockercompose.main': { triggerBatch } },
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
             });
 
             const res = await request(app)
@@ -818,7 +898,7 @@ describe('API Container', () => {
                 .fn()
                 .mockRejectedValue(new Error('compose file locked'));
             (registry.getState as jest.Mock).mockReturnValue({
-                trigger: { 'dockercompose.main': { triggerBatch } },
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
             });
 
             const res = await request(app)
@@ -831,6 +911,39 @@ describe('API Container', () => {
                 message:
                     'Error when running trigger (type=dockercompose, name=main) (compose file locked)',
             });
+        });
+
+        test('should expose supportsBatch in the triggers of a container', async () => {
+            (storeContainer.getContainer as jest.Mock).mockReturnValue({
+                id: 'container1',
+                labels: {},
+            });
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: {
+                    'dockercompose.main': {
+                        type: 'dockercompose',
+                        name: 'main',
+                        configuration: { includebydefault: true },
+                        maskConfiguration: () => ({}),
+                        supportsBatch: () => true,
+                    },
+                    'mqtt.home': {
+                        type: 'mqtt',
+                        name: 'home',
+                        configuration: { includebydefault: true },
+                        maskConfiguration: () => ({}),
+                        supportsBatch: () => false,
+                    },
+                },
+            });
+
+            const res = await request(app).get('/container1/triggers');
+
+            expect(res.status).toBe(200);
+            expect(res.body.map((t) => [t.id, t.supportsBatch])).toEqual([
+                ['dockercompose.main', true],
+                ['mqtt.home', false],
+            ]);
         });
     });
 });

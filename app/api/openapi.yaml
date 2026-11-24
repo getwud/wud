@@ -310,7 +310,7 @@ paths:
             tags:
                 - Containers
             summary: Run a trigger once for a batch of containers
-            description: Runs the trigger a single time with all the given containers. Batch-capable triggers such as dockercompose rewrite and recreate each compose stack only once.
+            description: Runs the trigger a single time with all the given containers that have a pending, non-snoozed update. Batch-capable triggers such as dockercompose rewrite and recreate each compose stack only once. Triggers without batch support (`supportsBatch` is false, e.g. mqtt) are rejected with 400.
             operationId: runTriggerForContainers
             parameters:
                 - in: path
@@ -352,13 +352,13 @@ paths:
                 '200':
                     description: OK
                 '400':
-                    description: Bad Request
+                    description: Bad Request (invalid body, trigger without batch support, or no container with a pending update)
                     content:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/ErrorResponse'
                 '404':
-                    description: Not Found
+                    description: Not Found (unknown trigger or container)
                     content:
                         application/json:
                             schema:

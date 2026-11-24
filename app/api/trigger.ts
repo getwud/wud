@@ -111,6 +111,7 @@ interface TriggerApiItem {
     name: string;
     configuration: Record<string, unknown>;
     supportsSimulation: boolean;
+    supportsBatch: boolean;
 }
 
 function mapTriggerToItem(id: string, trigger: Trigger): TriggerApiItem {
@@ -122,6 +123,10 @@ function mapTriggerToItem(id: string, trigger: Trigger): TriggerApiItem {
         supportsSimulation:
             typeof trigger.supportsSimulation === 'function'
                 ? trigger.supportsSimulation()
+                : false,
+        supportsBatch:
+            typeof trigger.supportsBatch === 'function'
+                ? trigger.supportsBatch()
                 : false,
     };
 }

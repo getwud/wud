@@ -8,6 +8,7 @@ import { mapComponentsToList } from './component';
 import { getAssociatedTriggerIds } from '../triggers/associatedTriggers';
 import { requireRole } from './rbac';
 import logger from '../log';
+import joi from 'joi';
 import { Container } from '../model/container';
 const log = logger.child({ component: 'container' });
 
@@ -212,6 +213,13 @@ export async function runTriggerForContainer(req, res) {
     }
 }
 
+const runTriggerForContainersSchema = joi
+    .object({
+        containers: joi.array().items(joi.string().min(1)).min(1).required(),
+        overrideCooldown: joi.boolean().truthy('true').falsy('false'),
+    })
+    .options({ stripUnknown: true, convert: true });
+
 /**
  * Run a trigger once for a batch of containers.
  * Batch-capable triggers (e.g. dockercompose) receive all containers in a
@@ -221,21 +229,20 @@ export async function runTriggerForContainer(req, res) {
  */
 export async function runTriggerForContainers(req, res) {
     const { triggerType, triggerName } = req.params;
-    const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const containerIds = body.containers;
 
-    if (
-        !Array.isArray(containerIds) ||
-        containerIds.length === 0 ||
-        containerIds.some((id) => typeof id !== 'string' || id.length === 0)
-    ) {
+    const { error, value } = runTriggerForContainersSchema.validate(
+        req.body && typeof req.body === 'object' && !Array.isArray(req.body)
+            ? req.body
+            : {},
+    );
+    if (error) {
         res.status(400).json({
             error: 'Bad Request',
-            message:
-                'Request body must contain a non-empty "containers" array of container ids',
+            message: `Invalid request body (${error.message})`,
         });
         return;
     }
+    const containerIds: string[] = [...new Set<string>(value.containers)];
 
     const triggerToRun = getTriggers()[`${triggerType}.${triggerName}`];
     if (!triggerToRun) {
@@ -245,13 +252,23 @@ export async function runTriggerForContainers(req, res) {
         });
         return;
     }
+    if (
+        typeof triggerToRun.supportsBatch !== 'function' ||
+        !triggerToRun.supportsBatch()
+    ) {
+        res.status(400).json({
+            error: 'Bad Request',
+            message: `Trigger ${triggerType}.${triggerName} does not support batch execution`,
+        });
+        return;
+    }
 
-    const containersToTrigger: Container[] = [];
+    const containers: Container[] = [];
     const missingContainerIds: string[] = [];
-    for (const id of new Set<string>(containerIds)) {
+    for (const id of containerIds) {
         const container = storeContainer.getContainer(id);
         if (container) {
-            containersToTrigger.push(container);
+            containers.push(container);
         } else {
             missingContainerIds.push(id);
         }
@@ -264,11 +281,29 @@ export async function runTriggerForContainers(req, res) {
         return;
     }
 
+    // Notification triggers do not filter on their own: only hand over
+    // containers with a pending, non-snoozed update.
+    const containersToTrigger = containers.filter((container) => {
+        if (!container.updateAvailable || container.isSnoozed) {
+            log.info(
+                `Container ${container.name} has no pending update => skipped from batch (type=${triggerType}, name=${triggerName})`,
+            );
+            return false;
+        }
+        return true;
+    });
+    if (containersToTrigger.length === 0) {
+        res.status(400).json({
+            error: 'Bad Request',
+            message: 'None of the containers has a pending update',
+        });
+        return;
+    }
+
     const overrideCooldown =
         req.query?.overrideCooldown === 'true' ||
         req.query?.overrideCooldown === true ||
-        body.overrideCooldown === true ||
-        body.overrideCooldown === 'true';
+        value.overrideCooldown === true;
     if (overrideCooldown) {
         containersToTrigger.forEach((container) => {
             container.overrideCooldown = true;

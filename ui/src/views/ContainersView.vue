@@ -923,8 +923,12 @@ export default defineComponent({
       }
     },
 
+    // Batch updates are for plain available updates: cool-down overrides and
+    // snoozed versions stay on the single-container update dialog.
     isSelectable(container: any): boolean {
-      return Boolean(container?.updateAvailable);
+      return Boolean(
+        container?.updateAvailable && !container.isCoolingDown && !container.isSnoozed,
+      );
     },
 
     addStacksToSelection() {

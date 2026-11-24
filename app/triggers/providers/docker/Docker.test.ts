@@ -4027,6 +4027,74 @@ describe('Upstream image tracking (#664)', () => {
         expect(triggerSpy).toHaveBeenCalledWith(regularContainer);
         triggerSpy.mockRestore();
     });
+
+    describe('triggerBatch partial failures (#767)', () => {
+        const makeContainer = (name: string) => ({
+            id: `c-${name}`,
+            name,
+            watcher: 'test',
+            updateAvailable: true,
+            image: { name: `library/${name}` },
+        });
+
+        test('should let every sibling finish and rethrow a single failure as is', async () => {
+            const failure = new Error('pull failed');
+            const order: string[] = [];
+            const triggerSpy = jest
+                .spyOn(docker, 'trigger')
+                .mockImplementation(async (container: any) => {
+                    if (container.name === 'a') {
+                        throw failure;
+                    }
+                    await new Promise((resolve) => setTimeout(resolve, 5));
+                    order.push(container.name);
+                });
+
+            await expect(
+                docker.triggerBatch([
+                    makeContainer('a'),
+                    makeContainer('b'),
+                    makeContainer('c'),
+                ]),
+            ).rejects.toBe(failure);
+
+            // b and c were not orphaned by a's failure
+            expect(order.sort()).toEqual(['b', 'c']);
+            expect(triggerSpy).toHaveBeenCalledTimes(3);
+            triggerSpy.mockRestore();
+        });
+
+        test('should aggregate several failures', async () => {
+            const triggerSpy = jest
+                .spyOn(docker, 'trigger')
+                .mockImplementation(async (container: any) => {
+                    if (container.name !== 'ok') {
+                        throw new Error(`${container.name} failed`);
+                    }
+                });
+
+            await expect(
+                docker.triggerBatch([
+                    makeContainer('a'),
+                    makeContainer('ok'),
+                    makeContainer('b'),
+                ]),
+            ).rejects.toThrow(
+                '2 container updates failed (a: a failed; b: b failed)',
+            );
+            triggerSpy.mockRestore();
+        });
+
+        test('should resolve when every container succeeds', async () => {
+            const triggerSpy = jest
+                .spyOn(docker, 'trigger')
+                .mockResolvedValue(undefined);
+            await expect(
+                docker.triggerBatch([makeContainer('a'), makeContainer('b')]),
+            ).resolves.toBeUndefined();
+            triggerSpy.mockRestore();
+        });
+    });
 });
 
 describe('Post-update image prune conflict (#1588)', () => {

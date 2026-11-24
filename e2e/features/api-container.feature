@@ -97,3 +97,11 @@ Feature: WUD Container API Exposure
     Then response code should be 404
     And response body should be valid json
     And response body path $.message should be Trigger not found
+
+  Scenario: WUD must reject a batch trigger run on a trigger without batch support with 400
+    Given I set Content-Type header to application/json
+    And I set body to {"containers":["unknown"]}
+    When I POST to /api/containers/triggers/mqtt/e2e
+    Then response code should be 400
+    And response body should be valid json
+    And response body path $.message should be Trigger mqtt.e2e does not support batch execution

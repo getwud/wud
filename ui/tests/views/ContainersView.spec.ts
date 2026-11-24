@@ -1127,10 +1127,13 @@ describe('ContainersView', () => {
       await wrapper.vm.$nextTick();
     });
 
-    it('only allows selecting containers with an update available', () => {
+    it('only allows selecting containers with a plain available update', () => {
       expect(wrapper.vm.isSelectable(stackContainers[0])).toBe(true);
       expect(wrapper.vm.isSelectable(stackContainers[2])).toBe(false);
       expect(wrapper.vm.isSelectable(undefined)).toBe(false);
+      // cool-down overrides and snoozed versions stay on the single-container dialog
+      expect(wrapper.vm.isSelectable({ ...stackContainers[0], isCoolingDown: true })).toBe(false);
+      expect(wrapper.vm.isSelectable({ ...stackContainers[0], isSnoozed: true })).toBe(false);
     });
 
     it('exposes the selected containers and ignores ids that are not selectable', async () => {

@@ -78,17 +78,6 @@
           </v-list-item>
         </v-list>
 
-        <v-alert
-          v-if="hasCoolingDown"
-          type="info"
-          variant="tonal"
-          density="compact"
-          icon="mdi-timer-sand"
-          class="mt-3 text-caption"
-        >
-          Some containers are in cool-down. Updating now overrides the cool-down period for them.
-        </v-alert>
-
         <div v-if="loadingTriggers" class="text-center py-4">
           <v-progress-circular
             indeterminate
@@ -159,10 +148,10 @@
           size="small"
           :loading="isUpdating"
           :disabled="!selectedTrigger || isUpdating || triggers.length === 0 || containers.length === 0"
-          :prepend-icon="hasCoolingDown ? 'mdi-lightning-bolt' : 'mdi-package-down'"
+          prepend-icon="mdi-package-down"
           @click="confirmUpdate"
         >
-          {{ hasCoolingDown ? 'Update now' : 'Update' }}
+          Update
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -183,6 +172,7 @@ interface ContainerTriggerItem {
   type: string;
   name: string;
   configuration?: Record<string, unknown>;
+  supportsBatch?: boolean;
 }
 
 interface BatchContainer {
@@ -208,7 +198,6 @@ interface BatchContainer {
     tag?: string;
     digest?: string;
   };
-  isCoolingDown?: boolean;
 }
 
 type Filters = {
@@ -247,9 +236,6 @@ export default defineComponent({
   computed: {
     stacks(): string[] {
       return [...new Set(this.containers.map((c) => c.stack).filter(Boolean))] as string[];
-    },
-    hasCoolingDown(): boolean {
-      return this.containers.some((c) => c.isCoolingDown);
     },
     hasUpstreamTracked(): boolean {
       return this.containers.some((c) => Boolean(c.image?.upstream));
@@ -320,6 +306,7 @@ export default defineComponent({
     isUpdaterTrigger(trigger: ContainerTriggerItem): boolean {
       return (
         UPDATER_TRIGGER_TYPES.includes(trigger.type) &&
+        trigger.supportsBatch !== false &&
         (!this.hasUpstreamTracked || !PULL_BASED_TRIGGER_TYPES.includes(trigger.type))
       );
     },
@@ -382,7 +369,6 @@ export default defineComponent({
           containerIds: this.containers.map((c) => c.id),
           triggerType: this.selectedTrigger.type,
           triggerName: this.selectedTrigger.name,
-          ...(this.hasCoolingDown ? { overrideCooldown: true } : {}),
         });
         this.notify(`Update triggered successfully for ${this.containers.length} containers`);
         this.$emit("updated", this.selectedTrigger);
