@@ -3,7 +3,9 @@ import log from '../../../log';
 import Dockercompose, {
     doesContainerBelongToCompose,
     findServiceKeyForContainer,
+    getServiceDependencies,
     isMatchingServiceImage,
+    orderContainersByDependencies,
 } from './Dockercompose';
 import Docker from '../docker/Docker';
 import { testTriggerProvider } from '../TriggerTestHelper';
@@ -3054,6 +3056,342 @@ services:
             expect(successSpy).not.toHaveBeenCalled();
             expect(failureSpy).not.toHaveBeenCalled();
         });
+    });
+});
+
+describe('Stack-aware recreation (#1410)', () => {
+    const makeContainer = (service: string, image: string): any => ({
+        id: `c-${service}`,
+        name: service,
+        watcher: 'local',
+        updateAvailable: true,
+        labels: { 'com.docker.compose.service': service },
+        image: {
+            name: image,
+            tag: { value: '1.0.0', semver: true },
+            digest: { watch: false },
+            registry: { name: 'hub', url: 'hub.docker.com' },
+        },
+        updateKind: {
+            kind: 'tag',
+            localValue: '1.0.0',
+            remoteValue: '2.0.0',
+            semverDiff: 'major',
+        },
+        result: { tag: '2.0.0' },
+    });
+
+    const app = makeContainer('app', 'test/app');
+    const db = makeContainer('db', 'test/db');
+    const cache = makeContainer('cache', 'test/cache');
+    const worker = makeContainer('worker', 'test/worker');
+
+    const stackCompose = {
+        services: {
+            app: {
+                image: 'test/app:1.0.0',
+                depends_on: ['db', 'cache'],
+            },
+            worker: {
+                image: 'test/worker:1.0.0',
+                depends_on: { app: { condition: 'service_healthy' } },
+            },
+            db: { image: 'test/db:1.0.0' },
+            cache: { image: 'test/cache:1.0.0' },
+        },
+    };
+
+    describe('getServiceDependencies', () => {
+        test('reads the short list syntax', () => {
+            expect(
+                getServiceDependencies({ depends_on: ['db', 'cache'] }),
+            ).toEqual(['db', 'cache']);
+        });
+
+        test('reads the long map syntax', () => {
+            expect(
+                getServiceDependencies({
+                    depends_on: { db: { condition: 'service_healthy' } },
+                }),
+            ).toEqual(['db']);
+        });
+
+        test('returns an empty list without depends_on or for invalid input', () => {
+            expect(getServiceDependencies({ image: 'x' })).toEqual([]);
+            expect(getServiceDependencies(undefined)).toEqual([]);
+            expect(getServiceDependencies('db')).toEqual([]);
+            expect(getServiceDependencies({ depends_on: 'db' })).toEqual([]);
+            expect(getServiceDependencies({ depends_on: [1, 'db'] })).toEqual([
+                'db',
+            ]);
+        });
+    });
+
+    describe('orderContainersByDependencies', () => {
+        const names = (waves: any[][]) =>
+            waves.map((wave) => wave.map((c) => c.name).sort());
+
+        test('recreates dependencies before dependents, independent services together', () => {
+            const waves = orderContainersByDependencies(stackCompose, [
+                worker,
+                app,
+                cache,
+                db,
+            ]);
+            expect(names(waves)).toEqual([
+                ['cache', 'db'],
+                ['app'],
+                ['worker'],
+            ]);
+        });
+
+        test('ignores dependencies on services that are not being updated', () => {
+            const waves = orderContainersByDependencies(stackCompose, [
+                app,
+                worker,
+            ]);
+            expect(names(waves)).toEqual([['app'], ['worker']]);
+            expect(
+                names(orderContainersByDependencies(stackCompose, [app])),
+            ).toEqual([['app']]);
+        });
+
+        test('keeps a single wave when there is no dependency relation', () => {
+            expect(
+                names(orderContainersByDependencies(stackCompose, [db, cache])),
+            ).toEqual([['cache', 'db']]);
+        });
+
+        test('keeps replicas of the same service in the same wave', () => {
+            const appReplica = { ...app, id: 'c-app-2', name: 'app-2' };
+            const waves = orderContainersByDependencies(stackCompose, [
+                appReplica,
+                db,
+                app,
+            ]);
+            expect(names(waves)).toEqual([['db'], ['app', 'app-2']]);
+        });
+
+        test('falls back to a single wave on a dependency cycle', () => {
+            const cyclic = {
+                services: {
+                    app: { image: 'test/app:1.0.0', depends_on: ['db'] },
+                    db: { image: 'test/db:1.0.0', depends_on: ['app'] },
+                    cache: { image: 'test/cache:1.0.0' },
+                },
+            };
+            const waves = orderContainersByDependencies(cyclic, [
+                app,
+                db,
+                cache,
+            ]);
+            expect(names(waves)).toEqual([['cache'], ['app', 'db']]);
+        });
+
+        test('puts containers without a matching service in the first wave', () => {
+            const unknown = makeContainer('ghost', 'test/ghost');
+            const waves = orderContainersByDependencies(stackCompose, [
+                app,
+                unknown,
+                db,
+            ]);
+            expect(names(waves)).toEqual([['db', 'ghost'], ['app']]);
+            expect(
+                names(orderContainersByDependencies(stackCompose, [unknown])),
+            ).toEqual([['ghost']]);
+        });
+
+        test('returns no wave for an empty list', () => {
+            expect(orderContainersByDependencies(stackCompose, [])).toEqual([]);
+        });
+    });
+
+    describe('processComposeFile', () => {
+        let superTriggerSpy: jest.SpyInstance;
+        let preEventSpy: jest.SpyInstance;
+        let successEventSpy: jest.SpyInstance;
+        let preHookSpy: jest.SpyInstance;
+        let postHookSpy: jest.SpyInstance;
+        const composeYaml = yaml.stringify(stackCompose);
+
+        beforeEach(() => {
+            dockercompose.processComposeFile =
+                Dockercompose.prototype.processComposeFile;
+            dockercompose.configuration = {
+                ...configurationValid,
+                dryrun: false,
+                backup: false,
+            };
+            dockercompose.getComposeFileAsObject = jest
+                .fn()
+                .mockResolvedValue(yaml.parse(composeYaml));
+            dockercompose.getComposeFile = jest
+                .fn()
+                .mockResolvedValue(Buffer.from(composeYaml));
+            dockercompose.writeComposeFile = jest
+                .fn()
+                .mockResolvedValue(undefined);
+            dockercompose.backup = jest.fn().mockResolvedValue(undefined);
+            dockercompose.getWatcher = jest.fn().mockReturnValue({
+                dockerApi: {},
+            });
+            superTriggerSpy = jest
+                .spyOn(
+                    Object.getPrototypeOf(Dockercompose.prototype),
+                    'trigger',
+                )
+                .mockResolvedValue(undefined);
+            preEventSpy = jest
+                .spyOn(event, 'emitContainerUpdatePre')
+                .mockImplementation(() => {});
+            successEventSpy = jest
+                .spyOn(event, 'emitContainerUpdateSuccess')
+                .mockImplementation(() => {});
+            preHookSpy = jest
+                .spyOn(HookManager, 'runPreHooks')
+                .mockResolvedValue(undefined);
+            postHookSpy = jest
+                .spyOn(HookManager, 'runPostHooks')
+                .mockResolvedValue(undefined);
+        });
+
+        afterEach(() => {
+            superTriggerSpy.mockRestore();
+            preEventSpy.mockRestore();
+            successEventSpy.mockRestore();
+            preHookSpy.mockRestore();
+            postHookSpy.mockRestore();
+        });
+
+        test('recreates services wave by wave, waiting for dependencies first', async () => {
+            const timeline: string[] = [];
+            superTriggerSpy.mockImplementation(async (c: any) => {
+                timeline.push(`start:${c.name}`);
+                // dependencies are slow on purpose: dependents must still wait
+                await new Promise((resolve) =>
+                    setTimeout(resolve, c.name === 'db' ? 30 : 1),
+                );
+                timeline.push(`end:${c.name}`);
+            });
+
+            await dockercompose.processComposeFile('/path/compose.yml', [
+                worker,
+                app,
+                db,
+                cache,
+            ]);
+
+            expect(dockercompose.writeComposeFile).toHaveBeenCalledTimes(1);
+            expect(superTriggerSpy).toHaveBeenCalledTimes(4);
+            const indexOf = (entry: string) => timeline.indexOf(entry);
+            // db and cache start together, before app; app before worker
+            expect(indexOf('start:db')).toBeLessThan(indexOf('end:cache'));
+            expect(indexOf('start:cache')).toBeLessThan(indexOf('end:db'));
+            expect(indexOf('start:app')).toBeGreaterThan(indexOf('end:db'));
+            expect(indexOf('start:app')).toBeGreaterThan(indexOf('end:cache'));
+            expect(indexOf('start:worker')).toBeGreaterThan(indexOf('end:app'));
+            // lifecycle events still emitted once per container
+            expect(preEventSpy).toHaveBeenCalledTimes(4);
+            expect(successEventSpy).toHaveBeenCalledTimes(4);
+        });
+
+        test('passes the containers in dependency order to the rollback transaction', async () => {
+            const rollback = require('./rollback');
+            const transactionSpy = jest
+                .spyOn(rollback, 'performProjectTransaction')
+                .mockResolvedValue(true);
+            dockercompose.configuration.rollback = true;
+
+            await dockercompose.processComposeFile('/path/compose.yml', [
+                worker,
+                app,
+                db,
+            ]);
+
+            expect(transactionSpy).toHaveBeenCalledTimes(1);
+            const orderedContainers = transactionSpy.mock.calls[0][2] as any[];
+            expect(orderedContainers.map((c: any) => c.name)).toEqual([
+                'db',
+                'app',
+                'worker',
+            ]);
+            transactionSpy.mockRestore();
+        });
+
+        test('recreate=false rewrites the compose file only', async () => {
+            dockercompose.configuration.recreate = false;
+            dockercompose.configuration.backup = true;
+
+            await dockercompose.processComposeFile('/path/compose.yml', [
+                app,
+                db,
+            ]);
+
+            expect(dockercompose.backup).toHaveBeenCalledWith(
+                '/path/compose.yml',
+                '/path/compose.yml.back',
+            );
+            expect(dockercompose.writeComposeFile).toHaveBeenCalledTimes(1);
+            const written = (dockercompose.writeComposeFile as jest.Mock).mock
+                .calls[0][1];
+            expect(written).toContain('test/app:2.0.0');
+            expect(written).toContain('test/db:2.0.0');
+            expect(written).toContain('test/cache:1.0.0');
+
+            expect(superTriggerSpy).not.toHaveBeenCalled();
+            expect(preHookSpy).not.toHaveBeenCalled();
+            expect(postHookSpy).not.toHaveBeenCalled();
+            expect(preEventSpy).not.toHaveBeenCalled();
+            expect(successEventSpy).not.toHaveBeenCalled();
+        });
+
+        test('recreate=false takes precedence over rollback', async () => {
+            const rollback = require('./rollback');
+            const transactionSpy = jest.spyOn(
+                rollback,
+                'performProjectTransaction',
+            );
+            dockercompose.configuration.recreate = false;
+            dockercompose.configuration.rollback = true;
+
+            await dockercompose.processComposeFile('/path/compose.yml', [app]);
+
+            expect(transactionSpy).not.toHaveBeenCalled();
+            expect(dockercompose.writeComposeFile).toHaveBeenCalledTimes(1);
+            expect(superTriggerSpy).not.toHaveBeenCalled();
+            transactionSpy.mockRestore();
+        });
+
+        test('dry-run still wins over recreate=false', async () => {
+            dockercompose.configuration.recreate = false;
+            dockercompose.configuration.dryrun = true;
+
+            await dockercompose.processComposeFile('/path/compose.yml', [app]);
+
+            expect(dockercompose.writeComposeFile).not.toHaveBeenCalled();
+            expect(superTriggerSpy).toHaveBeenCalledWith(app, {
+                runHooks: false,
+                emitEvents: false,
+            });
+        });
+    });
+
+    test('validateConfiguration defaults recreate to true and accepts false', () => {
+        expect(
+            dockercompose.validateConfiguration(configurationValid).recreate,
+        ).toBe(true);
+        expect(
+            dockercompose.validateConfiguration({
+                ...configurationValid,
+                recreate: false,
+            }).recreate,
+        ).toBe(false);
+        expect(
+            dockercompose.validateConfiguration({
+                ...configurationValid,
+                recreate: 'false',
+            } as any).recreate,
+        ).toBe(false);
     });
 });
 

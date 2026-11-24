@@ -83,6 +83,14 @@ import TabItem from '@theme/TabItem';
   </ConfigOption>
 
   <ConfigOption
+    name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_RECREATE"
+    required={false}
+    type="boolean"
+    defaultValue="true">
+    When `false`, WUD only rewrites the Compose file with the new image versions (honoring `BACKUP`) and does **not** pull images, recreate services, run update hooks or roll back. The containers keep showing the update as available until you apply it yourself with `docker compose up -d`. `DRYRUN` still takes precedence and writes nothing
+  </ConfigOption>
+
+  <ConfigOption
     name="WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_ROLLBACK"
     required={false}
     type="boolean"
@@ -145,9 +153,9 @@ This trigger supports all [common trigger configuration options](../README.md#co
 
 ---
 
-## ⚡ Operating Modes: Auto, Preload & Dry-Run
+## ⚡ Operating Modes: Auto, Preload, File-Only & Dry-Run
 
-When configuring the Docker Compose trigger alongside the common `AUTO` setting (`WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_AUTO`), it is essential to distinguish between **`DRYRUN`** and **`PRELOAD`**:
+When configuring the Docker Compose trigger alongside the common `AUTO` setting (`WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_AUTO`), it is essential to distinguish between **`DRYRUN`**, **`PRELOAD`** and **`RECREATE`**:
 
 - **`DRYRUN` (Simulation / Test mode)**:  
   Validates credentials and pulls the new image to verify registry availability, but **never** modifies Compose files, stops containers, or restarts stack services. This applies even if you manually trigger an update from the Web UI, Home Assistant, or REST API. `DRYRUN` is strictly intended for testing and validation—it is **not** meant for preparing a future manual update.
@@ -155,16 +163,20 @@ When configuring the Docker Compose trigger alongside the common `AUTO` setting 
 - **`PRELOAD` (Controlled Manual Updates with Zero Downtime)**:  
   Designed specifically for production workflows where automated updates are disabled (`AUTO=false`) to avoid unexpected stack restarts. When an update is detected, WUD downloads all image layers in the background ahead of time without modifying `docker-compose.yml` or restarting containers. For floating tags (such as `:latest`), WUD pulls specifically by manifest digest so running containers keep their existing tag references intact. When an operator triggers the update later (via Home Assistant button, Web UI, or API), stack recreation is instantaneous (&lt; 1s) because all layers are already present locally.
 
+- **`RECREATE=false` (File-Only mode)**:  
+  WUD rewrites the Compose file with the new image versions (and backs it up first when `BACKUP=true`) but leaves the running services untouched: no image pull, no recreation, no update hooks, no rollback. Use it when you want WUD to keep your Compose files current while you decide when the stack actually restarts, for example with a `docker compose up -d` of your own after a database migration window. The containers keep showing the update as available until the watcher sees the recreated containers.
+
 ### Mode Comparison
 
-The table below summarizes the four typical operating modes:
+The table below summarizes the typical operating modes:
 
-| Mode | `AUTO` | `PRELOAD` | `DRYRUN` | Behavior & Use Case |
-| :--- | :---: | :---: | :---: | :--- |
-| **Fully Automated** | `true` | `false` | `false` | **Hands-off auto-update:** Services and Compose files are immediately updated and recreated as soon as an update is detected. |
-| **Fully Manual** | `false` | `false` | `false` | **Standard manual update:** WUD notifies when an update is available without downloading images in advance. When triggered manually, WUD pulls the image, rewrites the Compose file, and restarts services (downtime includes download time). |
-| **Manual with Zero-Downtime Preload** | `false` | `true` | `false` | **Optimized maintenance:** WUD pre-caches image layers in the background without touching running services or Compose files. When triggered manually, recreation is instantaneous (&lt; 1s) with zero network wait. |
-| **Simulation / Test** | * | * | `true` | **Test mode only:** Pulls images to test network and registry access, but **never** modifies Compose files or recreates services (even on manual execution). |
+| Mode | `AUTO` | `PRELOAD` | `RECREATE` | `DRYRUN` | Behavior & Use Case |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| **Fully Automated** | `true` | `false` | `true` | `false` | **Hands-off auto-update:** Services and Compose files are immediately updated and recreated as soon as an update is detected. |
+| **Fully Manual** | `false` | `false` | `true` | `false` | **Standard manual update:** WUD notifies when an update is available without downloading images in advance. When triggered manually, WUD pulls the image, rewrites the Compose file, and restarts services (downtime includes download time). |
+| **Manual with Zero-Downtime Preload** | `false` | `true` | `true` | `false` | **Optimized maintenance:** WUD pre-caches image layers in the background without touching running services or Compose files. When triggered manually, recreation is instantaneous (&lt; 1s) with zero network wait. |
+| **File-Only** | * | * | `false` | `false` | **Compose file kept current, restart on your terms:** WUD rewrites the Compose file (with backup if enabled) but never pulls, recreates or rolls back. Apply with `docker compose up -d` when it suits you. |
+| **Simulation / Test** | * | * | * | `true` | **Test mode only:** Pulls images to test network and registry access, but **never** modifies Compose files or recreates services (even on manual execution). |
 
 :::tip[Per-Container Preload Configuration]
 Preload can also be opted into per container using Docker labels:
@@ -333,6 +345,7 @@ services:
 ### 🔄 Docker Compose Convergence & Metadata
 
 - WUD updates the Compose YAML on disk and recreates the container via the Docker Engine API.
+- When several services of the same Compose file are updated together (automatic batch, or a multi-container selection on the Containers page), the file is rewritten once and services are recreated in `depends_on` order: dependencies first, dependents afterwards, independent services in parallel. Dependencies on services that are not part of the update are ignored.
 - WUD synchronizes `com.docker.compose.image` with the newly pulled image ID.
 - `com.docker.compose.config-hash` is an internal Docker Compose hash computed exclusively by the Docker Compose Go CLI; subsequent manual or automated `docker compose up` calls will smoothly converge the hash, or users can pass `docker compose up -d --no-recreate` if they wish to keep the existing running container instance.
 

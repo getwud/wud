@@ -325,6 +325,94 @@ function doesContainerBelongToCompose(compose, container) {
     return Boolean(findServiceKeyForContainer(compose, container));
 }
 
+/**
+ * Read the `depends_on` entries of a compose service (short list syntax or
+ * long map syntax) as a list of service names.
+ */
+function getServiceDependencies(service: unknown): string[] {
+    if (!service || typeof service !== 'object') {
+        return [];
+    }
+    const dependsOn = (service as { depends_on?: unknown }).depends_on;
+    if (Array.isArray(dependsOn)) {
+        return dependsOn.filter(
+            (dep): dep is string => typeof dep === 'string',
+        );
+    }
+    if (dependsOn && typeof dependsOn === 'object') {
+        return Object.keys(dependsOn);
+    }
+    return [];
+}
+
+/**
+ * Group the containers of a compose file into recreation waves honoring
+ * `depends_on`: a service is recreated only after every service it depends
+ * on (among the ones being updated) has been recreated. Services of the same
+ * wave have no dependency relation and can be recreated in parallel.
+ *
+ * Dependencies on services that are not part of the update are ignored, and a
+ * dependency cycle falls back to recreating the remaining services together.
+ */
+function orderContainersByDependencies(
+    compose,
+    containers: Container[],
+): Container[][] {
+    const serviceOfContainer = new Map<Container, string | undefined>();
+    const containersByService = new Map<string, Container[]>();
+    containers.forEach((container) => {
+        const serviceKey = findServiceKeyForContainer(compose, container);
+        serviceOfContainer.set(container, serviceKey);
+        if (serviceKey) {
+            if (!containersByService.has(serviceKey)) {
+                containersByService.set(serviceKey, []);
+            }
+            containersByService.get(serviceKey).push(container);
+        }
+    });
+
+    // Only keep dependencies on services that are part of this update.
+    const pendingDeps = new Map<string, Set<string>>();
+    containersByService.forEach((_containers, serviceKey) => {
+        const deps = getServiceDependencies(
+            compose?.services?.[serviceKey],
+        ).filter((dep) => dep !== serviceKey && containersByService.has(dep));
+        pendingDeps.set(serviceKey, new Set(deps));
+    });
+
+    const waves: Container[][] = [];
+    const firstWave = containers.filter(
+        (container) => !serviceOfContainer.get(container),
+    );
+
+    while (pendingDeps.size > 0) {
+        let ready = [...pendingDeps.entries()]
+            .filter(([, deps]) => deps.size === 0)
+            .map(([serviceKey]) => serviceKey);
+        if (ready.length === 0) {
+            // Dependency cycle: recreate whatever is left together.
+            ready = [...pendingDeps.keys()];
+        }
+        const wave = ready.flatMap(
+            (serviceKey) => containersByService.get(serviceKey) || [],
+        );
+        ready.forEach((serviceKey) => pendingDeps.delete(serviceKey));
+        pendingDeps.forEach((deps) =>
+            ready.forEach((serviceKey) => deps.delete(serviceKey)),
+        );
+        waves.push(wave);
+    }
+
+    if (firstWave.length > 0) {
+        if (waves.length > 0) {
+            waves[0] = [...firstWave, ...waves[0]];
+        } else {
+            waves.push(firstWave);
+        }
+    }
+    return waves;
+}
+
 export interface DockercomposeConfiguration extends DockerConfiguration {
     file?: string;
     pathmapping?: {
@@ -334,6 +422,7 @@ export interface DockercomposeConfiguration extends DockerConfiguration {
     backup?: boolean;
     composeFileLabel?: string;
     strict_digest?: boolean;
+    recreate?: boolean;
 }
 
 /**
@@ -366,6 +455,9 @@ class Dockercompose extends Docker {
             // Add configuration for the label name to look for
             composeFileLabel: this.joi.string().default('wud.compose.file'),
             strict_digest: this.joi.boolean().default(false),
+            // When false, only the compose file is rewritten; services are
+            // left for the operator to recreate (`docker compose up -d`).
+            recreate: this.joi.boolean().default(true),
         });
     }
 
@@ -778,7 +870,24 @@ class Dockercompose extends Docker {
                     return;
                 }
 
-                if (!this.configuration.dryrun) {
+                const recreate = this.configuration.recreate !== false;
+
+                // Recreate services only after the services they depend on
+                // (dependencies first, dependents last).
+                const recreationWaves = orderContainersByDependencies(
+                    compose,
+                    containersToUpdate,
+                );
+                if (recreationWaves.length > 1) {
+                    this.log.info(
+                        `Recreation order for ${composeFile}: ${recreationWaves
+                            .map((wave) => wave.map((c) => c.name).join(', '))
+                            .join(' -> ')}`,
+                    );
+                }
+                const orderedContainersToUpdate = recreationWaves.flat();
+
+                if (!this.configuration.dryrun && recreate) {
                     for (const container of containersToUpdate) {
                         event.emitContainerUpdatePre(container);
                     }
@@ -789,6 +898,31 @@ class Dockercompose extends Docker {
                     this.log.info(
                         `Do not replace existing docker-compose file ${composeFile} (dry-run mode enabled)`,
                     );
+                } else if (!recreate) {
+                    // File-only mode: rewrite the compose file and stop there.
+                    if (this.configuration.backup) {
+                        const backupFile = `${composeFile}.back`;
+                        await this.backup(composeFile, backupFile);
+                    }
+                    const composeFileStr = (
+                        await this.getComposeFile(composeFile)
+                    ).toString();
+                    const updatedComposeFileStr = this.updateComposeYaml(
+                        composeFileStr,
+                        currentVersionToUpdateVersionArray,
+                    );
+                    await this.writeComposeFile(
+                        composeFile,
+                        updatedComposeFileStr,
+                    );
+                    this.log.info(
+                        `Compose file ${composeFile} updated for ${containersToUpdate
+                            .map((c) => c.name)
+                            .join(
+                                ', ',
+                            )}; services not recreated (recreate=false), run "docker compose up -d" to apply`,
+                    );
+                    return;
                 } else if (
                     containersToUpdate.some(
                         (container) => this.resolveRollback(container).enabled,
@@ -812,7 +946,7 @@ class Dockercompose extends Docker {
                     const committed = await performProjectTransaction(
                         this,
                         composeFile,
-                        containersToUpdate,
+                        orderedContainersToUpdate,
                         currentVersionToUpdateVersionArray,
                     );
 
@@ -886,16 +1020,18 @@ class Dockercompose extends Docker {
                     );
                 }
 
-                // Update all containers
+                // Update all containers, one dependency wave at a time
                 // (super.notify will take care of the dry-run mode for each container as well)
-                await Promise.all(
-                    containersToUpdate.map((container) =>
-                        super.trigger(container, {
-                            runHooks: false,
-                            emitEvents: false,
-                        }),
-                    ),
-                );
+                for (const wave of recreationWaves) {
+                    await Promise.all(
+                        wave.map((container) =>
+                            super.trigger(container, {
+                                runHooks: false,
+                                emitEvents: false,
+                            }),
+                        ),
+                    );
+                }
 
                 // Post-update hooks for all containers in this compose stack
                 if (!this.configuration.dryrun) {
@@ -1476,6 +1612,8 @@ export default Dockercompose;
 export {
     doesContainerBelongToCompose,
     findServiceKeyForContainer,
+    getServiceDependencies,
+    orderContainersByDependencies,
     isMatchingServiceImage,
     findImageNode,
     formatImageReplacement,
