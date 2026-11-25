@@ -118,10 +118,10 @@ export async function close(): Promise<void> {
     const currentServer = server;
     server = undefined;
     log.info('Closing API server');
+    if (typeof apiRouter.close === 'function') {
+        apiRouter.close();
+    }
     return new Promise((resolve, reject) => {
-        if (typeof currentServer.closeIdleConnections === 'function') {
-            currentServer.closeIdleConnections();
-        }
         currentServer.close((err) => {
             if (err) {
                 log.error(`Error closing API server: ${err.message}`);
@@ -130,6 +130,12 @@ export async function close(): Promise<void> {
             log.info('API server closed');
             resolve();
         });
+        if (typeof currentServer.closeIdleConnections === 'function') {
+            currentServer.closeIdleConnections();
+        }
+        if (typeof currentServer.closeAllConnections === 'function') {
+            currentServer.closeAllConnections();
+        }
     });
 }
 

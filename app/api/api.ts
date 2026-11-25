@@ -87,3 +87,11 @@ export function init() {
 
     return router;
 }
+
+/**
+ * Close all long-lived API streaming connections (SSE).
+ */
+export function close(): void {
+    eventRouter.close();
+    logRouter.close();
+}
