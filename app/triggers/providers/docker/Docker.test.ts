@@ -4028,3 +4028,350 @@ describe('Upstream image tracking (#664)', () => {
         triggerSpy.mockRestore();
     });
 });
+
+describe('Post-update image prune conflict (#1588)', () => {
+    const buildConflictError = () => {
+        const err: any = new Error(
+            '(HTTP code 409) conflict - conflict: unable to delete sha256:oldimage (cannot be forced) - image is being used by running container replica-2',
+        );
+        err.statusCode = 409;
+        return err;
+    };
+
+    const buildReplicaMocks = (removeError = buildConflictError()) => {
+        const currentContainer = {
+            inspect: () =>
+                Promise.resolve({
+                    Id: 'replica-1-old-id',
+                    Name: '/app-replica-1',
+                    Image: 'sha256:oldimage',
+                    State: { Running: true },
+                    HostConfig: { AutoRemove: false },
+                    Config: {},
+                    NetworkSettings: { Networks: {} },
+                }),
+            rename: jest.fn(() => Promise.resolve()),
+            remove: jest.fn(() => Promise.resolve()),
+            start: jest.fn(() => Promise.resolve()),
+            stop: jest.fn(() => Promise.resolve()),
+            wait: jest.fn(() => Promise.resolve()),
+        };
+        const newContainer = {
+            id: 'replica-1-new-id',
+            inspect: () =>
+                Promise.resolve({
+                    State: {
+                        Running: true,
+                        Health: { Status: 'healthy' },
+                    },
+                }),
+            start: jest.fn(() => Promise.resolve()),
+            stop: jest.fn(() => Promise.resolve()),
+            remove: jest.fn(() => Promise.resolve()),
+        };
+        const imageRemoveMock = jest.fn(() => Promise.reject(removeError));
+        const dockerApi = {
+            getContainer: jest.fn(() => Promise.resolve(currentContainer)),
+            createContainer: jest.fn(() => Promise.resolve(newContainer)),
+            pull: () => Promise.resolve(),
+            listImages: jest.fn(() => Promise.resolve([])),
+            getImage: jest.fn((ref) => ({
+                remove: imageRemoveMock,
+                inspect: () =>
+                    Promise.resolve({
+                        Id:
+                            ref === 'sha256:oldimage'
+                                ? 'sha256:oldimage'
+                                : 'sha256:newimage',
+                        Config: {
+                            Env: [],
+                            Labels: {},
+                            Cmd: [],
+                            Entrypoint: [],
+                        },
+                    }),
+            })),
+            modem: { followProgress: (_pullStream, res) => res() },
+        };
+        return { dockerApi, currentContainer, newContainer, imageRemoveMock };
+    };
+
+    const buildReplicaContainer = (overrides = {}) => ({
+        updateAvailable: true,
+        watcher: 'test',
+        id: 'replica-1-old-id',
+        name: 'app-replica-1',
+        labels: {},
+        image: {
+            name: 'test/test',
+            tag: { value: 'latest' },
+            digest: {
+                watch: true,
+                value: 'sha256:olddigest',
+                repo: 'sha256:olddigest',
+            },
+            registry: { name: 'hub', url: 'my-registry' },
+        },
+        updateKind: {
+            kind: 'digest',
+            localValue: 'sha256:olddigest',
+            remoteValue: 'sha256:newdigest',
+        },
+        ...overrides,
+    });
+
+    test('should succeed and emit only update success on non-gated update when prune returns HTTP 409', async () => {
+        const previousConfig = docker.configuration;
+        docker.configuration = {
+            ...configurationValid,
+            prune: true,
+            rollback: false,
+        };
+        const { dockerApi, imageRemoveMock } = buildReplicaMocks();
+        const reconcileContainerMock = jest.fn(() => Promise.resolve());
+        const watcherSpy = jest.spyOn(docker, 'getWatcher').mockReturnValue({
+            dockerApi,
+            reconcileContainer: reconcileContainerMock,
+        });
+        const mockChildLog = {
+            info: jest.fn(),
+            warn: jest.fn(),
+            error: jest.fn(),
+            debug: jest.fn(),
+        };
+        const logChildSpy = jest
+            .spyOn(docker.log, 'child')
+            .mockReturnValue(mockChildLog);
+        const successSpy = jest
+            .spyOn(event, 'emitContainerUpdateSuccess')
+            .mockImplementation(() => {});
+        const failureSpy = jest
+            .spyOn(event, 'emitContainerUpdateFailure')
+            .mockImplementation(() => {});
+        const failureHooksSpy = jest
+            .spyOn(HookManager, 'runFailureHooks')
+            .mockResolvedValue();
+
+        const container = buildReplicaContainer();
+        try {
+            await expect(
+                docker.performUpdate(container),
+            ).resolves.toBeUndefined();
+
+            expect(imageRemoveMock).toHaveBeenCalledTimes(1);
+            expect(successSpy).toHaveBeenCalledTimes(1);
+            expect(failureSpy).not.toHaveBeenCalled();
+            expect(failureHooksSpy).not.toHaveBeenCalled();
+            expect(container.error).toBeUndefined();
+            expect(reconcileContainerMock).toHaveBeenCalledWith(
+                'replica-1-new-id',
+                {
+                    oldContainerId: 'replica-1-old-id',
+                    forceRefresh: true,
+                },
+            );
+            expect(mockChildLog.warn).toHaveBeenCalledWith(
+                expect.stringMatching(/Unable to prune previous image.*409/),
+            );
+        } finally {
+            docker.configuration = previousConfig;
+            watcherSpy.mockRestore();
+            logChildSpy.mockRestore();
+            successSpy.mockRestore();
+            failureSpy.mockRestore();
+            failureHooksSpy.mockRestore();
+        }
+    });
+
+    test('should run post-hooks, emit update success, and reconcile on gated rollback update when prune returns HTTP 409', async () => {
+        const previousConfig = docker.configuration;
+        docker.configuration = {
+            ...configurationValid,
+            prune: true,
+            rollback: true,
+        };
+        const { dockerApi, imageRemoveMock } = buildReplicaMocks();
+        const reconcileContainerMock = jest.fn(() => Promise.resolve());
+        const watcherSpy = jest.spyOn(docker, 'getWatcher').mockReturnValue({
+            dockerApi,
+            reconcileContainer: reconcileContainerMock,
+        });
+        const mockChildLog = {
+            info: jest.fn(),
+            warn: jest.fn(),
+            error: jest.fn(),
+            debug: jest.fn(),
+        };
+        const logChildSpy = jest
+            .spyOn(docker.log, 'child')
+            .mockReturnValue(mockChildLog);
+        const postHooksSpy = jest
+            .spyOn(HookManager, 'runPostHooks')
+            .mockResolvedValue();
+        const failureHooksSpy = jest
+            .spyOn(HookManager, 'runFailureHooks')
+            .mockResolvedValue();
+        const successSpy = jest
+            .spyOn(event, 'emitContainerUpdateSuccess')
+            .mockImplementation(() => {});
+        const failureSpy = jest
+            .spyOn(event, 'emitContainerUpdateFailure')
+            .mockImplementation(() => {});
+
+        const container = buildReplicaContainer({
+            labels: { 'wud.rollback.enable': 'true' },
+        });
+        try {
+            const outcome = await docker.performUpdate(container, {
+                gate: {
+                    enabled: true,
+                    window: 100,
+                    interval: 10,
+                    grace: 10,
+                },
+            });
+
+            expect(outcome?.rolledBack).toBe(false);
+            expect(imageRemoveMock).toHaveBeenCalledTimes(1);
+            expect(postHooksSpy).toHaveBeenCalledTimes(1);
+            expect(successSpy).toHaveBeenCalledTimes(1);
+            expect(reconcileContainerMock).toHaveBeenCalledWith(
+                'replica-1-new-id',
+                {
+                    oldContainerId: 'replica-1-old-id',
+                    forceRefresh: true,
+                },
+            );
+            expect(failureSpy).not.toHaveBeenCalled();
+            expect(failureHooksSpy).not.toHaveBeenCalled();
+            expect(container.error).toBeUndefined();
+            expect(mockChildLog.warn).toHaveBeenCalledWith(
+                expect.stringMatching(/Unable to prune previous image.*409/),
+            );
+        } finally {
+            docker.configuration = previousConfig;
+            watcherSpy.mockRestore();
+            logChildSpy.mockRestore();
+            postHooksSpy.mockRestore();
+            failureHooksSpy.mockRestore();
+            successSpy.mockRestore();
+            failureSpy.mockRestore();
+        }
+    });
+
+    test('removePreviousImage should skip unqualified fallback on HTTP 409 conflict', async () => {
+        const conflictErr = buildConflictError();
+        const removeSpy = jest
+            .spyOn(docker, 'removeImage')
+            .mockRejectedValue(conflictErr);
+        const mockLog = {
+            info: jest.fn(),
+            warn: jest.fn(),
+            error: jest.fn(),
+            debug: jest.fn(),
+        };
+        const registry = {
+            getImageFullName: () => 'nginx:1.25.0',
+        };
+        const container = {
+            image: {
+                name: 'nginx',
+                tag: { value: '1.25.0' },
+                digest: {},
+            },
+            updateKind: {
+                kind: 'tag',
+                localValue: '1.25.0',
+                remoteValue: '1.26.0',
+            },
+        };
+
+        try {
+            await expect(
+                docker.removePreviousImage(
+                    {} as any,
+                    registry as any,
+                    container as any,
+                    mockLog as any,
+                ),
+            ).resolves.toBeUndefined();
+
+            expect(removeSpy).toHaveBeenCalledTimes(1);
+            expect(removeSpy).toHaveBeenCalledWith(
+                {},
+                'docker.io/library/nginx:1.25.0',
+                mockLog,
+            );
+            expect(mockLog.warn).toHaveBeenCalledWith(
+                expect.stringMatching(
+                    /Unable to prune previous image nginx:1\.25\.0.*409/,
+                ),
+            );
+        } finally {
+            removeSpy.mockRestore();
+        }
+    });
+
+    test('removePreviousImage should fall back to unqualified name on 404 and log fallback 409 without throwing', async () => {
+        const notFoundErr: any = new Error('(HTTP code 404) no such image');
+        notFoundErr.statusCode = 404;
+        const conflictErr = buildConflictError();
+        const removeSpy = jest
+            .spyOn(docker, 'removeImage')
+            .mockRejectedValueOnce(notFoundErr)
+            .mockRejectedValueOnce(conflictErr);
+        const mockLog = {
+            info: jest.fn(),
+            warn: jest.fn(),
+            error: jest.fn(),
+            debug: jest.fn(),
+        };
+        const registry = {
+            getImageFullName: () => 'nginx:1.25.0',
+        };
+        const container = {
+            image: {
+                name: 'nginx',
+                tag: { value: '1.25.0' },
+                digest: {},
+            },
+            updateKind: {
+                kind: 'tag',
+                localValue: '1.25.0',
+                remoteValue: '1.26.0',
+            },
+        };
+
+        try {
+            await expect(
+                docker.removePreviousImage(
+                    {} as any,
+                    registry as any,
+                    container as any,
+                    mockLog as any,
+                ),
+            ).resolves.toBeUndefined();
+
+            expect(removeSpy).toHaveBeenCalledTimes(2);
+            expect(removeSpy).toHaveBeenNthCalledWith(
+                1,
+                {},
+                'docker.io/library/nginx:1.25.0',
+                mockLog,
+            );
+            expect(removeSpy).toHaveBeenNthCalledWith(
+                2,
+                {},
+                'nginx:1.25.0',
+                mockLog,
+            );
+            expect(mockLog.warn).toHaveBeenCalledWith(
+                expect.stringMatching(
+                    /Unable to prune previous image nginx:1\.25\.0.*409/,
+                ),
+            );
+        } finally {
+            removeSpy.mockRestore();
+        }
+    });
+});

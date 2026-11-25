@@ -1524,7 +1524,9 @@ class Docker extends Trigger {
     }
 
     /**
-     * Remove the superseded image (only when updateKind is tag).
+     * Remove the superseded image (best-effort; failures such as HTTP 409 when
+     * another container still references the image are logged and ignored so a
+     * completed container update is never marked as failed).
      */
     async removePreviousImage(
         dockerApi: Dockerode,
@@ -1546,15 +1548,20 @@ class Docker extends Trigger {
         try {
             await this.removeImage(dockerApi, fqOldImage, logContainer);
         } catch (e: any) {
-            if (fqOldImage !== oldImage) {
+            let pruneError = e;
+            if (fqOldImage !== oldImage && e?.statusCode !== 409) {
                 try {
                     await this.removeImage(dockerApi, oldImage, logContainer);
                     return;
-                } catch {
-                    // Fall through to throw original error
+                } catch (fallbackError: any) {
+                    if (e?.statusCode === 404 && fallbackError) {
+                        pruneError = fallbackError;
+                    }
                 }
             }
-            throw e;
+            logContainer.warn(
+                `Unable to prune previous image ${oldImage} (${pruneError?.message ?? pruneError})`,
+            );
         }
     }
 
@@ -2029,7 +2036,7 @@ class Docker extends Trigger {
                 event.emitContainerUpdateSuccess(container);
             }
 
-            // Remove previous image (only when updateKind is tag)
+            // Remove previous image
             if (this.configuration.prune) {
                 await this.removePreviousImage(
                     dockerApi,
