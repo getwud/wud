@@ -150,6 +150,35 @@ describe('ContainerBatchUpdateDialog.vue', () => {
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([false]);
   });
 
+  it('reports the count captured before the run, in the singular for one container', async () => {
+    const wrapper = mountDialog([app]);
+    await flush(wrapper);
+    // An SSE update shrinks the selection while the batch is in flight
+    (containerService.runTriggerBatch as jest.Mock).mockImplementation(async () => {
+      await wrapper.setProps({ containers: [] });
+      return {};
+    });
+
+    await (wrapper.vm as any).confirmUpdate();
+
+    expect(mockEventBus.emit).toHaveBeenCalledWith(
+      'notify',
+      'Update triggered successfully for 1 container',
+    );
+  });
+
+  it('explains the pull-based exclusion when upstream-tracked containers share no trigger', async () => {
+    (containerService.getContainerTriggers as jest.Mock).mockResolvedValue([composeTrigger, dockerTrigger]);
+    const upstream = { ...app, id: 'c-up', image: { ...app.image, upstream: { name: 'nginx', tag: '1.27' } } };
+
+    const wrapper = mountDialog([upstream, db]);
+    await flush(wrapper);
+
+    expect((wrapper.vm as any).triggers).toHaveLength(0);
+    expect(wrapper.text()).toContain('No command trigger is configured');
+    expect(wrapper.text()).toContain('pull-based triggers');
+  });
+
   it('excludes triggers that declare no batch support', async () => {
     (containerService.getContainerTriggers as jest.Mock).mockResolvedValue([
       { ...composeTrigger, supportsBatch: false },

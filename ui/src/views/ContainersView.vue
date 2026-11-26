@@ -685,14 +685,10 @@ export default defineComponent({
 
   watch: {
     containers() {
-      // Drop selected containers that disappeared or no longer have an update
-      const selectable = new Set(
-        this.containers.filter((c: any) => this.isSelectable(c)).map((c: any) => c.id),
-      );
-      const pruned = this.selectedIds.filter((id) => selectable.has(id));
-      if (pruned.length !== this.selectedIds.length) {
-        this.selectedIds = pruned;
-      }
+      // The list was replaced (initial load, refresh, removal): drop selected
+      // containers that disappeared or no longer have an update. In-place SSE
+      // updates do not reach this shallow watcher and prune explicitly.
+      this.pruneSelection();
     },
     itemsPerPage(val: number) {
       try {
@@ -845,12 +841,17 @@ export default defineComponent({
     selectedStacks(): string[] {
       return [...new Set(this.selectedContainers.map((c: any) => c.stack).filter(Boolean))] as string[];
     },
+    // Stacks are scoped per watcher: two watchers may each run a stack with
+    // the same name, and those must not cross-select each other's containers.
     stackCompletionCandidates(): any[] {
-      if (this.selectedStacks.length === 0) return [];
+      const stackKeys = new Set(
+        this.selectedContainers.filter((c: any) => c.stack).map((c: any) => this.stackKey(c)),
+      );
+      if (stackKeys.size === 0) return [];
       const selected = new Set(this.selectedIds);
-      const stacks = new Set(this.selectedStacks);
       return this.containers.filter(
-        (c: any) => c.stack && stacks.has(c.stack) && !selected.has(c.id) && this.isSelectable(c),
+        (c: any) =>
+          c.stack && stackKeys.has(this.stackKey(c)) && !selected.has(c.id) && this.isSelectable(c),
       );
     },
     containersFiltered() {
@@ -929,6 +930,21 @@ export default defineComponent({
       return Boolean(
         container?.updateAvailable && !container.isCoolingDown && !container.isSnoozed,
       );
+    },
+
+    stackKey(container: any): string {
+      return `${container.watcher ?? ""}/${container.stack}`;
+    },
+
+    pruneSelection() {
+      if (this.selectedIds.length === 0) return;
+      const selectable = new Set(
+        this.containers.filter((c: any) => this.isSelectable(c)).map((c: any) => c.id),
+      );
+      const pruned = this.selectedIds.filter((id) => selectable.has(id));
+      if (pruned.length !== this.selectedIds.length) {
+        this.selectedIds = pruned;
+      }
     },
 
     addStacksToSelection() {
@@ -1033,6 +1049,8 @@ export default defineComponent({
       } else {
         this.containers.push(container);
       }
+      // In-place mutation: the shallow `containers` watcher does not fire
+      this.pruneSelection();
       if (this.selectedContainer && this.selectedContainer.id === container.id) {
         this.selectedContainer = { ...this.selectedContainer, ...container };
       }
@@ -1050,6 +1068,8 @@ export default defineComponent({
       } else {
         this.containers.push(container);
       }
+      // In-place mutation: the shallow `containers` watcher does not fire
+      this.pruneSelection();
       if (this.selectedContainer && this.selectedContainer.id === container.id) {
         this.selectedContainer = { ...this.selectedContainer, ...container };
       }

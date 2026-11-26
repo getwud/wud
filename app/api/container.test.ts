@@ -681,6 +681,16 @@ describe('API Container', () => {
                     updateAvailable: true,
                     isSnoozed: true,
                 },
+                // Mirrors model/container.ts: updateAvailable is a getter that
+                // returns false while cooling down unless overrideCooldown is set
+                cooling: {
+                    id: 'cooling',
+                    name: 'worker',
+                    isCoolingDown: true,
+                    get updateAvailable() {
+                        return Boolean(this.overrideCooldown);
+                    },
+                },
             };
             (storeContainer.getContainer as jest.Mock).mockImplementation(
                 (id) => containers[id],
@@ -796,6 +806,46 @@ describe('API Container', () => {
                     overrideCooldown: true,
                 }),
             ]);
+        });
+
+        test('should include cooling-down containers when overrideCooldown is requested', async () => {
+            const triggerBatch = jest.fn().mockResolvedValue(undefined);
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({
+                    containers: ['container1', 'cooling'],
+                    overrideCooldown: true,
+                });
+
+            expect(res.status).toBe(200);
+            expect(triggerBatch).toHaveBeenCalledWith([
+                expect.objectContaining({ id: 'container1' }),
+                expect.objectContaining({
+                    id: 'cooling',
+                    overrideCooldown: true,
+                }),
+            ]);
+        });
+
+        test('should skip cooling-down containers when overrideCooldown is not requested', async () => {
+            const triggerBatch = jest.fn().mockResolvedValue(undefined);
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({ containers: ['cooling'] });
+
+            expect(res.status).toBe(400);
+            expect(res.body.message).toBe(
+                'None of the containers has a pending update',
+            );
+            expect(triggerBatch).not.toHaveBeenCalled();
         });
 
         test('should not set overrideCooldown when not requested', async () => {

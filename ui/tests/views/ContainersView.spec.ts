@@ -1123,7 +1123,8 @@ describe('ContainersView', () => {
     ];
 
     beforeEach(async () => {
-      wrapper.vm.containers = stackContainers;
+      // Fresh copies: onSseContainerUpdated replaces entries in place
+      wrapper.vm.containers = stackContainers.map((c) => ({ ...c }));
       await wrapper.vm.$nextTick();
     });
 
@@ -1206,6 +1207,44 @@ describe('ContainersView', () => {
       ];
       await wrapper.vm.$nextTick();
       expect(wrapper.vm.selectedIds).toEqual(['b']);
+    });
+
+    it('prunes selected ids when an SSE update removes a container update in place', async () => {
+      wrapper.vm.selectedIds = ['a', 'b'];
+      await wrapper.vm.$nextTick();
+      // onSseContainerUpdated mutates the array in place: the shallow watcher does not fire
+      wrapper.vm.onSseContainerUpdated({ id: 'a', updateAvailable: false });
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.selectedIds).toEqual(['b']);
+      expect(wrapper.vm.containers.find((c) => c.id === 'a').updateAvailable).toBe(false);
+    });
+
+    it('keeps the selection when an SSE update leaves the container selectable', async () => {
+      wrapper.vm.selectedIds = ['a'];
+      await wrapper.vm.$nextTick();
+      wrapper.vm.onSseContainerUpdated({ id: 'a', displayName: 'App renamed' });
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.selectedIds).toEqual(['a']);
+    });
+
+    it('hides the selection controls for read-only users', async () => {
+      wrapper.vm.currentUser = { username: 'viewer', role: 'ro' };
+      wrapper.vm.selectedIds = ['a'];
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.canWrite).toBe(false);
+      expect(wrapper.find('[data-testid="selection-bar"]').exists()).toBe(false);
+      expect(wrapper.find('.v-data-table thead .v-selection-control').exists()).toBe(false);
+    });
+
+    it('scopes stack completion to the watcher of the selected containers', async () => {
+      wrapper.vm.containers = [
+        { ...stackContainers[0], watcher: 'local' },
+        { ...stackContainers[1], watcher: 'local' },
+        { id: 'remote-a', displayName: 'Remote App', stack: 'shop', watcher: 'remote', updateAvailable: true, image: { registry: { name: 'hub' } } },
+      ];
+      wrapper.vm.selectedIds = ['a'];
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.stackCompletionCandidates.map((c) => c.id)).toEqual(['b']);
     });
 
     it('does not open the drawer when the row click comes from the selection checkbox', () => {

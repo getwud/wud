@@ -281,6 +281,19 @@ export async function runTriggerForContainers(req, res) {
         return;
     }
 
+    // Apply the cooldown override before filtering: `updateAvailable` is a
+    // getter that returns false while a container is cooling down unless
+    // `overrideCooldown` is set.
+    const overrideCooldown =
+        req.query?.overrideCooldown === 'true' ||
+        req.query?.overrideCooldown === true ||
+        value.overrideCooldown === true;
+    if (overrideCooldown) {
+        containers.forEach((container) => {
+            container.overrideCooldown = true;
+        });
+    }
+
     // Notification triggers do not filter on their own: only hand over
     // containers with a pending, non-snoozed update.
     const containersToTrigger = containers.filter((container) => {
@@ -298,16 +311,6 @@ export async function runTriggerForContainers(req, res) {
             message: 'None of the containers has a pending update',
         });
         return;
-    }
-
-    const overrideCooldown =
-        req.query?.overrideCooldown === 'true' ||
-        req.query?.overrideCooldown === true ||
-        value.overrideCooldown === true;
-    if (overrideCooldown) {
-        containersToTrigger.forEach((container) => {
-            container.overrideCooldown = true;
-        });
     }
 
     const containerNames = containersToTrigger

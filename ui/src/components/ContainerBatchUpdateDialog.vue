@@ -89,6 +89,19 @@
         </div>
 
         <v-alert
+          v-else-if="triggers.length === 0 && hasUpstreamTracked"
+          type="warning"
+          variant="tonal"
+          density="compact"
+          class="mt-3 text-caption"
+        >
+          No command trigger is configured for all the selected containers. Some of them run a
+          locally built image that tracks an upstream image, so pull-based triggers (docker,
+          dockercompose, nomad) are excluded: configure a command trigger that runs your build, or
+          deselect those containers.
+        </v-alert>
+
+        <v-alert
           v-else-if="triggers.length === 0"
           type="warning"
           variant="tonal"
@@ -364,13 +377,18 @@ export default defineComponent({
     async confirmUpdate() {
       if (!this.selectedTrigger || this.containers.length === 0) return;
       this.isUpdating = true;
+      // Capture the count up front: SSE container-updated events can shrink
+      // `containers` while the batch is running.
+      const count = this.containers.length;
       try {
         await runTriggerBatch({
           containerIds: this.containers.map((c) => c.id),
           triggerType: this.selectedTrigger.type,
           triggerName: this.selectedTrigger.name,
         });
-        this.notify(`Update triggered successfully for ${this.containers.length} containers`);
+        this.notify(
+          `Update triggered successfully for ${count} ${count === 1 ? "container" : "containers"}`,
+        );
         this.$emit("updated", this.selectedTrigger);
         this.close();
       } catch (err: unknown) {
