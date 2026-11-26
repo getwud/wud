@@ -643,6 +643,59 @@ describe('Docker Watcher', () => {
             };
             expect(() => docker.validateConfiguration(config)).not.toThrow();
         });
+
+        test('should expose only the socket when no host is set', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            const masked = docker.maskConfiguration();
+            expect(masked.socket).toBe('/var/run/docker.sock');
+            expect(masked).not.toHaveProperty('port');
+        });
+
+        test('should expose host and port, not the socket, when a host is set', async () => {
+            await docker.register('watcher', 'docker', 'test', {
+                host: '192.168.1.10',
+                port: 2375,
+            });
+            const masked = docker.maskConfiguration();
+            expect(masked.host).toBe('192.168.1.10');
+            expect(masked.port).toBe(2375);
+            expect(masked).not.toHaveProperty('socket');
+        });
+
+        test('should hide TLS files when no host is set', async () => {
+            await docker.register('watcher', 'docker', 'test', {
+                cafile: '/ca.pem',
+                certfile: '/cert.pem',
+                keyfile: '/key.pem',
+            });
+            const masked = docker.maskConfiguration();
+            expect(masked.socket).toBe('/var/run/docker.sock');
+            expect(masked).not.toHaveProperty('cafile');
+            expect(masked).not.toHaveProperty('certfile');
+            expect(masked).not.toHaveProperty('keyfile');
+        });
+
+        test('should expose TLS files when a host is set', async () => {
+            mockFs.readFileSync.mockReturnValue('cert-content');
+            await docker.register('watcher', 'docker', 'test', {
+                host: '192.168.1.10',
+                cafile: '/ca.pem',
+                certfile: '/cert.pem',
+                keyfile: '/key.pem',
+            });
+            const masked = docker.maskConfiguration();
+            expect(masked.cafile).toBe('/ca.pem');
+            expect(masked.certfile).toBe('/cert.pem');
+            expect(masked.keyfile).toBe('/key.pem');
+        });
+
+        test('should not modify the stored configuration when masking', async () => {
+            await docker.register('watcher', 'docker', 'test', {
+                host: '192.168.1.10',
+            });
+            docker.maskConfiguration();
+            expect(docker.configuration.socket).toBe('/var/run/docker.sock');
+        });
     });
 
     describe('Initialization', () => {
