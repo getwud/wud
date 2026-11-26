@@ -200,7 +200,9 @@ async function pruneService(
  * CLI-free project transaction (blueprint §2.4).
  *
  * Phase 0: implicit `.back` before any mutation (abort on write failure).
- * Phase 1: swap every service with a rename-first archive (no gate yet).
+ * Phase 1: swap every service, in dependency order, with a rename-first
+ *          archive (no rollback gate yet; `service_healthy` dependencies of
+ *          later services are awaited through `gateDependency`).
  * Phase 2: gate only opted-in services, short-circuiting on the first failure.
  * Phase 3: commit (remove archives + deferred prune) or revert the whole
  * project (every recreated service, `.back` copied back only once all
@@ -211,6 +213,7 @@ export async function performProjectTransaction(
     composeFile: string,
     containersFiltered: Container[],
     mappings: { current: string; update: string; service?: string }[],
+    gateDependency?: (container: Container) => Promise<void>,
 ): Promise<boolean> {
     const log = trigger.log;
 
@@ -279,6 +282,11 @@ export async function performProjectTransaction(
                 return false;
             }
             service.archiveName = outcome?.archiveName;
+            if (gateDependency) {
+                // Dependents declared `condition: service_healthy` on this
+                // service: wait before swapping them (a throw reverts all).
+                await gateDependency(service.container);
+            }
         }
     } catch (e: unknown) {
         log.error(

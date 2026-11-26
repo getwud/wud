@@ -3245,7 +3245,7 @@ describe('Stack-aware recreation (#1410)', () => {
             ).toEqual([['ghost']]);
         });
 
-        test('isolates the container WUD runs in into a final wave', () => {
+        test('keeps the container WUD runs in out of the waves, as a post-commit step', () => {
             const wud = makeContainer('db', 'test/db');
             wud.id = 'c-wud';
             wud.name = 'wud';
@@ -3254,7 +3254,22 @@ describe('Stack-aware recreation (#1410)', () => {
                 [wud, app, db],
                 (container) => container.id === 'c-wud',
             );
-            expect(names(plan.waves)).toEqual([['db'], ['app'], ['wud']]);
+            expect(names(plan.waves)).toEqual([['db'], ['app']]);
+            expect(plan.selfContainers).toEqual([wud]);
+        });
+
+        test('still awaits the service_healthy dependencies of the container WUD runs in', () => {
+            const wud = makeContainer('worker', 'test/worker');
+            wud.id = 'c-wud';
+            wud.name = 'wud';
+            const plan = orderContainersByDependencies(
+                stackCompose,
+                [wud, app],
+                (container) => container.id === 'c-wud',
+            );
+            expect(names(plan.waves)).toEqual([['app']]);
+            expect(plan.selfContainers).toEqual([wud]);
+            expect([...plan.healthyDependencies]).toEqual(['app']);
         });
 
         test('returns no wave for an empty list or a compose file without services', () => {
@@ -3520,6 +3535,172 @@ describe('Stack-aware recreation (#1410)', () => {
             await dockercompose.processComposeFile('/path/compose.yml', [app]);
 
             expect(superTriggerSpy).toHaveBeenCalledTimes(1);
+        });
+
+        test('recreates the container WUD runs in only after the post hooks and success events of the stack', async () => {
+            const wud = makeContainer('cache', 'test/cache');
+            wud.id = 'c-wud';
+            wud.name = 'wud';
+            dockercompose.resolveSelfContainerId = jest
+                .fn()
+                .mockResolvedValue('c-wud');
+            const order: string[] = [];
+            superTriggerSpy.mockImplementation(async (c: any) => {
+                order.push(`recreate:${c.name}`);
+            });
+            postHookSpy.mockImplementation(async (c: any) => {
+                order.push(`post:${c.name}`);
+            });
+            successEventSpy.mockImplementation((c: any) => {
+                order.push(`success:${c.name}`);
+            });
+
+            await dockercompose.processComposeFile('/path/compose.yml', [
+                wud,
+                app,
+            ]);
+
+            expect(order).toEqual([
+                'recreate:app',
+                'post:app',
+                'success:app',
+                'recreate:wud',
+            ]);
+            // Pre hooks and pre events still cover WUD itself
+            expect(preHookSpy).toHaveBeenCalledTimes(2);
+            expect(preEventSpy).toHaveBeenCalledTimes(2);
+        });
+
+        test('waits for the service_healthy dependency of the container WUD runs in', async () => {
+            const wud = makeContainer('worker', 'test/worker');
+            wud.id = 'c-wud';
+            wud.name = 'wud';
+            dockercompose.resolveSelfContainerId = jest
+                .fn()
+                .mockResolvedValue('c-wud');
+
+            await dockercompose.processComposeFile('/path/compose.yml', [
+                wud,
+                app,
+            ]);
+
+            expect(waitForHealthySpy).toHaveBeenCalledTimes(1);
+            expect(waitForHealthySpy.mock.calls[0][0]).toEqual({ name: 'app' });
+            expect(superTriggerSpy).toHaveBeenCalledTimes(2);
+        });
+
+        test('keeps the container WUD runs in out of the rollback transaction and recreates it after the commit', async () => {
+            const rollback = require('./rollback');
+            const order: string[] = [];
+            const transactionSpy = jest
+                .spyOn(rollback, 'performProjectTransaction')
+                .mockImplementation(async () => {
+                    order.push('transaction');
+                    return true;
+                });
+            dockercompose.configuration.rollback = true;
+            const wud = makeContainer('cache', 'test/cache');
+            wud.id = 'c-wud';
+            wud.name = 'wud';
+            dockercompose.resolveSelfContainerId = jest
+                .fn()
+                .mockResolvedValue('c-wud');
+            superTriggerSpy.mockImplementation(async (c: any) => {
+                order.push(`recreate:${c.name}`);
+            });
+            postHookSpy.mockImplementation(async (c: any) => {
+                order.push(`post:${c.name}`);
+            });
+
+            await dockercompose.processComposeFile('/path/compose.yml', [
+                wud,
+                app,
+                db,
+            ]);
+
+            const transacted = transactionSpy.mock.calls[0][2] as any[];
+            expect(transacted.map((c: any) => c.name)).toEqual(['db', 'app']);
+            expect(typeof transactionSpy.mock.calls[0][4]).toBe('function');
+            expect(order).toEqual([
+                'transaction',
+                'post:db',
+                'post:app',
+                'recreate:wud',
+            ]);
+            expect(successEventSpy).toHaveBeenCalledTimes(2);
+            transactionSpy.mockRestore();
+        });
+
+        test('does not recreate the container WUD runs in when the stack was rolled back', async () => {
+            const rollback = require('./rollback');
+            const transactionSpy = jest
+                .spyOn(rollback, 'performProjectTransaction')
+                .mockResolvedValue(false);
+            const rollbackHookSpy = jest
+                .spyOn(HookManager, 'runRollbackHooks')
+                .mockResolvedValue(undefined);
+            dockercompose.configuration.rollback = true;
+            const wud = makeContainer('cache', 'test/cache');
+            wud.id = 'c-wud';
+            wud.name = 'wud';
+            dockercompose.resolveSelfContainerId = jest
+                .fn()
+                .mockResolvedValue('c-wud');
+
+            await dockercompose.processComposeFile('/path/compose.yml', [
+                wud,
+                app,
+            ]);
+
+            expect(superTriggerSpy).not.toHaveBeenCalled();
+            expect(rollbackHookSpy).toHaveBeenCalledTimes(1);
+            expect(rollbackHookSpy.mock.calls[0][0]).toBe(app);
+            expect(successEventSpy).not.toHaveBeenCalled();
+            rollbackHookSpy.mockRestore();
+            transactionSpy.mockRestore();
+        });
+
+        test('gates service_healthy dependencies between the swaps of the rollback transaction', async () => {
+            const rollback = require('./rollback');
+            const transactionSpy = jest
+                .spyOn(rollback, 'performProjectTransaction')
+                .mockResolvedValue(true);
+            dockercompose.configuration.rollback = true;
+
+            await dockercompose.processComposeFile('/path/compose.yml', [
+                worker,
+                app,
+            ]);
+
+            const gate = transactionSpy.mock.calls[0][4] as (
+                c: any,
+            ) => Promise<void>;
+            await gate(app);
+            expect(waitForHealthySpy).toHaveBeenCalledTimes(1);
+            expect(waitForHealthySpy.mock.calls[0][0]).toEqual({ name: 'app' });
+            // worker is nobody's healthy dependency: no wait
+            await gate(worker);
+            expect(waitForHealthySpy).toHaveBeenCalledTimes(1);
+            transactionSpy.mockRestore();
+        });
+
+        test('recreate=false runs no failure hooks and emits no failure event when the rewrite fails', async () => {
+            dockercompose.configuration.recreate = false;
+            dockercompose.rewriteComposeFile = jest
+                .fn()
+                .mockRejectedValue(new Error('disk full'));
+            const failureHookSpy = jest
+                .spyOn(HookManager, 'runFailureHooks')
+                .mockResolvedValue(undefined);
+
+            await expect(
+                dockercompose.processComposeFile('/path/compose.yml', [app]),
+            ).rejects.toThrow('disk full');
+
+            expect(failureHookSpy).not.toHaveBeenCalled();
+            expect(failureEventSpy).not.toHaveBeenCalled();
+            expect(superTriggerSpy).not.toHaveBeenCalled();
+            failureHookSpy.mockRestore();
         });
 
         test('recreate=false rewrites the compose file atomically and stops', async () => {
