@@ -45,12 +45,22 @@ If you run many containers or have frequent watcher check intervals, anonymous d
 
 ## 3. Default WUD Digest Polling Rules
 
-To protect you against accidental rate limits out of the box, WUD applies smart defaults:
+To protect you against accidental rate limits out of the box, WUD applies smart defaults based on both the tag format and the registry:
 
-| Image Tag Type | Example Tag | Default Digest Watching | Why? |
-| :--- | :--- | :--- | :--- |
-| **Semver Tags** | `v1.2.3`, `2.4.0` | **Disabled** by default | New versions are released under new tag numbers, which are discovered via lightweight tag list queries without consuming pull quota. |
-| **Non-Semver Tags** | `latest`, `dev` | **Enabled** by default | The tag name doesn't change, so digest comparison is the only way to detect new builds. |
+| Image Tag Type | Example Tag | Registry | Default Digest Watching | Why? |
+| :--- | :--- | :--- | :--- | :--- |
+| **Semver Tags** | `v1.2.3`, `2.4.0` | Any | **Disabled** (`false`) | New versions are released under new tag numbers, which are discovered via lightweight tag list queries without consuming pull quota. |
+| **Non-Semver Tags** | `latest`, `dev` | **Docker Hub (`hub`)** | **Disabled** (`false`) | Prevents hitting Docker Hub's strict pull rate limits out of the box, even on mutable tags. |
+| **Non-Semver Tags** | `latest`, `dev` | **Other registries** (GHCR, Quay, etc.) | **Enabled** (`true`) | The tag name doesn't change, so digest comparison is the only way to detect new builds. |
+
+:::note[Enabling Digest Watching on Docker Hub]
+Because Docker Hub defaults to `false`, mutable tags (such as `latest`) on Docker Hub images will **not** have their digests checked unless you explicitly opt in via one of the following (in order of precedence):
+
+1. **Per container**: Set the `wud.watch.digest=true` label (or `WUD_WATCHER_{name}_CONTAINERDIGESTS` for Docker watchers).
+2. **Per Docker Hub registry**: Set `WUD_REGISTRY_HUB_{name}_WATCHDIGEST=true` (for example, `WUD_REGISTRY_HUB_PUBLIC_WATCHDIGEST=true`).
+3. **Watcher fallback**: Set `WUD_WATCHER_{name}_WATCHDIGESTDEFAULT=true` (applies when neither container configuration nor registry `WATCHDIGEST` is set).
+
+:::
 
 ---
 

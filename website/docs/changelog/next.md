@@ -21,3 +21,4 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 - 🐛 [TRIGGER] Preserve file ownership and permissions when updating Docker Compose files (fixes #1577)
 - 🐛 [WATCHER] Reconcile store containers when the Docker event stream reconnects (fixes #1575)
 - 🐛 [WATCHER] Show only the Docker connection settings in use: host, port and TLS files for a remote watcher, the socket for a local one (fixes #1591)
+- 📚 [DOCS] Clarify that digest watching is disabled by default for Docker Hub images even on non-semver tags
