@@ -58,7 +58,7 @@ export async function shutdown(
     }
 
     shutdownPromise = (async () => {
-        // 1. Stop API server (close listeners, reject incoming requests, close idle sockets)
+        // 1. Stop API server (close listeners, reject incoming requests, close active and idle sockets)
         try {
             const api = await import('../api');
             if (typeof api.close === 'function') {

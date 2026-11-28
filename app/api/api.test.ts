@@ -40,6 +40,7 @@ jest.mock('./auth', () => ({
 }));
 jest.mock('./log', () => ({
     init: jest.fn(() => ({ use: jest.fn(), get: jest.fn() })),
+    close: jest.fn(),
 }));
 jest.mock('./store', () => ({
     init: jest.fn(() => ({ use: jest.fn(), get: jest.fn() })),
@@ -55,6 +56,7 @@ jest.mock('./profile', () => ({
 }));
 jest.mock('./event', () => ({
     init: jest.fn(() => ({ use: jest.fn(), get: jest.fn() })),
+    close: jest.fn(),
 }));
 
 import * as api from './api';
@@ -129,5 +131,15 @@ describe('API Router', () => {
             '/openapi.yaml',
             expect.any(Function),
         );
+    });
+
+    test('should close event and log streaming routers on close()', async () => {
+        const eventRouter = await import('./event');
+        const logRouter = await import('./log');
+
+        api.close();
+
+        expect(eventRouter.close).toHaveBeenCalledTimes(1);
+        expect(logRouter.close).toHaveBeenCalledTimes(1);
     });
 });
