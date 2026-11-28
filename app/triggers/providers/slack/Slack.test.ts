@@ -30,7 +30,7 @@ testTriggerProvider(Slack, configurationValid);
 test('validateConfiguration should throw error when invalid', async () => {
     expect(() => {
         slack.validateConfiguration({});
-    }).toThrowError(ValidationError);
+    }).toThrow(ValidationError);
 });
 
 test('maskConfiguration should mask sensitive data', async () => {

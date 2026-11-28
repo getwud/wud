@@ -14,16 +14,16 @@ export function getRegistryPriority(
     // 1. Authenticated instances get highest priority (+100)
     const hasAuth = Boolean(
         config.login ||
-            config.password ||
-            config.token ||
-            config.auth ||
-            config.username ||
-            config.clientid ||
-            config.clientsecret ||
-            config.apikey ||
-            config.secretkey ||
-            config.accesskeyid ||
-            config.secretaccesskey,
+        config.password ||
+        config.token ||
+        config.auth ||
+        config.username ||
+        config.clientid ||
+        config.clientsecret ||
+        config.apikey ||
+        config.secretkey ||
+        config.accesskeyid ||
+        config.secretaccesskey,
     );
     if (hasAuth) {
         score += 100;

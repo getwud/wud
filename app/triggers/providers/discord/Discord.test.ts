@@ -189,9 +189,8 @@ describe('Discord Trigger', () => {
 
     test('should include changelog URL in discord message when container has changelogUrl (#1501)', async () => {
         const { default: axios } = await import('axios');
-        const { validate: validateContainer } = await import(
-            '../../../model/container'
-        );
+        const { validate: validateContainer } =
+            await import('../../../model/container');
         discord.configuration = discord.validateConfiguration({
             url: 'https://discord.com/api/webhooks/123/abc',
         });

@@ -544,9 +544,8 @@ describe('Container Store (SQLite)', () => {
     });
 
     test('cooldown transition in store should accurately reflect history and transition status (#1445)', async () => {
-        const { hasTransitionedOutOfCooldown } = await import(
-            '../model/container'
-        );
+        const { hasTransitionedOutOfCooldown } =
+            await import('../model/container');
 
         // 1. Insert container during cooldown (created 1 hour ago, delay 2 days)
         const initialCreated = new Date(Date.now() - 3600 * 1000).toISOString();

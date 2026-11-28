@@ -451,7 +451,7 @@ export function safeInterpolate(
     const result = template.replace(/\$\{([^}]*)\}/g, (_match, expr) => {
         replacedCount++;
 
-        let path = expr;
+        let path: string;
         let method: 'padStart' | 'padEnd' | undefined;
         let padLen = 0;
         let padChar: string | undefined;
@@ -501,7 +501,7 @@ export function safeInterpolate(
             current = (current as Record<string, unknown>)[segments[i]];
         }
 
-        let currentStr = '';
+        let currentStr: string;
         if (
             typeof current === 'string' ||
             (typeof current === 'number' && !Number.isNaN(current)) ||
@@ -1238,15 +1238,15 @@ export function hasTransitionedOutOfCooldown(
               lastCheckedStr.includes('T')
                   ? lastCheckedStr
                   : lastCheckedStr.replace(' ', 'T') +
-                    (lastCheckedStr.endsWith('Z') ? '' : 'Z'),
+                        (lastCheckedStr.endsWith('Z') ? '' : 'Z'),
           ).getTime()
         : undefined;
 
     const checkedDuringCooldown = Boolean(
         containerInDb.coolingDownUntil !== undefined &&
-            lastCheckedMs !== undefined &&
-            !isNaN(lastCheckedMs) &&
-            lastCheckedMs < containerInDb.coolingDownUntil,
+        lastCheckedMs !== undefined &&
+        !isNaN(lastCheckedMs) &&
+        lastCheckedMs < containerInDb.coolingDownUntil,
     );
 
     const wasCoolingDown =

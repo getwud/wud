@@ -88,7 +88,7 @@ test('deregisterComponent should throw when component fails to deregister', asyn
     component.deregister = () => {
         throw new Error('Error x');
     };
-    expect(deregisterComponent(component)).rejects.toThrowError(
+    await expect(deregisterComponent(component)).rejects.toThrow(
         'Error when deregistering component .',
     );
 });
@@ -552,7 +552,7 @@ test('deregisterAll should throw an error when any component fails to deregister
     registry.getState().trigger = {
         trigger1: component,
     };
-    expect(registry.testable_deregisterAll()).rejects.toThrowError(
+    await expect(registry.testable_deregisterAll()).rejects.toThrow(
         'Error when deregistering component .',
     );
 });
@@ -565,7 +565,7 @@ test('deregisterRegistries should throw when errors occurred', async () => {
     registry.getState().registry = {
         registry1: component,
     };
-    expect(registry.testable_deregisterRegistries()).rejects.toThrowError(
+    await expect(registry.testable_deregisterRegistries()).rejects.toThrow(
         'Error when deregistering component .',
     );
 });
@@ -578,7 +578,7 @@ test('deregisterTriggers should throw when errors occurred', async () => {
     registry.getState().trigger = {
         trigger1: component,
     };
-    expect(registry.testable_deregisterTriggers()).rejects.toThrowError(
+    await expect(registry.testable_deregisterTriggers()).rejects.toThrow(
         'Error when deregistering component .',
     );
 });
@@ -591,7 +591,7 @@ test('deregisterWatchers should throw when errors occurred', async () => {
     registry.getState().watcher = {
         watcher1: component,
     };
-    expect(registry.testable_deregisterWatchers()).rejects.toThrowError(
+    await expect(registry.testable_deregisterWatchers()).rejects.toThrow(
         'Error when deregistering component .',
     );
 });

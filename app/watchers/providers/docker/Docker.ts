@@ -1964,6 +1964,7 @@ export class Docker extends Watcher {
                     if (!watchDigest) {
                         throw new Error(
                             `Failed to fetch tags from registry (${errorDetail})`,
+                            { cause: e },
                         );
                     }
                 }
@@ -2002,6 +2003,7 @@ export class Docker extends Watcher {
                     if (!watchDigest) {
                         throw new Error(
                             `Failed to resolve candidate tags (${errorDetail})`,
+                            { cause: e },
                         );
                     }
                 }
@@ -2079,6 +2081,7 @@ export class Docker extends Watcher {
                         }
                         throw new Error(
                             `Failed to fetch remote image manifest (${errorDetail})`,
+                            { cause: e },
                         );
                     }
                 }
@@ -2723,7 +2726,7 @@ export class Docker extends Watcher {
             );
             const resultChanged = Boolean(
                 containerInDb.resultChanged &&
-                    containerInDb.resultChanged(containerReport.container),
+                containerInDb.resultChanged(containerReport.container),
             );
             containerReport.changed =
                 (resultChanged || transitionedOutOfCooldown) &&

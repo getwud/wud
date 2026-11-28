@@ -20,12 +20,12 @@
   "repository": "getwud/wud",
   "license": "MIT",
   "dependencies": {
-    "@cucumber/cucumber": "^13.2.1",
+    "@cucumber/cucumber": "^13.3.0",
     "apickli": "3.0.3",
-    "mqtt": "^5.16.0"
+    "mqtt": "^5.16.1"
   },
   "devDependencies": {
-    "@dotenvx/dotenvx": "^2.32.4",
+    "@dotenvx/dotenvx": "^2.38.2",
     "eslint": "^8.57.1",
     "eslint-config-airbnb-base": "15.0.0",
     "eslint-plugin-cucumber": "2.0.0",

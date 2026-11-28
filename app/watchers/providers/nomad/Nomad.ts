@@ -1179,7 +1179,7 @@ export class Nomad extends Watcher {
             );
             const resultChanged = Boolean(
                 containerInDb.resultChanged &&
-                    containerInDb.resultChanged(containerReport.container),
+                containerInDb.resultChanged(containerReport.container),
             );
             containerReport.changed =
                 (resultChanged || transitionedOutOfCooldown) &&

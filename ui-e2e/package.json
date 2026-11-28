@@ -7,8 +7,8 @@
     "screenshots": "playwright test -c playwright.screenshots.config.ts"
   },
   "devDependencies": {
-    "@playwright/test": "^1.63.0",
-    "@types/node": "^22.20.5",
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^25.9.12",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }

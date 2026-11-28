@@ -228,6 +228,7 @@ class Telegram extends Trigger {
                 );
                 throw new Error(
                     `Failed to send message to Telegram: ${description}`,
+                    { cause: error },
                 );
             }
             throw error;

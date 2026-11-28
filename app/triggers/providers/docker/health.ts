@@ -11,11 +11,7 @@ import { Logger } from 'pino';
  *   uninspectability across the whole grace period).
  */
 export type HealthVerdict =
-    | 'healthy'
-    | 'unhealthy'
-    | 'timeout'
-    | 'crashed'
-    | 'no-healthcheck';
+    'healthy' | 'unhealthy' | 'timeout' | 'crashed' | 'no-healthcheck';
 
 export interface HealthWaitOptions {
     window: number;

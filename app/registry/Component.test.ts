@@ -81,9 +81,9 @@ test('register should not call init when validateConfiguration fails', async () 
         throw new Error('validation failed');
     };
     const spyInit = jest.spyOn(component, 'init');
-    expect(component.register('type', 'name', { x: 'x' })).rejects.toThrowError(
-        'validation failed',
-    );
+    await expect(
+        component.register('type', 'name', { x: 'x' }),
+    ).rejects.toThrow('validation failed');
     expect(spyInit).toHaveBeenCalledTimes(0);
 });
 
@@ -92,7 +92,7 @@ test('register should throw when init fails', async () => {
     component.init = () => {
         throw new Error('init failed');
     };
-    expect(component.register('type', 'name', { x: 'x' })).rejects.toThrowError(
-        'init failed',
-    );
+    await expect(
+        component.register('type', 'name', { x: 'x' }),
+    ).rejects.toThrow('init failed');
 });

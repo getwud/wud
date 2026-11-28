@@ -267,9 +267,8 @@ describe('Docker Watcher', () => {
                     Created: '2023-01-01',
                     RepoDigests: ['nginx@sha256:local'],
                 });
-                const containerModule = await import(
-                    '../../../model/container'
-                );
+                const containerModule =
+                    await import('../../../model/container');
                 containerModule.validate.mockImplementation((value) => value);
                 const result = await docker.addImageDetailsToContainer({
                     Id: '123',
@@ -421,9 +420,8 @@ describe('Docker Watcher', () => {
                     Os: 'linux',
                     RepoDigests: [],
                 });
-                const containerModule = await import(
-                    '../../../model/container'
-                );
+                const containerModule =
+                    await import('../../../model/container');
                 containerModule.validate.mockImplementation((value) => value);
                 const result = await docker.addImageDetailsToContainer({
                     Id: '123',
@@ -459,9 +457,8 @@ describe('Docker Watcher', () => {
                     Os: 'linux',
                     RepoDigests: [],
                 });
-                const containerModule = await import(
-                    '../../../model/container'
-                );
+                const containerModule =
+                    await import('../../../model/container');
                 containerModule.validate.mockImplementation((value) => value);
                 const result = await docker.addImageDetailsToContainer(
                     {
@@ -531,9 +528,8 @@ describe('Docker Watcher', () => {
                     Os: 'linux',
                     RepoDigests: [],
                 });
-                const containerModule = await import(
-                    '../../../model/container'
-                );
+                const containerModule =
+                    await import('../../../model/container');
                 containerModule.validate.mockImplementation((value) => value);
                 const result = await docker.addImageDetailsToContainer({
                     Id: '123',
@@ -3766,9 +3762,8 @@ describe('Docker Watcher', () => {
                         },
                     },
                 });
-                const containerModule = await import(
-                    '../../../model/container'
-                );
+                const containerModule =
+                    await import('../../../model/container');
                 // @ts-ignore
                 containerModule.validate.mockReturnValue({ id: '123' });
 
@@ -6643,8 +6638,7 @@ describe('Docker Watcher', () => {
                 // Case 1: deregistered while getEvents callback is pending during reconnect
                 docker.hasConnectedEvents = true;
                 let pendingCallback:
-                    | ((err: any, stream?: any) => void)
-                    | undefined;
+                    ((err: any, stream?: any) => void) | undefined;
                 mockDockerApi.getEvents.mockImplementation(
                     (_opts, callback) => {
                         pendingCallback = callback;

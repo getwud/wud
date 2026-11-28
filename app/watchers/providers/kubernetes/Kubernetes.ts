@@ -63,10 +63,7 @@ import { ComponentConfiguration } from '../../../registry/Component';
 // ─── Types & constants ────────────────────────────────────────────────────────
 
 export type WorkloadKind =
-    | 'Deployment'
-    | 'StatefulSet'
-    | 'DaemonSet'
-    | 'CronJob';
+    'Deployment' | 'StatefulSet' | 'DaemonSet' | 'CronJob';
 
 export interface KubernetesWatcherConfiguration extends ComponentConfiguration {
     kubeconfig?: string;
@@ -1328,7 +1325,7 @@ export class Kubernetes extends Watcher {
             );
             const resultChanged = Boolean(
                 containerInDb.resultChanged &&
-                    containerInDb.resultChanged(containerReport.container),
+                containerInDb.resultChanged(containerReport.container),
             );
             containerReport.changed =
                 (resultChanged || transitionedOutOfCooldown) &&
