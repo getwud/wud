@@ -9,6 +9,8 @@ import Registry from '../../../registries/Registry';
 import { HookManager } from '../../hooks/HookManager';
 import * as event from '../../../event';
 import { performProjectTransaction } from './rollback';
+import { isSelfContainer } from '../docker/self';
+import { waitForHealthy } from '../docker/health';
 import { projectMutex } from './mutex';
 
 interface ComposeImageUpdate {
@@ -325,6 +327,164 @@ function doesContainerBelongToCompose(compose, container) {
     return Boolean(findServiceKeyForContainer(compose, container));
 }
 
+/**
+ * One `depends_on` entry of a compose service.
+ */
+interface ServiceDependency {
+    name: string;
+    condition?: string;
+}
+
+/**
+ * Read the `depends_on` entries of a compose service (short list syntax or
+ * long map syntax with `{ condition }`).
+ */
+function getServiceDependencies(service: unknown): ServiceDependency[] {
+    if (!service || typeof service !== 'object') {
+        return [];
+    }
+    const dependsOn = (service as { depends_on?: unknown }).depends_on;
+    if (Array.isArray(dependsOn)) {
+        return dependsOn
+            .filter((dep): dep is string => typeof dep === 'string')
+            .map((name) => ({ name }));
+    }
+    if (dependsOn && typeof dependsOn === 'object') {
+        return Object.entries(dependsOn as Record<string, unknown>).map(
+            ([name, spec]) => ({
+                name,
+                condition:
+                    spec && typeof spec === 'object'
+                        ? (spec as { condition?: string }).condition
+                        : undefined,
+            }),
+        );
+    }
+    return [];
+}
+
+/**
+ * How the containers of a compose file must be recreated.
+ */
+export interface RecreationPlan {
+    /** Recreation waves: dependencies first, dependents last (WUD itself excluded). */
+    waves: Container[][];
+    /**
+     * The container(s) WUD runs in: recreated as a final post-commit step,
+     * after the waves, their post hooks and success events, never inside the
+     * rollback transaction (the self-update helper replaces WUD asynchronously).
+     */
+    selfContainers: Container[];
+    /** Services involved in a `depends_on` cycle (recreated together, last). */
+    cyclicServices: string[];
+    /** Services a later wave waits on with `condition: service_healthy`. */
+    healthyDependencies: Set<string>;
+}
+
+/**
+ * Plan the recreation of the containers of a compose file honoring
+ * `depends_on`: the dependency graph is built over all the services of the
+ * file (so a dependency through a service that is not updated still orders
+ * the updated ones), then the containers to update are projected onto the
+ * topological levels. Services of the same wave have no dependency relation
+ * and can be recreated in parallel.
+ *
+ * A dependency cycle is reported and its services are recreated together in
+ * the last regular wave. The container WUD itself runs in, when present, is
+ * kept out of the waves (`selfContainers`) so WUD does not stop itself before
+ * the rest of the stack is committed.
+ */
+function orderContainersByDependencies(
+    compose,
+    containers: Container[],
+    isSelf: (container: Container) => boolean = () => false,
+): RecreationPlan {
+    const services: Record<string, unknown> =
+        compose && compose.services && typeof compose.services === 'object'
+            ? compose.services
+            : {};
+
+    // Topological levels over the whole file (Kahn).
+    const pendingDeps = new Map<string, Set<string>>();
+    Object.keys(services).forEach((serviceKey) => {
+        const deps = getServiceDependencies(services[serviceKey])
+            .map((dep) => dep.name)
+            .filter((dep) => dep !== serviceKey && dep in services);
+        pendingDeps.set(serviceKey, new Set(deps));
+    });
+    const levelOfService = new Map<string, number>();
+    const cyclicServices: string[] = [];
+    let level = 0;
+    while (pendingDeps.size > 0) {
+        let ready = [...pendingDeps.entries()]
+            .filter(([, deps]) => deps.size === 0)
+            .map(([serviceKey]) => serviceKey);
+        if (ready.length === 0) {
+            // Cycle: whatever is left is recreated together.
+            ready = [...pendingDeps.keys()];
+            cyclicServices.push(...ready);
+        }
+        ready.forEach((serviceKey) => {
+            levelOfService.set(serviceKey, level);
+            pendingDeps.delete(serviceKey);
+        });
+        pendingDeps.forEach((deps) =>
+            ready.forEach((serviceKey) => deps.delete(serviceKey)),
+        );
+        level += 1;
+    }
+
+    // Project the containers to update onto the levels.
+    const updatedServices = new Set<string>();
+    const selfContainers: Container[] = [];
+    const containersByLevel = new Map<number, Container[]>();
+    containers.forEach((container) => {
+        const serviceKey = findServiceKeyForContainer(compose, container);
+        if (serviceKey) {
+            // Counted even for WUD itself: its `service_healthy` dependencies
+            // must be awaited before it is recreated.
+            updatedServices.add(serviceKey);
+        }
+        if (isSelf(container)) {
+            selfContainers.push(container);
+            return;
+        }
+        // Unknown services cannot be ordered: recreate them first.
+        const containerLevel = serviceKey
+            ? (levelOfService.get(serviceKey) ?? 0)
+            : 0;
+        if (!containersByLevel.has(containerLevel)) {
+            containersByLevel.set(containerLevel, []);
+        }
+        containersByLevel.get(containerLevel).push(container);
+    });
+    const waves = [...containersByLevel.keys()]
+        .sort((a, b) => a - b)
+        .map((containerLevel) => containersByLevel.get(containerLevel));
+
+    // Updated services that an updated dependent waits on for health.
+    const healthyDependencies = new Set<string>();
+    updatedServices.forEach((serviceKey) => {
+        getServiceDependencies(services[serviceKey])
+            .filter(
+                (dep) =>
+                    dep.condition === 'service_healthy' &&
+                    dep.name !== serviceKey &&
+                    updatedServices.has(dep.name),
+            )
+            .forEach((dep) => healthyDependencies.add(dep.name));
+    });
+
+    return {
+        waves,
+        selfContainers,
+        cyclicServices: cyclicServices.filter((serviceKey) =>
+            updatedServices.has(serviceKey),
+        ),
+        healthyDependencies,
+    };
+}
+
 export interface DockercomposeConfiguration extends DockerConfiguration {
     file?: string;
     pathmapping?: {
@@ -334,6 +494,7 @@ export interface DockercomposeConfiguration extends DockerConfiguration {
     backup?: boolean;
     composeFileLabel?: string;
     strict_digest?: boolean;
+    recreate?: boolean;
 }
 
 /**
@@ -366,6 +527,9 @@ class Dockercompose extends Docker {
             // Add configuration for the label name to look for
             composeFileLabel: this.joi.string().default('wud.compose.file'),
             strict_digest: this.joi.boolean().default(false),
+            // When false, only the compose file is rewritten; services are
+            // left for the operator to recreate (`docker compose up -d`).
+            recreate: this.joi.boolean().default(true),
         });
     }
 
@@ -778,6 +942,52 @@ class Dockercompose extends Docker {
                     return;
                 }
 
+                const recreate = this.configuration.recreate !== false;
+
+                if (!recreate) {
+                    await this.updateComposeFileOnly(
+                        composeFile,
+                        containersToUpdate,
+                        currentVersionToUpdateVersionArray,
+                    );
+                    return;
+                }
+
+                // Recreate services only after the services they depend on
+                // (dependencies first, dependents last, WUD itself last).
+                const selfContainerId =
+                    await this.resolveSelfContainerIdFor(containersToUpdate);
+                const plan = orderContainersByDependencies(
+                    compose,
+                    containersToUpdate,
+                    (container) =>
+                        isSelfContainer(container.id, selfContainerId),
+                );
+                if (plan.cyclicServices.length > 0) {
+                    this.log.warn(
+                        `Dependency cycle between services ${plan.cyclicServices.join(', ')} in ${composeFile}; they will be recreated together`,
+                    );
+                }
+                const recreationSteps = [
+                    ...plan.waves,
+                    plan.selfContainers,
+                ].filter((step) => step.length > 0);
+                if (recreationSteps.length > 1) {
+                    this.log.info(
+                        `Recreation order for ${composeFile}: ${recreationSteps
+                            .map((wave) => wave.map((c) => c.name).join(', '))
+                            .join(' -> ')}`,
+                    );
+                }
+                // WUD itself is handled post-commit (see recreateSelfContainers)
+                const orderedContainersToUpdate = plan.waves.flat();
+                const gateDependency = (container: Container) =>
+                    this.waitForHealthyDependencies(
+                        compose,
+                        [container],
+                        plan.healthyDependencies,
+                    );
+
                 if (!this.configuration.dryrun) {
                     for (const container of containersToUpdate) {
                         event.emitContainerUpdatePre(container);
@@ -808,17 +1018,20 @@ class Dockercompose extends Docker {
                         );
                     }
 
-                    // CLI-free project transaction with whole-project revert.
+                    // CLI-free project transaction with whole-project revert
+                    // (WUD itself stays out of it: the self-update helper
+                    // replaces WUD asynchronously and cannot be gated).
                     const committed = await performProjectTransaction(
                         this,
                         composeFile,
-                        containersToUpdate,
+                        orderedContainersToUpdate,
                         currentVersionToUpdateVersionArray,
+                        gateDependency,
                     );
 
                     // Post-update or rollback hooks for all containers in this compose stack
                     if (committed) {
-                        for (const container of containersToUpdate) {
+                        for (const container of orderedContainersToUpdate) {
                             const watcher = this.getWatcher(container);
                             await HookManager.runPostHooks(
                                 container,
@@ -831,9 +1044,15 @@ class Dockercompose extends Docker {
                             );
                             event.emitContainerUpdateSuccess(container);
                         }
+                        await this.recreateSelfContainers(plan.selfContainers);
                     } else {
                         // Rolled back
-                        for (const container of containersToUpdate) {
+                        if (plan.selfContainers.length > 0) {
+                            this.log.warn(
+                                `Stack ${composeFile} was rolled back; WUD itself is not updated`,
+                            );
+                        }
+                        for (const container of orderedContainersToUpdate) {
                             const watcher = this.getWatcher(container);
                             await HookManager.runRollbackHooks(
                                 container,
@@ -886,20 +1105,35 @@ class Dockercompose extends Docker {
                     );
                 }
 
-                // Update all containers
+                // Update all containers, one dependency wave at a time; a
+                // failed wave aborts the recreation of the dependent services
                 // (super.notify will take care of the dry-run mode for each container as well)
-                await Promise.all(
-                    containersToUpdate.map((container) =>
-                        super.trigger(container, {
-                            runHooks: false,
-                            emitEvents: false,
-                        }),
-                    ),
-                );
+                for (let i = 0; i < plan.waves.length; i += 1) {
+                    const wave = plan.waves[i];
+                    const hasDependents =
+                        i < plan.waves.length - 1 ||
+                        plan.selfContainers.length > 0;
+                    const results = await Promise.allSettled(
+                        wave.map((container) =>
+                            super.trigger(container, {
+                                runHooks: false,
+                                emitEvents: false,
+                            }),
+                        ),
+                    );
+                    this.throwOnFailedWave(wave, results, hasDependents);
+                    if (hasDependents && !this.configuration.dryrun) {
+                        await this.waitForHealthyDependencies(
+                            compose,
+                            wave,
+                            plan.healthyDependencies,
+                        );
+                    }
+                }
 
                 // Post-update hooks for all containers in this compose stack
                 if (!this.configuration.dryrun) {
-                    for (const container of containersToUpdate) {
+                    for (const container of orderedContainersToUpdate) {
                         const watcher = this.getWatcher(container);
                         await HookManager.runPostHooks(
                             container,
@@ -913,8 +1147,15 @@ class Dockercompose extends Docker {
                         event.emitContainerUpdateSuccess(container);
                     }
                 }
+
+                // WUD itself, last: nothing is left to cut short when it stops
+                await this.recreateSelfContainers(plan.selfContainers);
             } catch (e: any) {
                 this.log.error(`Compose update failed: ${e.message}`);
+                if (this.configuration.recreate === false) {
+                    // File-only mode: no hooks, no update events
+                    throw e;
+                }
                 const failedContainers =
                     containersToUpdate && containersToUpdate.length > 0
                         ? containersToUpdate
@@ -942,6 +1183,160 @@ class Dockercompose extends Docker {
                 throw e;
             }
         });
+    }
+
+    /**
+     * File-only mode (`recreate=false`): rewrite the compose file with the new
+     * versions and stop there (no pull, no recreation, no hooks, no rollback).
+     * Only mappings that actually change the file are written, so a digest
+     * check with `once=false` never clobbers the `.back` copy.
+     */
+    async updateComposeFileOnly(
+        composeFile: string,
+        containers: Container[],
+        mappings: ComposeImageUpdate[],
+    ): Promise<void> {
+        const fileMappings = mappings.filter(
+            (mapping) => mapping.current !== mapping.update,
+        );
+        const names = containers.map((c) => c.name).join(', ');
+        if (fileMappings.length === 0) {
+            this.log.info(
+                `Compose file ${composeFile} already references the target images for ${names} => nothing to rewrite (recreate=false)`,
+            );
+            return;
+        }
+        if (this.configuration.dryrun) {
+            this.log.info(
+                `Would update compose file ${composeFile} for ${names} (dry-run mode enabled, recreate=false)`,
+            );
+            return;
+        }
+        if (this.configuration.backup) {
+            await this.backup(composeFile, `${composeFile}.back`);
+        }
+        await this.rewriteComposeFile(composeFile, fileMappings);
+        this.log.info(
+            `Compose file ${composeFile} updated for ${names}; services not recreated (recreate=false), run "docker compose up -d" to apply`,
+        );
+    }
+
+    /**
+     * Recreate the container(s) WUD runs in, once the rest of the stack has
+     * been committed and its post hooks and success events have run. The
+     * self-update helper replaces WUD asynchronously, so this step never
+     * joins the rollback transaction and runs no hooks of its own.
+     */
+    async recreateSelfContainers(selfContainers: Container[]): Promise<void> {
+        for (const container of selfContainers) {
+            await super.trigger(container, {
+                runHooks: false,
+                emitEvents: false,
+            });
+        }
+    }
+
+    /**
+     * Resolve the id of the container WUD runs in, using the Docker API of
+     * the first container's watcher (undefined when unavailable).
+     */
+    async resolveSelfContainerIdFor(
+        containers: Container[],
+    ): Promise<string | undefined> {
+        const dockerApi = containers
+            .map((container) => this.getWatcher(container)?.dockerApi)
+            .find((api) => Boolean(api));
+        if (!dockerApi) {
+            return undefined;
+        }
+        try {
+            return await this.resolveSelfContainerId(dockerApi);
+        } catch (e: unknown) {
+            this.log.debug(
+                `Unable to resolve the WUD container id (${e instanceof Error ? e.message : String(e)})`,
+            );
+            return undefined;
+        }
+    }
+
+    /**
+     * Fail the batch when a recreation wave has rejected members. A single
+     * failure is rethrown as is; several are aggregated.
+     */
+    throwOnFailedWave(
+        wave: Container[],
+        results: PromiseSettledResult<unknown>[],
+        hasDependents: boolean,
+    ): void {
+        const failures = results
+            .map((result, index) => ({ result, container: wave[index] }))
+            .filter(
+                (
+                    entry,
+                ): entry is {
+                    result: PromiseRejectedResult;
+                    container: Container;
+                } => entry.result.status === 'rejected',
+            );
+        if (failures.length === 0) {
+            return;
+        }
+        if (hasDependents) {
+            this.log.warn(
+                `${failures.length} service(s) failed to update; dependent services are not recreated`,
+            );
+        }
+        if (failures.length === 1) {
+            throw failures[0].result.reason;
+        }
+        const details = failures
+            .map(
+                ({ container, result }) =>
+                    `${container.name}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`,
+            )
+            .join('; ');
+        throw new Error(
+            `${failures.length} services failed to update (${details})`,
+        );
+    }
+
+    /**
+     * Before recreating the next wave (or the next swap of the rollback
+     * transaction), wait for the services of this wave that a dependent
+     * requires with `condition: service_healthy`.
+     */
+    async waitForHealthyDependencies(
+        compose,
+        wave: Container[],
+        healthyDependencies: Set<string>,
+    ): Promise<void> {
+        for (const container of wave) {
+            const serviceKey = findServiceKeyForContainer(compose, container);
+            if (!serviceKey || !healthyDependencies.has(serviceKey)) {
+                continue;
+            }
+            const dockerApi = this.getWatcher(container)?.dockerApi;
+            if (!dockerApi) {
+                continue;
+            }
+            const verdict = await waitForHealthy(
+                dockerApi.getContainer(container.name),
+                {
+                    window: this.configuration.rollbackwindow ?? 300_000,
+                    interval: this.configuration.rollbackinterval ?? 10_000,
+                },
+                this.log,
+            );
+            if (verdict === 'healthy' || verdict === 'no-healthcheck') {
+                this.log.info(
+                    `Dependency ${container.name} is ${verdict === 'healthy' ? 'healthy' : 'running (no healthcheck)'}; recreating dependent services`,
+                );
+                continue;
+            }
+            throw new Error(
+                `Dependency ${container.name} did not become healthy (${verdict}); dependent services are not recreated`,
+            );
+        }
     }
 
     /**
@@ -1476,6 +1871,8 @@ export default Dockercompose;
 export {
     doesContainerBelongToCompose,
     findServiceKeyForContainer,
+    getServiceDependencies,
+    orderContainersByDependencies,
     isMatchingServiceImage,
     findImageNode,
     formatImageReplacement,

@@ -84,6 +84,7 @@ describe('Dockercompose rollback branch', () => {
                     service: 'test',
                 },
             ],
+            expect.any(Function),
         );
     });
 
@@ -125,6 +126,7 @@ describe('Dockercompose rollback branch', () => {
                     service: 'test',
                 },
             ],
+            expect.any(Function),
         );
     });
 

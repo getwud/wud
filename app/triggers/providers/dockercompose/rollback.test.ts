@@ -936,3 +936,70 @@ test('should revert previously swapped services and restore compose file when a 
     expect(apiOutcome.verdict).toEqual('crashed');
     expect(apiOutcome.reason).toEqual('crashed');
 });
+
+test('should await the dependency gate after each swap, in order', async () => {
+    const { trigger } = buildTrigger({
+        services: [
+            { container: { name: 'db', id: 'db-old-id' }, health: 'healthy' },
+            { container: { name: 'web', id: 'web-old-id' }, health: 'healthy' },
+        ],
+    });
+    const order = [];
+    trigger.performUpdate.mockImplementation((container) => {
+        order.push(`swap:${container.name}`);
+        return Promise.resolve({
+            rolledBack: false,
+            durationMs: 1,
+            status: 'succeeded',
+            archiveName: `${container.name}-archive-id`,
+        });
+    });
+    const gateDependency = jest.fn(async (container) => {
+        order.push(`gate:${container.name}`);
+    });
+
+    const committed = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [
+            { name: 'db', id: 'db-old-id' },
+            { name: 'web', id: 'web-old-id' },
+        ],
+        [{ current: 'app:1', update: 'app:2' }],
+        gateDependency,
+    );
+
+    expect(committed).toBe(true);
+    expect(order).toEqual(['swap:db', 'gate:db', 'swap:web', 'gate:web']);
+});
+
+test('should revert the project when a dependency gate fails between swaps', async () => {
+    const { trigger, archives } = buildTrigger({
+        services: [
+            { container: { name: 'db', id: 'db-old-id' }, health: 'healthy' },
+            { container: { name: 'web', id: 'web-old-id' }, health: 'healthy' },
+        ],
+    });
+    const gateDependency = jest.fn(async (container) => {
+        if (container.name === 'db') {
+            throw new Error('Dependency db did not become healthy (unhealthy)');
+        }
+    });
+
+    const committed = await performProjectTransaction(
+        trigger,
+        composeFile,
+        [
+            { name: 'db', id: 'db-old-id' },
+            { name: 'web', id: 'web-old-id' },
+        ],
+        [{ current: 'app:1', update: 'app:2' }],
+        gateDependency,
+    );
+
+    expect(committed).toBe(false);
+    // web was never swapped, db was reverted and the compose file restored
+    expect(trigger.performUpdate).toHaveBeenCalledTimes(1);
+    expect(archives.db.start).toHaveBeenCalled();
+    expect(trigger.restoreComposeFileFromBackup).toHaveBeenCalled();
+});
