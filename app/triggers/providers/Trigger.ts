@@ -868,6 +868,16 @@ class Trigger extends Component {
     }
 
     /**
+     * Whether this trigger can run once for several containers
+     * (`triggerBatch`), e.g. via `POST /api/containers/triggers/:type/:name`.
+     * True when the trigger implements `triggerBatch`; triggers whose batch
+     * method only rejects (e.g. mqtt) override this to `false`.
+     */
+    supportsBatch(): boolean {
+        return this.triggerBatch !== Trigger.prototype.triggerBatch;
+    }
+
+    /**
      * Whether this trigger implements rollback notifications.
      * Positive, overridable capability: the base default is `false`, so a
      * notification trigger must opt in explicitly (blueprint §9).

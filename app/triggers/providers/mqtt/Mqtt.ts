@@ -294,6 +294,13 @@ class Mqtt extends Trigger {
     }
 
     /**
+     * MQTT publishes one topic per container: no batch execution.
+     */
+    supportsBatch(): boolean {
+        return false;
+    }
+
+    /**
      * This trigger supports rollback notifications.
      */
     supportsRollbackNotifications(): boolean {

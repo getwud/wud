@@ -203,6 +203,7 @@ export const mockService = {
       configuration: {
         threshold: t.configuration.threshold || "all",
       },
+      supportsBatch: t.type !== "mqtt",
     }));
   },
 
@@ -211,6 +212,14 @@ export const mockService = {
     return {
       status: 200,
       message: `Trigger ${triggerType}.${triggerName} executed for container ${containerId}${overrideCooldown ? ' (cooldown overridden)' : ''}`,
+    };
+  },
+
+  async runContainerTriggerBatch({ containerIds, triggerType, triggerName, overrideCooldown }: any) {
+    await delay(500);
+    return {
+      status: 200,
+      message: `Trigger ${triggerType}.${triggerName} executed for containers ${(containerIds || []).join(', ')}${overrideCooldown ? ' (cooldown overridden)' : ''}`,
     };
   },
 

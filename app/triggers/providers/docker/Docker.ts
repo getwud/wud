@@ -2248,9 +2248,38 @@ class Docker extends Trigger {
             }
             return true;
         });
-        await Promise.all(
+        // Let every sibling finish (success or failure) before reporting, so
+        // a partial failure never leaves other updates of the batch orphaned.
+        const results = await Promise.allSettled(
             containersToUpdate.map((container) => this.trigger(container)),
         );
+        const failures = results
+            .map((result, index) => ({
+                result,
+                container: containersToUpdate[index],
+            }))
+            .filter(
+                (
+                    entry,
+                ): entry is {
+                    result: PromiseRejectedResult;
+                    container: Container;
+                } => entry.result.status === 'rejected',
+            );
+        if (failures.length === 1) {
+            throw failures[0].result.reason;
+        }
+        if (failures.length > 1) {
+            const details = failures
+                .map(
+                    ({ container, result }) =>
+                        `${container.name}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`,
+                )
+                .join('; ');
+            throw new Error(
+                `${failures.length} container updates failed (${details})`,
+            );
+        }
     }
 }
 

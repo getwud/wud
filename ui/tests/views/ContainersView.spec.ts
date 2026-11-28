@@ -1112,4 +1112,150 @@ describe('ContainersView', () => {
       testWrapper.unmount();
     });
   });
+
+  describe('batch selection', () => {
+    const stackContainers = [
+      { id: 'a', displayName: 'App', stack: 'shop', updateAvailable: true, image: { registry: { name: 'hub' } } },
+      { id: 'b', displayName: 'Db', stack: 'shop', updateAvailable: true, image: { registry: { name: 'hub' } } },
+      { id: 'c', displayName: 'Cache', stack: 'shop', updateAvailable: false, image: { registry: { name: 'hub' } } },
+      { id: 'd', displayName: 'Other', stack: 'blog', updateAvailable: true, image: { registry: { name: 'hub' } } },
+      { id: 'e', displayName: 'Loose', updateAvailable: true, image: { registry: { name: 'hub' } } },
+    ];
+
+    beforeEach(async () => {
+      // Fresh copies: onSseContainerUpdated replaces entries in place
+      wrapper.vm.containers = stackContainers.map((c) => ({ ...c }));
+      await wrapper.vm.$nextTick();
+    });
+
+    it('only allows selecting containers with a plain available update', () => {
+      expect(wrapper.vm.isSelectable(stackContainers[0])).toBe(true);
+      expect(wrapper.vm.isSelectable(stackContainers[2])).toBe(false);
+      expect(wrapper.vm.isSelectable(undefined)).toBe(false);
+      // cool-down overrides and snoozed versions stay on the single-container dialog
+      expect(wrapper.vm.isSelectable({ ...stackContainers[0], isCoolingDown: true })).toBe(false);
+      expect(wrapper.vm.isSelectable({ ...stackContainers[0], isSnoozed: true })).toBe(false);
+    });
+
+    it('exposes the selected containers and ignores ids that are not selectable', async () => {
+      wrapper.vm.selectedIds = ['a', 'c', 'unknown'];
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.selectedContainers.map((c) => c.id)).toEqual(['a']);
+    });
+
+    it('shows the selection bar only when something is selected', async () => {
+      expect(wrapper.find('[data-testid="selection-bar"]').exists()).toBe(false);
+      wrapper.vm.selectedIds = ['a'];
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find('[data-testid="selection-bar"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="selection-bar"]').text()).toContain('1 selected');
+    });
+
+    it('offers to add the other updatable containers of the selected stacks', async () => {
+      wrapper.vm.selectedIds = ['a'];
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.selectedStacks).toEqual(['shop']);
+      expect(wrapper.vm.stackCompletionCandidates.map((c) => c.id)).toEqual(['b']);
+      expect(wrapper.find('[data-testid="add-stacks"]').exists()).toBe(true);
+
+      wrapper.vm.addStacksToSelection();
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.selectedIds).toEqual(['a', 'b']);
+      expect(wrapper.vm.stackCompletionCandidates).toEqual([]);
+      expect(wrapper.find('[data-testid="add-stacks"]').exists()).toBe(false);
+    });
+
+    it('does not offer stack completion for containers without a stack', async () => {
+      wrapper.vm.selectedIds = ['e'];
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.selectedStacks).toEqual([]);
+      expect(wrapper.vm.stackCompletionCandidates).toEqual([]);
+    });
+
+    it('clears the selection', async () => {
+      wrapper.vm.selectedIds = ['a', 'd'];
+      await wrapper.vm.$nextTick();
+      await wrapper.find('[data-testid="clear-selection"]').trigger('click');
+      expect(wrapper.vm.selectedIds).toEqual([]);
+    });
+
+    it('opens the batch update dialog with the selected containers', async () => {
+      wrapper.vm.openBatchUpdateDialog();
+      expect(wrapper.vm.dialogBatchUpdate).toBe(false);
+
+      wrapper.vm.selectedIds = ['a', 'd'];
+      await wrapper.vm.$nextTick();
+      await wrapper.find('[data-testid="update-selected"]').trigger('click');
+      expect(wrapper.vm.dialogBatchUpdate).toBe(true);
+      expect(wrapper.vm.selectedContainers.map((c) => c.id)).toEqual(['a', 'd']);
+    });
+
+    it('clears the selection and refreshes after a batch update', async () => {
+      const refreshSpy = jest.spyOn(wrapper.vm, 'refreshContainers').mockResolvedValue(undefined);
+      wrapper.vm.selectedIds = ['a'];
+      await wrapper.vm.onBatchUpdated();
+      expect(wrapper.vm.selectedIds).toEqual([]);
+      expect(refreshSpy).toHaveBeenCalled();
+    });
+
+    it('prunes selected ids when containers lose their update or disappear', async () => {
+      wrapper.vm.selectedIds = ['a', 'b', 'd'];
+      await wrapper.vm.$nextTick();
+      wrapper.vm.containers = [
+        { ...stackContainers[0], updateAvailable: false },
+        stackContainers[1],
+      ];
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.selectedIds).toEqual(['b']);
+    });
+
+    it('prunes selected ids when an SSE update removes a container update in place', async () => {
+      wrapper.vm.selectedIds = ['a', 'b'];
+      await wrapper.vm.$nextTick();
+      // onSseContainerUpdated mutates the array in place: the shallow watcher does not fire
+      wrapper.vm.onSseContainerUpdated({ id: 'a', updateAvailable: false });
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.selectedIds).toEqual(['b']);
+      expect(wrapper.vm.containers.find((c) => c.id === 'a').updateAvailable).toBe(false);
+    });
+
+    it('keeps the selection when an SSE update leaves the container selectable', async () => {
+      wrapper.vm.selectedIds = ['a'];
+      await wrapper.vm.$nextTick();
+      wrapper.vm.onSseContainerUpdated({ id: 'a', displayName: 'App renamed' });
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.selectedIds).toEqual(['a']);
+    });
+
+    it('hides the selection controls for read-only users', async () => {
+      wrapper.vm.currentUser = { username: 'viewer', role: 'ro' };
+      wrapper.vm.selectedIds = ['a'];
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.canWrite).toBe(false);
+      expect(wrapper.find('[data-testid="selection-bar"]').exists()).toBe(false);
+      expect(wrapper.find('.v-data-table thead .v-selection-control').exists()).toBe(false);
+    });
+
+    it('scopes stack completion to the watcher of the selected containers', async () => {
+      wrapper.vm.containers = [
+        { ...stackContainers[0], watcher: 'local' },
+        { ...stackContainers[1], watcher: 'local' },
+        { id: 'remote-a', displayName: 'Remote App', stack: 'shop', watcher: 'remote', updateAvailable: true, image: { registry: { name: 'hub' } } },
+      ];
+      wrapper.vm.selectedIds = ['a'];
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.stackCompletionCandidates.map((c) => c.id)).toEqual(['b']);
+    });
+
+    it('does not open the drawer when the row click comes from the selection checkbox', () => {
+      const openSpy = jest.spyOn(wrapper.vm, 'openContainerDrawer');
+      const target = { closest: jest.fn(() => ({})) };
+      wrapper.vm.onRowClick({ target }, { item: stackContainers[0] });
+      expect(target.closest).toHaveBeenCalledWith('.v-selection-control');
+      expect(openSpy).not.toHaveBeenCalled();
+
+      wrapper.vm.onRowClick({ target: { closest: () => null } }, { item: stackContainers[0] });
+      expect(openSpy).toHaveBeenCalledWith(stackContainers[0]);
+    });
+  });
 });

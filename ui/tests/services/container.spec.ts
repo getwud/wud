@@ -4,7 +4,8 @@ import {
   refreshContainer,
   deleteContainer,
   getContainerTriggers,
-  runTrigger
+  runTrigger,
+  runTriggerBatch
 } from '@/services/container';
 
 // Mock fetch globally
@@ -156,6 +157,83 @@ describe('Container Service', () => {
           triggerName: 'trigger1'
         })
       ).rejects.toThrow('Execution error');
+    });
+  });
+
+  describe('runTriggerBatch', () => {
+    it('runs trigger for several containers in one call', async () => {
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({})
+      });
+
+      const result = await runTriggerBatch({
+        containerIds: ['container1', 'container2'],
+        triggerType: 'dockercompose',
+        triggerName: 'main'
+      });
+
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/containers/triggers/dockercompose/main',
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ containers: ['container1', 'container2'] })
+        }
+      );
+      expect(result).toEqual({});
+    });
+
+    it('sends overrideCooldown when provided', async () => {
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({})
+      });
+
+      await runTriggerBatch({
+        containerIds: ['container1'],
+        triggerType: 'dockercompose',
+        triggerName: 'main',
+        overrideCooldown: true
+      });
+
+      expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+        containers: ['container1'],
+        overrideCooldown: true
+      });
+    });
+
+    it('throws the server message when response is not ok', async () => {
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        statusText: 'Not Found',
+        json: async () => ({ message: 'Container not found (nope)' })
+      });
+
+      await expect(
+        runTriggerBatch({
+          containerIds: ['nope'],
+          triggerType: 'dockercompose',
+          triggerName: 'main'
+        })
+      ).rejects.toThrow('Container not found (nope)');
+    });
+
+    it('falls back to statusText when the error body is not json', async () => {
+      fetch.mockResolvedValueOnce({
+        ok: false,
+        statusText: 'Bad Gateway',
+        json: async () => { throw new Error('not json'); }
+      });
+
+      await expect(
+        runTriggerBatch({
+          containerIds: ['container1'],
+          triggerType: 'dockercompose',
+          triggerName: 'main'
+        })
+      ).rejects.toThrow('Bad Gateway');
     });
   });
 });

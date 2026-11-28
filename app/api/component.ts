@@ -17,6 +17,10 @@ function mapComponentToItem(key, component) {
         type: component.type,
         name: component.name,
         configuration: component.maskConfiguration(),
+        // Triggers expose whether they can run once for several containers
+        ...(typeof component.supportsBatch === 'function'
+            ? { supportsBatch: component.supportsBatch() }
+            : {}),
     };
 }
 

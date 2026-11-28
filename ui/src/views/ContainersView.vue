@@ -32,9 +32,58 @@
       
       <v-divider />
 
+      <v-sheet
+        v-if="canWrite && selectedContainers.length > 0"
+        class="d-flex align-center flex-wrap px-4 py-2 selection-bar"
+        data-testid="selection-bar"
+      >
+        <v-chip label color="primary" variant="flat" size="small" class="font-weight-bold mr-3">
+          <v-icon start size="small">mdi-checkbox-marked-outline</v-icon>
+          {{ selectedContainers.length }} selected
+        </v-chip>
+        <v-btn
+          color="primary"
+          variant="flat"
+          size="small"
+          prepend-icon="mdi-package-down"
+          class="mr-2"
+          data-testid="update-selected"
+          @click="openBatchUpdateDialog"
+        >
+          Update selected
+        </v-btn>
+        <v-btn
+          v-if="stackCompletionCandidates.length > 0"
+          color="secondary"
+          variant="tonal"
+          size="small"
+          prepend-icon="mdi-layers-plus"
+          class="mr-2"
+          data-testid="add-stacks"
+          :title="'Also select the other ' + stackCompletionCandidates.length + ' updatable container(s) of the same stack(s)'"
+          @click="addStacksToSelection"
+        >
+          Add rest of {{ selectedStacks.length === 1 ? 'stack' : 'stacks' }}
+          <span class="ml-1 text-caption">(+{{ stackCompletionCandidates.length }})</span>
+        </v-btn>
+        <v-spacer />
+        <v-btn
+          variant="text"
+          size="small"
+          prepend-icon="mdi-close"
+          data-testid="clear-selection"
+          @click="clearSelection"
+        >
+          Clear
+        </v-btn>
+      </v-sheet>
+
       <v-data-table
         :key="groupByLabel || 'flat'"
         v-model:items-per-page="itemsPerPage"
+        v-model="selectedIds"
+        :show-select="canWrite"
+        :item-selectable="isSelectable"
         :headers="headers"
         :items="containersFiltered"
         item-value="id"
@@ -539,6 +588,14 @@
       :container="containerToUpdate"
       @updated="onContainerUpdated"
     />
+
+    <!-- Batch Update Dialog -->
+    <container-batch-update-dialog
+      v-if="dialogBatchUpdate"
+      v-model="dialogBatchUpdate"
+      :containers="selectedContainers"
+      @updated="onBatchUpdated"
+    />
   </v-container>
 </template>
 
@@ -550,6 +607,7 @@ import ContainerImage from "@/components/ContainerImage.vue";
 import ContainerTriggers from "@/components/ContainerTriggers.vue";
 import ContainerUpdate from "@/components/ContainerUpdate.vue";
 import ContainerUpdateDialog from "@/components/ContainerUpdateDialog.vue";
+import ContainerBatchUpdateDialog from "@/components/ContainerBatchUpdateDialog.vue";
 import IconRenderer from "@/components/IconRenderer.vue";
 import {
   deleteContainer,
@@ -572,6 +630,7 @@ export default defineComponent({
     ContainerTriggers,
     ContainerUpdate,
     ContainerUpdateDialog,
+    ContainerBatchUpdateDialog,
     IconRenderer,
   },
 
@@ -618,10 +677,19 @@ export default defineComponent({
       dialogUpdate: false,
       containerToUpdate: null as any,
       animatedRows: new Set<string>(),
+
+      selectedIds: [] as string[],
+      dialogBatchUpdate: false,
     };
   },
 
   watch: {
+    containers() {
+      // The list was replaced (initial load, refresh, removal): drop selected
+      // containers that disappeared or no longer have an update. In-place SSE
+      // updates do not reach this shallow watcher and prune explicitly.
+      this.pruneSelection();
+    },
     itemsPerPage(val: number) {
       try {
         localStorage.setItem("itemsPerPage", String(val));
@@ -766,6 +834,26 @@ export default defineComponent({
         });
       return [...new Set(kinds)].sort();
     },
+    selectedContainers(): any[] {
+      const selected = new Set(this.selectedIds);
+      return this.containers.filter((c: any) => selected.has(c.id) && this.isSelectable(c));
+    },
+    selectedStacks(): string[] {
+      return [...new Set(this.selectedContainers.map((c: any) => c.stack).filter(Boolean))] as string[];
+    },
+    // Stacks are scoped per watcher: two watchers may each run a stack with
+    // the same name, and those must not cross-select each other's containers.
+    stackCompletionCandidates(): any[] {
+      const stackKeys = new Set(
+        this.selectedContainers.filter((c: any) => c.stack).map((c: any) => this.stackKey(c)),
+      );
+      if (stackKeys.size === 0) return [];
+      const selected = new Set(this.selectedIds);
+      return this.containers.filter(
+        (c: any) =>
+          c.stack && stackKeys.has(this.stackKey(c)) && !selected.has(c.id) && this.isSelectable(c),
+      );
+    },
     containersFiltered() {
       return this.containers
         .filter((c) => (this.registrySelected ? this.registrySelected === c.image?.registry?.name : true))
@@ -826,10 +914,56 @@ export default defineComponent({
     },
 
     onRowClick(event: any, row: any) {
+      // Clicking the selection checkbox must not open the drawer
+      if (event?.target?.closest?.(".v-selection-control")) {
+        return;
+      }
       const item = row?.item?.raw || row?.item || row;
       if (item) {
         this.openContainerDrawer(item);
       }
+    },
+
+    // Batch updates are for plain available updates: cool-down overrides and
+    // snoozed versions stay on the single-container update dialog.
+    isSelectable(container: any): boolean {
+      return Boolean(
+        container?.updateAvailable && !container.isCoolingDown && !container.isSnoozed,
+      );
+    },
+
+    stackKey(container: any): string {
+      return `${container.watcher ?? ""}/${container.stack}`;
+    },
+
+    pruneSelection() {
+      if (this.selectedIds.length === 0) return;
+      const selectable = new Set(
+        this.containers.filter((c: any) => this.isSelectable(c)).map((c: any) => c.id),
+      );
+      const pruned = this.selectedIds.filter((id) => selectable.has(id));
+      if (pruned.length !== this.selectedIds.length) {
+        this.selectedIds = pruned;
+      }
+    },
+
+    addStacksToSelection() {
+      const ids = this.stackCompletionCandidates.map((c: any) => c.id);
+      this.selectedIds = [...new Set([...this.selectedIds, ...ids])];
+    },
+
+    clearSelection() {
+      this.selectedIds = [];
+    },
+
+    openBatchUpdateDialog() {
+      if (this.selectedContainers.length === 0) return;
+      this.dialogBatchUpdate = true;
+    },
+
+    async onBatchUpdated() {
+      this.clearSelection();
+      await this.refreshContainers();
     },
     
     getNewVersion(container: any) {
@@ -915,6 +1049,8 @@ export default defineComponent({
       } else {
         this.containers.push(container);
       }
+      // In-place mutation: the shallow `containers` watcher does not fire
+      this.pruneSelection();
       if (this.selectedContainer && this.selectedContainer.id === container.id) {
         this.selectedContainer = { ...this.selectedContainer, ...container };
       }
@@ -932,6 +1068,8 @@ export default defineComponent({
       } else {
         this.containers.push(container);
       }
+      // In-place mutation: the shallow `containers` watcher does not fire
+      this.pruneSelection();
       if (this.selectedContainer && this.selectedContainer.id === container.id) {
         this.selectedContainer = { ...this.selectedContainer, ...container };
       }
@@ -1130,6 +1268,12 @@ export default defineComponent({
 <style scoped>
 .cursor-pointer {
   cursor: pointer;
+}
+
+.selection-bar {
+  background: linear-gradient(90deg, rgba(var(--v-theme-primary), 0.1) 0%, rgba(var(--v-theme-primary), 0.03) 100%);
+  border-bottom: 1px solid rgba(var(--v-theme-primary), 0.12);
+  gap: 4px;
 }
 
 /* Group header styling with theme-aware accent and gradient */
