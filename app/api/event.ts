@@ -1,6 +1,18 @@
 import express from 'express';
 import * as event from '../event';
 
+const activeClosers = new Set<() => void>();
+
+/**
+ * Close all active SSE event streams and clean up timers and listeners.
+ */
+export function close(): void {
+    for (const closeClient of [...activeClosers]) {
+        closeClient();
+    }
+    activeClosers.clear();
+}
+
 export function init() {
     const router = express.Router();
 
@@ -15,27 +27,38 @@ export function init() {
         res.write(': keepalive\n\n');
 
         const keepAlive = setInterval(() => {
-            res.write(': keepalive\n\n');
+            if (!res.writableEnded) {
+                res.write(': keepalive\n\n');
+            }
         }, 20000);
+        if (typeof keepAlive.unref === 'function') {
+            keepAlive.unref();
+        }
 
         const formatSse = (type: string, data: unknown) => {
             return `data: ${JSON.stringify({ type, timestamp: new Date().toISOString(), data })}\n\n`;
         };
 
+        const writeEvent = (type: string, data: unknown) => {
+            if (!res.writableEnded) {
+                res.write(formatSse(type, data));
+            }
+        };
+
         const onWatchStart = (data: unknown) =>
-            res.write(formatSse('wud:watch-start', data));
+            writeEvent('wud:watch-start', data);
         const onWatchProgress = (data: unknown) =>
-            res.write(formatSse('wud:watch-progress', data));
+            writeEvent('wud:watch-progress', data);
         const onWatchStop = (data: unknown) =>
-            res.write(formatSse('wud:watch-stop', data));
+            writeEvent('wud:watch-stop', data);
         const onContainerAdded = (data: unknown) =>
-            res.write(formatSse('wud:container-added', data));
+            writeEvent('wud:container-added', data);
         const onContainerUpdated = (data: unknown) =>
-            res.write(formatSse('wud:container-updated', data));
+            writeEvent('wud:container-updated', data);
         const onContainerRemoved = (data: unknown) =>
-            res.write(formatSse('wud:container-removed', data));
+            writeEvent('wud:container-removed', data);
         const onContainerReport = (data: unknown) =>
-            res.write(formatSse('wud:container-report', data));
+            writeEvent('wud:container-report', data);
 
         event.registerWatchStart(onWatchStart);
         event.registerWatchProgress(onWatchProgress);
@@ -45,7 +68,13 @@ export function init() {
         event.registerContainerRemoved(onContainerRemoved);
         event.registerContainerReport(onContainerReport);
 
-        req.on('close', () => {
+        let cleanedUp = false;
+        const cleanup = () => {
+            if (cleanedUp) {
+                return;
+            }
+            cleanedUp = true;
+            activeClosers.delete(closeClient);
             clearInterval(keepAlive);
             event.unregisterWatchStart(onWatchStart);
             event.unregisterWatchProgress(onWatchProgress);
@@ -54,7 +83,17 @@ export function init() {
             event.unregisterContainerUpdated(onContainerUpdated);
             event.unregisterContainerRemoved(onContainerRemoved);
             event.unregisterContainerReport(onContainerReport);
-        });
+        };
+
+        const closeClient = () => {
+            cleanup();
+            if (typeof res.end === 'function' && !res.writableEnded) {
+                res.end();
+            }
+        };
+
+        activeClosers.add(closeClient);
+        req.on('close', cleanup);
     });
 
     return router;

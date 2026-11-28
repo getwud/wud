@@ -512,3 +512,7 @@ test('deregisterComponent should unregister containerAdded and containerUpdated 
 
     expect(customClient.publish).not.toHaveBeenCalled();
 });
+
+test('supportsBatch should be false: MQTT publishes per container, not per batch', () => {
+    expect(mqtt.supportsBatch()).toBe(false);
+});

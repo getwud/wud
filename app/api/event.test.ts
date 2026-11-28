@@ -14,6 +14,7 @@ describe('Event API', () => {
     });
 
     afterEach(() => {
+        eventApi.close();
         jest.useRealTimers();
         jest.restoreAllMocks();
     });
@@ -189,6 +190,77 @@ describe('Event API', () => {
         expect(unregisterContainerUpdatedSpy).toHaveBeenCalled();
         expect(unregisterContainerRemovedSpy).toHaveBeenCalled();
         expect(unregisterContainerReportSpy).toHaveBeenCalled();
+    });
+
+    it('should close all active SSE clients, clear keepalive timers, and unregister listeners on close()', () => {
+        const unregisterWatchStartSpy = jest.spyOn(
+            event,
+            'unregisterWatchStart',
+        );
+        const unregisterWatchProgressSpy = jest.spyOn(
+            event,
+            'unregisterWatchProgress',
+        );
+        const unregisterWatchStopSpy = jest.spyOn(event, 'unregisterWatchStop');
+        const unregisterContainerAddedSpy = jest.spyOn(
+            event,
+            'unregisterContainerAdded',
+        );
+        const unregisterContainerUpdatedSpy = jest.spyOn(
+            event,
+            'unregisterContainerUpdated',
+        );
+        const unregisterContainerRemovedSpy = jest.spyOn(
+            event,
+            'unregisterContainerRemoved',
+        );
+        const unregisterContainerReportSpy = jest.spyOn(
+            event,
+            'unregisterContainerReport',
+        );
+
+        const router = eventApi.init();
+        const req = new EventEmitter() as unknown as express.Request;
+        const res = {
+            writeHead: jest.fn(),
+            write: jest.fn(),
+            end: jest.fn(function (this: { writableEnded: boolean }) {
+                this.writableEnded = true;
+            }),
+            writableEnded: false,
+        } as unknown as express.Response;
+
+        const layer = (router as any).stack.find(
+            (s: any) => s.route?.path === '/',
+        );
+        const handler = layer.route.stack[0].handle;
+
+        handler(req, res);
+        expect(res.write).toHaveBeenCalledTimes(1);
+
+        // Advance past one keepalive interval to confirm timer is active
+        jest.advanceTimersByTime(20000);
+        expect(res.write).toHaveBeenCalledTimes(2);
+
+        // Close all active SSE streams
+        eventApi.close();
+
+        expect(res.end).toHaveBeenCalledTimes(1);
+        expect(unregisterWatchStartSpy).toHaveBeenCalledTimes(1);
+        expect(unregisterWatchProgressSpy).toHaveBeenCalledTimes(1);
+        expect(unregisterWatchStopSpy).toHaveBeenCalledTimes(1);
+        expect(unregisterContainerAddedSpy).toHaveBeenCalledTimes(1);
+        expect(unregisterContainerUpdatedSpy).toHaveBeenCalledTimes(1);
+        expect(unregisterContainerRemovedSpy).toHaveBeenCalledTimes(1);
+        expect(unregisterContainerReportSpy).toHaveBeenCalledTimes(1);
+
+        // Advancing timers must not write any more keepalives
+        jest.advanceTimersByTime(60000);
+        expect(res.write).toHaveBeenCalledTimes(2);
+
+        // Subsequent req close event must be idempotent
+        req.emit('close');
+        expect(unregisterWatchStartSpy).toHaveBeenCalledTimes(1);
     });
 
     describe('Authentication protection on /api/events', () => {

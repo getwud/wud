@@ -9,6 +9,7 @@ const mockServer = {
         if (cb) cb();
     }),
     closeIdleConnections: jest.fn(),
+    closeAllConnections: jest.fn(),
 };
 
 jest.mock('../configuration', () => ({
@@ -21,7 +22,7 @@ jest.mock('../configuration', () => ({
     getLogLevel: jest.fn(() => 'info'),
 }));
 jest.mock('./auth', () => ({ init: jest.fn() }));
-jest.mock('./api', () => ({ init: jest.fn() }));
+jest.mock('./api', () => ({ init: jest.fn(), close: jest.fn() }));
 jest.mock('./ui', () => ({ init: jest.fn() }));
 jest.mock('./prometheus', () => ({ init: jest.fn() }));
 jest.mock('./health', () => ({ init: jest.fn() }));
@@ -153,17 +154,21 @@ describe('API Index', () => {
         await expect(indexLocal.close()).resolves.toBeUndefined();
     });
 
-    test('close should close server and closeIdleConnections', async () => {
+    test('close should close SSE streams, server, idle and all active connections', async () => {
         let indexLocal;
+        let apiRouterMock;
         jest.isolateModules(() => {
             indexLocal = require('./index');
+            apiRouterMock = require('./api');
         });
         await indexLocal.init();
         expect(indexLocal.getServer()).toBeDefined();
 
         await indexLocal.close();
 
+        expect(apiRouterMock.close).toHaveBeenCalledTimes(1);
         expect(mockServer.closeIdleConnections).toHaveBeenCalled();
+        expect(mockServer.closeAllConnections).toHaveBeenCalled();
         expect(mockServer.close).toHaveBeenCalled();
         expect(indexLocal.getServer()).toBeUndefined();
     });

@@ -1909,4 +1909,24 @@ describe('granular per-trigger labels (fixes #691)', () => {
     test('supportsSimulation should default to true on base Trigger', () => {
         expect(trigger.supportsSimulation()).toBe(true);
     });
+
+    describe('supportsBatch', () => {
+        test('should be false on base Trigger (no triggerBatch implementation)', () => {
+            expect(trigger.supportsBatch()).toBe(false);
+        });
+
+        test('should be true when a subclass implements triggerBatch', () => {
+            class BatchTrigger extends Trigger {
+                async triggerBatch() {}
+            }
+            expect(new BatchTrigger().supportsBatch()).toBe(true);
+        });
+
+        test('should be false when a subclass only implements trigger', () => {
+            class SingleTrigger extends Trigger {
+                async trigger() {}
+            }
+            expect(new SingleTrigger().supportsBatch()).toBe(false);
+        });
+    });
 });

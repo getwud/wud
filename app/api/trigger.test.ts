@@ -63,6 +63,7 @@ describe('API Trigger', () => {
                 name: 'local',
                 configuration: { prune: false },
                 supportsSimulation: false,
+                supportsBatch: false,
             },
             {
                 id: 'legacy.custom',
@@ -70,6 +71,7 @@ describe('API Trigger', () => {
                 name: 'custom',
                 configuration: {},
                 supportsSimulation: false,
+                supportsBatch: false,
             },
             {
                 id: 'mock.fail',
@@ -77,6 +79,7 @@ describe('API Trigger', () => {
                 name: 'fail',
                 configuration: { mockConfig: true },
                 supportsSimulation: true,
+                supportsBatch: false,
             },
             {
                 id: 'mock.test',
@@ -84,6 +87,7 @@ describe('API Trigger', () => {
                 name: 'test',
                 configuration: { mockConfig: true },
                 supportsSimulation: true,
+                supportsBatch: false,
             },
         ]);
     });
@@ -97,6 +101,7 @@ describe('API Trigger', () => {
             name: 'test',
             configuration: { mockConfig: true },
             supportsSimulation: true,
+            supportsBatch: false,
         });
 
         const resAction = await request(app).get('/docker/local');
@@ -107,6 +112,7 @@ describe('API Trigger', () => {
             name: 'local',
             configuration: { prune: false },
             supportsSimulation: false,
+            supportsBatch: false,
         });
     });
 

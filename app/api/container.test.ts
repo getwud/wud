@@ -58,6 +58,10 @@ describe('API Container', () => {
         app.delete('/:id/snooze', containerRouterLocal.unsnoozeContainer);
         app.get('/:id/triggers', containerRouterLocal.getContainerTriggers);
         app.post(
+            '/triggers/:triggerType/:triggerName',
+            containerRouterLocal.runTriggerForContainers,
+        );
+        app.post(
             '/:id/triggers/:triggerType/:triggerName',
             containerRouterLocal.runTriggerForContainer,
         );
@@ -643,6 +647,353 @@ describe('API Container', () => {
             const res = await request(app).delete('/container1/snooze');
             expect(res.status).toBe(500);
             expect(res.body.message).toBe('store error');
+        });
+    });
+
+    describe('runTriggerForContainers (batch)', () => {
+        let containers;
+        const batchTrigger = (triggerBatch) => ({
+            triggerBatch,
+            supportsBatch: () => true,
+        });
+
+        beforeEach(() => {
+            // Fresh objects per test: the handler mutates them (overrideCooldown)
+            containers = {
+                container1: {
+                    id: 'container1',
+                    name: 'app',
+                    updateAvailable: true,
+                },
+                container2: {
+                    id: 'container2',
+                    name: 'db',
+                    updateAvailable: true,
+                },
+                uptodate: {
+                    id: 'uptodate',
+                    name: 'cache',
+                    updateAvailable: false,
+                },
+                snoozed: {
+                    id: 'snoozed',
+                    name: 'proxy',
+                    updateAvailable: true,
+                    isSnoozed: true,
+                },
+                // Mirrors model/container.ts: updateAvailable is a getter that
+                // returns false while cooling down unless overrideCooldown is set
+                cooling: {
+                    id: 'cooling',
+                    name: 'worker',
+                    isCoolingDown: true,
+                    get updateAvailable() {
+                        return Boolean(this.overrideCooldown);
+                    },
+                },
+            };
+            (storeContainer.getContainer as jest.Mock).mockImplementation(
+                (id) => containers[id],
+            );
+        });
+
+        test('should run triggerBatch once with all containers', async () => {
+            const triggerBatch = jest.fn().mockResolvedValue(undefined);
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({ containers: ['container1', 'container2'] });
+
+            expect(res.status).toBe(200);
+            expect(res.body).toEqual({});
+            expect(triggerBatch).toHaveBeenCalledTimes(1);
+            expect(triggerBatch).toHaveBeenCalledWith([
+                containers.container1,
+                containers.container2,
+            ]);
+        });
+
+        test('should deduplicate container ids', async () => {
+            const triggerBatch = jest.fn().mockResolvedValue(undefined);
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({ containers: ['container1', 'container1'] });
+
+            expect(res.status).toBe(200);
+            expect(triggerBatch).toHaveBeenCalledWith([containers.container1]);
+        });
+
+        test('should skip containers without a pending update or snoozed', async () => {
+            const triggerBatch = jest.fn().mockResolvedValue(undefined);
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({
+                    containers: ['uptodate', 'container1', 'snoozed'],
+                });
+
+            expect(res.status).toBe(200);
+            expect(triggerBatch).toHaveBeenCalledWith([containers.container1]);
+        });
+
+        test('should return 400 when no container has a pending update', async () => {
+            const triggerBatch = jest.fn();
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({ containers: ['uptodate', 'snoozed'] });
+
+            expect(res.status).toBe(400);
+            expect(res.body.message).toBe(
+                'None of the containers has a pending update',
+            );
+            expect(triggerBatch).not.toHaveBeenCalled();
+        });
+
+        test('should set overrideCooldown on every container when requested in body', async () => {
+            const triggerBatch = jest.fn().mockResolvedValue(undefined);
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({
+                    containers: ['container1', 'container2'],
+                    overrideCooldown: true,
+                });
+
+            expect(res.status).toBe(200);
+            expect(triggerBatch).toHaveBeenCalledWith([
+                expect.objectContaining({
+                    id: 'container1',
+                    overrideCooldown: true,
+                }),
+                expect.objectContaining({
+                    id: 'container2',
+                    overrideCooldown: true,
+                }),
+            ]);
+        });
+
+        test('should set overrideCooldown when requested as query parameter', async () => {
+            const triggerBatch = jest.fn().mockResolvedValue(undefined);
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main?overrideCooldown=true')
+                .send({ containers: ['container1'] });
+
+            expect(res.status).toBe(200);
+            expect(triggerBatch).toHaveBeenCalledWith([
+                expect.objectContaining({
+                    id: 'container1',
+                    overrideCooldown: true,
+                }),
+            ]);
+        });
+
+        test('should include cooling-down containers when overrideCooldown is requested', async () => {
+            const triggerBatch = jest.fn().mockResolvedValue(undefined);
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({
+                    containers: ['container1', 'cooling'],
+                    overrideCooldown: true,
+                });
+
+            expect(res.status).toBe(200);
+            expect(triggerBatch).toHaveBeenCalledWith([
+                expect.objectContaining({ id: 'container1' }),
+                expect.objectContaining({
+                    id: 'cooling',
+                    overrideCooldown: true,
+                }),
+            ]);
+        });
+
+        test('should skip cooling-down containers when overrideCooldown is not requested', async () => {
+            const triggerBatch = jest.fn().mockResolvedValue(undefined);
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({ containers: ['cooling'] });
+
+            expect(res.status).toBe(400);
+            expect(res.body.message).toBe(
+                'None of the containers has a pending update',
+            );
+            expect(triggerBatch).not.toHaveBeenCalled();
+        });
+
+        test('should not set overrideCooldown when not requested', async () => {
+            const triggerBatch = jest.fn().mockResolvedValue(undefined);
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({ containers: ['container1'] });
+
+            expect(res.status).toBe(200);
+            expect(triggerBatch.mock.calls[0][0][0]).not.toHaveProperty(
+                'overrideCooldown',
+            );
+        });
+
+        test.each([
+            ['missing body', undefined],
+            ['missing containers', {}],
+            ['empty containers', { containers: [] }],
+            ['containers not an array', { containers: 'container1' }],
+            ['non-string ids', { containers: ['container1', 42] }],
+            ['empty id', { containers: [''] }],
+            ['body is an array', ['container1']],
+            [
+                'invalid overrideCooldown',
+                { containers: ['container1'], overrideCooldown: 'maybe' },
+            ],
+        ])('should return 400 when %s', async (_label, body) => {
+            const triggerBatch = jest.fn();
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
+            });
+
+            const req = request(app).post('/triggers/dockercompose/main');
+            const res = body === undefined ? await req : await req.send(body);
+
+            expect(res.status).toBe(400);
+            expect(res.body.error).toBe('Bad Request');
+            expect(res.body.message).toContain('Invalid request body');
+            expect(triggerBatch).not.toHaveBeenCalled();
+        });
+
+        test('should return 404 when trigger is unknown', async () => {
+            (registry.getState as jest.Mock).mockReturnValue({ trigger: {} });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/unknown')
+                .send({ containers: ['container1'] });
+
+            expect(res.status).toBe(404);
+            expect(res.body.message).toBe('Trigger not found');
+        });
+
+        test.each([
+            ['declares no batch support', { supportsBatch: () => false }],
+            ['has no supportsBatch method', {}],
+        ])(
+            'should return 400 before resolving containers when the trigger %s',
+            async (_label, triggerShape) => {
+                const triggerBatch = jest.fn();
+                (registry.getState as jest.Mock).mockReturnValue({
+                    trigger: {
+                        'mqtt.home': { triggerBatch, ...triggerShape },
+                    },
+                });
+
+                const res = await request(app)
+                    .post('/triggers/mqtt/home')
+                    .send({ containers: ['does-not-exist'] });
+
+                expect(res.status).toBe(400);
+                expect(res.body.message).toBe(
+                    'Trigger mqtt.home does not support batch execution',
+                );
+                expect(storeContainer.getContainer).not.toHaveBeenCalled();
+                expect(triggerBatch).not.toHaveBeenCalled();
+            },
+        );
+
+        test('should return 404 listing unknown containers without running the trigger', async () => {
+            const triggerBatch = jest.fn();
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({ containers: ['container1', 'nope1', 'nope2'] });
+
+            expect(res.status).toBe(404);
+            expect(res.body.message).toBe('Container not found (nope1, nope2)');
+            expect(triggerBatch).not.toHaveBeenCalled();
+        });
+
+        test('should return 500 when triggerBatch fails', async () => {
+            const triggerBatch = jest
+                .fn()
+                .mockRejectedValue(new Error('compose file locked'));
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: { 'dockercompose.main': batchTrigger(triggerBatch) },
+            });
+
+            const res = await request(app)
+                .post('/triggers/dockercompose/main')
+                .send({ containers: ['container1', 'container2'] });
+
+            expect(res.status).toBe(500);
+            expect(res.body).toEqual({
+                error: 'Trigger execution failed',
+                message:
+                    'Error when running trigger (type=dockercompose, name=main) (compose file locked)',
+            });
+        });
+
+        test('should expose supportsBatch in the triggers of a container', async () => {
+            (storeContainer.getContainer as jest.Mock).mockReturnValue({
+                id: 'container1',
+                labels: {},
+            });
+            (registry.getState as jest.Mock).mockReturnValue({
+                trigger: {
+                    'dockercompose.main': {
+                        type: 'dockercompose',
+                        name: 'main',
+                        configuration: { includebydefault: true },
+                        maskConfiguration: () => ({}),
+                        supportsBatch: () => true,
+                    },
+                    'mqtt.home': {
+                        type: 'mqtt',
+                        name: 'home',
+                        configuration: { includebydefault: true },
+                        maskConfiguration: () => ({}),
+                        supportsBatch: () => false,
+                    },
+                },
+            });
+
+            const res = await request(app).get('/container1/triggers');
+
+            expect(res.status).toBe(200);
+            expect(res.body.map((t) => [t.id, t.supportsBatch])).toEqual([
+                ['dockercompose.main', true],
+                ['mqtt.home', false],
+            ]);
         });
     });
 });
