@@ -582,8 +582,7 @@ class Trigger extends Component {
      */
     isTriggerEnabled(containerResult: Container): boolean {
         const labels = containerResult.labels as
-            | Record<string, unknown>
-            | undefined;
+            Record<string, unknown> | undefined;
 
         if (this.type && this.name) {
             const instanceVal = Trigger.parseBooleanLabel(
@@ -609,13 +608,11 @@ class Trigger extends Component {
         const triggerInclude =
             containerResult.triggerInclude ||
             (Trigger.findLabelValue(labels, 'trigger.include') as
-                | string
-                | undefined);
+                string | undefined);
         const triggerExclude =
             containerResult.triggerExclude ||
             (Trigger.findLabelValue(labels, 'trigger.exclude') as
-                | string
-                | undefined);
+                string | undefined);
 
         return (
             this.isTriggerIncluded(containerResult, triggerInclude) &&

@@ -573,8 +573,7 @@ class Docker extends Trigger {
 
     getWatcher(container: Container): DockerWatcher | undefined {
         return getState().watcher[`docker.${container.watcher}`] as
-            | DockerWatcher
-            | undefined;
+            DockerWatcher | undefined;
     }
 
     /**
@@ -1667,8 +1666,8 @@ class Docker extends Trigger {
         if (updateKind === 'digest') {
             return Boolean(
                 remoteDigest &&
-                    remoteDigest !== currentDigest &&
-                    remoteDigest !== '',
+                remoteDigest !== currentDigest &&
+                remoteDigest !== '',
             );
         }
 

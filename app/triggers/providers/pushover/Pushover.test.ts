@@ -44,7 +44,7 @@ test('validateConfiguration should fail when priority is 2 and no retry set', as
             ...configurationValid,
             priority: 2,
         });
-    }).toThrowError(ValidationError);
+    }).toThrow(ValidationError);
 });
 
 test('validateConfiguration should fail when priority is 2 and retry too small', async () => {
@@ -54,7 +54,7 @@ test('validateConfiguration should fail when priority is 2 and retry too small',
             priority: 2,
             retry: 10,
         });
-    }).toThrowError(ValidationError);
+    }).toThrow(ValidationError);
 });
 
 test('validateConfiguration should fail when priority is 2 and no expire', async () => {
@@ -64,7 +64,7 @@ test('validateConfiguration should fail when priority is 2 and no expire', async
             priority: 2,
             retry: 100,
         });
-    }).toThrowError(ValidationError);
+    }).toThrow(ValidationError);
 });
 
 test('validateConfiguration should succeed when priority is 2 and expire and retry set', async () => {

@@ -60,7 +60,7 @@ test('validateConfiguration should throw error when invalid', async () => {
     };
     expect(() => {
         trigger.validateConfiguration(configuration);
-    }).toThrowError(ValidationError);
+    }).toThrow(ValidationError);
 });
 
 test('init should register to container report when simple mode enabled', async () => {
@@ -753,9 +753,8 @@ test('renderTemplate should fall back link to changelogUrl when link is absent (
 });
 
 test('renderSimpleBody should include changelogUrl from container.result.link in default simplebody template (#1501)', async () => {
-    const { validate: validateContainer } = await import(
-        '../../model/container'
-    );
+    const { validate: validateContainer } =
+        await import('../../model/container');
     const validated = validateContainer({
         id: 'c-1',
         name: 'my-service',

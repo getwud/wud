@@ -10,6 +10,7 @@ description: Unreleased changes and upcoming features in WUD (What's Up Docker?)
 ---
 
 - 🚀 [API] Add `POST /api/containers/triggers/{type}/{name}` to run a trigger once for several containers, so batch-capable triggers such as `dockercompose` rewrite and recreate a compose stack only once; triggers now expose `supportsBatch` (#767, #1410)
+- 🚀 [DEPS] Upgrade project dependencies across all modules
 - 🚀 [TRIGGER] Docker Compose trigger recreates the services of a stack in `depends_on` order when several of them are updated together: dependencies first (waiting for `service_healthy` ones), dependents after, WUD itself last; a failed service stops the recreation of its dependents (#1410)
 - 🚀 [TRIGGER] Docker Compose trigger gains `WUD_TRIGGER_DOCKERCOMPOSE_{trigger_name}_RECREATE=false` to only rewrite the Compose file and leave the restart to you (#1410)
 - 🚀 [UI] Select several containers on the Containers page and update them together with "Update selected"; "Add rest of stack" completes the selection with the other updatable containers of the same compose stack(s) (#767, #1410)

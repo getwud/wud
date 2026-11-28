@@ -5,9 +5,7 @@ import { SocksProxyAgent } from 'socks-proxy-agent';
 import { getProxyForUrl } from 'proxy-from-env';
 
 export type ProxyAgent =
-    | HttpsProxyAgent<string>
-    | HttpProxyAgent<string>
-    | SocksProxyAgent;
+    HttpsProxyAgent<string> | HttpProxyAgent<string> | SocksProxyAgent;
 
 export interface AxiosProxyConfig {
     httpsAgent?: ProxyAgent;

@@ -107,8 +107,7 @@ export function parseUpstreamImageRef(
         return undefined;
     }
     const parsed = parse(reference) as
-        | { domain?: string; path?: string; tag?: string }
-        | undefined;
+        { domain?: string; path?: string; tag?: string } | undefined;
     if (!parsed || !parsed.path) {
         return undefined;
     }

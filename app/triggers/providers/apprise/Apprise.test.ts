@@ -52,7 +52,7 @@ test('validateConfiguration should throw error when invalid', async () => {
     };
     expect(() => {
         apprise.validateConfiguration(configuration);
-    }).toThrowError(ValidationError);
+    }).toThrow(ValidationError);
 });
 
 test('validateConfiguration should throw error when urls and config are set at the same time', async () => {
@@ -62,7 +62,7 @@ test('validateConfiguration should throw error when urls and config are set at t
     };
     expect(() => {
         apprise.validateConfiguration(configuration);
-    }).toThrowError(ValidationError);
+    }).toThrow(ValidationError);
 });
 
 test('trigger should send POST http request to notify endpoint', async () => {

@@ -60,8 +60,8 @@ export function extractTagComponents(tag) {
     // 3. Extract version and suffix
     // Look for numeric sequence (e.g. 1.2.3, 16.3, 4.0.13.2932, or bare 8)
     const verMatch = remaining.match(/^(\d+(?:\.\d+)*)(.*)$/);
-    let version = '';
-    let suffix = '';
+    let version: string;
+    let suffix: string;
 
     if (verMatch) {
         version = verMatch[1];

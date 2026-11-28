@@ -95,7 +95,7 @@ export async function resolveCandidateConfig(
         (prev) =>
             Boolean(
                 (prev.digest && prev.digest === candidateRemoteDigest.digest) ||
-                    (prev.tag === candidateTag && prev.created !== undefined),
+                (prev.tag === candidateTag && prev.created !== undefined),
             ),
         logContainer,
     );

@@ -11,9 +11,9 @@ jest.mock('axios', () => ({
     isAxiosError: (error: unknown): boolean =>
         Boolean(
             error &&
-                typeof error === 'object' &&
-                'isAxiosError' in error &&
-                (error as { isAxiosError: boolean }).isAxiosError === true,
+            typeof error === 'object' &&
+            'isAxiosError' in error &&
+            (error as { isAxiosError: boolean }).isAxiosError === true,
         ),
 }));
 

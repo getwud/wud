@@ -68,7 +68,7 @@ test('validateConfiguration should throw error when invalid', async () => {
     const configuration = {};
     expect(() => {
         ifttt.validateConfiguration(configuration);
-    }).toThrowError(ValidationError);
+    }).toThrow(ValidationError);
 });
 
 test('maskConfiguration should mask sensitive data', async () => {

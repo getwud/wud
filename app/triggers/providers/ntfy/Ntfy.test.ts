@@ -78,14 +78,14 @@ test('validateConfiguration should throw error when icon is invalid', async () =
             ...configurationValid,
             icon: 'not-a-valid-url',
         });
-    }).toThrowError(ValidationError);
+    }).toThrow(ValidationError);
 
     expect(() => {
         ntfy.validateConfiguration({
             ...configurationValid,
             icon: 'ftp://example.com/icon.png',
         });
-    }).toThrowError(ValidationError);
+    }).toThrow(ValidationError);
 });
 
 test('validateConfiguration should throw error when invalid', async () => {
@@ -94,7 +94,7 @@ test('validateConfiguration should throw error when invalid', async () => {
     };
     expect(() => {
         ntfy.validateConfiguration(configuration);
-    }).toThrowError(ValidationError);
+    }).toThrow(ValidationError);
 });
 
 test('maskConfiguration should mask sensitive data', async () => {
@@ -334,7 +334,7 @@ test('validateConfiguration should throw error when click is not a string', asyn
             ...configurationValid,
             click: 12345,
         });
-    }).toThrowError(ValidationError);
+    }).toThrow(ValidationError);
 });
 
 test('trigger should include evaluated click in payload when configured with template', async () => {

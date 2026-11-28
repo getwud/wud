@@ -165,7 +165,7 @@ test('validateConfiguration should throw error when invalid', async () => {
     };
     expect(() => {
         docker.validateConfiguration(configuration);
-    }).toThrowError(ValidationError);
+    }).toThrow(ValidationError);
 });
 
 test('getWatcher should return watcher responsible for a container', async () => {
@@ -197,7 +197,7 @@ test('getCurrentContainer should throw error when error occurs', async () => {
                 id: 'unknown',
             },
         ),
-    ).rejects.toThrowError('Error when getting container');
+    ).rejects.toThrow('Error when getting container');
 });
 
 test('inspectContainer should return container details from dockerApi', async () => {
@@ -219,7 +219,7 @@ test('inspectContainer should throw error when error occurs', async () => {
             },
             log,
         ),
-    ).rejects.toThrowError('No container');
+    ).rejects.toThrow('No container');
 });
 
 test('stopContainer should stop container from dockerApi', async () => {
@@ -245,7 +245,7 @@ test('stopContainer should throw error when error occurs', async () => {
             'id',
             log,
         ),
-    ).rejects.toThrowError('No container');
+    ).rejects.toThrow('No container');
 });
 
 test('removeContainer should stop container from dockerApi', async () => {
@@ -271,7 +271,7 @@ test('removeContainer should throw error when error occurs', async () => {
             'id',
             log,
         ),
-    ).rejects.toThrowError('No container');
+    ).rejects.toThrow('No container');
 });
 
 test('waitContainerRemoved should wait for the container to be removed from dockerApi', async () => {
@@ -297,7 +297,7 @@ test('waitContainerRemoved should throw error when error occurs', async () => {
             'id',
             log,
         ),
-    ).rejects.toThrowError('No container');
+    ).rejects.toThrow('No container');
 });
 
 test('startContainer should stop container from dockerApi', async () => {
@@ -321,7 +321,7 @@ test('startContainer should throw error when error occurs', async () => {
             'name',
             log,
         ),
-    ).rejects.toThrowError('No container');
+    ).rejects.toThrow('No container');
 });
 
 test('createContainer should stop container from dockerApi', async () => {
@@ -347,7 +347,7 @@ test('createContainer should throw error when error occurs', async () => {
             'name',
             log,
         ),
-    ).rejects.toThrowError('Error when creating container');
+    ).rejects.toThrow('Error when creating container');
 });
 
 test('pull should pull image from dockerApi', async () => {
@@ -369,7 +369,7 @@ test('pull should throw error when error occurs', async () => {
             'test/test:unknown',
             log,
         ),
-    ).rejects.toThrowError('Error when pulling image');
+    ).rejects.toThrow('Error when pulling image');
 });
 
 test('pullImage should throw error when followProgress encounters a stream error', async () => {
@@ -385,7 +385,7 @@ test('pullImage should throw error when followProgress encounters a stream error
 
     await expect(
         docker.pullImage(mockDockerApi, undefined, 'test/test:1.2.3', log),
-    ).rejects.toThrowError('Stream connection lost');
+    ).rejects.toThrow('Stream connection lost');
 });
 
 test('pullImage should throw error when followProgress output contains error', async () => {
@@ -405,7 +405,7 @@ test('pullImage should throw error when followProgress output contains error', a
 
     await expect(
         docker.pullImage(mockDockerApi, undefined, 'test/test:1.2.3', log),
-    ).rejects.toThrowError(
+    ).rejects.toThrow(
         'toomanyrequests: You have reached your pull rate limit.',
     );
 });
@@ -429,7 +429,7 @@ test('pullImage should throw error when followProgress output contains errorDeta
 
     await expect(
         docker.pullImage(mockDockerApi, undefined, 'test/test:1.2.3', log),
-    ).rejects.toThrowError('failed to register layer: untar error');
+    ).rejects.toThrow('failed to register layer: untar error');
 });
 
 test('pullImage should resolve when pull stream completes successfully without errors', async () => {
@@ -750,7 +750,7 @@ test('removeImage should throw error when error occurs', async () => {
             'test/test:unknown',
             log,
         ),
-    ).rejects.toThrowError('Error when removing image');
+    ).rejects.toThrow('Error when removing image');
 });
 
 test('clone should clone an existing container spec', async () => {

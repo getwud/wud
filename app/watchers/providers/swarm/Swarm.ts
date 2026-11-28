@@ -289,7 +289,7 @@ export class Swarm extends Watcher {
     }
 
     async getContainers(): Promise<Container[]> {
-        let services: any[] = [];
+        let services: any[];
         try {
             services = await this.docker.listServices();
         } catch (e: any) {
@@ -302,7 +302,9 @@ export class Swarm extends Watcher {
                 );
                 return [];
             }
-            throw new Error(`Failed to list Swarm services: ${e.message}`);
+            throw new Error(`Failed to list Swarm services: ${e.message}`, {
+                cause: e,
+            });
         }
 
         const architecture = await this.getClusterArchitecture();
@@ -915,7 +917,7 @@ export class Swarm extends Watcher {
             );
             const resultChanged = Boolean(
                 containerInDb.resultChanged &&
-                    containerInDb.resultChanged(containerReport.container),
+                containerInDb.resultChanged(containerReport.container),
             );
             containerReport.changed =
                 (resultChanged || transitionedOutOfCooldown) &&

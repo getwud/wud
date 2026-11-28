@@ -41,13 +41,11 @@ export function getAssociatedTriggerIds(
     const triggerInclude =
         container.triggerInclude ||
         (Trigger.findLabelValue(labels, 'trigger.include') as
-            | string
-            | undefined);
+            string | undefined);
     const triggerExclude =
         container.triggerExclude ||
         (Trigger.findLabelValue(labels, 'trigger.exclude') as
-            | string
-            | undefined);
+            string | undefined);
 
     const includedTriggers = triggerInclude
         ? triggerInclude

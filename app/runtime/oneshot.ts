@@ -251,7 +251,7 @@ async function runWatch(parsed: OneShotParsedArgs): Promise<number> {
         return EXIT_ERROR;
     }
 
-    let containers: Container[] = [];
+    let containers: Container[];
     try {
         const watcherReports = await Promise.all(
             watchers.map((watcher) => watcher.watch()),

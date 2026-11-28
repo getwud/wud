@@ -185,7 +185,7 @@ async function registerComponent(
             e.message,
             availableProviders,
         );
-        throw new Error(helpfulMessage);
+        throw new Error(helpfulMessage, { cause: e });
     }
 }
 
@@ -424,6 +424,7 @@ async function deregisterComponent(component: Component, kind: ComponentKind) {
     } catch (e: any) {
         throw new Error(
             `Error when deregistering component ${component.getId()} (${e.message})`,
+            { cause: e },
         );
     } finally {
         const components = getState()[kind];
@@ -495,7 +496,9 @@ export async function deregisterAll() {
         await deregisterRegistries();
         await deregisterAuthentications();
     } catch (e: any) {
-        throw new Error(`Error when trying to deregister ${e.message}`);
+        throw new Error(`Error when trying to deregister ${e.message}`, {
+            cause: e,
+        });
     }
 }
 

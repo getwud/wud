@@ -641,8 +641,8 @@ class Oidc extends Authentication {
         let determinedRole: UserRole | 'none' = this.configuration.defaultrole;
         const hasGroupConfig = Boolean(
             this.configuration.admingroup ||
-                this.configuration.rwgroup ||
-                this.configuration.rogroup,
+            this.configuration.rwgroup ||
+            this.configuration.rogroup,
         );
 
         if (hasGroupConfig) {
