@@ -21,12 +21,12 @@ Feature: WUD Container API Exposure
     And response body path $[<index>].updateAvailable should be <updateAvailable>
     Examples:
       | index | registry       | containerName            | registryUrl                                             | imageName                    | tag               | resultTag         | updateAvailable | testCase                     |
-      | 1     | ghcr.private   | ghcr_radarr              | https://ghcr.io/v2                                      | linuxserver/radarr           | 5.14.0.9383-ls245 | 7.0.3.10918-ls328 | true            | GHCR complex semver update   |
+      | 1     | ghcr.private   | ghcr_radarr              | https://ghcr.io/v2                                      | linuxserver/radarr           | 5.14.0.9383-ls245 | 6.0.4.10291-ls296 | true            | GHCR complex semver update   |
       | 3     | hub.public     | hub_alpine_latest        | https://registry-1.docker.io/v2                         | library/alpine               | latest            | latest            | false           | Hub latest tag no update     |
-      | 4     | hub.public     | hub_homeassistant_202161 | https://registry-1.docker.io/v2                         | homeassistant/home-assistant | 2021.6.1          | 2026.11.2         | true            | Hub date-based versioning    |
+      | 4     | hub.public     | hub_homeassistant_202161 | https://registry-1.docker.io/v2                         | homeassistant/home-assistant | 2021.6.1          | 2021.12.10        | true            | Hub date-based versioning    |
       | 5     | hub.public     | hub_nginx_latest         | https://registry-1.docker.io/v2                         | library/nginx                | latest            | latest            | true            | Hub latest tag digest update |
-      | 6     | lscr.private   | lscr_radarr              | https://lscr.io/v2                                      | linuxserver/radarr           | 5.14.0.9383-ls245 | 7.0.3.10918-ls328 | true            | LSCR complex semver update   |
-      | 7     | quay.public    | quay_prometheus          | https://quay.io/v2                                      | prometheus/prometheus        | v2.52.0           | v3.16.0           | true            | Quay semver major update     |
+      | 6     | lscr.private   | lscr_radarr              | https://lscr.io/v2                                      | linuxserver/radarr           | 5.14.0.9383-ls245 | 6.0.4.10291-ls296 | true            | LSCR complex semver update   |
+      | 7     | quay.public    | quay_prometheus          | https://quay.io/v2                                      | prometheus/prometheus        | v2.52.0           | v3.0.1            | true            | Quay semver major update     |
 
     @ci-only
     Examples:
@@ -59,7 +59,8 @@ Feature: WUD Container API Exposure
     And response body path $.name should be hub_nginx_latest
     And response body path $.image.tag.semver should be false
     And response body path $.image.digest.value should be sha256:4aacdcf186934dcb02f642579314075910f1855590fd3039d8fa4c9f96e48315
-    And response body path $.result.digest should be sha256:5b9ebb95001cc4f5242fbc3e1a9ac76d313c8ba197c7e5803a77d3f7879f0cda
+    And response body path $.result.digest should be ^sha256:[0-9a-f]{64}$
+    And response body path $.result.digest should not be sha256:4aacdcf186934dcb02f642579314075910f1855590fd3039d8fa4c9f96e48315
     And response body path $.updateAvailable should be true
 
   # Test link functionality
@@ -70,7 +71,8 @@ Feature: WUD Container API Exposure
     Then response code should be 200
     And response body should be valid json
     And response body path $.link should be https://github.com/home-assistant/core/releases/tag/2021.6.1
-    And response body path $.result.link should be https://github.com/home-assistant/core/releases/tag/2026.11.2
+    And response body path $.result.link should be https://github.com/home-assistant/core/releases/tag/2021.12.10
+    And response body path $.result.digest should be sha256:50c0c8b5e6a8915e75b8e7619507fcd5fd0cd825df4188c8c11f80c8f191f1ec
 
   # Test watch trigger functionality
   @ci-only

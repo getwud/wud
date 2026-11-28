@@ -94,7 +94,7 @@ services:
     pull_policy: never
     labels:
       - 'wud.watch=true'
-      - 'wud.tag.include=^\d+\.\d+\.\d+\.\d+-ls\d+$$'
+      - 'wud.tag.include=^6\.0\.\d+\.\d+-ls\d+$$'
 
   gitlab_test:
     image: registry.gitlab.com/gitlab-org/gitlab-runner:v16.0.0
@@ -124,7 +124,7 @@ services:
     pull_policy: never
     labels:
       - 'wud.watch=true'
-      - 'wud.tag.include=^\d+\.\d+.\d+$$'
+      - 'wud.tag.include=^2021\.12\.\d+$$'
       - 'wud.link.template=https://github.com/home-assistant/core/releases/tag/$${major}.$${minor}.$${patch}'
       - 'wud.display.icon=mdi:home-assistant'
 
@@ -146,7 +146,7 @@ services:
     pull_policy: never
     labels:
       - 'wud.watch=true'
-      - 'wud.tag.include=^\d+\.\d+\.\d+\.\d+-ls\d+$$'
+      - 'wud.tag.include=^6\.0\.\d+\.\d+-ls\d+$$'
       - 'wud.display.icon=mdi:movie-open'
 
   trueforge_radarr:
@@ -172,5 +172,5 @@ services:
       - /prometheus:rw,mode=777
     labels:
       - 'wud.watch=true'
-      - 'wud.tag.include=^v\d+\.\d+\.\d+$$'
+      - 'wud.tag.include=^v3\.0\.\d+$$'
       - 'wud.display.icon=mdi:chart-areaspline'
