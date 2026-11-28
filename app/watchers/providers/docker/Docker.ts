@@ -798,6 +798,25 @@ export class Docker extends Watcher {
     }
 
     /**
+     * Return the configuration with only the connection settings in use:
+     * host, port and TLS files when a host is set, otherwise the socket.
+     */
+    maskConfiguration(
+        configuration?: ComponentConfiguration,
+    ): ComponentConfiguration {
+        const conf = { ...(configuration || this.configuration) };
+        if (conf.host) {
+            delete conf.socket;
+        } else {
+            delete conf.port;
+            delete conf.cafile;
+            delete conf.certfile;
+            delete conf.keyfile;
+        }
+        return conf;
+    }
+
+    /**
      * Deregister the component.
      */
     async deregisterComponent() {
